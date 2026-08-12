@@ -5,19 +5,45 @@ on:
   pull_request:
 
 jobs:
-  syntax:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Validate manifest
-        run: node -e "const m=JSON.parse(require('fs').readFileSync('manifest.json','utf8')); if(m.name!=='NiakGPT') throw new Error('wrong name'); if(!m.content_scripts.every(x=>x.matches.every(v=>v==='https://chatgpt.com/*'))) throw new Error('unexpected host'); console.log('manifest OK',m.version)"
+
+      - name: Validate manifest scope and single engine
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const m = JSON.parse(fs.readFileSync('manifest.json','utf8'));
+          if (m.name !== 'NiakGPT') throw new Error('wrong extension name');
+          if (m.version !== '0.5.0') throw new Error('wrong build version');
+          if (JSON.stringify(m.host_permissions) !== JSON.stringify(['https://chatgpt.com/*'])) throw new Error('host scope must be ChatGPT only');
+          if (!m.content_scripts.every(x => x.matches.every(v => v === 'https://chatgpt.com/*'))) throw new Error('unexpected content-script host');
+          const isolated = m.content_scripts.find(x => x.world !== 'MAIN');
+          if (!isolated) throw new Error('isolated content script missing');
+          if (JSON.stringify(isolated.js) !== JSON.stringify(['app-v05.js'])) throw new Error('legacy JS is still loaded');
+          if (JSON.stringify(isolated.css) !== JSON.stringify(['theme-v05.css'])) throw new Error('legacy CSS is still loaded');
+          console.log('manifest v0.5 single-engine OK');
+          NODE
+
       - name: Check JavaScript syntax
         run: |
           node --check page-bridge.js
-          node --check content.js
-          node --check smart.js
-          node --check visual.js
-          node --check matrix.js
+          node --check app-v05.js
+
+      - name: Check required UX features
+        run: |
+          grep -q 'ng5-pinned-projects' app-v05.js
+          grep -q 'repairOrganization' app-v05.js
+          grep -q 'suggestionSet' app-v05.js
+          grep -q 'ng5-matrix' app-v05.js
+          grep -q 'BY SKYNET' app-v05.js
+          grep -q 'ng5-codebar' app-v05.js
+          grep -q 'ng5-pinned-projects' theme-v05.css
+          grep -q 'ng5-coach' theme-v05.css
+          grep -q 'ng5-matrix' theme-v05.css
+          if grep -E '#ng5-coach\{[^}]*position:fixed' theme-v05.css; then exit 1; fi
+          echo 'required UX features OK'

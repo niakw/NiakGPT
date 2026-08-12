@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.4.0",
-  "description": "Workspace power-user local pour ChatGPT : organisation, navigation, prompts adaptatifs, sommaire, performance et direction artistique.",
+  "version": "0.5.0",
+  "description": "Workspace power-user local pour ChatGPT : Projects, navigation rapide, prompts adaptatifs, performance et direction artistique.",
   "permissions": ["storage"],
   "host_permissions": ["https://chatgpt.com/*"],
   "content_scripts": [
@@ -14,8 +14,8 @@
     },
     {
       "matches": ["https://chatgpt.com/*"],
-      "css": ["styles.css", "theme-vscode.css"],
-      "js": ["content.js", "smart.js", "visual.js", "matrix.js"],
+      "css": ["theme-v05.css"],
+      "js": ["app-v05.js"],
       "run_at": "document_idle"
     }
   ],

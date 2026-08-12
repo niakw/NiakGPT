@@ -19,52 +19,57 @@ jobs:
           const fs = require('fs');
           const m = JSON.parse(fs.readFileSync('manifest.json','utf8'));
           if (m.name !== 'NiakGPT') throw new Error('wrong extension name');
-          if (m.version !== '0.7.0') throw new Error('wrong build version');
+          if (m.version !== '0.8.0') throw new Error('wrong build version');
           if (JSON.stringify(m.host_permissions) !== JSON.stringify(['https://chatgpt.com/*'])) throw new Error('host scope must be ChatGPT only');
           if (!m.content_scripts.every(x => x.matches.every(v => v === 'https://chatgpt.com/*'))) throw new Error('unexpected content-script host');
           const isolated = m.content_scripts.find(x => x.world !== 'MAIN');
-          if (!isolated) throw new Error('isolated content script missing');
-          if (JSON.stringify(isolated.js) !== JSON.stringify(['app-v07.js'])) throw new Error('only v0.7 engine may be loaded');
-          if (JSON.stringify(isolated.css) !== JSON.stringify(['theme-v07.css'])) throw new Error('only v0.7 theme may be loaded');
+          if (!isolated) throw new Error('isolated script missing');
+          if (JSON.stringify(isolated.js) !== JSON.stringify(['app-v08-safe.js'])) throw new Error('only v0.8 safe engine may be loaded');
+          if (JSON.stringify(isolated.css) !== JSON.stringify(['theme-v08.css'])) throw new Error('only v0.8 theme may be loaded');
           if (isolated.run_at !== 'document_start') throw new Error('runtime must start immediately');
-          console.log('manifest v0.7.0 runtime OK');
+          console.log('manifest v0.8.0 OK');
           NODE
 
       - name: Check JavaScript syntax
         run: |
           node --check page-bridge.js
-          node --check app-v07.js
+          node --check app-v08-safe.js
 
-      - name: Check exhaustive data layer
+      - name: Check idle-safe performance architecture
         run: |
-          grep -q 'fetchAllProjects' app-v07.js
-          grep -q 'cursor' app-v07.js
-          grep -q 'fetchAllGeneralChats' app-v07.js
-          grep -q 'has_more' app-v07.js
-          grep -q 'fetchAllProjectChats' app-v07.js
-          grep -q 'projectCounts' app-v07.js
-          grep -q 'normalizeProjectId' app-v07.js
-          grep -q 'await rpc(path,{method:' app-v07.js
-          grep -q 'const verify=await rpc(path' app-v07.js
+          grep -q 'requestIdleCallback' app-v08-safe.js
+          grep -q 'scheduleQueue' app-v08-safe.js
+          grep -q 'runOneIndex' app-v08-safe.js
+          grep -q 'if(S.indexing||S.generating' app-v08-safe.js
+          grep -q 'if(S.generating)return' app-v08-safe.js
+          grep -q 'chrome.storage.local' app-v08-safe.js
+          if grep -q 'observe(document.documentElement' app-v08-safe.js; then exit 1; fi
+          if grep -q 'perf-guard' manifest.json; then exit 1; fi
 
-      - name: Check UX and automation
+      - name: Check Projects, counts, Quick Open and organization
         run: |
-          grep -q 'repairOrganization' app-v07.js
-          grep -q 'tryNativePins' app-v07.js
-          grep -q 'ng7-pinned-projects' app-v07.js
-          grep -q 'openQuick' app-v07.js
-          grep -q 'suggestionSet' app-v07.js
-          grep -q 'ng7-matrix' app-v07.js
-          grep -q 'BY SKYNET' app-v07.js
-          grep -q 'ng7-codebar' app-v07.js
-          grep -q 'ng7-panel-open' app-v07.js
-          grep -q 'ng7-chat-row' theme-v07.css
-          grep -q 'data-ng7-zebra' theme-v07.css
-          grep -q 'ng7-project-row' theme-v07.css
-          grep -q 'sidebar-surface-primary' theme-v07.css
-          grep -q 'main-surface-primary' theme-v07.css
-          grep -q 'form:has(#prompt-textarea)' theme-v07.css
-          grep -q 'content-visibility:auto' theme-v07.css
-          if grep -E '#ng7-coach\{[^}]*position:fixed' theme-v07.css; then exit 1; fi
-          if grep -q 'perf-guard.js' manifest.json; then exit 1; fi
-          echo 'v0.7 exhaustive data, UX and forced theme checks OK'
+          grep -q 'fetchProjects' app-v08-safe.js
+          grep -q 'fetchProjectChats' app-v08-safe.js
+          grep -q 'fetchGeneralBestEffort' app-v08-safe.js
+          grep -q 'S.counts.set(p.id,m.size)' app-v08-safe.js
+          grep -q 'repairOrganization' app-v08-safe.js
+          grep -q 'bestTarget' app-v08-safe.js
+          grep -q 'const verify=await rpc(path)' app-v08-safe.js
+          grep -q 'nativePinnedIds' app-v08-safe.js
+          grep -q 'tryNativePins' app-v08-safe.js
+          grep -q 'openQuick' app-v08-safe.js
+          grep -q 'PROJECTS ÉPINGLÉS' app-v08-safe.js
+
+      - name: Check forced DA and composer safety
+        run: |
+          grep -q 'a\[data-ng8-chat="1"\]\[data-ng8-zebra="0"\]' theme-v08.css
+          grep -q 'a\[data-ng8-chat="1"\]\[data-ng8-zebra="1"\]' theme-v08.css
+          grep -q 'a\[data-ng8-project="1"\]' theme-v08.css
+          grep -q 'interactive-bg-primary-default' theme-v08.css
+          grep -q 'button\[data-testid\*="send"\]' theme-v08.css
+          grep -q 'ng8-current-project' theme-v08.css
+          grep -q '#ng8-matrix' theme-v08.css
+          grep -q 'form:has(#prompt-textarea)' theme-v08.css
+          grep -q 'BY SKYNET' app-v08-safe.js
+          if grep -E '#ng8-coach\{[^}]*position:fixed' theme-v08.css; then exit 1; fi
+          echo 'v0.8 performance + data + forced DA checks OK'

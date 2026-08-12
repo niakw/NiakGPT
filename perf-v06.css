@@ -1,0 +1,17 @@
+/* NiakGPT v0.6 — heavy-thread / streaming performance mode */
+html[data-ng6-running="1"] #ng6-matrix{opacity:.08!important;filter:none!important}
+html[data-ng6-running="1"] #ng6-coach,
+html[data-ng6-running="1"] .ng6-bot{display:none!important}
+html[data-ng6-running="1"] main{background:#080d12!important}
+html[data-ng6-running="1"] [data-ng6-turn]{box-shadow:none!important;transition:none!important}
+html[data-ng6-running="1"] [data-ng6-role="user"]{background:rgba(55,148,255,.045)!important}
+html[data-ng6-running="1"] [data-ng6-role="assistant"]{background:rgba(78,201,176,.035)!important}
+html[data-ng6-running="1"] pre[data-ng6-code="1"]{box-shadow:inset 2px 0 #3794ff!important}
+html[data-ng6-running="1"] [data-ng6-turn].ng6-offscreen{content-visibility:hidden!important;contain:strict!important;contain-intrinsic-size:auto 520px!important}
+html[data-ng6-running="1"][data-ng6-heavy="1"] [data-ng6-turn].ng6-perf:not(.ng6-offscreen){contain:layout paint style!important}
+html[data-ng6-running="1"] [data-ng6-chat-row="1"],
+html[data-ng6-running="1"] [data-ng6-project-row="1"],
+html[data-ng6-running="1"] #ng6-rail,
+html[data-ng6-running="1"] #ng6-panel{transition:none!important;box-shadow:none!important}
+html[data-ng6-running="1"][data-ng6-heavy="1"] #ng6-pinned-projects{max-height:180px;overflow:auto}
+html[data-ng6-running="1"][data-ng6-heavy="1"] #ng6-panel:not(.open){display:none!important}

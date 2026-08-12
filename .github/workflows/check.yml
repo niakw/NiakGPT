@@ -13,8 +13,11 @@ jobs:
         with:
           node-version: '22'
       - name: Validate manifest
-        run: node -e "JSON.parse(require('fs').readFileSync('manifest.json','utf8')); console.log('manifest OK')"
+        run: node -e "const m=JSON.parse(require('fs').readFileSync('manifest.json','utf8')); if(m.name!=='NiakGPT') throw new Error('wrong name'); if(!m.content_scripts.every(x=>x.matches.every(v=>v==='https://chatgpt.com/*'))) throw new Error('unexpected host'); console.log('manifest OK',m.version)"
       - name: Check JavaScript syntax
         run: |
           node --check page-bridge.js
           node --check content.js
+          node --check smart.js
+          node --check visual.js
+          node --check matrix.js

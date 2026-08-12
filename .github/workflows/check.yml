@@ -13,43 +13,43 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Validate manifest scope and single engine
+      - name: Validate manifest scope and runtime
         run: |
           node - <<'NODE'
           const fs = require('fs');
           const m = JSON.parse(fs.readFileSync('manifest.json','utf8'));
           if (m.name !== 'NiakGPT') throw new Error('wrong extension name');
-          if (m.version !== '0.5.1') throw new Error('wrong build version');
+          if (m.version !== '0.6.1') throw new Error('wrong build version');
           if (JSON.stringify(m.host_permissions) !== JSON.stringify(['https://chatgpt.com/*'])) throw new Error('host scope must be ChatGPT only');
           if (!m.content_scripts.every(x => x.matches.every(v => v === 'https://chatgpt.com/*'))) throw new Error('unexpected content-script host');
           const isolated = m.content_scripts.find(x => x.world !== 'MAIN');
           if (!isolated) throw new Error('isolated content script missing');
-          if (JSON.stringify(isolated.js) !== JSON.stringify(['app-v05.js'])) throw new Error('legacy JS is still loaded');
-          if (JSON.stringify(isolated.css) !== JSON.stringify(['theme-v05.css'])) throw new Error('legacy CSS is still loaded');
-          console.log('manifest v0.5.1 single-engine OK');
+          if (JSON.stringify(isolated.js) !== JSON.stringify(['perf-guard.js','app-v06.js'])) throw new Error('unexpected isolated JS runtime');
+          if (JSON.stringify(isolated.css) !== JSON.stringify(['theme-v06.css','perf-v06.css'])) throw new Error('unexpected CSS runtime');
+          if (isolated.run_at !== 'document_start') throw new Error('runtime must start immediately');
+          console.log('manifest v0.6.1 runtime OK');
           NODE
 
       - name: Check JavaScript syntax
         run: |
           node --check page-bridge.js
-          node --check app-v05.js
+          node --check perf-guard.js
+          node --check app-v06.js
 
       - name: Check required behavior and UX
         run: |
-          grep -q 'repairOrganization' app-v05.js
-          grep -q 'conversationText' app-v05.js
-          grep -q 'primaryProjects' app-v05.js
-          grep -q 'tryNativePins' app-v05.js
-          grep -q 'ng5-pinned-projects' app-v05.js
-          grep -q 'suggestionSet' app-v05.js
-          grep -q 'subjectFrom' app-v05.js
-          grep -q 'ng5-matrix' app-v05.js
-          grep -q 'BY SKYNET' app-v05.js
-          grep -q 'ng5-codebar' app-v05.js
-          grep -q 'ng5-panel-open' app-v05.js
-          grep -q 'ng5-coach' theme-v05.css
-          grep -q 'ng5-matrix' theme-v05.css
-          grep -q 'ng5-legacy' theme-v05.css
-          grep -q 'padding-right:var(--ng5-rail)' theme-v05.css
-          if grep -E '#ng5-coach\{[^}]*position:fixed' theme-v05.css; then exit 1; fi
-          echo 'required behavior and UX OK'
+          grep -q 'repairOrganization' app-v06.js
+          grep -q 'hydrateMembershipAndProfiles' app-v06.js
+          grep -q 'tryNativePins' app-v06.js
+          grep -q 'ng6-pinned-projects' app-v06.js
+          grep -q 'suggestionSet' app-v06.js
+          grep -q 'ng6-matrix' app-v06.js
+          grep -q 'BY SKYNET' app-v06.js
+          grep -q 'ng6-codebar' app-v06.js
+          grep -q 'ng6-panel-open' app-v06.js
+          grep -q 'GuardedMutationObserver' perf-guard.js
+          grep -q 'data-ng6-running' perf-v06.css
+          grep -q 'content-visibility:hidden' perf-v06.css
+          grep -q 'ng6-chat-project' theme-v06.css
+          if grep -E '#ng6-coach\{[^}]*position:fixed' theme-v06.css; then exit 1; fi
+          echo 'required behavior, UX and performance guard OK'

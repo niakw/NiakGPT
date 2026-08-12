@@ -1,6 +1,6 @@
 # NiakGPT
 
-Extension Chrome/Chromium locale qui transforme ChatGPT en espace de travail power-user : Projects, tri automatique, Quick Open, sommaire, suggestions de prompts françaises et contextuelles, présentation IDE du code, DA forcée et optimisation des longues discussions.
+Extension Chrome/Chromium locale pour transformer ChatGPT en workspace power-user : Projects, tri automatique, Quick Open, sommaire, suggestions contextuelles, DA VS Code × Instagram × Tableau, Matrix et optimisation des gros fils.
 
 ## Installation
 
@@ -8,126 +8,151 @@ Extension Chrome/Chromium locale qui transforme ChatGPT en espace de travail pow
 2. Ouvrir `chrome://extensions`.
 3. Activer **Mode développeur**.
 4. Cliquer **Charger l’extension non empaquetée**.
-5. Sélectionner **la racine du dossier `niakgpt`** : `manifest.json` est directement à la racine.
-6. Après une mise à jour : **Recharger** la carte NiakGPT puis faire `Ctrl+Shift+R` sur `https://chatgpt.com`.
+5. Sélectionner la racine du dossier `niakgpt`.
+6. Après chaque mise à jour : **Recharger** NiakGPT puis `Ctrl+Shift+R` sur ChatGPT.
 
 ## Version actuelle
 
-**0.7.0 — rebuild data/navigation + DA forcée**
+**0.8.0 — idle-safe rebuild**
 
-Le runtime charge uniquement :
+Le manifest charge uniquement :
 
-- `page-bridge.js` dans le contexte de la page pour les appels ChatGPT autorisés ;
-- `app-v07.js` pour le moteur NiakGPT ;
-- `theme-v07.css` pour toute la direction artistique.
+- `page-bridge.js` ;
+- `app-v08-safe.js` ;
+- `theme-v08.css`.
 
-Les anciens moteurs et thèmes v0.5/v0.6 ont été retirés de `main`.
+Aucun ancien moteur v0.7/v0.8 expérimental n'est chargé.
 
-## Indexation complète
+## Performance : priorité à ChatGPT
 
-La v0.7 ne considère plus la première réponse API comme la liste complète.
+La v0.8 ne doit plus faire de travail lourd au pire moment.
 
-- pagination de `/backend-api/gizmos/snorlax/sidebar` avec son `cursor` jusqu’à épuisement ;
-- pagination complète de `/backend-api/conversations` avec `offset`, `total`, `has_more` / `hasMore` ;
-- pagination complète des conversations de **chaque Project** avec le cursor propre à `/gizmos/{project}/conversations` ;
-- déduplication par identifiant ;
-- fusion avec les éléments visibles du DOM comme filet de sécurité ;
-- nombre exact de chats par Project lorsque l’endpoint du Project répond correctement ;
-- une erreur sur un Project est signalée par `?` au lieu d’inventer un compteur.
+- cache local chargé immédiatement ;
+- UI et sidebar disponibles avant l'indexation complète ;
+- liste des Projects récupérée séparément ;
+- conversations des Projects indexées **une Project à la fois** ;
+- indexation lancée via `requestIdleCallback` / période idle ;
+- pause immédiate dès qu'une génération ChatGPT est détectée ;
+- aucune réorganisation pendant le streaming ;
+- reprise de l'indexation après la génération ;
+- Matrix fortement ralenti sur gros fil en exécution ;
+- coach et easter eggs masqués pendant l'exécution ;
+- `content-visibility` sur les anciens tours ;
+- aucun monkey-patch global de `MutationObserver` ou `requestAnimationFrame`.
 
-Le diagnostic doit afficher des états vérifiables comme :
+Le but est simple : **fluidité ChatGPT > décor / indexation**.
 
-- `data · OK · N Projects · M chats` ;
-- `projects · OK · N/N · X comptés` ;
-- `quick · OK · N entrées`.
+## Projects et compteurs
 
-## Explorer / Quick Open
-
-- l’Explorer utilise la même indexation exhaustive ;
-- **tous** les Projects indexés sont affichés, y compris les anciens Projects génériques ;
-- recherche des Projects ;
-- compteur de conversations par Project ;
-- `Alt+K` ouvre Quick Open ;
-- Quick Open contient à la fois Projects et conversations ;
-- recherche par titre, snippet et nom de Project ;
-- navigation clavier `↑`, `↓`, `Entrée`, `Échap` ;
-- préchargement d’une conversation au survol.
+- pagination complète des Projects ;
+- chaque Project est compté via son propre endpoint de conversations ;
+- l'échec éventuel de `/backend-api/conversations` ne bloque plus le comptage par Project ;
+- compteurs mis en cache puis rafraîchis progressivement ;
+- `?` signifie qu'un Project n'a pas pu être compté ;
+- `…` signifie qu'il n'a pas encore été indexé ;
+- détection des noms de Projects dupliqués ;
+- les conversations d'un doublon peuvent être consolidées vers le Project canonique sans supprimer automatiquement le Project.
 
 ## Organisation automatique
 
-NiakGPT ne contient aucun nom de Project personnel en dur. Il apprend dynamiquement à partir du compte ChatGPT.
+NiakGPT ne contient aucun nom personnel ou nom de Project utilisateur en dur.
 
-Le profil d’un Project utilise :
+Le classement apprend à partir :
 
-- son nom ;
-- sa description et ses instructions quand elles existent ;
-- les titres/snippets de ses conversations ;
-- le contenu du fil lorsque le titre est trop ambigu.
+- nom du Project ;
+- description / instructions disponibles ;
+- conversations déjà rangées ;
+- titre, snippet et, si nécessaire, contenu du fil.
 
-Règles de sécurité :
+Règles :
 
-- un chat déjà présent dans un vrai Project est protégé ;
-- les chats hors Project peuvent être classés avec un seuil de confiance élevé ;
-- les chats placés dans des catégories génériques héritées (`Design`, `AI`, `Coding`, etc.) peuvent être réparés ;
-- si la confiance est insuffisante, NiakGPT ne déplace rien ;
-- chaque déplacement est **vérifié par GET après le PATCH**, y compris si ChatGPT renvoie une erreur HTTP après avoir tout de même appliqué le déplacement ;
-- aucun Project n’est supprimé automatiquement.
+- un chat dans un vrai Project est protégé ;
+- les chats hors Project et les anciens Projects génériques peuvent être réparés ;
+- les doublons exacts sont consolidables ;
+- seuil de confiance + marge minimale ;
+- chaque déplacement est vérifié après le `PATCH` ;
+- aucun Project n'est supprimé automatiquement ;
+- classement automatique uniquement à l'état idle.
 
-Le classement s’exécute au démarrage après indexation, après une génération, périodiquement à l’état idle et via **Réparer le classement**.
+## Sidebar gauche
 
-## Épinglage des Projects
+La DA ne dépend plus d'un wrapper ChatGPT précis : les styles sont appliqués **directement aux liens natifs**.
 
-Deux niveaux sont volontairement distingués :
+- conversations : alternance de fond ligne 1 / ligne 2 façon tableau ;
+- accent vertical hérité du Project ;
+- badge du Project sur les chats visibles ;
+- couleur stable automatique par Project ;
+- icône automatique par sémantique ;
+- fond coloré par Project ;
+- état actif renforcé ;
+- génération jaune/orange ;
+- anciens Projects génériques atténués ;
+- doublons visuellement signalés.
 
-1. **ÉPINGLÉS · PROJECTS NiakGPT** : tous les Projects indexés sont toujours accessibles dans le bloc épinglé de la sidebar NiakGPT ;
-2. **pin natif ChatGPT** : NiakGPT tente aussi l’action native `Épingler` lorsque le menu est réellement exposé dans le DOM.
+## Projects épinglés
 
-Le diagnostic affiche séparément `N/N NiakGPT` et `X/N natifs` afin de ne jamais présenter un fallback visuel comme un pin natif réussi.
+NiakGPT ajoute dans la sidebar réelle un bloc **PROJECTS ÉPINGLÉS** contenant tous les Projects indexés.
 
-## Direction artistique
+Il distingue clairement :
 
-La DA v0.7 est volontairement prioritaire sur les préférences de couleur ChatGPT :
+1. Projects visibles dans le bloc NiakGPT ;
+2. Projects réellement épinglés par l'action native ChatGPT.
 
-- variables de surfaces ChatGPT redéfinies ;
-- sidebar gauche, header, menu, composer et fond principal forcés avec sélecteurs dédiés et `!important` ;
-- lignes de conversations réellement zébrées façon tableau ;
-- badge discret indiquant le Project de chaque chat visible ;
-- Project = couleur stable + icône automatique + fond associé ;
-- état actif et état génération jaune/orange ;
-- messages utilisateur / NiakGPT avec fonds et textes distincts façon feed ;
-- blocs de code façon Visual Studio Code ;
-- rail latéral et Explorer façon IDE ;
-- couleur du Project courant injectée dans l’environnement visuel ;
-- barre d’état avec **BY SKYNET** ;
-- petits easter eggs robot-skull ;
-- fond Matrix vert animé plus visible derrière les zones libres.
+Le diagnostic affiche les deux nombres séparément afin de ne jamais annoncer un faux succès natif.
+
+## Quick Open
+
+`Alt+K` ouvre la palette Projects + conversations.
+
+- fonctionne immédiatement avec le cache ;
+- s'enrichit au fil de l'indexation ;
+- recherche par conversation et Project ;
+- navigation clavier ;
+- préchargement au survol lorsqu'il est sûr de le faire.
+
+## Direction artistique forcée
+
+La v0.8 écrase explicitement les surfaces et accents ChatGPT :
+
+- sidebar ;
+- header ;
+- menus ;
+- composer ;
+- bouton d'envoi ;
+- fonds de messages ;
+- liens / textes / code ;
+- panneau droit ;
+- barre d'état.
+
+L'accent utilisateur ChatGPT (rose, vert, etc.) ne doit plus reprendre le dessus sur les composants gérés par NiakGPT.
+
+### Mix visuel
+
+- **Visual Studio Code** : structure, code, Explorer, palette ;
+- **Tableau** : densité et zébrage des listes ;
+- **Instagram / messagerie** : distinction feed utilisateur / assistant et états visuels ;
+- couleur du Project courant injectée comme accent de contexte ;
+- Matrix vert visible derrière les zones libres ;
+- petits easter eggs robot ;
+- **BY SKYNET** dans la barre d'état.
 
 ## Coach de prompts
 
-Le coach reste **dans le flux du composer** : aucune position fixe au-dessus de la saisie.
+Le coach reste dans le flux du composer, jamais en position fixe.
 
-Il s’adapte à :
+Il tient compte :
 
-- ce que l’utilisateur tape ;
-- les derniers échanges du fil ;
-- le Project courant ;
-- le type de tâche détecté ;
-- la présence d’images ou fichiers joints.
+- du texte en cours ;
+- des derniers échanges ;
+- du Project courant ;
+- du type de tâche ;
+- des pièces jointes.
 
-Avec des pièces jointes, le coach passe en mode compact et reste au-dessus du formulaire au lieu de recouvrir les previews.
-
-## Longues discussions / génération
-
-- `content-visibility` et containment sur les tours anciens ;
-- seuls les derniers tours sont retraités pendant le streaming ;
-- scans complets et indexation reportés hors génération ;
-- Matrix automatiquement ralenti pendant une génération lourde ;
-- coach et easter eggs masqués pendant l’exécution ;
-- suppression de l’ancien `perf-guard` expérimental : NiakGPT ne monkey-patche plus `MutationObserver` ni `requestAnimationFrame` globalement.
+Avec images/fichiers, il devient compact et reste au-dessus du composer sans recouvrir les previews.
 
 ## Diagnostic
 
-Modules exposés :
+Modules :
 
 - `bridge` ;
 - `data` ;
@@ -141,13 +166,13 @@ Modules exposés :
 - `matrix` ;
 - `ui`.
 
-Les dernières erreurs d’indexation sont également affichables dans le panneau Diagnostic.
+Les erreurs réseau/API sont conservées dans **Dernières erreurs**.
 
 ## Confidentialité
 
-- exécution limitée à `https://chatgpt.com/*` ;
-- aucune permission sur un autre domaine ;
-- aucune analytics ;
+- uniquement `https://chatgpt.com/*` ;
+- aucune permission autre domaine ;
 - aucun serveur NiakGPT ;
-- aucune identité, adresse, nom de personne ou nom de Project personnel intégré au code ;
-- aucun abonnement ni API tierce payante.
+- aucune analytics ;
+- aucune identité ou nom de Project personnel dans le code ;
+- aucun abonnement ou API tierce payante.

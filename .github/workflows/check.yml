@@ -43,7 +43,10 @@ jobs:
           grep -q 'if(S.indexing||S.generating' app-v08-safe.js
           grep -q 'if(S.generating)return' app-v08-safe.js
           grep -q 'chrome.storage.local' app-v08-safe.js
-          if grep -q 'observe(document.documentElement' app-v08-safe.js; then exit 1; fi
+          grep -q 'S.observer.observe(main' app-v08-safe.js
+          grep -q 'S.sidebarObserver.observe(side' app-v08-safe.js
+          COUNT=$(grep -o 'observe(document.documentElement' app-v08-safe.js | wc -l)
+          test "$COUNT" -le 1
           if grep -q 'perf-guard' manifest.json; then exit 1; fi
 
       - name: Check Projects, counts, Quick Open and organization

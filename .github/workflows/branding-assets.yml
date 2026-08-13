@@ -1,0 +1,59 @@
+name: NiakGPT Branding Assets
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'tools/generate-icons.py'
+      - '.github/workflows/branding-assets.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  brand:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Generate deterministic PNG icons
+        run: python3 tools/generate-icons.py
+      - name: Register icons in manifest
+        run: |
+          node - <<'NODE'
+          const fs=require('fs');
+          const p='manifest.json';
+          const m=JSON.parse(fs.readFileSync(p,'utf8'));
+          m.icons={
+            '16':'icons/icon-16.png',
+            '32':'icons/icon-32.png',
+            '48':'icons/icon-48.png',
+            '128':'icons/icon-128.png'
+          };
+          m.action={
+            ...(m.action||{}),
+            default_title:'NiakGPT',
+            default_icon:{
+              '16':'icons/icon-16.png',
+              '32':'icons/icon-32.png'
+            }
+          };
+          fs.writeFileSync(p,JSON.stringify(m,null,2)+'\n');
+          NODE
+      - name: Verify generated files
+        run: |
+          file icons/icon-16.png icons/icon-32.png icons/icon-48.png icons/icon-128.png
+          test $(stat -c%s icons/icon-128.png) -gt 200
+      - name: Commit branding assets if changed
+        run: |
+          if git diff --quiet -- manifest.json icons/; then
+            echo 'Branding assets already current'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add manifest.json icons/
+          git commit -m 'Register NiakGPT extension icons'
+          git push origin HEAD:main

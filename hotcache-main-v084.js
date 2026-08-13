@@ -1,0 +1,394 @@
+(() => {
+  'use strict';
+  if (location.hostname !== 'chatgpt.com' || window.__NIAKGPT_HOTCACHE_MAIN_084__) return;
+  window.__NIAKGPT_HOTCACHE_MAIN_084__ = true;
+
+  const VERSION = '0.8.4';
+  const DB_NAME = 'niakgpt-hotcache-v084';
+  const DB_VERSION = 1;
+  const STORE = 'conversations';
+  const META_KEY = 'niakgpt-hotmeta-v084';
+  const DIRTY_KEY = 'niakgpt-hotdirty-v084';
+  const INDEX_KEY = 'niakgpt-hotindex-v084';
+  const CHANNEL = 'niakgpt-hotcache-v084';
+  const MAX_ENTRIES = 5;
+  const MAX_TOTAL_BYTES = 96 * 1024 * 1024;
+  const MAX_ENTRY_BYTES = 40 * 1024 * 1024;
+  const UNKNOWN_META_TTL = 2 * 60 * 1000;
+  const HARD_TTL = 6 * 60 * 60 * 1000;
+  const WAIT_OTHER_TAB_MS = 4500;
+  const TARGET = /^\/backend-api\/conversation\/([0-9a-f-]{20,})(?:\?.*)?$/i;
+
+  const nativeFetch = window.fetch.bind(window);
+  const memory = new Map();
+  const bc = typeof BroadcastChannel === 'function' ? new BroadcastChannel(CHANNEL) : null;
+  const waiters = new Map();
+  let dbPromise = null;
+  let hits = 0;
+  let misses = 0;
+  let network = 0;
+  let deduped = 0;
+  let writes = 0;
+
+  function setStatus(mode, id = '') {
+    const root = document.documentElement;
+    root.dataset.ng8Hotcache = mode;
+    root.dataset.ng8HotcacheId = id ? id.slice(0, 8) : '';
+    root.dataset.ng8HotcacheHits = String(hits);
+    root.dataset.ng8HotcacheMisses = String(misses);
+    root.dataset.ng8HotcacheNetwork = String(network);
+    root.dataset.ng8HotcacheDeduped = String(deduped);
+    root.dataset.ng8HotcacheEntries = String(readIndex().length);
+    document.dispatchEvent(new CustomEvent('niakgpt:hotcache-status', { detail:{ mode,id,hits,misses,network,deduped,writes,entries:readIndex().length } }));
+  }
+
+  function parseJSON(raw, fallback) {
+    try { return JSON.parse(raw || '') ?? fallback; } catch { return fallback; }
+  }
+
+  function readMeta() { return parseJSON(localStorage.getItem(META_KEY), {}); }
+  function readDirty() { return parseJSON(localStorage.getItem(DIRTY_KEY), {}); }
+  function writeDirty(value) { try { localStorage.setItem(DIRTY_KEY, JSON.stringify(value)); } catch {} }
+  function readIndex() {
+    const list = parseJSON(localStorage.getItem(INDEX_KEY), []);
+    return Array.isArray(list) ? list : [];
+  }
+  function writeIndex(list) { try { localStorage.setItem(INDEX_KEY, JSON.stringify(list)); } catch {} }
+
+  function parseTime(value) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value > 1e12 ? value : value * 1000;
+    if (typeof value === 'string') {
+      const n = Number(value);
+      if (Number.isFinite(n)) return n > 1e12 ? n : n * 1000;
+      const d = Date.parse(value);
+      return Number.isFinite(d) ? d : 0;
+    }
+    return 0;
+  }
+
+  function getConversationId(url) {
+    try {
+      const u = new URL(url, location.origin);
+      if (u.origin !== location.origin) return '';
+      return u.pathname.match(/^\/backend-api\/conversation\/([0-9a-f-]{20,})$/i)?.[1] || '';
+    } catch { return ''; }
+  }
+
+  function requestInfo(input, init) {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input?.url || '';
+    const method = String(init?.method || (input instanceof Request ? input.method : 'GET') || 'GET').toUpperCase();
+    return { url, method, id:getConversationId(url) };
+  }
+
+  function openDB() {
+    if (dbPromise) return dbPromise;
+    dbPromise = new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath:'id' });
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error || new Error('indexeddb_open_failed'));
+    }).catch(error => {
+      console.warn('[NiakGPT hotcache] IndexedDB unavailable', error);
+      dbPromise = null;
+      return null;
+    });
+    return dbPromise;
+  }
+
+  async function idbGet(id) {
+    const db = await openDB();
+    if (!db) return null;
+    return new Promise(resolve => {
+      try {
+        const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(id);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+      } catch { resolve(null); }
+    });
+  }
+
+  async function idbPut(entry) {
+    const db = await openDB();
+    if (!db) return false;
+    return new Promise(resolve => {
+      try {
+        const req = db.transaction(STORE, 'readwrite').objectStore(STORE).put(entry);
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => resolve(false);
+      } catch { resolve(false); }
+    });
+  }
+
+  async function idbDelete(id) {
+    const db = await openDB();
+    if (!db) return;
+    await new Promise(resolve => {
+      try {
+        const req = db.transaction(STORE, 'readwrite').objectStore(STORE).delete(id);
+        req.onsuccess = req.onerror = () => resolve();
+      } catch { resolve(); }
+    });
+  }
+
+  function touchMemory(entry) {
+    memory.delete(entry.id);
+    memory.set(entry.id, entry);
+    while (memory.size > 3) memory.delete(memory.keys().next().value);
+  }
+
+  function touchIndex(entry) {
+    let list = readIndex().filter(x => x?.id && x.id !== entry.id);
+    list.push({ id:entry.id, fetchedAt:entry.fetchedAt, bytes:entry.bytes || 0, updateTime:entry.updateTime || 0 });
+    list.sort((a,b) => (a.fetchedAt || 0) - (b.fetchedAt || 0));
+    writeIndex(list);
+    return list;
+  }
+
+  async function evictIfNeeded() {
+    let list = readIndex().filter(x => x?.id);
+    const now = Date.now();
+    for (const item of [...list]) {
+      if (!item.fetchedAt || now - item.fetchedAt > HARD_TTL) {
+        list = list.filter(x => x.id !== item.id);
+        memory.delete(item.id);
+        await idbDelete(item.id);
+      }
+    }
+    let total = list.reduce((n,x) => n + (Number(x.bytes) || 0), 0);
+    while (list.length > MAX_ENTRIES || total > MAX_TOTAL_BYTES) {
+      const oldest = list.shift();
+      if (!oldest) break;
+      total -= Number(oldest.bytes) || 0;
+      memory.delete(oldest.id);
+      await idbDelete(oldest.id);
+    }
+    writeIndex(list);
+    setStatus(document.documentElement.dataset.ng8Hotcache || 'READY');
+  }
+
+  async function getEntry(id) {
+    const mem = memory.get(id);
+    if (mem) {
+      touchMemory(mem);
+      return mem;
+    }
+    const entry = await idbGet(id);
+    if (entry) touchMemory(entry);
+    return entry;
+  }
+
+  function latestKnownUpdate(id) {
+    const meta = readMeta();
+    return parseTime(meta?.[id]?.updated || meta?.[id] || 0);
+  }
+
+  function isDirty(id) {
+    const dirty = readDirty();
+    return !!dirty[id];
+  }
+
+  function clearDirty(id) {
+    const dirty = readDirty();
+    if (!dirty[id]) return;
+    delete dirty[id];
+    writeDirty(dirty);
+  }
+
+  function entryFresh(entry, id) {
+    if (!entry?.body || !entry.fetchedAt) return false;
+    const age = Date.now() - entry.fetchedAt;
+    if (age < 0 || age > HARD_TTL || isDirty(id)) return false;
+    const latest = latestKnownUpdate(id);
+    if (latest && entry.updateTime) return latest <= entry.updateTime;
+    if (latest && !entry.updateTime) return false;
+    return age <= UNKNOWN_META_TTL;
+  }
+
+  function headersFrom(responseOrArray) {
+    const h = new Headers(Array.isArray(responseOrArray) ? responseOrArray : responseOrArray?.headers || undefined);
+    h.set('content-type', 'application/json; charset=utf-8');
+    h.delete('content-length');
+    h.delete('content-encoding');
+    return h;
+  }
+
+  function responseFromEntry(entry) {
+    const res = new Response(entry.body, {
+      status: entry.status || 200,
+      statusText: entry.statusText || 'OK',
+      headers: headersFrom(entry.headers || [])
+    });
+    try { Object.defineProperty(res, 'url', { value:entry.url || `${location.origin}/backend-api/conversation/${entry.id}` }); } catch {}
+    return res;
+  }
+
+  function extractTopMeta(text) {
+    let updateTime = 0;
+    let currentNode = '';
+    try {
+      // Avoid a second full JSON.parse of very large histories. Top-level values are enough for validation.
+      const updateMatch = text.match(/\"update_time\"\s*:\s*(\"[^\"]+\"|\d+(?:\.\d+)?)/);
+      if (updateMatch) updateTime = parseTime(updateMatch[1]?.replace(/^\"|\"$/g, ''));
+      const nodeMatch = text.match(/\"current_node\"\s*:\s*\"([^\"]+)\"/);
+      if (nodeMatch) currentNode = nodeMatch[1];
+    } catch {}
+    return { updateTime, currentNode };
+  }
+
+  async function storeResponse(id, response) {
+    try {
+      const clone = response.clone();
+      const text = await clone.text();
+      const bytes = new Blob([text]).size;
+      if (!text || bytes > MAX_ENTRY_BYTES) {
+        setStatus('TOO_LARGE', id);
+        return;
+      }
+      const top = extractTopMeta(text);
+      const entry = {
+        id,
+        body:text,
+        bytes,
+        fetchedAt:Date.now(),
+        updateTime:top.updateTime || latestKnownUpdate(id) || Date.now(),
+        currentNode:top.currentNode || '',
+        status:response.status,
+        statusText:response.statusText,
+        headers:[...response.headers.entries()],
+        url:response.url || `${location.origin}/backend-api/conversation/${id}`
+      };
+      touchMemory(entry);
+      touchIndex(entry);
+      if (await idbPut(entry)) {
+        writes++;
+        clearDirty(id);
+        bc?.postMessage({ type:'updated', id, fetchedAt:entry.fetchedAt, updateTime:entry.updateTime, currentNode:entry.currentNode });
+        setStatus('STORED', id);
+        await evictIfNeeded();
+      }
+    } catch (error) {
+      console.warn('[NiakGPT hotcache] store failed', error);
+      setStatus('STORE_ERROR', id);
+    }
+  }
+
+  function scheduleStore(id, response) {
+    const clone = response.clone();
+    const run = () => storeResponse(id, clone);
+    if ('requestIdleCallback' in window) {
+      try { window.requestIdleCallback(run, { timeout:5000 }); return; } catch {}
+    }
+    setTimeout(run, 1200);
+  }
+
+  function waitForPeer(id, afterFetchedAt = 0) {
+    return new Promise(resolve => {
+      const token = `${id}:${crypto.randomUUID?.() || Math.random()}`;
+      const timer = setTimeout(() => { waiters.delete(token); resolve(null); }, WAIT_OTHER_TAB_MS);
+      waiters.set(token, { id, afterFetchedAt, resolve:async () => {
+        clearTimeout(timer);
+        waiters.delete(token);
+        resolve(await getEntry(id));
+      }});
+    });
+  }
+
+  bc?.addEventListener('message', event => {
+    const m = event.data;
+    if (!m?.id) return;
+    if (m.type === 'updated') {
+      for (const waiter of waiters.values()) {
+        if (waiter.id === m.id && (m.fetchedAt || 0) > (waiter.afterFetchedAt || 0)) waiter.resolve();
+      }
+    }
+    if (m.type === 'invalidate') {
+      memory.delete(m.id);
+    }
+  });
+
+  async function networkAndCache(self, input, init, id) {
+    network++;
+    setStatus('NETWORK', id);
+    const response = await nativeFetch.call(self, input, init);
+    if (response.ok) scheduleStore(id, response);
+    return response;
+  }
+
+  async function fetchWithCrossTabDedupe(self, input, init, id, staleEntry) {
+    if (!navigator.locks?.request) return networkAndCache(self, input, init, id);
+    let owned = false;
+    let result = null;
+    try {
+      await navigator.locks.request(`niakgpt-hotfetch:${id}`, { mode:'exclusive', ifAvailable:true }, async lock => {
+        if (!lock) return;
+        owned = true;
+        // Another tab may have refreshed between our initial lookup and lock acquisition.
+        const latest = await getEntry(id);
+        if (latest && latest.fetchedAt > (staleEntry?.fetchedAt || 0) && entryFresh(latest, id)) {
+          hits++;
+          result = responseFromEntry(latest);
+          setStatus('HIT_AFTER_LOCK', id);
+          return;
+        }
+        result = await networkAndCache(self, input, init, id);
+      });
+    } catch {
+      return networkAndCache(self, input, init, id);
+    }
+    if (owned && result) return result;
+
+    setStatus('WAIT_PEER', id);
+    const peerEntry = await waitForPeer(id, staleEntry?.fetchedAt || 0);
+    if (peerEntry && entryFresh(peerEntry, id)) {
+      deduped++;
+      hits++;
+      setStatus('HIT_PEER', id);
+      return responseFromEntry(peerEntry);
+    }
+    return networkAndCache(self, input, init, id);
+  }
+
+  window.fetch = async function niakgptHotCachedFetch(input, init) {
+    const info = requestInfo(input, init);
+    if (info.method !== 'GET' || !info.id || !TARGET.test(new URL(info.url, location.origin).pathname)) {
+      return nativeFetch.call(this, input, init);
+    }
+
+    const cached = await getEntry(info.id);
+    if (cached && entryFresh(cached, info.id)) {
+      hits++;
+      setStatus('HIT', info.id);
+      return responseFromEntry(cached);
+    }
+
+    misses++;
+    setStatus(cached ? 'STALE' : 'MISS', info.id);
+    return fetchWithCrossTabDedupe(this, input, init, info.id, cached);
+  };
+
+  // Mark the currently opened conversation stale when the page starts a write/stream request.
+  // We do not inspect message content; only the current conversation id is recorded.
+  document.addEventListener('niakgpt:hotcache-dirty', event => {
+    const id = String(event.detail?.id || '');
+    if (!id) return;
+    const dirty = readDirty();
+    dirty[id] = Date.now();
+    writeDirty(dirty);
+    memory.delete(id);
+    bc?.postMessage({ type:'invalidate', id });
+    setStatus('DIRTY', id);
+  });
+
+  window.addEventListener('storage', event => {
+    if (event.key === DIRTY_KEY && event.newValue !== event.oldValue) {
+      const dirty = parseJSON(event.newValue, {});
+      for (const id of Object.keys(dirty)) memory.delete(id);
+    }
+  });
+
+  setTimeout(evictIfNeeded, 1800);
+  setStatus('READY');
+})();

@@ -12,7 +12,9 @@ const isolated=['onboarding-v101.js','profiles-v100.js','control-center-v090.js'
 const manifest=JSON.parse(read('manifest.json'));
 same(manifest.permissions,['storage','scripting'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*'],'host scope mismatch');
-same(manifest.content_scripts.flatMap(x=>x.js||[]),['boot-gate-v100.js'],'only hydration gate may be statically injected');
+same(manifest.content_scripts.flatMap(x=>x.js||[]),['boot-gate-v100.js','dom-project-boundary-v0912.js'],'unexpected static runtime');
+const boundaryEntry=manifest.content_scripts.find(x=>(x.js||[]).includes('dom-project-boundary-v0912.js'));
+if(boundaryEntry?.run_at!=='document_idle')fail('DOM project boundary must run at document_idle');
 
 const background=read('background-v100.js');
 const runtimeList=name=>[...(background.match(new RegExp(`const ${name}=\\[(.*?)\\];`,'s'))?.[1]||'').matchAll(/'([^']+)'/g)].map(x=>x[1]);
@@ -26,7 +28,11 @@ for(const token of ['await waitLoad()','await waitForChatShell()','await sleep(2
 forbid(gate,'document.documentElement.dataset','pre-hydration html mutation');
 forbid(gate,'ng99Sentinel','legacy watchdog mutation');
 
-for(const file of [...main,...isolated,'boot-gate-v100.js','background-v100.js'])if(!fs.existsSync(file))fail(`missing runtime ${file}`);
+const boundary=read('dom-project-boundary-v0912.js');
+for(const token of ['dom-p-','g-p-','metaLabel','stopImmediatePropagation','transport:\'dom-cache\'','chrome.storage.onChanged'])need(boundary,token);
+forbid(boundary,'setInterval(','permanent polling in DOM project boundary');
+
+for(const file of [...main,...isolated,'boot-gate-v100.js','dom-project-boundary-v0912.js','background-v100.js'])if(!fs.existsSync(file))fail(`missing runtime ${file}`);
 for(const file of isolated.filter(file=>file!=='retro-loader-v097.js'))forbid(read(file),'setInterval(',`permanent polling in ${file}`);
 const loader=read('retro-loader-v097.js');need(loader,'function stopTicker()');need(loader,'clearInterval(timer)');
 

@@ -1,21 +1,21 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.8.4",
-  "description": "Workspace power-user local pour ChatGPT : Projects, tri automatique, Quick Open, prompts adaptatifs, DA forcée, indexation idle-safe, chronologie, coordination multi-onglets et cache chaud des conversations.",
+  "version": "0.8.5",
+  "description": "Workspace power-user local pour ChatGPT : Projects, tri gouverné, verrouillage manuel, nettoyage des reliquats, Quick Open, DA forcée, indexation idle-safe, chronologie, multi-onglets et cache chaud.",
   "permissions": ["storage"],
   "host_permissions": ["https://chatgpt.com/*"],
   "content_scripts": [
     {
       "matches": ["https://chatgpt.com/*"],
-      "js": ["page-bridge.js", "hotcache-main-v084.js"],
+      "js": ["page-bridge.js", "manual-lock-main-v085.js", "hotcache-main-v084.js"],
       "run_at": "document_start",
       "world": "MAIN"
     },
     {
       "matches": ["https://chatgpt.com/*"],
-      "css": ["theme-v08.css", "polish-v081.css", "chronology-v081.css", "multitab-v083.css"],
-      "js": ["multitab-v083.js", "app-v08-safe.js", "polish-v081.js", "chronology-v081.js", "hotcache-v084.js"],
+      "css": ["theme-v08.css", "polish-v081.css", "chronology-v081.css", "multitab-v083.css", "governance-v085.css"],
+      "js": ["multitab-v083.js", "project-governance-v085.js", "app-v08-safe.js", "polish-v081.js", "chronology-v081.js", "hotcache-v084.js"],
       "run_at": "document_start"
     }
   ],

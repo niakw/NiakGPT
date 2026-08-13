@@ -7,153 +7,39 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '22' }
+        with:
+          node-version: '22'
 
-      - name: Validate manifest and runtime order
+      - name: Validate runtime invariants
+        run: node tools/check-runtime.mjs
+
+      - name: Check JavaScript syntax from manifest
         run: |
-          node - <<'NODE'
-          const fs=require('fs'),m=JSON.parse(fs.readFileSync('manifest.json','utf8'));
-          if(m.name!=='NiakGPT'||m.version!=='0.9.3')throw new Error('wrong build');
-          if(JSON.stringify(m.host_permissions)!==JSON.stringify(['https://chatgpt.com/*']))throw new Error('wrong scope');
-          const main=m.content_scripts.find(x=>x.world==='MAIN'),iso=m.content_scripts.find(x=>x.world!=='MAIN');
-          const mainExpected=['page-bridge.js','manual-lock-main-v085.js','activity-main-v087.js','hotcache-main-v084.js'];
-          const isoExpected=['control-center-v090.js','multitab-v090.js','project-governance-v090.js','project-pins-v090.js','sidebar-host-v090.js','app-v090.js','polish-v090.js','chronology-v090.js','hotcache-v084.js','activity-v086.js'];
-          const cssExpected=['theme-v08.css','polish-v081.css','chronology-v081.css','multitab-v083.css','governance-v085.css','activity-v086.css','control-center-v090.css','core-v090.css'];
-          if(JSON.stringify(main?.js)!==JSON.stringify(mainExpected)||JSON.stringify(iso?.js)!==JSON.stringify(isoExpected)||JSON.stringify(iso?.css)!==JSON.stringify(cssExpected))throw new Error('runtime mismatch');
-          if(!m.content_scripts.every(x=>x.matches.every(v=>v==='https://chatgpt.com/*')&&x.run_at==='document_start'))throw new Error('runtime scope/start invalid');
-          for(const old of ['app-v08-safe.js','multitab-v083.js','polish-v081.js','chronology-v081.js','project-governance-v085.js','project-pins-v085.js'])if(iso.js.includes(old))throw new Error(`legacy JS loaded: ${old}`);
-          console.log('manifest 0.9.3 RC4+ OK');
+          node - <<'NODE' > /tmp/niakgpt-js.txt
+          const m=require('./manifest.json');
+          const files=new Set(m.content_scripts.flatMap(x=>x.js||[]));
+          if(m.background?.service_worker)files.add(m.background.service_worker);
+          console.log([...files].join('\n'));
           NODE
+          while IFS= read -r file; do
+            test -n "$file" && node --check "$file"
+          done < /tmp/niakgpt-js.txt
 
-      - name: Check JavaScript syntax
+      - name: Build and verify clean package
         run: |
-          for f in page-bridge.js manual-lock-main-v085.js activity-main-v087.js hotcache-main-v084.js control-center-v090.js multitab-v090.js project-governance-v090.js project-pins-v090.js sidebar-host-v090.js app-v090.js polish-v090.js chronology-v090.js hotcache-v084.js activity-v086.js; do node --check "$f"; done
+          node tools/package-extension.mjs
+          ZIP=$(find dist -maxdepth 1 -name 'niakgpt-*.zip' -print -quit)
+          test -n "$ZIP"
+          unzip -l "$ZIP" | grep -q 'manifest.json'
+          unzip -l "$ZIP" | grep -q 'background-v100.js'
+          if unzip -l "$ZIP" | grep -E 'visual-lab|tools/|app-v08-safe|project-governance-v085.js|project-pins-v085.js|multitab-v083.js|chronology-v081.js|polish-v081.js|onboarding-v100.js'; then
+            echo 'Development or legacy files leaked into installable ZIP'
+            exit 1
+          fi
 
-      - name: Check no-poll application modules
-        run: |
-          for f in app-v090.js chronology-v090.js polish-v090.js control-center-v090.js project-governance-v090.js project-pins-v090.js sidebar-host-v090.js; do
-            if grep -q 'setInterval(' "$f"; then echo "permanent polling forbidden in $f"; exit 1; fi
-          done
-          grep -q 'MutationObserver(queueMainNodes)' app-v090.js
-          grep -q 'S.pendingMain' app-v090.js
-          grep -q 'canBackground' app-v090.js
-          grep -q 'setTimeout(matrixLoop' app-v090.js
-          grep -q 'setTimeout(routeTick,2400)' app-v090.js
-          if grep -q "querySelectorAll('button,\[data-testid\]')" app-v090.js; then exit 1; fi
-          if grep -q 'requestAnimationFrame(draw)' app-v090.js; then exit 1; fi
-
-      - name: Check managed Project host invariant
-        run: |
-          grep -q '__NIAKGPT_SIDEBAR_HOST_090__' sidebar-host-v090.js
-          grep -q "document.querySelectorAll('#ng8-pins')" sidebar-host-v090.js
-          grep -q 'root.insertBefore(host' sidebar-host-v090.js
-          grep -q 'if(box!==host)box.remove()' sidebar-host-v090.js
-          grep -q "dataset.ng90ProjectHosts='1'" sidebar-host-v090.js
-
-      - name: Check Project cursor safety and counter path
-        run: |
-          grep -q 'normalizeProjectConversationPath' page-bridge.js
-          grep -q 'Never invent a cursor' page-bridge.js
-          if grep -q "searchParams.set('cursor', '0')" page-bridge.js; then echo 'cursor=0 must never be invented'; exit 1; fi
-          if grep -q 'searchParams.set("cursor", "0")' page-bridge.js; then echo 'cursor=0 must never be invented'; exit 1; fi
-          grep -q "new URLSearchParams({limit:'20'})" app-v090.js
-          grep -q "if(cursor!=null&&cursor!=='')qs.set('cursor',String(cursor))" app-v090.js
-          grep -q "result.status === 422" page-bridge.js
-          grep -q "url.searchParams.delete('limit')" page-bridge.js
-
-      - name: Check event-driven chronology and Activity polish
-        run: |
-          grep -q '__NIAKGPT_CHRONO_090__' chronology-v090.js
-          grep -q 'chrome.storage.onChanged' chronology-v090.js
-          grep -q 'MutationObserver(records' chronology-v090.js
-          grep -q 'sortContainer' chronology-v090.js
-          grep -q '__NIAKGPT_POLISH_090__' polish-v090.js
-          grep -q 'niakgpt:activity-network' polish-v090.js
-          grep -q 'arm(duration=16000)' polish-v090.js
-          grep -q 'disarm()' polish-v090.js
-          grep -q 'ng8-activity-close' polish-v090.js
-
-      - name: Check Control Center public quality
-        run: |
-          grep -q 'sanitize(raw' control-center-v090.js
-          grep -q 'SETTINGS_MIRROR' control-center-v090.js
-          grep -q 'syncGovernanceAutomation' control-center-v090.js
-          grep -q 'exportConfig' control-center-v090.js
-          grep -q 'importConfig' control-center-v090.js
-          grep -q 'copyDiagnostic' control-center-v090.js
-          grep -q 'wipeAllLocalData' control-center-v090.js
-          grep -q "setAttribute('role','dialog')" control-center-v090.js
-          grep -q "setAttribute('aria-modal','true')" control-center-v090.js
-          grep -q 'trapTab' control-center-v090.js
-          grep -q 'returnFocus' control-center-v090.js
-
-      - name: Check event-driven Project Governance
-        run: |
-          grep -q '__NIAKGPT_GOVERNANCE_090__' project-governance-v090.js
-          grep -q 'niakgpt:manual-project-move' project-governance-v090.js
-          grep -q 'verifyAndLockManualMove' project-governance-v090.js
-          grep -q 'verifyDestination' project-governance-v090.js
-          grep -q 'governance:true' project-governance-v090.js
-          grep -q 'buildCleanupPlan' project-governance-v090.js
-          grep -q 'buildProfiles' project-governance-v090.js
-          grep -q 'executePlan' project-governance-v090.js
-          grep -q 'unlockChat' project-governance-v090.js
-          grep -q 'À CLASSER' project-governance-v090.js
-          grep -q 'scheduleAutoResync' project-governance-v090.js
-          grep -q "role()==='worker'" project-governance-v090.js
-          grep -q 'safeMode()' project-governance-v090.js
-          grep -q 'MutationObserver(records' project-governance-v090.js
-          grep -q 'project_move_requires_governance' page-bridge.js
-
-      - name: Check event-driven native Project pins
-        run: |
-          grep -q '__NIAKGPT_PROJECT_PINS_090__' project-pins-v090.js
-          grep -q 'syncEnabled' project-pins-v090.js
-          grep -q "role()==='worker'" project-pins-v090.js
-          grep -q 'settings.safeMode!==true' project-pins-v090.js
-          grep -q 'nativePinnedIds' project-pins-v090.js
-          grep -q 'verifyPinned' project-pins-v090.js
-          grep -q 'désépingler' project-pins-v090.js
-          grep -q 'épingler' project-pins-v090.js
-          grep -q 'MutationObserver(records' project-pins-v090.js
-          grep -q 'chrome.storage.onChanged' project-pins-v090.js
-
-      - name: Check activity and multi-tab performance
-        run: |
-          grep -q 'niakgptActivityAwareFetch' activity-main-v087.js
-          grep -q 'body may not exist yet' activity-v086.js
-          grep -q 'tick recovered' activity-v086.js
-          grep -q "waiting:'ATTENTE'" activity-v086.js
-          grep -q "thinking:'RÉFLEXION / ANALYSE'" activity-v086.js
-          grep -q "executing:'EXÉCUTION'" activity-v086.js
-          grep -q 'navigator.locks' multitab-v090.js
-          grep -q 'canRunWorkerIdle' multitab-v090.js
-          grep -q 'dataset.ng8Running' multitab-v090.js
-          grep -q 'dataset.ng8Heavy' multitab-v090.js
-          grep -q 'releaseWorkerForSafeMode' multitab-v090.js
-          if grep -q "querySelectorAll('button,\[data-testid\]')" multitab-v090.js; then exit 1; fi
-
-      - name: Check hot cache and user-facing features
-        run: |
-          grep -q 'indexedDB.open' hotcache-main-v084.js
-          grep -q 'MAX_ENTRIES = 5' hotcache-main-v084.js
-          grep -q 'MAX_TOTAL_BYTES = 96' hotcache-main-v084.js
-          grep -q 'WAIT_PEER' hotcache-main-v084.js
-          grep -q 'fetchProjects' app-v090.js
-          grep -q 'fetchGeneralBestEffort' app-v090.js
-          grep -q 'openQuick' app-v090.js
-          grep -q 'suggestionSet' app-v090.js
-          grep -q 'ensureCoach' app-v090.js
-          grep -q 'ng8-toc-search' app-v090.js
-          grep -q 'ng90-project-extras' app-v090.js
-          grep -q 'BY SKYNET' app-v090.js
-          grep -q 'focus-visible' core-v090.css
-
-      - name: Check runtime privacy
-        run: |
-          FILES='project-governance-v090.js project-pins-v090.js sidebar-host-v090.js manual-lock-main-v085.js activity-main-v087.js control-center-v090.js multitab-v090.js app-v090.js polish-v090.js chronology-v090.js governance-v085.css activity-v086.js activity-v086.css control-center-v090.css core-v090.css'
-          if grep -Ei 'miorra|aelyron|eitty|elias|niakvio|tommy|foissy' $FILES; then echo 'personal data hardcoded'; exit 1; fi
-          echo 'NiakGPT 0.9.3 RC4+ checks OK'
+      - name: Summary
+        run: node -e "const m=require('./manifest.json'); console.log('NiakGPT '+m.version+' static checks OK')"

@@ -1,9 +1,10 @@
 /* NiakGPT polish — native UI overrides only */
 
-/* Matrix: keep the joke, reduce visual competition */
-#ng8-matrix{opacity:.27!important;filter:saturate(1.18) brightness(.96)!important}
-html[data-ng8-running="1"] #ng8-matrix{opacity:.075!important;filter:none!important}
-html[data-ng8-running="1"][data-ng8-heavy="1"] #ng8-matrix{opacity:.025!important}
+/* Matrix: slightly more visible at rest, still heavily attenuated during active/heavy work. */
+#ng8-matrix{opacity:.31!important;filter:saturate(1.20) brightness(.98)!important}
+html[data-ng90-matrix="normal"] #ng8-matrix{opacity:.38!important;filter:saturate(1.24) brightness(1)!important}
+html[data-ng8-running="1"] #ng8-matrix{opacity:.09!important;filter:none!important}
+html[data-ng8-running="1"][data-ng8-heavy="1"] #ng8-matrix{opacity:.035!important}
 
 /* Kill remaining ChatGPT theme accent variables */
 :root{

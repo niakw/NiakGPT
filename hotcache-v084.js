@@ -37,6 +37,16 @@
     return !!target.closest('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]');
   }
 
+  function patchVersion() {
+    const cell = document.querySelector('#ng8-status > span:first-child');
+    if (!cell) return;
+    const nodes = [...cell.childNodes].filter(n => n.nodeType === Node.TEXT_NODE);
+    for (const node of nodes) {
+      if (/\b0\.8\.\d+\b/.test(node.nodeValue || '')) node.nodeValue = (node.nodeValue || '').replace(/\b0\.8\.\d+\b/g, VERSION);
+    }
+    cell.dataset.ng8RuntimeVersion = VERSION;
+  }
+
   function markDirty(id = cidFromPath()) {
     if (!id) return;
     try {
@@ -78,6 +88,7 @@
   }
 
   function patchDiagnostic() {
+    patchVersion();
     const diag = document.querySelector('#ng8-panel .ng8-diag');
     if (!diag) return;
     let row = diag.querySelector(':scope > .ng8-hotcache-diagnostic');

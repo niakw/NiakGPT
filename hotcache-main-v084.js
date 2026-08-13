@@ -14,7 +14,10 @@
   const MAX_ENTRIES = 5;
   const MAX_TOTAL_BYTES = 96 * 1024 * 1024;
   const MAX_ENTRY_BYTES = 40 * 1024 * 1024;
+  const MAX_MEMORY_ENTRIES = 2;
+  const MAX_MEMORY_BYTES = 48 * 1024 * 1024;
   const UNKNOWN_META_TTL = 2 * 60 * 1000;
+  const KNOWN_META_TTL = 15 * 60 * 1000;
   const HARD_TTL = 6 * 60 * 60 * 1000;
 
   const nativeFetch = window.fetch.bind(window);
@@ -136,7 +139,14 @@
   function touchMemory(entry) {
     memory.delete(entry.id);
     memory.set(entry.id, entry);
-    while (memory.size > 3) memory.delete(memory.keys().next().value);
+    let total = [...memory.values()].reduce((sum,item) => sum + (Number(item?.bytes) || 0), 0);
+    while (memory.size > MAX_MEMORY_ENTRIES || total > MAX_MEMORY_BYTES) {
+      const oldestId = memory.keys().next().value;
+      if (!oldestId) break;
+      const oldest = memory.get(oldestId);
+      total -= Number(oldest?.bytes) || 0;
+      memory.delete(oldestId);
+    }
   }
 
   function touchIndex(entry) {
@@ -169,11 +179,13 @@
     setStatus(document.documentElement.dataset.ng8Hotcache || 'READY');
   }
 
-  async function getEntry(id) {
-    const mem = memory.get(id);
-    if (mem) {
-      touchMemory(mem);
-      return mem;
+  async function getEntry(id, forceDisk = false) {
+    if (!forceDisk) {
+      const mem = memory.get(id);
+      if (mem) {
+        touchMemory(mem);
+        return mem;
+      }
     }
     const entry = await idbGet(id);
     if (entry) touchMemory(entry);
@@ -202,7 +214,7 @@
     const age = Date.now() - entry.fetchedAt;
     if (age < 0 || age > HARD_TTL || isDirty(id)) return false;
     const latest = latestKnownUpdate(id);
-    if (latest && entry.updateTime) return latest <= entry.updateTime;
+    if (latest && entry.updateTime) return latest <= entry.updateTime && age <= KNOWN_META_TTL;
     if (latest && !entry.updateTime) return false;
     return age <= UNKNOWN_META_TTL;
   }
@@ -229,15 +241,13 @@
     let updateTime = 0;
     let currentNode = '';
     try {
-      // Scan timestamps without a full second JSON.parse. Taking the maximum is safer than
-      // taking the first update_time, which may belong to an old message inside mapping.
-      const timeRx = /\"update_time\"\s*:\s*(\"[^\"]+\"|\d+(?:\.\d+)?)/g;
-      let match;
-      while ((match = timeRx.exec(text))) {
-        const value = parseTime(String(match[1] || '').replace(/^\"|\"$/g, ''));
-        if (value > updateTime) updateTime = value;
-      }
-      const nodeMatch = text.match(/\"current_node\"\s*:\s*\"([^\"]+)\"/);
+      // Top-level metadata is normally outside the huge mapping. Limit scanning so a
+      // multi-megabyte conversation is not regex-walked a second time after download.
+      const head = text.slice(0, 65536);
+      const tail = text.length > 65536 ? text.slice(-65536) : head;
+      const timeMatch = head.match(/\"update_time\"\s*:\s*(\"[^\"]+\"|\d+(?:\.\d+)?)/);
+      if (timeMatch) updateTime = parseTime(String(timeMatch[1] || '').replace(/^\"|\"$/g, ''));
+      const nodeMatch = tail.match(/\"current_node\"\s*:\s*\"([^\"]+)\"/) || head.match(/\"current_node\"\s*:\s*\"([^\"]+)\"/);
       if (nodeMatch) currentNode = nodeMatch[1];
     } catch {}
     return { updateTime, currentNode };
@@ -303,7 +313,7 @@
   bc?.addEventListener('message', event => {
     const m = event.data;
     if (!m?.id) return;
-    if (m.type === 'invalidate') memory.delete(m.id);
+    if (m.type === 'invalidate' || m.type === 'updated') memory.delete(m.id);
   });
 
   async function networkAndCache(self, input, init, id) {
@@ -320,7 +330,9 @@
       let exposed = false;
       const expose = value => { if (!exposed) { exposed = true; resolve(value); } };
       navigator.locks.request(`niakgpt-hotfetch:${id}`, { mode:'exclusive' }, async () => {
-        const latest = await getEntry(id);
+        // Force a disk read after acquiring the lock. Another tab may have persisted a
+        // fresher copy while this tab was waiting, even if this tab had a stale RAM entry.
+        const latest = await getEntry(id, true);
         if (latest && latest.fetchedAt > (staleEntry?.fetchedAt || 0) && entryFresh(latest, id)) {
           deduped++;
           hits++;

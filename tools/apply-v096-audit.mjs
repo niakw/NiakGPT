@@ -13,7 +13,6 @@ const must=(cond,msg)=>{if(!cond)throw new Error(msg);};
     const stateNew="mainObserver:null, sidebarObserver:null, mainRoot:null, sidebarRoot:null, mainTimer:0, sidebarTimer:0, lastPath:location.pathname, projectsRefreshed:false, refreshingProjects:false,";
     must(s.includes(stateOld),'app state anchor missing');
     s=s.replace(stateOld,stateNew);
-
     const indexRx=/  function scheduleIndex\(delay=1200\)\{[\s\S]*?\n  async function runOneIndex\(\)\{/;
     must(indexRx.test(s),'schedule/refresh block anchor missing');
     s=s.replace(indexRx,`  function scheduleIndex(delay=120){
@@ -37,10 +36,8 @@ const must=(cond,msg)=>{if(!cond)throw new Error(msg);};
     finally{S.refreshingProjects=false;}
   }
   async function runOneIndex(){`);
-
     s=s.replace("if(S.indexing||!canBackground())return scheduleIndex(5000);","if(S.indexing||!canBackground())return;");
     s=s.replace("finally{S.indexing=false;scheduleIndex(S.queue.length?500:2200);}","finally{S.indexing=false;if(canBackground())scheduleIndex(S.queue.length?260:100);}");
-
     const mountRx=/  function mountObservers\(\)\{[\s\S]*?\n  function resetRouteVisuals\(\)\{/;
     must(mountRx.test(s),'mountObservers block anchor missing');
     s=s.replace(mountRx,`  function mountObservers(){
@@ -50,7 +47,6 @@ const must=(cond,msg)=>{if(!cond)throw new Error(msg);};
     if(side&&side!==S.sidebarRoot){S.sidebarObserver?.disconnect();S.sidebarRoot=side;S.sidebarObserver=new MutationObserver(()=>{if(S.sidebarTimer)return;S.sidebarTimer=setTimeout(()=>{S.sidebarTimer=0;decorateSidebar();},activity()==='ready'?260:1300);});S.sidebarObserver.observe(side,{childList:true,subtree:true});}
   }
   function resetRouteVisuals(){`);
-
     const routeRx=/  function routeTick\(\)\{[\s\S]*?\n  function bindEvents\(\)\{/;
     must(routeRx.test(s),'routeTick block anchor missing');
     s=s.replace(routeRx,`  function wakeBackground(){
@@ -72,15 +68,30 @@ const must=(cond,msg)=>{if(!cond)throw new Error(msg);};
   }
 
   function bindEvents(){`);
-
     must(s.includes('bindEvents();routeTick();'),'boot routeTick call missing');
     s=s.replace('bindEvents();routeTick();','bindEvents();bindNavigation();');
     must(s.includes("setTimeout(()=>{if(canBackground())refreshProjects();else scheduleIndex(6000);},1600);"),'boot index retry anchor missing');
     s=s.replace("setTimeout(()=>{if(canBackground())refreshProjects();else scheduleIndex(6000);},1600);","setTimeout(()=>{if(canBackground())refreshProjects();},900);");
   }
+
+  // The dedicated coach-v100.js is the only owner of #ng8-coach.
+  if(s.includes('function suggestionSet(prompt)')){
+    const coachRx=/  function findComposer\(\)\{[\s\S]*?\n  function stopMatrix\(\)\{/;
+    must(coachRx.test(s),'legacy coach block anchor missing');
+    s=s.replace(coachRx,'  function stopMatrix(){');
+  }
+  s=s.replace("    if(enabled('ng90Coach')&&activity()==='ready')ensureCoach();\n",'');
+  s=s.replace('renderStatusBase();decorateSidebar();setTimeout(scanExistingMain,500);ensureCoach();','renderStatusBase();decorateSidebar();setTimeout(scanExistingMain,500);');
+  s=s.replace(/    document\.addEventListener\('input',[\s\S]*?\},true\);\n    document\.addEventListener\('keydown'/,"    document.addEventListener('keydown'");
+  s=s.replace("    document.addEventListener('niakgpt:settings-changed',()=>{ensureCoach();ensureMatrix();ensureBots();renderPins();});","    document.addEventListener('niakgpt:settings-changed',()=>{ensureMatrix();ensureBots();renderPins();});");
+  s=s.replace("    document.addEventListener('niakgpt:activity-network',e=>{if(e.detail?.phase==='request')document.getElementById('ng8-coach')?.setAttribute('hidden','');if(e.detail?.phase==='error')setTimeout(ensureCoach,900);});\n",'');
+  s=s.replace('mountObservers();ensureMatrix();ensureBots();ensureCoach();bindEvents();bindNavigation();','mountObservers();ensureMatrix();ensureBots();bindEvents();bindNavigation();');
+
   must(s.includes('function bindNavigation()'),'event-driven navigation missing after convergence');
   must(!s.includes('function routeTick()'),'routeTick still present');
   must(!s.includes('setTimeout(routeTick'),'routeTick timer still present');
+  must(!s.includes('function suggestionSet(prompt)'),'legacy coach classifier still present');
+  must(!s.includes('function ensureCoach()'),'legacy coach renderer still present');
   write(p,s);
 }
 

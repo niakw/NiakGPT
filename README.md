@@ -13,12 +13,12 @@ Extension Chrome/Chromium locale pour transformer ChatGPT en workspace power-use
 
 ## Version actuelle
 
-**0.8.5 — Project Governance + cache chaud + multi-onglets**
+**0.8.6 — états d’activité + Project Governance + cache chaud + multi-onglets**
 
 Le runtime est limité à `https://chatgpt.com/*` et sépare :
 
 - MAIN world : bridge RPC, détection des déplacements manuels et cache chaud des conversations ;
-- isolated world : coordination multi-onglets, Project Governance, pins gouvernés, moteur UI/perf, chronologie et coach.
+- isolated world : coordination multi-onglets, Project Governance, pins gouvernés, moteur UI/perf, chronologie, coach et états d’activité.
 
 ## Performance : priorité à ChatGPT
 
@@ -110,7 +110,7 @@ Project Governance est aussi la source de vérité pour les épinglages.
 
 ## Organisation automatique
 
-La resynchronisation automatique de la v0.8.5 ne touche que les chats **Hors projet et non verrouillés**, avec seuil de confiance élevé.
+La resynchronisation automatique ne touche que les chats **Hors projet et non verrouillés**, avec seuil de confiance élevé.
 
 - exécution uniquement sur l’onglet `WORKER` ;
 - uniquement à l’état idle ;
@@ -127,9 +127,20 @@ La resynchronisation automatique de la v0.8.5 ne touche que les chats **Hors pro
 - couleur et badge du Project ;
 - icône sémantique stable ;
 - Project actif renforcé ;
-- génération jaune/orange ;
 - cadenas pour placement manuel ;
 - reliquats masqués après nettoyage.
+
+### États d’activité v0.8.6
+
+La conversation active et son Project portent un état visuel partagé entre onglets :
+
+- bleu = `CHARGEMENT` ;
+- orange = `ATTENTE` ;
+- violet = `RÉFLEXION / ANALYSE` ;
+- cyan/vert = `EXÉCUTION` ;
+- rouge = `ERREUR`.
+
+La ligne du chat reçoit fond, bordure, glow et indicateur d’activité. La barre basse utilise la même source d’état afin de ne plus afficher `PRÊT` pendant une attente ou une génération détectée.
 
 ## Quick Open
 
@@ -171,6 +182,12 @@ En plus des modules historiques, la v0.8.x ajoute notamment :
 - `hotcache · HIT / MISS / NETWORK / …` ;
 - `governance · N principaux · M manuels · X masqués` ;
 - `pins · CORE · X/Y natifs`.
+
+## Visual Lab
+
+`visual-lab/` fournit une fixture locale de l’interface et charge les **CSS de production NiakGPT**. Playwright rend automatiquement les états `PRÊT`, `CHARGEMENT`, `ATTENTE`, `RÉFLEXION / ANALYSE`, `EXÉCUTION`, `ERREUR`, ainsi que les scènes gros fil, panneau Activité et Project Governance.
+
+Le workflow **NiakGPT Visual Lab** vérifie notamment les débordements, le positionnement coach/composer et l’accessibilité du bouton de fermeture Activité, puis publie les screenshots dans un artefact CI. Il sert de boucle rapide de contrôle visuel ; un test final sur le vrai DOM ChatGPT reste nécessaire lorsque celui-ci change.
 
 ## Confidentialité
 

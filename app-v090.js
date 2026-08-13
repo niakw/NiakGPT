@@ -300,38 +300,6 @@
   function processPendingMain(){
     S.mainTimer=0;const nodes=[...S.pendingMain];S.pendingMain.clear();
     for(const node of nodes){if(node.matches?.('article[data-testid^="conversation-turn-"],[data-testid^="conversation-turn-"]'))decorateTurn(node);node.querySelectorAll?.('article[data-testid^="conversation-turn-"],[data-testid^="conversation-turn-"]').forEach(decorateTurn);if(node.matches?.('pre'))decorateCode(node);node.querySelectorAll?.('pre').forEach(decorateCode);}
-    if(enabled('ng90Coach')&&activity()==='ready')ensureCoach();
-  }
-
-  function findComposer(){
-    const els=[...document.querySelectorAll('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')];
-    for(let i=els.length-1;i>=0;i--){const el=els[i];if(!(el instanceof HTMLElement))continue;const r=el.getBoundingClientRect();if(r.width>220&&r.height>16&&r.bottom>innerHeight*.42){const form=el.closest('form')||el.closest('[data-type="unified-composer"]')||el.closest('[class*="composer"]')||el.parentElement;return{editor:el,form,shell:form?.parentElement||form};}}
-    return null;
-  }
-  const editorText=e=>e instanceof HTMLTextAreaElement?e.value:(e.innerText||e.textContent||'');
-  function recentContext(){ return liveTurns().slice(-5).map(t=>(t.innerText||t.textContent||'').slice(0,1600)).join(' ').slice(-6000); }
-  function promptSubject(prompt){ const p=String(prompt||'').replace(/\s+/g,' ').trim();return(p.split(/[.!?;\n]/)[0]||p).slice(0,150)||'cette demande'; }
-  function suggestionSet(prompt){
-    const subject=promptSubject(prompt),ctx=norm(`${prompt} ${recentContext()}`),items=[];
-    const add=(k,t,x)=>items.push({k,t,x});
-    if(/code|bug|erreur|script|javascript|typescript|python|css|html|api|github|extension|chrome|sql|php/.test(ctx)){add('code','Diagnostic reproductible',`Pour ${subject}, commence par isoler la cause, donne les étapes de reproduction, puis propose le correctif minimal avec les risques de régression.`);add('test','Tests de non-régression',`Ajoute les cas de test qui prouveront que ${subject} fonctionne avant et après le correctif, y compris les cas limites.`);add('perf','Coût runtime',`Pour ${subject}, vérifie aussi le coût CPU, DOM, mémoire et réseau ; évite les scans ou requêtes inutiles.`);}
-    else if(/design|da |interface|ui|visuel|couleur|layout|css|ux/.test(ctx)){add('design','Hiérarchie visuelle',`Pour ${subject}, travaille la hiérarchie, le contraste, la densité et les états sans ajouter de bruit décoratif.`);add('ux','Cas d’usage',`Évalue ${subject} sur desktop, petit écran, état vide, chargement, erreur et contenu très long.`);add('test','Régression visuelle',`Définis des contrôles visuels mesurables pour ${subject} : chevauchements, overflow, focus, lisibilité et responsive.`);}
-    else if(/performance|lent|lourd|lag|charge|cache|mémoire|memoire|cpu|réseau|reseau/.test(ctx)){add('perf','Mesure avant/après',`Pour ${subject}, identifie les opérations coûteuses et définis une mesure avant/après plutôt que d’optimiser à l’aveugle.`);add('focus','Chemin critique',`Isole le chemin critique de ${subject} et reporte tout travail non essentiel en idle, cache ou à la demande.`);add('test','Stress test',`Teste ${subject} avec plusieurs onglets, un fil très long et une génération en cours, sans multiplier le travail.`);}
-    else if(/jurid|avocat|droit|contrat|licenci|tribunal|justice/.test(ctx)){add('research','Sources et faits',`Pour ${subject}, sépare clairement les faits, les pièces, les règles applicables et les points à vérifier.`);add('table','Chronologie',`Structure ${subject} chronologiquement avec date, événement, preuve disponible et conséquence.`);add('action','Prochaine action',`Termine l’analyse de ${subject} par les actions concrètes, leur ordre et ce qui manque pour décider.`);}
-    else if(/compare|compar|choisir|versus| vs |meilleur|alternative/.test(ctx)){add('table','Critères comparables',`Pour ${subject}, compare sur les mêmes critères, pondère les différences importantes et signale les inconnues.`);add('action','Décision',`Après la comparaison de ${subject}, donne un choix principal et explique dans quel cas choisir l’alternative.`);add('research','Vérification',`Pour ${subject}, distingue ce qui est établi, ce qui peut avoir changé et ce qui nécessite une vérification récente.`);}
-    else {add('focus','Objectif précis',`Pour ${subject}, commence par définir le résultat attendu et les contraintes qui changent réellement la réponse.`);add('blind','Angles morts',`Sur ${subject}, cherche les hypothèses implicites, les cas limites et ce qui pourrait invalider la première solution.`);add('action','Plan exécutable',`Transforme ${subject} en étapes concrètes, ordonnées et vérifiables, avec un critère de réussite pour chaque étape.`);}
-    return items.slice(0,3);
-  }
-  function appendPrompt(editor,text){
-    editor.focus();if(editor instanceof HTMLTextAreaElement){const sep=editor.value.trim()?'\n\n':'',s=editor.selectionStart??editor.value.length,e=editor.selectionEnd??editor.value.length;editor.setRangeText(`${sep}${text}`,s,e,'end');editor.dispatchEvent(new Event('input',{bubbles:true}));return;}
-    const sel=getSelection(),range=document.createRange();range.selectNodeContents(editor);range.collapse(false);sel.removeAllRanges();sel.addRange(range);document.execCommand('insertText',false,`${editorText(editor).trim()?'\n\n':''}${text}`);editor.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText'}));
-  }
-  function ensureCoach(){
-    if(safeMode()||!enabled('ng90Coach')||activity()!=='ready'){document.getElementById('ng8-coach')?.setAttribute('hidden','');health('coach',safeMode()?'OFF · SAFE MODE':!enabled('ng90Coach')?'OFF · réglage':'PAUSE · activité');return;}
-    const c=findComposer();if(!c?.editor||!c.form||!c.shell){document.getElementById('ng8-coach')?.setAttribute('hidden','');health('coach','INACTIF · composer absent');return;}
-    let box=document.getElementById('ng8-coach');if(box&&box.parentElement!==c.shell){box.remove();box=null;}if(!box){box=document.createElement('div');box.id='ng8-coach';c.shell.insertBefore(box,c.form);}
-    const prompt=editorText(c.editor);if(prompt.trim().length<4){box.hidden=true;health('coach','PRÊT · saisir 4 caractères');return;}
-    const items=suggestionSet(prompt),attachments=c.form.querySelectorAll('[data-testid*="attachment"],[data-testid*="file"],img').length;box.classList.toggle('compact',attachments>0||c.form.getBoundingClientRect().height>180);box.hidden=!items.length;box.innerHTML=`<div class="ng8-coach-label">✦ NIAKGPT · RECO${attachments?` · ${attachments} PJ`:''}</div><div class="ng8-sug-grid">${items.map((x,i)=>`<button type="button" data-i="${i}" class="ng8-sug ng8-${x.k}"><b>${esc(x.t)}</b><span>${esc(x.x)}</span></button>`).join('')}</div>`;box.querySelectorAll('[data-i]').forEach(b=>b.addEventListener('click',()=>appendPrompt(c.editor,items[Number(b.dataset.i)].x)));health('coach',`OK · ${items.length} suggestions`);
   }
 
   function stopMatrix(){ clearTimeout(S.matrixTimer);S.matrixTimer=0;S.matrix?.remove();S.matrix=null;S.matrixCtx=null;health('matrix','OFF'); }
@@ -366,7 +334,7 @@
     if(side&&side!==S.sidebarRoot){S.sidebarObserver?.disconnect();S.sidebarRoot=side;S.sidebarObserver=new MutationObserver(()=>{if(S.sidebarTimer)return;S.sidebarTimer=setTimeout(()=>{S.sidebarTimer=0;decorateSidebar();},activity()==='ready'?260:1300);});S.sidebarObserver.observe(side,{childList:true,subtree:true});}
   }
   function resetRouteVisuals(){
-    S.turns=[];S.turnSeen=new WeakSet();S.codeSeen=new WeakSet();S.codeCount=0;document.documentElement.dataset.ng8Heavy='0';renderStatusBase();decorateSidebar();setTimeout(scanExistingMain,500);ensureCoach();
+    S.turns=[];S.turnSeen=new WeakSet();S.codeSeen=new WeakSet();S.codeCount=0;document.documentElement.dataset.ng8Heavy='0';renderStatusBase();decorateSidebar();setTimeout(scanExistingMain,500);
   }
   function wakeBackground(){
     if(!canBackground())return;
@@ -387,16 +355,14 @@
   }
 
   function bindEvents(){
-    document.addEventListener('input',e=>{const t=e.target;if(!(t instanceof Element))return;if(t.matches('#prompt-textarea,[data-testid="prompt-textarea"],textarea')||t.isContentEditable){clearTimeout(t.__ng90CoachTimer);t.__ng90CoachTimer=setTimeout(ensureCoach,130);}},true);
     document.addEventListener('keydown',e=>{if(e.altKey&&!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&String(e.key).toLowerCase()==='k'){e.preventDefault();openQuick();}},true);
-    document.addEventListener('niakgpt:settings-changed',()=>{ensureCoach();ensureMatrix();ensureBots();renderPins();});
-    document.addEventListener('niakgpt:activity-network',e=>{if(e.detail?.phase==='request')document.getElementById('ng8-coach')?.setAttribute('hidden','');if(e.detail?.phase==='error')setTimeout(ensureCoach,900);});
+    document.addEventListener('niakgpt:settings-changed',()=>{ensureMatrix();ensureBots();renderPins();});
     window.addEventListener('resize',()=>{resizeMatrix();},{passive:true});
     chrome.storage.onChanged.addListener((changes,area)=>{if(area!=='local')return;if(changes[GOV_KEY]){S.governance={...S.governance,...(changes[GOV_KEY].newValue||{})};renderPins();decorateSidebar();renderPanel();}if(changes[CACHE_KEY]&&!S.indexing){loadCache().then(()=>{renderPins();decorateSidebar();renderPanel();});}});
   }
 
   async function boot(){
-    ensureShell();await Promise.all([loadGovernance(),loadCache()]);brand();mergeDOM();buildDuplicates();renderPins();decorateSidebar();mountObservers();ensureMatrix();ensureBots();ensureCoach();bindEvents();bindNavigation();
+    ensureShell();await Promise.all([loadGovernance(),loadCache()]);brand();mergeDOM();buildDuplicates();renderPins();decorateSidebar();mountObservers();ensureMatrix();ensureBots();bindEvents();bindNavigation();
     if(role()==='client')health('bridge','DÉLÉGUÉ · WORKER');
     setTimeout(()=>{if(canBackground())refreshProjects();},900);
   }

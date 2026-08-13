@@ -59,7 +59,12 @@
   }
 
   document.addEventListener('niakgpt:activity-network',event=>{if(event.detail?.phase==='request'||event.detail?.phase==='headers'){arm();scheduleScan(240);}},true);
-  document.addEventListener('click',event=>{const t=event.target instanceof Element?event.target:null;const text=`${t?.closest('button,[role="button"],a')?.getAttribute('aria-label')||''} ${t?.textContent||''}`;if(LABEL_RX.test(text)){arm();scheduleScan(80);}else scheduleScan(180,t?.closest('header,main,aside')||document);},true);
+  document.addEventListener('click',event=>{
+    const target=event.target instanceof Element?event.target:null,control=target?.closest('button,[role="button"],a');if(!(control instanceof HTMLElement)||control.closest(OWN))return;
+    const text=`${control.getAttribute('aria-label')||''} ${control.getAttribute('data-testid')||''} ${control.title||''} ${(control.textContent||'').trim().slice(0,60)}`,r=control.getBoundingClientRect();
+    const relevant=LABEL_RX.test(text)||(r.right>innerWidth-125&&r.width<=150&&r.height<=90);
+    if(!relevant)return;arm(5000);scheduleScan(80,control.closest('header,main,aside')||document);
+  },true);
   window.addEventListener('popstate',()=>scheduleScan(100));
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)scheduleScan(120);});
   scheduleScan(250);arm(7000);

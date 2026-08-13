@@ -26,7 +26,7 @@ jobs:
           const isolated = m.content_scripts.find(x => x.world !== 'MAIN');
           if (!main || !isolated) throw new Error('runtime worlds missing');
           if (JSON.stringify(main.js) !== JSON.stringify(['page-bridge.js','manual-lock-main-v085.js','hotcache-main-v084.js'])) throw new Error('manual detector must load between bridge and hotcache');
-          if (JSON.stringify(isolated.js) !== JSON.stringify(['multitab-v083.js','project-governance-v085.js','app-v08-safe.js','polish-v081.js','chronology-v081.js','hotcache-v084.js'])) throw new Error('governance must load before legacy app engine');
+          if (JSON.stringify(isolated.js) !== JSON.stringify(['multitab-v083.js','project-governance-v085.js','project-pins-v085.js','app-v08-safe.js','polish-v081.js','chronology-v081.js','hotcache-v084.js'])) throw new Error('governance/pins must load before legacy app engine');
           if (JSON.stringify(isolated.css) !== JSON.stringify(['theme-v08.css','polish-v081.css','chronology-v081.css','multitab-v083.css','governance-v085.css'])) throw new Error('unexpected v0.8.5 CSS runtime');
           if (!m.content_scripts.every(x => x.run_at === 'document_start')) throw new Error('runtime must start immediately');
           console.log('manifest v0.8.5 OK');
@@ -39,6 +39,7 @@ jobs:
           node --check hotcache-main-v084.js
           node --check multitab-v083.js
           node --check project-governance-v085.js
+          node --check project-pins-v085.js
           node --check app-v08-safe.js
           node --check polish-v081.js
           node --check chronology-v081.js
@@ -67,9 +68,21 @@ jobs:
           grep -q '#ng85-governance' governance-v085.css
           grep -q '.ng85-manual-lock' governance-v085.css
 
+      - name: Check governed native Project pins
+        run: |
+          grep -q 'niakgpt-governance-v085' project-pins-v085.js
+          grep -q 'coreProjectIds' project-pins-v085.js
+          grep -q 'hiddenProjectIds' project-pins-v085.js
+          grep -q 'nativePinnedIds' project-pins-v085.js
+          grep -q 'désépingler' project-pins-v085.js
+          grep -q 'épingler' project-pins-v085.js
+          grep -q 'tryNativePins\\s\*' project-pins-v085.js
+          grep -q "role()!=='worker'" project-pins-v085.js
+          grep -q 'CORE ·' project-pins-v085.js
+
       - name: Check privacy of Project structure
         run: |
-          if grep -Ei 'miorra|aelyron|eitty|elias|niakvio|tommy|foissy' project-governance-v085.js manual-lock-main-v085.js governance-v085.css; then
+          if grep -Ei 'miorra|aelyron|eitty|elias|niakvio|tommy|foissy' project-governance-v085.js project-pins-v085.js manual-lock-main-v085.js governance-v085.css; then
             echo 'personal project/person data must not be hardcoded in governance runtime'
             exit 1
           fi
@@ -161,4 +174,4 @@ jobs:
           grep -q 'ng8-active-project' polish-v081.css
           grep -q 'BY SKYNET' app-v08-safe.js
           if grep -E '#ng8-coach\{[^}]*position:fixed' theme-v08.css; then exit 1; fi
-          echo 'v0.8.5 governance + hotcache + multitab + chronology + performance + polish checks OK'
+          echo 'v0.8.5 governance + governed pins + hotcache + multitab + chronology + performance + polish checks OK'

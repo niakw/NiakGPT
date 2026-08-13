@@ -10,6 +10,7 @@ on:
       - 'tools/multitab-ui-hotpath-v096.mjs'
       - 'tools/hotcache-v096.mjs'
       - 'tools/hotcache-lock-hold-v096.mjs'
+      - 'tools/cache-normalize-v096.mjs'
   workflow_dispatch:
 
 permissions:
@@ -38,6 +39,7 @@ jobs:
           node tools/multitab-ui-hotpath-v096.mjs
           node tools/hotcache-v096.mjs
           node tools/hotcache-lock-hold-v096.mjs
+          node tools/cache-normalize-v096.mjs
       - name: Validate converged runtime
         run: |
           node --check app-v090.js

@@ -2,6 +2,55 @@
 
 Les changements notables de NiakGPT sont regroupés ici. Le projet est encore en phase RC : les versions 0.x peuvent faire évoluer l’architecture interne rapidement.
 
+## 0.9.5 — RC6
+
+### Runtime / cycle de vie
+
+- `manifest.json` devient la source de vérité de version pour les contrôles et le packaging ;
+- ajout d’un service worker MV3 minimal pour distinguer installation neuve et mise à jour ;
+- une mise à jour existante n’affiche jamais de force l’onboarding ;
+- packaging du service worker avec vérification explicite dans le ZIP final.
+
+### Workspace
+
+- onboarding first-run en 4 étapes, ignorable et réservé aux nouvelles installations ;
+- profils **Power**, **Code / IDE**, **Research**, **Focus / Writing**, **Analyst** et **High Contrast** ;
+- Command Palette `Ctrl+Shift+P` pour Quick Open, Control Center, Safe Mode, Explorer, TOC, diagnostic, Governance, Matrix et profils ;
+- profils accessibles depuis le Control Center ;
+- raccourcis clavier et dialogues avec focus trap et restauration du focus.
+
+### Performance / architecture
+
+- cœur, chronologie, panneau Activité, Governance et pins natifs event-driven ;
+- aucun polling permanent dans les modules applicatifs principaux ;
+- WORKER / CLIENT partagé entre onglets ;
+- Safe Mode coupe les tâches non essentielles et fait céder le WORKER ;
+- cache chaud IndexedDB des conversations lourdes et déduplication réseau inter-onglets.
+
+### Projects
+
+- première page d’un Project sans `cursor=0` inventé ;
+- pagination uniquement avec les cursors opaques réellement renvoyés ;
+- `limit=20` avec fallback sans `limit` sur `422` ;
+- compteurs réels + date de dernière activité ;
+- nettoyage des reliquats/doublons et resynchronisation prudente ;
+- priorité absolue aux déplacements manuels vérifiés et verrouillés.
+
+### États / DA
+
+- `CHARGEMENT`, `ATTENTE`, `RÉFLEXION / ANALYSE`, `EXÉCUTION`, `ERREUR`, `PRÊT` partagés entre onglets ;
+- couleur d’activité sur la ligne du chat, le Project et la barre basse ;
+- panneau Activité harmonisé et fermeture toujours accessible ;
+- Matrix plus discret et adaptable ;
+- profils visuels spécialisés sans dépendre des couleurs de thème ChatGPT.
+
+### QA / release
+
+- Visual Lab Playwright desktop/laptop/gros fil ;
+- vraie extension non empaquetée chargée dans Chromium sur un `chatgpt.com` mocké ;
+- tests de compteurs, pagination, activité, verrou manuel, Safe Mode et élection multi-onglets ;
+- Public Quality Gate avec ZIP installable propre, garde de confidentialité et documentation obligatoire.
+
 ## 0.9.3 — RC4
 
 ### Performance / architecture

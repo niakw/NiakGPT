@@ -102,9 +102,10 @@
 
   function eligiblePeer(){purgePeers();return[...peers.values()].find(p=>p.role!=='WORKER'&&!p.safeMode&&!p.heavy);}
   function scheduleHeavyYield(){
-    clearTimeout(heavyTimer);if(role!=='WORKER'||!heavy()||safe())return;
+    if(role!=='WORKER'||!heavy()||safe()){clearTimeout(heavyTimer);heavyTimer=0;return;}
+    if(heavyTimer)return;
     broadcast('heavy-request');
-    heavyTimer=setTimeout(()=>{if(role==='WORKER'&&heavy()&&eligiblePeer())releaseWorker('heavy-handoff');},500);
+    heavyTimer=setTimeout(()=>{heavyTimer=0;if(role==='WORKER'&&heavy()&&eligiblePeer())releaseWorker('heavy-handoff');},500);
   }
 
   function schedulePulse(delay=12000){
@@ -143,7 +144,6 @@
   document.addEventListener('visibilitychange',()=>{broadcast('visibility');if(!document.hidden){pumpIdle();if(role!=='WORKER'&&!safe())tryAcquire('visible');}});
   chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[SETTINGS_KEY])loadPublicSettings();});
 
-  // Cache-only Quick Open fallback remains available on CLIENT tabs.
   const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
   function routeTo(href){
     const id=String(href||'').match(/\/c\/([0-9a-f-]{20,})/i)?.[1],root=document.querySelector('[data-testid="conversation-sidebar"],[data-testid="sidebar"],nav');

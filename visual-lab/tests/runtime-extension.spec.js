@@ -5,6 +5,8 @@ const path = require('node:path');
 
 const extensionPath = path.resolve(__dirname, '..', '..');
 const fixture = fs.readFileSync(path.join(__dirname, '..', 'runtime-fixture.html'), 'utf8');
+const manifest = JSON.parse(fs.readFileSync(path.join(extensionPath, 'manifest.json'), 'utf8'));
+const EXPECTED_VERSION = manifest.version;
 const CHAT1 = '11111111-1111-4111-8111-111111111111';
 const CHAT2 = '22222222-2222-4222-8222-222222222222';
 const CHAT3 = '33333333-3333-4333-8333-333333333333';
@@ -18,7 +20,16 @@ function chatRaw(id, title, projectId, time) {
   return { id, title, gizmo_id: projectId || null, update_time: time, create_time: time };
 }
 
-async function launchRuntime() {
+async function extensionWorker(context) {
+  const existing = context.serviceWorkers().find(worker => worker.url().includes('background-v100.js'));
+  if (existing) return existing;
+  return context.waitForEvent('serviceworker', {
+    predicate: worker => worker.url().includes('background-v100.js'),
+    timeout: 10000
+  });
+}
+
+async function launchRuntime({ onboarding = 'done' } = {}) {
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'niakgpt-runtime-'));
   const context = await chromium.launchPersistentContext(userDataDir, {
     headless: true,
@@ -29,6 +40,24 @@ async function launchRuntime() {
       `--load-extension=${extensionPath}`
     ]
   });
+
+  const worker = await extensionWorker(context);
+  if (onboarding === 'done') {
+    await worker.evaluate(async version => {
+      await chrome.storage.local.set({
+        'niakgpt-onboarding-v100': { status: 'done', version, at: Date.now() }
+      });
+    }, EXPECTED_VERSION);
+  } else if (onboarding === 'update') {
+    await worker.evaluate(async version => {
+      await chrome.storage.local.remove('niakgpt-onboarding-v100');
+      await chrome.storage.local.set({
+        'niakgpt-install-meta-v100': {
+          reason: 'update', previousVersion: '0.9.4', currentVersion: version, changedAt: Date.now()
+        }
+      });
+    }, EXPECTED_VERSION);
+  }
 
   const state = {
     projectByChat: { [CHAT1]: P1, [CHAT2]: P1, [CHAT3]: P2 },
@@ -94,19 +123,46 @@ async function launchRuntime() {
   async function open(p = page, id = CHAT1) {
     await p.goto(`https://chatgpt.com/c/${id}`, { waitUntil: 'domcontentloaded' });
     await expect(p.locator('#ng8-status')).toBeVisible({ timeout: 12000 });
-    await expect(p.locator('#ng8-status')).toContainText('0.9.3');
+    await expect(p.locator('#ng8-status')).toContainText(EXPECTED_VERSION);
     return p;
   }
   async function close() {
     await context.close();
     fs.rmSync(userDataDir, { recursive: true, force: true });
   }
-  return { context, page, state, pageErrors, open, close };
+  return { context, worker, page, state, pageErrors, open, close };
 }
 
 async function waitReady(page) {
   await expect.poll(async () => page.locator('html').getAttribute('data-ng86-activity'), { timeout: 10000 }).toBe('ready');
 }
+
+test('fresh install exposes skippable onboarding only once', async () => {
+  const rt = await launchRuntime({ onboarding: 'fresh' });
+  try {
+    await rt.open();
+    const onboarding = rt.page.locator('#ng100-onboarding');
+    await expect(onboarding).toBeVisible({ timeout: 5000 });
+    await expect(onboarding).toContainText('NiakGPT');
+    await expect(onboarding.locator('[data-skip]')).toBeVisible();
+    await onboarding.locator('[data-skip]').click();
+    await expect(onboarding).toHaveCount(0);
+    await rt.page.reload({ waitUntil: 'domcontentloaded' });
+    await rt.page.waitForTimeout(1700);
+    await expect(rt.page.locator('#ng100-onboarding')).toHaveCount(0);
+  } finally { await rt.close(); }
+});
+
+test('lifecycle update never forces onboarding', async () => {
+  const rt = await launchRuntime({ onboarding: 'update' });
+  try {
+    await rt.open();
+    await rt.page.waitForTimeout(1800);
+    await expect(rt.page.locator('#ng100-onboarding')).toHaveCount(0);
+    const meta = await rt.worker.evaluate(async () => (await chrome.storage.local.get('niakgpt-onboarding-v100'))['niakgpt-onboarding-v100']);
+    expect(meta?.status).toBe('upgrade-skipped');
+  } finally { await rt.close(); }
+});
 
 test('real extension boots and Project counters use cursor-safe pagination', async () => {
   const rt = await launchRuntime();
@@ -164,7 +220,25 @@ test('native manual Project move is verified, locked, and explicitly unlockable'
   } finally { await rt.close(); }
 });
 
-test('Control Center Safe Mode stops non-essential work and yields WORKER', async () => {
+test('Command Palette applies workspace profile through the real extension', async () => {
+  const rt = await launchRuntime();
+  try {
+    await rt.open();
+    await waitReady(rt.page);
+    await rt.page.keyboard.press('Control+Shift+P');
+    const command = rt.page.locator('#ng100-command');
+    await expect(command).toBeVisible();
+    const input = command.locator('input');
+    await input.fill('Code / IDE');
+    const codeCommand = command.getByText('Profil : Code / IDE', { exact: true });
+    await expect(codeCommand).toBeVisible();
+    await codeCommand.click();
+    await expect(rt.page.locator('html')).toHaveAttribute('data-ng100-profile', 'code');
+    await expect(command).toHaveCount(0);
+  } finally { await rt.close(); }
+});
+
+test('Control Center exposes profiles and Safe Mode stops non-essential work', async () => {
   const rt = await launchRuntime();
   try {
     await rt.open();
@@ -175,11 +249,11 @@ test('Control Center Safe Mode stops non-essential work and yields WORKER', asyn
     await gear.click();
     const control = rt.page.locator('#ng90-control');
     await expect(control).toBeVisible();
+    await expect(control.locator('.ng100-profile-section')).toBeVisible();
     const safeInput = control.locator('[data-setting="safeMode"]');
     await expect(safeInput).toHaveAttribute('aria-label', 'Activer le Safe Mode');
     await expect(safeInput).toHaveAttribute('role', 'switch');
     const safeSwitch = safeInput.locator('xpath=..');
-    await expect(safeSwitch).toBeVisible();
     await safeSwitch.click();
     await expect(safeInput).toBeChecked();
     await expect(safeInput).toHaveAttribute('aria-checked', 'true');

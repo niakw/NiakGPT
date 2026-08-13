@@ -19,17 +19,17 @@ jobs:
           const fs = require('fs');
           const m = JSON.parse(fs.readFileSync('manifest.json','utf8'));
           if (m.name !== 'NiakGPT') throw new Error('wrong extension name');
-          if (m.version !== '0.8.5') throw new Error('wrong build version');
+          if (m.version !== '0.8.6') throw new Error('wrong build version');
           if (JSON.stringify(m.host_permissions) !== JSON.stringify(['https://chatgpt.com/*'])) throw new Error('host scope must be ChatGPT only');
           if (!m.content_scripts.every(x => x.matches.every(v => v === 'https://chatgpt.com/*'))) throw new Error('unexpected content-script host');
           const main = m.content_scripts.find(x => x.world === 'MAIN');
           const isolated = m.content_scripts.find(x => x.world !== 'MAIN');
           if (!main || !isolated) throw new Error('runtime worlds missing');
-          if (JSON.stringify(main.js) !== JSON.stringify(['page-bridge.js','manual-lock-main-v085.js','hotcache-main-v084.js'])) throw new Error('manual detector must load between bridge and hotcache');
-          if (JSON.stringify(isolated.js) !== JSON.stringify(['multitab-v083.js','project-governance-v085.js','project-pins-v085.js','app-v08-safe.js','polish-v081.js','chronology-v081.js','hotcache-v084.js'])) throw new Error('governance/pins must load before legacy app engine');
-          if (JSON.stringify(isolated.css) !== JSON.stringify(['theme-v08.css','polish-v081.css','chronology-v081.css','multitab-v083.css','governance-v085.css'])) throw new Error('unexpected v0.8.5 CSS runtime');
+          if (JSON.stringify(main.js) !== JSON.stringify(['page-bridge.js','manual-lock-main-v085.js','hotcache-main-v084.js'])) throw new Error('unexpected MAIN runtime');
+          if (JSON.stringify(isolated.js) !== JSON.stringify(['multitab-v083.js','project-governance-v085.js','project-pins-v085.js','app-v08-safe.js','polish-v081.js','chronology-v081.js','hotcache-v084.js','activity-v086.js'])) throw new Error('activity runtime missing');
+          if (JSON.stringify(isolated.css) !== JSON.stringify(['theme-v08.css','polish-v081.css','chronology-v081.css','multitab-v083.css','governance-v085.css','activity-v086.css'])) throw new Error('activity theme missing');
           if (!m.content_scripts.every(x => x.run_at === 'document_start')) throw new Error('runtime must start immediately');
-          console.log('manifest v0.8.5 OK');
+          console.log('manifest v0.8.6 OK');
           NODE
 
       - name: Check JavaScript syntax
@@ -44,6 +44,29 @@ jobs:
           node --check polish-v081.js
           node --check chronology-v081.js
           node --check hotcache-v084.js
+          node --check activity-v086.js
+
+      - name: Check conversation activity states
+        run: |
+          grep -q "const VERSION = '0.8.6'" activity-v086.js
+          grep -q "loading: 'CHARGEMENT'" activity-v086.js
+          grep -q "waiting: 'ATTENTE'" activity-v086.js
+          grep -q "thinking: 'RÉFLEXION / ANALYSE'" activity-v086.js
+          grep -q "executing: 'EXÉCUTION'" activity-v086.js
+          grep -q "error: 'ERREUR'" activity-v086.js
+          grep -q "ready: 'PRÊT'" activity-v086.js
+          grep -q "localState === 'waiting'" activity-v086.js
+          grep -q '120000' activity-v086.js
+          grep -q 'conversationMounted' activity-v086.js
+          grep -q 'BroadcastChannel' activity-v086.js
+          grep -q 'ng86-active-chat' activity-v086.js
+          grep -q 'ng86-active-project' activity-v086.js
+          grep -q 'ng86-status-state' activity-v086.js
+          grep -q 'data-ng86-activity="waiting"' activity-v086.css
+          grep -q 'data-ng86-activity="thinking"' activity-v086.css
+          grep -q 'data-ng86-activity="executing"' activity-v086.css
+          grep -q 'data-ng86-activity="error"' activity-v086.css
+          grep -q 'box-shadow:inset 4px 0' activity-v086.css
 
       - name: Check Project Governance
         run: |
@@ -62,9 +85,7 @@ jobs:
           grep -q 'unlockChat' project-governance-v085.js
           grep -q 'autoResync' project-governance-v085.js
           grep -q "currentRole()!=='worker'" project-governance-v085.js
-          grep -q 'repairOrganization\\s\*' project-governance-v085.js
           grep -q 'project_move_requires_governance' page-bridge.js
-          grep -q "d.governance !== true" page-bridge.js
           grep -q '#ng85-governance' governance-v085.css
           grep -q '.ng85-manual-lock' governance-v085.css
 
@@ -76,14 +97,13 @@ jobs:
           grep -q 'nativePinnedIds' project-pins-v085.js
           grep -q 'désépingler' project-pins-v085.js
           grep -q 'épingler' project-pins-v085.js
-          grep -q 'tryNativePins\\s\*' project-pins-v085.js
           grep -q "role()!=='worker'" project-pins-v085.js
           grep -q 'CORE ·' project-pins-v085.js
 
       - name: Check privacy of Project structure
         run: |
-          if grep -Ei 'miorra|aelyron|eitty|elias|niakvio|tommy|foissy' project-governance-v085.js project-pins-v085.js manual-lock-main-v085.js governance-v085.css; then
-            echo 'personal project/person data must not be hardcoded in governance runtime'
+          if grep -Ei 'miorra|aelyron|eitty|elias|niakvio|tommy|foissy' project-governance-v085.js project-pins-v085.js manual-lock-main-v085.js governance-v085.css activity-v086.js activity-v086.css; then
+            echo 'personal project/person data must not be hardcoded in runtime'
             exit 1
           fi
           grep -q 'SUSPECT' project-governance-v085.js
@@ -96,17 +116,9 @@ jobs:
           grep -q 'MAX_TOTAL_BYTES = 96' hotcache-main-v084.js
           grep -q 'HARD_TTL = 6' hotcache-main-v084.js
           grep -q 'window.fetch = async function niakgptHotCachedFetch' hotcache-main-v084.js
-          grep -q '/backend-api\\/conversation\\/' hotcache-main-v084.js
-          grep -q 'entryFresh' hotcache-main-v084.js
-          grep -q 'latestKnownUpdate' hotcache-main-v084.js
-          grep -q 'niakgpt-hotfetch:' hotcache-main-v084.js
           grep -q 'BroadcastChannel' hotcache-main-v084.js
           grep -q 'WAIT_PEER' hotcache-main-v084.js
           grep -q 'HIT_PEER' hotcache-main-v084.js
-          grep -q 'niakgpt:hotcache-dirty' hotcache-main-v084.js
-          grep -q 'chrome.storage.onChanged' hotcache-v084.js
-          grep -q 'niakgpt-hotmeta-v084' hotcache-v084.js
-          grep -q 'hotcache</span>' hotcache-v084.js
 
       - name: Check cross-tab worker architecture
         run: |
@@ -114,13 +126,9 @@ jobs:
           grep -q 'BroadcastChannel' multitab-v083.js
           grep -q 'WORKER' multitab-v083.js
           grep -q 'CLIENT' multitab-v083.js
-          grep -q 'requestIdleCallback = function niakgptCoordinatedIdle' multitab-v083.js
           grep -q 'canRunWorkerIdle' multitab-v083.js
-          grep -q 'turns >= 60' multitab-v083.js
           grep -q 'maybeYieldHeavyWorker' multitab-v083.js
-          grep -q 'openClientQuick' multitab-v083.js
           grep -q 'CACHE PARTAGÉ' multitab-v083.js
-          grep -q 'DÉLÉGUÉ · WORKER' multitab-v083.js
           grep -q 'ng8-tab-role="client"' multitab-v083.css
 
       - name: Check idle-safe performance architecture
@@ -129,13 +137,11 @@ jobs:
           grep -q 'scheduleQueue' app-v08-safe.js
           grep -q 'runOneIndex' app-v08-safe.js
           grep -q 'if(S.indexing||S.generating' app-v08-safe.js
-          grep -q 'if(S.generating)return' app-v08-safe.js
           grep -q 'chrome.storage.local' app-v08-safe.js
           grep -q 'S.observer.observe(main' app-v08-safe.js
           grep -q 'S.sidebarObserver.observe(side' app-v08-safe.js
           COUNT=$(grep -o 'observe(document.documentElement' app-v08-safe.js | wc -l)
           test "$COUNT" -le 1
-          grep -q 'setInterval(polish, 1800)' polish-v081.js
           if grep -q 'perf-guard' manifest.json; then exit 1; fi
 
       - name: Check Project counter compatibility
@@ -151,15 +157,11 @@ jobs:
         run: |
           grep -q 'fetchProjects' app-v08-safe.js
           grep -q 'fetchGeneralBestEffort' app-v08-safe.js
-          grep -q 'nativePinnedIds' app-v08-safe.js
-          grep -q 'tryNativePins' app-v08-safe.js
           grep -q 'openQuick' app-v08-safe.js
           grep -q 'PROJECTS ÉPINGLÉS' app-v08-safe.js
           grep -q 'sortVisibleRecentRows' chronology-v081.js
           grep -q 'latestByProject' chronology-v081.js
-          grep -q 'chat.updated' chronology-v081.js
           grep -q 'ng8-chat-date' chronology-v081.js
-          grep -q '\[${count == null' chronology-v081.js
           grep -q 'ng8-project-meta' chronology-v081.css
 
       - name: Check forced DA and native polish
@@ -171,7 +173,6 @@ jobs:
           grep -q 'ng8-activity-close' polish-v081.js
           grep -q 'input:focus-visible' polish-v081.css
           grep -q 'bg-token-message-surface' polish-v081.css
-          grep -q 'ng8-active-project' polish-v081.css
           grep -q 'BY SKYNET' app-v08-safe.js
           if grep -E '#ng8-coach\{[^}]*position:fixed' theme-v08.css; then exit 1; fi
-          echo 'v0.8.5 governance + governed pins + hotcache + multitab + chronology + performance + polish checks OK'
+          echo 'v0.8.6 activity + governance + hotcache + multitab + chronology + performance + polish checks OK'

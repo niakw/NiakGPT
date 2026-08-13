@@ -13,6 +13,7 @@ on:
       - 'tools/cache-normalize-v096.mjs'
       - 'tools/cache-bus-consumers-v096.mjs'
       - 'tools/matrix-cadence-v096.mjs'
+      - 'tools/cache-write-batch-v096.mjs'
   workflow_dispatch:
 
 permissions:
@@ -44,6 +45,7 @@ jobs:
           node tools/cache-normalize-v096.mjs
           node tools/cache-bus-consumers-v096.mjs
           node tools/matrix-cadence-v096.mjs
+          node tools/cache-write-batch-v096.mjs
       - name: Validate converged runtime
         run: |
           node --check app-v090.js

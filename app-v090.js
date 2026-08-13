@@ -3,7 +3,7 @@
   if (location.hostname !== 'chatgpt.com' || window.__NIAKGPT_APP_090__) return;
   window.__NIAKGPT_APP_090__ = true;
 
-  const VERSION = (() => { try { return chrome.runtime.getManifest().version || '0.9.1'; } catch { return '0.9.1'; } })();
+  const VERSION = (() => { try { return chrome.runtime.getManifest().version || '0.9.6'; } catch { return '0.9.6'; } })();
   const CACHE_KEY = 'niakgpt-v08-cache';
   const GOV_KEY = 'niakgpt-governance-v085';
   const CHAT_SEL = 'a[href*="/c/"]';
@@ -17,14 +17,15 @@
     projects:[], projectById:new Map(), chats:[], chatById:new Map(), projectChats:new Map(), counts:new Map(), duplicates:new Map(),
     health:{bridge:'PRÊT',data:'CACHE',projects:'CACHE',quick:'PRÊT',coach:'INACTIF',toc:'INACTIF',performance:'PRÊT',matrix:'INACTIF',ui:'PRÊT'},
     errors:[], panelOpen:false, tab:'explorer', queue:[], queueTimer:0, indexing:false, indexComplete:false, generalLoaded:false,
-    mainObserver:null, sidebarObserver:null, mainRoot:null, sidebarRoot:null, mainTimer:0, sidebarTimer:0, sidebarNeedsPins:false, lastPath:location.pathname, projectsRefreshed:false, refreshingProjects:false,
+    mainObserver:null, sidebarObserver:null, mainRoot:null, sidebarRoot:null, mainTimer:0, sidebarTimer:0, sidebarNeedsPins:false, scanTimer:0, scanToken:0, diagTimer:0,
+    cacheSaveTimer:0, lastCacheWriteAt:0, lastPath:location.pathname, projectsRefreshed:false, refreshingProjects:false,
     pendingMain:new Set(), turns:[], turnSeen:new WeakSet(), codeSeen:new WeakSet(), codeCount:0,
     matrix:null, matrixCtx:null, matrixTimer:0, matrixResize:null, matrixCols:[], matrixW:0, matrixH:0,
     governance:{coreProjectIds:[],hiddenProjectIds:[]}, cacheLoaded:false
   };
 
   const norm = v => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[’']/g,"'").replace(/\s+/g,' ').trim();
-  const esc = v => String(v ?? '').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  const esc = v => String(v ?? '').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt',"'":'&#39;','"':'&quot;'}[c]));
   const sleep = ms => new Promise(r=>setTimeout(r,ms));
   const words = v => norm(v).replace(/[^a-z0-9à-ÿ_-]+/gi,' ').split(/\s+/).filter(x=>x.length>2&&!STOP.has(x));
   const parseTime = v => { if(typeof v==='number'&&Number.isFinite(v))return v>1e12?v:v*1000;if(typeof v==='string'){const n=Number(v);if(Number.isFinite(n))return n>1e12?n:n*1000;const d=Date.parse(v);return Number.isFinite(d)?d:0;}return 0; };
@@ -42,7 +43,7 @@
   function enabled(name, fallback=true){ const v=document.documentElement.dataset[name];return v==null||v===''?fallback:v==='on'; }
   function canBackground(){ return role()==='worker'&&!document.hidden&&!safeMode()&&activity()==='ready'; }
   function error(scope,e){ S.errors.unshift(`${scope}: ${String(e?.message||e).slice(0,180)}`);S.errors=S.errors.slice(0,12);renderPanelIfDiag(); }
-  function health(key,value){ S.health[key]=value;renderPanelIfDiag(); }
+  function health(key,value){ if(S.health[key]===value)return;S.health[key]=value;renderPanelIfDiag(); }
 
   let rpcSeq=0;
   function rpc(path,{method='GET',body=null,timeout=16000}={}){
@@ -80,7 +81,18 @@
     const i=S.chats.findIndex(x=>x.id===c.id);if(i<0)S.chats.push(next);else S.chats[i]=next;
   }
   function serialize(){ return{schema:2,at:Date.now(),projects:S.projects,chats:S.chats,counts:Object.fromEntries(S.counts),indexedProjectIds:[...S.projectChats.keys()]}; }
-  async function saveCache(){ try{await chrome.storage.local.set({[CACHE_KEY]:serialize()});}catch{} }
+  async function saveCache(){
+    clearTimeout(S.cacheSaveTimer);S.cacheSaveTimer=0;
+    const payload=serialize();S.lastCacheWriteAt=payload.at;
+    try{await chrome.storage.local.set({[CACHE_KEY]:payload});}catch{}
+  }
+  function saveCacheSoon(delay=1600){
+    clearTimeout(S.cacheSaveTimer);S.cacheSaveTimer=setTimeout(()=>{
+      S.cacheSaveTimer=0;
+      if(activity()!=='ready'){saveCacheSoon(1200);return;}
+      saveCache();
+    },delay);
+  }
   async function loadGovernance(){ try{const g=(await chrome.storage.local.get(GOV_KEY))[GOV_KEY];if(g)S.governance={...S.governance,...g};}catch{} }
   async function loadCache(rawOverride){
     try{
@@ -119,6 +131,8 @@
     const core=new Set(S.governance.coreProjectIds||[]);
     return visibleProjects().sort((a,b)=>(core.has(b.id)?1:0)-(core.has(a.id)?1:0)||projectRecency(b.id)-projectRecency(a.id)||a.name.localeCompare(b.name,'fr'));
   }
+  const listFrom = (data,...keys) => { for(const key of keys){if(Array.isArray(data?.[key]))return data[key];}return[]; };
+  const nextCursor = data => data?.cursor ?? data?.next_cursor ?? data?.nextCursor ?? null;
 
   async function fetchProjects(){
     const found=new Map(),seen=new Set();let cursor=null;
@@ -127,8 +141,8 @@
       const qs=new URLSearchParams({conversations_per_gizmo:'0'});if(cursor!=null&&cursor!=='')qs.set('cursor',String(cursor));
       const r=await rpc(`/backend-api/gizmos/snorlax/sidebar?${qs}`);
       if(!r.ok)throw new Error(`${r.status||0} · ${r.error||'projects_error'}`);
-      for(const raw of Array.isArray(r.data?.items)?r.data.items:[]){const p=projectFromRaw(raw);if(p)found.set(p.id,p);}
-      const next=r.data?.cursor??null;if(next==null||next==='')break;const key=String(next);if(seen.has(key))break;seen.add(key);cursor=next;
+      for(const raw of listFrom(r.data,'items','projects','gizmos')){const p=projectFromRaw(raw);if(p)found.set(p.id,p);}
+      const next=nextCursor(r.data);if(next==null||next==='')break;const key=String(next);if(seen.has(key))break;seen.add(key);cursor=next;
     }
     return[...found.values()];
   }
@@ -139,9 +153,9 @@
       const qs=new URLSearchParams({limit:'20'});if(cursor!=null&&cursor!=='')qs.set('cursor',String(cursor));
       const r=await rpc(`/backend-api/gizmos/${encodeURIComponent(project.id)}/conversations?${qs}`);
       if(!r.ok)throw new Error(`${r.status||0} · ${r.error||'project_chats_error'}`);
-      const items=Array.isArray(r.data?.items)?r.data.items:[];
+      const items=listFrom(r.data,'items','conversations');
       for(const raw of items){const c=chatFromRaw(raw,project.id);if(c)out.set(c.id,c);}
-      const next=r.data?.cursor??null;if(!items.length||next==null||next==='')break;const key=String(next);if(seen.has(key))break;seen.add(key);cursor=next;await sleep(70);
+      const next=nextCursor(r.data);if(!items.length||next==null||next==='')break;const key=String(next);if(seen.has(key))break;seen.add(key);cursor=next;await sleep(70);
     }
     return[...out.values()];
   }
@@ -153,7 +167,7 @@
       const qs=new URLSearchParams({offset:String(offset),limit:'100',order:'updated'});
       const r=await rpc(`/backend-api/conversations?${qs}`);
       if(!r.ok){error('general',`${r.status||0} · ${r.error||'error'}`);return;}
-      const items=Array.isArray(r.data?.items)?r.data.items:[];for(const raw of items){const c=chatFromRaw(raw);if(c)upsertChat(c);}
+      const items=listFrom(r.data,'items','conversations');for(const raw of items){const c=chatFromRaw(raw);if(c)upsertChat(c);}
       if(!items.length)break;offset+=items.length;if(!(r.data?.has_more===true||r.data?.hasMore===true)&&items.length<100)break;await sleep(90);
     }
     S.generalLoaded=true;await saveCache();decorateSidebar();health('quick',`OK · ${S.projects.length+S.chats.length} entrées`);
@@ -187,8 +201,8 @@
     S.indexing=true;const p=S.queue.shift();
     try{
       const list=await fetchProjectChats(p),map=new Map();for(const c of list){map.set(c.id,c);upsertChat(c);}S.projectChats.set(p.id,map);S.counts.set(p.id,map.size);buildDuplicates();
-      health('data',`INDEX IDLE · ${S.projects.length-S.queue.length}/${S.projects.length}`);await saveCache();
-    }catch(e){if(String(e?.message)==='paused')S.queue.unshift(p);else{S.counts.set(p.id,null);error(`project:${p.name}`,e);await saveCache();}}
+      health('data',`INDEX IDLE · ${S.projects.length-S.queue.length}/${S.projects.length}`);saveCacheSoon();
+    }catch(e){if(String(e?.message)==='paused')S.queue.unshift(p);else{S.counts.set(p.id,null);error(`project:${p.name}`,e);saveCacheSoon();}}
     finally{S.indexing=false;if(canBackground())scheduleIndex(S.queue.length?260:100);}
   }
 
@@ -256,7 +270,10 @@
     if(/^ATTENTE/i.test(String(merged.toc||'')))merged.toc=location.pathname.includes('/c/')?'VIDE · 0 bloc':'INACTIF · hors conversation';
     return Object.entries(merged);
   }
-  function renderPanelIfDiag(){ if(S.panelOpen&&S.tab==='diag')renderPanel(); }
+  function renderPanelIfDiag(){
+    if(!(S.panelOpen&&S.tab==='diag')||S.diagTimer)return;
+    S.diagTimer=setTimeout(()=>{S.diagTimer=0;if(S.panelOpen&&S.tab==='diag')renderPanel();},70);
+  }
   function liveTurns(){ S.turns=S.turns.filter(t=>t?.isConnected);return S.turns; }
   function renderPanel(){
     const panel=document.getElementById('ng8-panel');if(!panel)return;panel.classList.toggle('open',S.panelOpen);document.body.classList.toggle('ng8-panel-open',S.panelOpen);document.querySelectorAll('#ng8-rail [data-tab]').forEach(b=>b.classList.toggle('active',S.panelOpen&&b.dataset.tab===S.tab));if(!S.panelOpen)return;
@@ -302,9 +319,21 @@
     const heavy=S.turns.length>=65||S.codeCount>=35;document.documentElement.dataset.ng8Heavy=heavy?'1':'0';health('performance',`OK · ${S.turns.length}${heavy?' · LOURD':''}`);health('toc',`PRÊT · ${S.turns.length} blocs`);
   }
   function scanExistingMain(){
-    const main=document.querySelector('main');if(!main)return;
-    for(const t of main.querySelectorAll('article[data-testid^="conversation-turn-"],[data-testid^="conversation-turn-"]'))decorateTurn(t);
-    main.querySelectorAll('pre').forEach(decorateCode);
+    clearTimeout(S.scanTimer);const token=++S.scanToken,main=document.querySelector('main');if(!main)return;
+    S.scanTimer=setTimeout(()=>{
+      S.scanTimer=0;if(token!==S.scanToken||!main.isConnected)return;
+      const nodes=[...main.querySelectorAll('article[data-testid^="conversation-turn-"],[data-testid^="conversation-turn-"]')];
+      if(nodes.length>=65)document.documentElement.dataset.ng8Heavy='1';
+      let index=0;
+      const chunk=()=>{
+        if(token!==S.scanToken||!main.isConnected)return;
+        if(activity()!=='ready'){S.scanTimer=setTimeout(chunk,700);return;}
+        const end=Math.min(index+20,nodes.length);for(;index<end;index++)decorateTurn(nodes[index]);
+        if(index<nodes.length)S.scanTimer=setTimeout(chunk,24);
+        else{S.scanTimer=0;health('performance',`OK · ${S.turns.length}${nodes.length>=65?' · LOURD':''}`);}
+      };
+      chunk();
+    },180);
   }
   function queueMainNodes(records){
     for(const r of records)for(const n of r.addedNodes)if(n instanceof Element)S.pendingMain.add(n);if(S.mainTimer)return;S.mainTimer=setTimeout(processPendingMain,activity()==='ready'?120:420);
@@ -346,6 +375,7 @@
     if(side&&side!==S.sidebarRoot){S.sidebarObserver?.disconnect();S.sidebarRoot=side;S.sidebarObserver=new MutationObserver(records=>{let relevant=false,projectTouched=false;for(const record of records)for(const node of record.addedNodes){if(!(node instanceof Element))continue;const hasProject=node.matches?.(PROJECT_SEL)||node.querySelector?.(PROJECT_SEL);const hasChat=node.matches?.(CHAT_SEL)||node.querySelector?.(CHAT_SEL);if(hasProject){relevant=true;projectTouched=true;}else if(hasChat)relevant=true;}if(!relevant)return;S.sidebarNeedsPins=S.sidebarNeedsPins||projectTouched;if(S.sidebarTimer)return;S.sidebarTimer=setTimeout(()=>{S.sidebarTimer=0;const pins=S.sidebarNeedsPins;S.sidebarNeedsPins=false;decorateSidebar(pins);},activity()==='ready'?260:1300);});S.sidebarObserver.observe(side,{childList:true,subtree:true});}
   }
   function resetRouteVisuals(){
+    clearTimeout(S.scanTimer);S.scanTimer=0;S.scanToken++;
     S.turns=[];S.turnSeen=new WeakSet();S.codeSeen=new WeakSet();S.codeCount=0;document.documentElement.dataset.ng8Heavy='0';renderStatusBase();decorateSidebar();setTimeout(scanExistingMain,500);
   }
   function wakeBackground(){
@@ -371,7 +401,14 @@
     document.addEventListener('niakgpt:settings-changed',()=>{ensureMatrix();ensureBots();renderPins();});
     document.addEventListener('niakgpt:diagnostic-changed',()=>renderPanelIfDiag());
     window.addEventListener('resize',()=>{resizeMatrix();},{passive:true});
-    chrome.storage.onChanged.addListener((changes,area)=>{if(area!=='local')return;if(changes[GOV_KEY]){S.governance={...S.governance,...(changes[GOV_KEY].newValue||{})};decorateSidebar();renderPanel();}if(changes[CACHE_KEY]&&!S.indexing){loadCache(changes[CACHE_KEY].newValue).then(()=>{decorateSidebar();if(S.panelOpen)renderPanel();});}});
+    chrome.storage.onChanged.addListener((changes,area)=>{
+      if(area!=='local')return;
+      if(changes[GOV_KEY]){S.governance={...S.governance,...(changes[GOV_KEY].newValue||{})};decorateSidebar();renderPanel();}
+      if(changes[CACHE_KEY]&&!S.indexing){
+        const incoming=changes[CACHE_KEY].newValue;
+        if(incoming?.at!==S.lastCacheWriteAt)loadCache(incoming).then(()=>{decorateSidebar();if(S.panelOpen)renderPanel();});
+      }
+    });
   }
 
   async function boot(){

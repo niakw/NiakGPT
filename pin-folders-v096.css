@@ -1,0 +1,23 @@
+/* NiakGPT 0.9.6 — instant pinned Project folders */
+#ng8-pins .ng96-pin-entry{position:relative!important;display:grid!important;grid-template-columns:minmax(0,1fr) 26px!important;gap:3px!important;align-items:center!important;margin:2px 0!important}
+#ng8-pins .ng96-pin-entry>a[data-ng8-pin="1"]{margin:0!important;min-width:0!important;padding-right:25px!important;grid-template-columns:24px minmax(0,1fr) 62px!important;cursor:pointer!important}
+#ng8-pins .ng96-pin-entry>a[data-ng8-pin="1"] small{padding-right:4px!important;white-space:nowrap!important}
+#ng8-pins .ng96-chevron{position:absolute!important;right:7px!important;top:50%!important;transform:translateY(-50%)!important;color:#8397a9!important;font:700 15px/1 system-ui,sans-serif!important;font-style:normal!important;transition:transform .12s ease,color .12s ease!important;pointer-events:none!important}
+#ng8-pins a[data-ng96-folder="1"][aria-expanded="true"] .ng96-chevron{transform:translateY(-50%) rotate(90deg)!important;color:#4fc1ff!important}
+#ng8-pins .ng96-project-open{width:26px!important;height:28px!important;display:grid!important;place-items:center!important;border:1px solid #2f4050!important;border-radius:6px!important;background:#0d1720!important;color:#7890a4!important;font:700 11px/1 Consolas,monospace!important;cursor:pointer!important;padding:0!important;margin:0!important}
+#ng8-pins .ng96-project-open:hover,#ng8-pins .ng96-project-open:focus-visible{background:#182532!important;color:#fff!important;border-color:#4b6479!important;outline:none!important}
+#ng8-pins .ng96-pin-drawer{margin:0 2px 5px 16px!important;border-left:1px solid color-mix(in srgb,var(--ng8-current-project,#4fc1ff) 32%,#263746 68%)!important;border-bottom:1px solid #1c2a36!important;border-radius:0 0 7px 7px!important;background:linear-gradient(180deg,#081019,#071019)!important;box-shadow:inset 2px 0 rgba(79,193,255,.07)!important;overflow:hidden!important}
+#ng8-pins .ng96-folder-search{padding:5px 6px!important;border-bottom:1px solid #1d2a36!important}
+#ng8-pins .ng96-folder-search input{width:100%!important;height:27px!important;padding:4px 7px!important;border:1px solid #2c3b49!important;border-radius:5px!important;background:#101a24!important;color:#dce7f1!important;font:10px/1.2 system-ui,sans-serif!important;outline:none!important}
+#ng8-pins .ng96-folder-search input:focus{border-color:#456173!important;box-shadow:0 0 0 1px rgba(79,193,255,.13)!important}
+#ng8-pins .ng96-folder-list{max-height:min(34vh,310px)!important;overflow:auto!important;overscroll-behavior:contain!important;scrollbar-width:thin!important;padding:3px!important}
+#ng8-pins .ng96-folder-list>button{width:100%!important;min-height:29px!important;display:grid!important;grid-template-columns:minmax(0,1fr) 42px!important;align-items:center!important;gap:6px!important;padding:4px 7px!important;margin:0!important;border:0!important;border-radius:4px!important;background:transparent!important;color:#bdcad6!important;text-align:left!important;cursor:pointer!important}
+#ng8-pins .ng96-folder-list>button:nth-child(even){background:rgba(255,255,255,.018)!important}
+#ng8-pins .ng96-folder-list>button:hover,#ng8-pins .ng96-folder-list>button:focus-visible{background:#142330!important;color:#fff!important;outline:none!important}
+#ng8-pins .ng96-folder-list>button span{overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;font-size:10.5px!important}
+#ng8-pins .ng96-folder-list>button time{text-align:right!important;color:#71889c!important;font:700 8.5px/1 Consolas,monospace!important;font-variant-numeric:tabular-nums!important}
+#ng8-pins .ng96-folder-empty{padding:10px 8px!important;color:#687b8d!important;text-align:center!important;font:9px/1.4 Consolas,monospace!important}
+#ng8-pins .ng96-folder-limit{display:block!important;padding:4px 7px 6px!important;color:#66798b!important;border-top:1px solid #1b2834!important;font:8px/1.2 Consolas,monospace!important;text-align:right!important}
+html[data-ng8-running="1"] #ng8-pins .ng96-pin-drawer{box-shadow:none!important}
+@media(max-width:1100px){#ng8-pins .ng96-folder-list{max-height:24vh!important}}
+@media(prefers-reduced-motion:reduce){#ng8-pins .ng96-chevron{transition:none!important}}

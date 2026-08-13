@@ -19,23 +19,39 @@ jobs:
           const fs = require('fs');
           const m = JSON.parse(fs.readFileSync('manifest.json','utf8'));
           if (m.name !== 'NiakGPT') throw new Error('wrong extension name');
-          if (m.version !== '0.8.2') throw new Error('wrong build version');
+          if (m.version !== '0.8.3') throw new Error('wrong build version');
           if (JSON.stringify(m.host_permissions) !== JSON.stringify(['https://chatgpt.com/*'])) throw new Error('host scope must be ChatGPT only');
           if (!m.content_scripts.every(x => x.matches.every(v => v === 'https://chatgpt.com/*'))) throw new Error('unexpected content-script host');
           const isolated = m.content_scripts.find(x => x.world !== 'MAIN');
           if (!isolated) throw new Error('isolated script missing');
-          if (JSON.stringify(isolated.js) !== JSON.stringify(['app-v08-safe.js','polish-v081.js','chronology-v081.js'])) throw new Error('unexpected v0.8.2 JS runtime');
-          if (JSON.stringify(isolated.css) !== JSON.stringify(['theme-v08.css','polish-v081.css','chronology-v081.css'])) throw new Error('unexpected v0.8.2 CSS runtime');
+          if (JSON.stringify(isolated.js) !== JSON.stringify(['multitab-v083.js','app-v08-safe.js','polish-v081.js','chronology-v081.js'])) throw new Error('unexpected v0.8.3 JS runtime');
+          if (JSON.stringify(isolated.css) !== JSON.stringify(['theme-v08.css','polish-v081.css','chronology-v081.css','multitab-v083.css'])) throw new Error('unexpected v0.8.3 CSS runtime');
           if (isolated.run_at !== 'document_start') throw new Error('runtime must start immediately');
-          console.log('manifest v0.8.2 OK');
+          console.log('manifest v0.8.3 OK');
           NODE
 
       - name: Check JavaScript syntax
         run: |
           node --check page-bridge.js
+          node --check multitab-v083.js
           node --check app-v08-safe.js
           node --check polish-v081.js
           node --check chronology-v081.js
+
+      - name: Check cross-tab worker architecture
+        run: |
+          grep -q 'navigator.locks' multitab-v083.js
+          grep -q 'BroadcastChannel' multitab-v083.js
+          grep -q 'WORKER' multitab-v083.js
+          grep -q 'CLIENT' multitab-v083.js
+          grep -q 'requestIdleCallback = function niakgptCoordinatedIdle' multitab-v083.js
+          grep -q 'canRunWorkerIdle' multitab-v083.js
+          grep -q 'turns >= 60' multitab-v083.js
+          grep -q 'maybeYieldHeavyWorker' multitab-v083.js
+          grep -q 'openClientQuick' multitab-v083.js
+          grep -q 'CACHE PARTAGÉ' multitab-v083.js
+          grep -q 'DÉLÉGUÉ · WORKER' multitab-v083.js
+          grep -q 'ng8-tab-role="client"' multitab-v083.css
 
       - name: Check idle-safe performance architecture
         run: |
@@ -95,4 +111,4 @@ jobs:
           grep -q 'ng8-active-project' polish-v081.css
           grep -q 'BY SKYNET' app-v08-safe.js
           if grep -E '#ng8-coach\{[^}]*position:fixed' theme-v08.css; then exit 1; fi
-          echo 'v0.8.2 counters + chronology + performance + polish checks OK'
+          echo 'v0.8.3 multitab + counters + chronology + performance + polish checks OK'

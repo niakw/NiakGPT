@@ -1,9 +1,9 @@
 import fs from 'node:fs';
+// One-shot 0.9.6 cache-bus convergence; remove after final certification.
 const read=p=>fs.readFileSync(p,'utf8');
 const write=(p,s)=>fs.writeFileSync(p,s);
 const must=(c,m)=>{if(!c)throw new Error(m);};
 
-// Manifest/runtime checker must know the bus is loaded before all large-cache consumers.
 {
   const p='tools/check-runtime.mjs';let s=read(p);
   s=s.replace("'control-center-v090.js','commands-v100.js'","'control-center-v090.js','cache-bus-v096.js','commands-v100.js'");
@@ -14,7 +14,6 @@ const must=(c,m)=>{if(!c)throw new Error(m);};
   write(p,s);
 }
 
-// Core: hydrate from bus. Storage events pass their new value directly; no second get().
 {
   const p='app-v090.js';let s=read(p);
   s=s.replace('  async function loadCache(){\n    try{\n      const raw=(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY];',`  async function loadCache(rawOverride){\n    try{\n      const bus=window.__NIAKGPT_CACHE_BUS__;\n      const raw=rawOverride!==undefined?rawOverride:(bus?await bus.get():(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]);`);
@@ -23,20 +22,14 @@ const must=(c,m)=>{if(!c)throw new Error(m);};
   write(p,s);
 }
 
-// Chronology: cache snapshot arrives from the bus; no own storage listener/read.
 {
   const p='chronology-v090.js';let s=read(p);
-  s=s.replace('  async function readCache(){\n    try{\n      const raw=(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||{};chats=new Map();counts=new Map(Object.entries(raw.counts||{}));latestByProject=new Map();',`  async function readCache(rawOverride){\n    try{\n      const bus=window.__NIAKGPT_CACHE_BUS__,raw=rawOverride!==undefined?(rawOverride||{}):(bus?(await bus.get()||{}):(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||{});chats=new Map();counts=new Map(Object.entries(raw.counts||{}));latestByProject=new Map();`);
+  s=s.replace('  async function readCache(){\n    try{\n      const raw=(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||{};chats=new Map();counts=new Map(Object.entries(raw.counts||{}));latestByProject=new Map();',`  async function readCache(rawOverride){\n    try{\n      const bus=window.__NIAKGPT_CACHE_BUS__,raw=rawOverride!==undefined?(rawOverride||{}):(bus?(await bus.get()||{}):{});chats=new Map();counts=new Map(Object.entries(raw.counts||{}));latestByProject=new Map();`);
   s=s.replace("  chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY])readCache();});",`  const cacheBus=window.__NIAKGPT_CACHE_BUS__;\n  if(cacheBus)cacheBus.subscribe(raw=>readCache(raw));else chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY])readCache(changes[CACHE_KEY].newValue);});`);
-  s=s.replace('  readCache();bindSidebar();','  if(!cacheBus)readCache();bindSidebar();');
-  // In normal runtime the fallback direct read is unreachable; remove literal so QA can guarantee a single owner.
-  s=s.replace("(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||{}","{}");
-  must(s.includes('__NIAKGPT_CACHE_BUS__'),'chronology cache bus missing');
-  must(!s.includes('chrome.storage.local.get(CACHE_KEY)'),'chronology direct cache read remains');
-  write(p,s);
+  s=s.replace('  readCache();bindSidebar();','  if(!cacheBus)readCache({});bindSidebar();');
+  must(s.includes('__NIAKGPT_CACHE_BUS__'),'chronology cache bus missing');must(!s.includes('chrome.storage.local.get(CACHE_KEY)'),'chronology direct cache read remains');write(p,s);
 }
 
-// Pinned folders: subscribe once; only rerender an open drawer when that Project snapshot changed.
 {
   const p='pin-folders-v096.js';let s=read(p);
   if(!s.includes('function projectSnapshotSignature(')){
@@ -47,25 +40,19 @@ const must=(c,m)=>{if(!c)throw new Error(m);};
   const replacement=`  const cacheBus=window.__NIAKGPT_CACHE_BUS__;\n  if(cacheBus)cacheBus.subscribe(acceptCache);else chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY])acceptCache(changes[CACHE_KEY].newValue);});`;
   if(s.includes(tail))s=s.replace(tail,replacement);
   s=s.replace('  loadCache();bootstrap();','  bootstrap();');
-  must(s.includes('__NIAKGPT_CACHE_BUS__'),'pin folder cache bus missing');
-  must(!s.includes('chrome.storage.local.get(CACHE_KEY)'),'pin folder direct cache read remains');
-  write(p,s);
+  must(s.includes('__NIAKGPT_CACHE_BUS__'),'pin folder cache bus missing');must(!s.includes('chrome.storage.local.get(CACHE_KEY)'),'pin folder direct cache read remains');write(p,s);
 }
 
-// Hotcache metadata builder: debounce snapshots supplied by the bus, never re-read the large index.
 {
   const p='hotcache-v084.js';let s=read(p);
-  s=s.replace('  let syncTimer = 0;','  let syncTimer = 0;\n  let pendingCache = null;');
-  s=s.replace('  async function syncMeta() {\n    clearTimeout(syncTimer);\n    syncTimer = 0;\n    try {\n      const raw = (await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY] || {};',`  async function syncMeta(rawOverride) {\n    clearTimeout(syncTimer);syncTimer=0;\n    try {\n      const raw = rawOverride&&typeof rawOverride==='object'?rawOverride:{};`);
-  s=s.replace('  function scheduleMeta(delay = 300) {\n    clearTimeout(syncTimer);\n    syncTimer = setTimeout(syncMeta, delay);\n  }',`  function scheduleMeta(raw,delay = 300) {\n    if(raw&&typeof raw==='object')pendingCache=raw;clearTimeout(syncTimer);syncTimer=setTimeout(()=>{const next=pendingCache;pendingCache=null;syncMeta(next);},delay);\n  }`);
+  if(!s.includes('let pendingCache = null;'))s=s.replace('  let syncTimer = 0;','  let syncTimer = 0;\n  let pendingCache = null;');
+  s=s.replace('  async function syncMeta() {\n    clearTimeout(syncTimer);\n    syncTimer = 0;\n    try {\n      const raw = (await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY] || {};',`  async function syncMeta(rawOverride) {\n    clearTimeout(syncTimer);syncTimer=0;\n    try {const raw=rawOverride&&typeof rawOverride==='object'?rawOverride:{};`);
+  s=s.replace('  function scheduleMeta(delay = 300) {\n    clearTimeout(syncTimer);\n    syncTimer = setTimeout(syncMeta, delay);\n  }',`  function scheduleMeta(raw,delay = 300) {if(raw&&typeof raw==='object')pendingCache=raw;clearTimeout(syncTimer);syncTimer=setTimeout(()=>{const next=pendingCache;pendingCache=null;syncMeta(next);},delay);}`);
   s=s.replace("  chrome.storage.onChanged.addListener((changes, area) => {\n    if (area === 'local' && changes[CACHE_KEY]) scheduleMeta(160);\n  });",`  const cacheBus=window.__NIAKGPT_CACHE_BUS__;\n  if(cacheBus)cacheBus.subscribe(raw=>scheduleMeta(raw,160));else chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY])scheduleMeta(changes[CACHE_KEY].newValue,160);});`);
   s=s.replace('  scheduleMeta(50);','  if(!cacheBus)scheduleMeta({},50);');
-  must(s.includes('__NIAKGPT_CACHE_BUS__'),'hotcache metadata cache bus missing');
-  must(!s.includes('chrome.storage.local.get(CACHE_KEY)'),'hotcache isolated direct cache read remains');
-  write(p,s);
+  must(s.includes('__NIAKGPT_CACHE_BUS__'),'hotcache metadata cache bus missing');must(!s.includes('chrome.storage.local.get(CACHE_KEY)'),'hotcache isolated direct cache read remains');write(p,s);
 }
 
-// Governance: take a private clone only when it will build/mutate a plan; no independent storage read.
 {
   const p='project-governance-v090.js';let s=read(p);
   const old="  async function loadCache(){try{cache=(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||{projects:[],chats:[],counts:{},projectChats:{}};}catch{cache={projects:[],chats:[],counts:{},projectChats:{}};}return cache;}";
@@ -73,19 +60,13 @@ const must=(c,m)=>{if(!c)throw new Error(m);};
   if(s.includes(old))s=s.replace(old,next);
   s=s.replace("if(from&&Number.isFinite(Number(cache.counts[from])))cache.counts[from]=Math.max(0,Number(cache.counts[from])-1);","if(from&&cache.counts[from]!=null&&Number.isFinite(Number(cache.counts[from])))cache.counts[from]=Math.max(0,Number(cache.counts[from])-1);");
   s=s.replace("if(target&&target!==from&&Number.isFinite(Number(cache.counts[target])))cache.counts[target]=Number(cache.counts[target])+1;","if(target&&target!==from&&cache.counts[target]!=null&&Number.isFinite(Number(cache.counts[target])))cache.counts[target]=Number(cache.counts[target])+1;");
-  must(s.includes('__NIAKGPT_CACHE_BUS__'),'Governance cache bus missing');
-  must(!s.includes('chrome.storage.local.get(CACHE_KEY)'),'Governance direct cache read remains');
-  must(s.includes('cache.counts[from]!=null'),'Governance unknown source count can be corrupted');
-  write(p,s);
+  must(s.includes('__NIAKGPT_CACHE_BUS__'),'Governance cache bus missing');must(!s.includes('chrome.storage.local.get(CACHE_KEY)'),'Governance direct cache read remains');must(s.includes('cache.counts[from]!=null'),'Governance unknown source count can be corrupted');write(p,s);
 }
 
-// CLIENT Quick Open: use the shared snapshot at invocation.
 {
   const p='multitab-v090.js';let s=read(p);
   s=s.replace("    let raw={};try{raw=(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||{};}catch{}","    let raw={};try{raw=(await window.__NIAKGPT_CACHE_BUS__?.get())||{};}catch{}");
-  must(s.includes('__NIAKGPT_CACHE_BUS__'),'CLIENT Quick Open cache bus missing');
-  must(!s.includes('chrome.storage.local.get(CACHE_KEY)'),'CLIENT Quick Open direct cache read remains');
-  write(p,s);
+  must(s.includes('__NIAKGPT_CACHE_BUS__'),'CLIENT Quick Open cache bus missing');must(!s.includes('chrome.storage.local.get(CACHE_KEY)'),'CLIENT Quick Open direct cache read remains');write(p,s);
 }
 
 console.log('NiakGPT 0.9.6 cache consumers converged on one shared read');

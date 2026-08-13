@@ -1,36 +1,71 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.9",
+  "version": "0.9.10",
   "description": "Workspace power-user local pour ChatGPT : cœur event-driven, cache chaud, Projects instantanés, coach contextuel, panneaux natifs adaptés, multi-onglets et états temps réel.",
-  "permissions": ["storage"],
-  "host_permissions": ["https://chatgpt.com/*"],
-  "background": {"service_worker":"background-v100.js"},
-  "content_scripts": [
-    {"matches":["https://chatgpt.com/*"],"js":["page-bridge.js","manual-lock-main-v085.js","activity-main-v087.js","hotcache-main-v084.js"],"run_at":"document_start","world":"MAIN"},
-    {"matches":["https://chatgpt.com/*"],"css":["theme-v08.css","polish-v081.css","chronology-v081.css","multitab-v083.css","governance-v085.css","activity-v086.css","control-center-v090.css","core-v090.css","profiles-v100.css","commands-v100.css","onboarding-v100.css","coach-v100.css","pin-folders-v096.css","side-panels-v096.css"],"run_at":"document_start"},
-    {"matches":["https://chatgpt.com/*"],"js":["boot-watchdog-v099.js"],"run_at":"document_start"},
-    {"matches":["https://chatgpt.com/*"],"js":["onboarding-v101.js","profiles-v100.js","control-center-v090.js","cache-bus-v096.js","diagnostic-bus-v096.js","commands-v100.js","multitab-v090.js","project-governance-v090.js","project-pins-v090.js","sidebar-host-v090.js","app-v090.js","coach-v101.js","polish-v090.js","side-panels-v096.js","chronology-v090.js","pin-folders-v096.js","activity-ui-v097.js"],"run_at":"document_idle"},
-    {"matches":["https://chatgpt.com/*"],"js":["app-v090.js"],"run_at":"document_idle"},
-    {"matches":["https://chatgpt.com/*"],"js":["cache-bus-v096.js"],"run_at":"document_idle"},
-    {"matches":["https://chatgpt.com/*"],"js":["diagnostic-bus-v096.js"],"run_at":"document_idle"},
-    {"matches":["https://chatgpt.com/*"],"js":["multitab-v090.js"],"run_at":"document_idle"},
-    {"matches":["https://chatgpt.com/*"],"js":["project-governance-v090.js"],"run_at":"document_idle"},
-    {"matches":["https://chatgpt.com/*"],"js":["project-pins-v090.js"],"run_at":"document_idle"},
-    {"matches":["https://chatgpt.com/*"],"js":["sidebar-host-v090.js"],"run_at":"document_idle"},
-    {"matches":["https://chatgpt.com/*"],"js":["coach-v101.js"],"run_at":"document_idle"},
-    {"matches":["https://chatgpt.com/*"],"js":["polish-v090.js"],"run_at":"document_idle"},
-    {"matches":["https://chatgpt.com/*"],"js":["side-panels-v096.js"],"run_at":"document_idle"},
-    {"matches":["https://chatgpt.com/*"],"js":["chronology-v090.js"],"run_at":"document_idle"},
-    {"matches":["https://chatgpt.com/*"],"js":["pin-folders-v096.js"],"run_at":"document_idle"},
-    {"matches":["https://chatgpt.com/*"],"js":["activity-ui-v097.js"],"run_at":"document_idle"},
-    {"matches":["https://chatgpt.com/*"],"js":["profiles-v100.js"],"run_at":"document_idle"},
-    {"matches":["https://chatgpt.com/*"],"js":["control-center-v090.js"],"run_at":"document_idle"},
-    {"matches":["https://chatgpt.com/*"],"js":["commands-v100.js"],"run_at":"document_idle"},
-    {"matches":["https://chatgpt.com/*"],"js":["onboarding-v101.js"],"run_at":"document_idle"},
-    {"matches":["https://chatgpt.com/*"],"css":["retro-loader-v097.css"],"run_at":"document_start"},
-    {"matches":["https://chatgpt.com/*"],"js":["retro-loader-v097.js"],"run_at":"document_idle"}
+  "permissions": [
+    "storage",
+    "scripting"
   ],
-  "action":{"default_title":"NiakGPT","default_icon":{"16":"icons/icon-16.png","32":"icons/icon-32.png"}},
-  "icons":{"16":"icons/icon-16.png","32":"icons/icon-32.png","48":"icons/icon-48.png","128":"icons/icon-128.png"}
+  "host_permissions": [
+    "https://chatgpt.com/*"
+  ],
+  "background": {
+    "service_worker": "background-v100.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*"
+      ],
+      "css": [
+        "theme-v08.css",
+        "polish-v081.css",
+        "chronology-v081.css",
+        "multitab-v083.css",
+        "governance-v085.css",
+        "activity-v086.css",
+        "control-center-v090.css",
+        "core-v090.css",
+        "profiles-v100.css",
+        "commands-v100.css",
+        "onboarding-v100.css",
+        "coach-v100.css",
+        "pin-folders-v096.css",
+        "side-panels-v096.css"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://chatgpt.com/*"
+      ],
+      "js": [
+        "boot-gate-v100.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://chatgpt.com/*"
+      ],
+      "css": [
+        "retro-loader-v097.css"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "action": {
+    "default_title": "NiakGPT",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
 }

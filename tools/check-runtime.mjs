@@ -17,7 +17,7 @@ if(!manifest.content_scripts.every(x=>x.matches?.every(v=>v==='https://chatgpt.c
 const main=manifest.content_scripts.find(x=>x.world==='MAIN');
 const isolated=manifest.content_scripts.find(x=>x.world!=='MAIN');
 const expectedMain=['page-bridge.js','manual-lock-main-v085.js','activity-main-v087.js','hotcache-main-v084.js'];
-const expectedIsolated=['onboarding-v101.js','profiles-v100.js','control-center-v090.js','cache-bus-v096.js','commands-v100.js','multitab-v090.js','project-governance-v090.js','project-pins-v090.js','sidebar-host-v090.js','app-v090.js','coach-v100.js','polish-v090.js','side-panels-v096.js','chronology-v090.js','pin-folders-v096.js','hotcache-v084.js','activity-v086.js'];
+const expectedIsolated=['onboarding-v101.js','profiles-v100.js','control-center-v090.js','cache-bus-v096.js','diagnostic-bus-v096.js','commands-v100.js','multitab-v090.js','project-governance-v090.js','project-pins-v090.js','sidebar-host-v090.js','app-v090.js','coach-v100.js','polish-v090.js','side-panels-v096.js','chronology-v090.js','pin-folders-v096.js','hotcache-v084.js','activity-v086.js'];
 const expectedCss=['theme-v08.css','polish-v081.css','chronology-v081.css','multitab-v083.css','governance-v085.css','activity-v086.css','control-center-v090.css','core-v090.css','profiles-v100.css','commands-v100.css','onboarding-v100.css','coach-v100.css','pin-folders-v096.css','side-panels-v096.css'];
 if(JSON.stringify(main?.js)!==JSON.stringify(expectedMain))fail('MAIN runtime order mismatch');
 if(JSON.stringify(isolated?.js)!==JSON.stringify(expectedIsolated))fail('Isolated runtime order mismatch');
@@ -39,6 +39,17 @@ has(cacheBusText,'__NIAKGPT_CACHE_BUS__');
 has(cacheBusText,'subscribe(fn)');
 for(const file of ['app-v090.js','chronology-v090.js','pin-folders-v096.js','hotcache-v084.js','project-governance-v090.js','multitab-v090.js'])has(texts[file],'__NIAKGPT_CACHE_BUS__',`Cache bus missing from ${file}`);
 for(const file of ['app-v090.js','chronology-v090.js','pin-folders-v096.js','hotcache-v084.js','project-governance-v090.js','multitab-v090.js'])no(texts[file],'chrome.storage.local.get(CACHE_KEY)',`Direct large cache read reintroduced in ${file}`);
+
+// Stable diagnostic bus: module states survive any panel rerender.
+const diagnosticBusText=read('diagnostic-bus-v096.js');
+has(diagnosticBusText,'__NIAKGPT_DIAGNOSTICS__');
+has(diagnosticBusText,'snapshot()');
+has(texts['app-v090.js'],'function diagnosticRows()');
+has(texts['app-v090.js'],'diagnosticRows().map');
+has(texts['coach-v100.js'],"__NIAKGPT_DIAGNOSTICS__?.set('coach',text)");
+has(texts['multitab-v090.js'],"__NIAKGPT_DIAGNOSTICS__?.set('onglet'");
+has(texts['hotcache-v084.js'],"__NIAKGPT_DIAGNOSTICS__?.set('hotcache',statusText)");
+has(texts['project-pins-v090.js'],"__NIAKGPT_DIAGNOSTICS__?.set('pins'");
 
 // Core / performance invariants.
 has(texts['app-v090.js'],'MutationObserver(queueMainNodes)');

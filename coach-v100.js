@@ -16,7 +16,7 @@
     const row=[...diag.querySelectorAll(':scope > div')].find(x=>(x.querySelector('span')?.textContent||'').trim().toLowerCase()==='coach');if(!row)return false;
     const value=row.querySelector('b');if(!value)return false;value.textContent=coachStatus;value.className=/^(OK|PRÊT)/.test(coachStatus)?'ok':/^ERREUR/.test(coachStatus)?'err':'wait';return true;
   }
-  function setCoachStatus(text){coachStatus=text;document.documentElement.setAttribute('data-ng100-coach-status',text);patchDiagnostic();}
+  function setCoachStatus(text){coachStatus=text;document.documentElement.setAttribute('data-ng100-coach-status',text);window.__NIAKGPT_DIAGNOSTICS__?.set('coach',text);patchDiagnostic();}
 
   function composer(){
     const els=[...document.querySelectorAll('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')];

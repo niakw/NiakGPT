@@ -35,6 +35,7 @@
     document.documentElement.dataset.ng8TabId=tabId.slice(0,8);
     const status=document.getElementById('ng8-status');
     if(status){status.dataset.tabRole=role;status.title=`NiakGPT ${VERSION} · ${role}${safeMode?' · SAFE MODE':''}`;}
+    window.__NIAKGPT_DIAGNOSTICS__?.set('onglet',safeMode?'SAFE MODE · tâches partagées suspendues':role==='WORKER'?'WORKER · tâches partagées':'CLIENT · délégation active');
   }
   function setRole(next){
     if(role===next){updateRoleDOM();return;}

@@ -51,6 +51,7 @@
     if(!syncEnabled()){value.textContent=settings.safeMode||document.documentElement.dataset.ng90Safe==='1'?'PAUSE · SAFE MODE':'OFF · synchro native désactivée';value.className='wait';}
     else if(result){value.textContent=`CORE · ${result.ok}/${result.desired} natifs${result.failed?` · ${result.failed} échec(s)`:''}`;value.className=result.failed?'wait':'ok';}
     else{const desired=desiredIds(),current=nativePinnedIds(),ok=[...desired].filter(id=>current.has(id)).length;value.textContent=`CORE · ${ok}/${desired.size} natifs`;value.className=ok===desired.size?'ok':'wait';}
+    window.__NIAKGPT_DIAGNOSTICS__?.set('pins',value.textContent||'');
     row.replaceChildren(label,value);
   }
 

@@ -88,7 +88,9 @@
     const dedupe = Number(document.documentElement.dataset.ng8HotcacheDeduped || lastStatus.deduped || 0);
     const entries = Number(document.documentElement.dataset.ng8HotcacheEntries || lastStatus.entries || 0);
     const hot = /^(HIT|HIT_AFTER_LOCK|STORED|READY)$/i.test(mode);
-    row.innerHTML = `<span>hotcache</span><b class="${hot ? 'ok' : /ERROR/i.test(mode) ? 'err' : 'wait'}">${mode} · ${entries}/5 · ${hits} hit · ${net} net${dedupe ? ` · ${dedupe} partagé${dedupe > 1 ? 's' : ''}` : ''}</b>`;
+    const statusText=`${mode} · ${entries}/5 · ${hits} hit · ${net} net${dedupe ? ` · ${dedupe} partagé${dedupe > 1 ? 's' : ''}` : ''}`;
+    window.__NIAKGPT_DIAGNOSTICS__?.set('hotcache',statusText);
+    row.innerHTML = `<span>hotcache</span><b class="${hot ? 'ok' : /ERROR/i.test(mode) ? 'err' : 'wait'}">${statusText}</b>`;
     row.title = `Cache temporaire des conversations · NiakGPT ${VERSION}`;
     return true;
   }

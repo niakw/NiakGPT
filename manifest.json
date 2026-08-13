@@ -9,7 +9,7 @@
   "content_scripts": [
     {
       "matches": ["https://chatgpt.com/*"],
-      "css": ["theme-v08.css","polish-v081.css","chronology-v081.css","multitab-v083.css","governance-v085.css","activity-v086.css","control-center-v090.css","core-v090.css","profiles-v100.css","commands-v100.css","onboarding-v100.css","coach-v100.css","pin-folders-v096.css","side-panels-v096.css"],
+      "css": ["theme-v08.css","polish-v081.css","chronology-v081.css","multitab-v083.css","governance-v085.css","activity-v086.css","control-center-v090.css","core-v090.css","profiles-v100.css","commands-v100.css","onboarding-v100.css","coach-v100.css","pin-folders-v096.css","side-panels-v096.css","side-panels-unified-v0912.css"],
       "run_at": "document_start",
       "js": []
     },

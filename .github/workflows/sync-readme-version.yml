@@ -2,11 +2,6 @@ name: Sync NiakGPT README Version
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'manifest.json'
-      - 'tools/sync-readme-version.mjs'
-      - '.github/workflows/sync-readme-version.yml'
 
 permissions:
   contents: read

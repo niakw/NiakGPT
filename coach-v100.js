@@ -10,6 +10,13 @@
   const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[’']/g,"'").replace(/\s+/g,' ').trim();
   const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const enabled=()=>document.documentElement.dataset.ng90Coach!=='off'&&document.documentElement.dataset.ng90Safe!=='1'&&document.documentElement.dataset.ng86Activity==='ready';
+  let coachStatus='INACTIF · bootstrap';
+  function patchDiagnostic(){
+    const diag=document.querySelector('#ng8-panel .ng8-diag');if(!diag)return false;
+    const row=[...diag.querySelectorAll(':scope > div')].find(x=>(x.querySelector('span')?.textContent||'').trim().toLowerCase()==='coach');if(!row)return false;
+    const value=row.querySelector('b');if(!value)return false;value.textContent=coachStatus;value.className=/^(OK|PRÊT)/.test(coachStatus)?'ok':/^ERREUR/.test(coachStatus)?'err':'wait';return true;
+  }
+  function setCoachStatus(text){coachStatus=text;document.documentElement.dataset.ng100CoachStatus=text;patchDiagnostic();}
 
   function composer(){
     const els=[...document.querySelectorAll('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')];
@@ -119,19 +126,21 @@
   }
   function observeBox(box){if(box===observedBox)return;boxObserver?.disconnect();observedBox=box;if(!box)return;boxObserver=new MutationObserver(()=>schedule(40));boxObserver.observe(box,{childList:true,subtree:true});}
   function render(){
-    renderTimer=0;const c=composer(),old=document.getElementById('ng8-coach');if(!enabled()||!c?.editor||!c.form||!c.shell){if(old)old.hidden=true;return;}
-    const prompt=editorText(c.editor).trim();if(prompt.length<5){if(old)old.hidden=true;return;}
+    renderTimer=0;const c=composer(),old=document.getElementById('ng8-coach'),root=document.documentElement;if(!enabled()||!c?.editor||!c.form||!c.shell){if(old)old.hidden=true;setCoachStatus(root.dataset.ng90Safe==='1'?'OFF · SAFE MODE':root.dataset.ng90Coach==='off'?'OFF · réglage':root.dataset.ng86Activity!=='ready'?`PAUSE · ${String(root.dataset.ng86Activity||'activité').toUpperCase()}`:'INACTIF · composer absent');return;}
+    const prompt=editorText(c.editor).trim();if(prompt.length<5){if(old)old.hidden=true;setCoachStatus('PRÊT · saisir 5 caractères');return;}
     let box=old;if(!box){box=document.createElement('div');box.id='ng8-coach';c.shell.insertBefore(box,c.form);}else if(box.parentElement!==c.shell){box.remove();c.shell.insertBefore(box,c.form);}
-    observeBox(box);const model=cards(prompt),sig=JSON.stringify([prompt,model.kind,model.scope,model.items.map(x=>x.text)]);if(sig===lastSig&&box.dataset.ng100Coach==='1'){box.hidden=false;return;}lastSig=sig;
+    observeBox(box);const model=cards(prompt),sig=JSON.stringify([prompt,model.kind,model.scope,model.items.map(x=>x.text)]);if(sig===lastSig&&box.dataset.ng100Coach==='1'){box.hidden=false;setCoachStatus(`OK · ${model.kind.toUpperCase()} · ${model.items.length} suggestions`);return;}lastSig=sig;
     box.setAttribute('data-ng100-coach','1');box.hidden=false;const attachments=c.form.querySelectorAll('[data-testid*="attachment"],[data-testid*="file"],img').length;box.classList.toggle('compact',attachments>0||c.form.getBoundingClientRect().height>180);
     box.innerHTML=`<div class="ng8-coach-label"><span>✦ NIAKGPT · COACH</span><em>${esc(model.kind.toUpperCase())}${model.scope?` · ${esc(model.scope.slice(0,90))}`:''}</em></div><div class="ng8-sug-grid">${model.items.map((x,i)=>`<button type="button" data-ng100-i="${i}" class="ng8-sug ng8-${x.key}"><b>${esc(x.title)}</b><span>${esc(x.text)}</span></button>`).join('')}</div>`;
-    box.querySelectorAll('[data-ng100-i]').forEach(button=>button.addEventListener('click',()=>append(c.editor,model.items[Number(button.dataset.ng100I)].text)));
+    box.querySelectorAll('[data-ng100-i]').forEach(button=>button.addEventListener('click',()=>append(c.editor,model.items[Number(button.dataset.ng100I)].text)));setCoachStatus(`OK · ${model.kind.toUpperCase()} · ${model.items.length} suggestions`);
   }
   function schedule(delay=190){clearTimeout(renderTimer);renderTimer=setTimeout(render,delay);}
 
   document.addEventListener('input',event=>{const t=event.target;if(!(t instanceof Element))return;if(t.matches('#prompt-textarea,[data-testid="prompt-textarea"],textarea')||t.isContentEditable)schedule(190);},true);
   document.addEventListener('niakgpt:settings-changed',()=>schedule(20));
   document.addEventListener('niakgpt:activity-network',event=>{if(event.detail?.phase==='request')document.getElementById('ng8-coach')?.setAttribute('hidden','');else if(event.detail?.phase==='error')schedule(700);},true);
+  const stateObserver=new MutationObserver(records=>{if(records.some(r=>['data-ng86-activity','data-ng90-safe','data-ng90-coach'].includes(r.attributeName))){lastSig='';schedule(80);patchDiagnostic();}});stateObserver.observe(document.documentElement,{attributes:true,attributeFilter:['data-ng86-activity','data-ng90-safe','data-ng90-coach']});
+  document.addEventListener('click',event=>{const t=event.target instanceof Element?event.target:null;if(t?.closest('#ng8-rail [data-tab="diag"]'))setTimeout(patchDiagnostic,60);},true);
   window.addEventListener('popstate',()=>{lastSig='';schedule(220);});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)schedule(120);});
   schedule(500);

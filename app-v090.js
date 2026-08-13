@@ -264,7 +264,7 @@
   }
 
   function chatHref(c){ return c.href||(c.projectId?`/g/${c.projectId}/c/${c.id}`:`/c/${c.id}`); }
-  function routeTo(href){ const root=navRoot(),native=root?[...root.querySelectorAll('a')].find(a=>a.getAttribute('href')===href):null;if(native){native.click();return;}location.href=href; }
+  function routeTo(href){ const root=navRoot(),chatId=cidFromHref(href),projectId=pidFromHref(href),links=root?[...root.querySelectorAll('a[href]')]:[],native=links.find(a=>a.getAttribute('href')===href)||(chatId?links.find(a=>cidFromHref(a.getAttribute('href'))===chatId):null)||(projectId?links.find(a=>pidFromHref(a.getAttribute('href'))===projectId&&/\/project(?:$|\?)/.test(a.getAttribute('href')||'')):null);if(native){native.click();return;}location.assign(href); }
   function formatDate(ms){ if(!ms)return'—';const d=new Date(ms);return`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`; }
   function openQuick(){
     document.getElementById('ng8-quick')?.remove();

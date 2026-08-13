@@ -1,0 +1,74 @@
+/* NiakGPT 0.9.7 — retro 8-bit activity loader */
+#ng97-loader{
+  --ng97-accent:#58d8ff;
+  --ng97-accent-soft:color-mix(in srgb,var(--ng97-accent) 28%,transparent);
+  position:fixed;
+  left:calc(var(--ng8-sidebar-w,260px) + 18px);
+  right:calc(var(--ng8-rail-w,54px) + 18px);
+  bottom:29px;
+  height:15px;
+  z-index:2147482800;
+  display:grid;
+  grid-template-columns:auto minmax(110px,360px) auto;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  pointer-events:none;
+  opacity:0;
+  transform:translateY(3px);
+  transition:opacity .12s linear,transform .12s linear;
+  font:700 9px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:#dce8ef;
+}
+#ng97-loader[data-active="1"]{opacity:1;transform:none}
+#ng97-loader .ng97-label{min-width:74px;text-align:right;white-space:nowrap;text-shadow:0 1px #000}
+#ng97-loader .ng97-track{
+  position:relative;
+  height:10px;
+  padding:2px;
+  border:1px solid color-mix(in srgb,var(--ng97-accent) 58%,#26323a);
+  background:#080d10;
+  box-shadow:0 0 0 1px #000,0 0 12px var(--ng97-accent-soft),inset 0 0 0 1px #111a20;
+  image-rendering:pixelated;
+  overflow:hidden;
+}
+#ng97-loader .ng97-cells{
+  height:100%;
+  display:grid;
+  grid-template-columns:repeat(16,1fr);
+  gap:2px;
+}
+#ng97-loader .ng97-cell{background:#172129;box-shadow:inset 0 0 0 1px #202d35}
+#ng97-loader .ng97-cell[data-on="1"]{
+  background:var(--ng97-accent);
+  box-shadow:inset 0 -2px 0 rgb(0 0 0/.22),0 0 5px var(--ng97-accent-soft);
+}
+#ng97-loader .ng97-state{min-width:70px;color:color-mix(in srgb,var(--ng97-accent) 82%,white);white-space:nowrap}
+#ng97-loader[data-state="waiting"]{--ng97-accent:#f2bd54}
+#ng97-loader[data-state="thinking"]{--ng97-accent:#b28cff}
+#ng97-loader[data-state="executing"]{--ng97-accent:#62db88}
+#ng97-loader[data-state="error"]{--ng97-accent:#ff646f}
+#ng97-loader[data-state="cache"]{--ng97-accent:#59d7d0}
+#ng97-loader[data-state="index"]{--ng97-accent:#64b6ff}
+#ng97-loader[data-state="done"]{--ng97-accent:#62db88}
+
+/* Safe native replacements: only explicit loading/progress affordances. */
+:where(main,aside,[role="dialog"]) :where([data-testid*="loading" i],[aria-label*="loading" i],[aria-label*="chargement" i])[role="progressbar"],
+:where(main,aside,[role="dialog"]) [role="progressbar"][aria-busy="true"]{
+  border-radius:0!important;
+  background:
+    repeating-linear-gradient(90deg,#142027 0 8px,transparent 8px 11px),
+    #080d10!important;
+  border:1px solid #3e5a68!important;
+  min-height:8px!important;
+  max-height:12px!important;
+  animation:ng97-native-pixels .72s steps(6,end) infinite!important;
+}
+@keyframes ng97-native-pixels{to{background-position:66px 0}}
+
+html[data-ng90-safe="1"] #ng97-loader{display:none!important}
+html[data-ng8-tab-role="client"] #ng97-loader[data-background="1"]{opacity:.38}
+@media(max-width:900px){#ng97-loader{left:14px;right:62px;grid-template-columns:minmax(100px,1fr) auto}.ng97-label{display:none}}
+@media(prefers-reduced-motion:reduce){#ng97-loader{transition:none}.ng97-cell{box-shadow:none!important}:where(main,aside,[role="dialog"]) [role="progressbar"]{animation:none!important}}

@@ -133,7 +133,12 @@ no(texts['polish-v090.js'],'MutationObserver','Duplicate native panel observer r
 no(cssTexts['polish-v081.css'],'.ng8-native-activity','Legacy Activity CSS owner reintroduced in polish');
 
 // Hot cache: IndexedDB + cross-tab dedupe, with no periodic DOM scan.
-for(const token of ['indexedDB.open','MAX_ENTRIES = 5','MAX_TOTAL_BYTES = 96','WAIT_PEER','HIT_PEER'])has(texts['hotcache-main-v084.js'],token);
+for(const token of ['indexedDB.open','MAX_ENTRIES = 5','MAX_TOTAL_BYTES = 96','metaMirror','dirtyMirror','indexMirror'])has(texts['hotcache-main-v084.js'],token);
+has(texts['hotcache-main-v084.js'],"navigator.locks.request(`niakgpt-hotfetch:${id}`, { mode:'exclusive' }");
+no(texts['hotcache-main-v084.js'],'waitForPeer(','Peer timeout dedupe reintroduced');
+no(texts['hotcache-main-v084.js'],'WAIT_OTHER_TAB_MS','Peer timeout dedupe reintroduced');
+has(texts['hotcache-main-v084.js'],'niakgpt:hotmeta-updated');
+has(texts['hotcache-v084.js'],'niakgpt:hotmeta-updated');
 has(texts['hotcache-v084.js'],'niakgpt:activity-network');
 no(texts['hotcache-v084.js'],"querySelectorAll('button,[data-testid]')",'Hot cache broad generation scan reintroduced');
 

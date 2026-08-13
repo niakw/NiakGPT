@@ -16,12 +16,10 @@
   const MAX_ENTRY_BYTES = 40 * 1024 * 1024;
   const UNKNOWN_META_TTL = 2 * 60 * 1000;
   const HARD_TTL = 6 * 60 * 60 * 1000;
-  const WAIT_OTHER_TAB_MS = 9000;
 
   const nativeFetch = window.fetch.bind(window);
   const memory = new Map();
   const bc = typeof BroadcastChannel === 'function' ? new BroadcastChannel(CHANNEL) : null;
-  const waiters = new Map();
   let dbPromise = null;
   let hits = 0;
   let misses = 0;
@@ -45,14 +43,17 @@
     try { return JSON.parse(raw || '') ?? fallback; } catch { return fallback; }
   }
 
-  function readMeta() { return parseJSON(localStorage.getItem(META_KEY), {}); }
-  function readDirty() { return parseJSON(localStorage.getItem(DIRTY_KEY), {}); }
-  function writeDirty(value) { try { localStorage.setItem(DIRTY_KEY, JSON.stringify(value)); } catch {} }
-  function readIndex() {
-    const list = parseJSON(localStorage.getItem(INDEX_KEY), []);
-    return Array.isArray(list) ? list : [];
-  }
-  function writeIndex(list) { try { localStorage.setItem(INDEX_KEY, JSON.stringify(list)); } catch {} }
+  let metaMirror = parseJSON(localStorage.getItem(META_KEY), {});
+  let dirtyMirror = parseJSON(localStorage.getItem(DIRTY_KEY), {});
+  let indexMirror = parseJSON(localStorage.getItem(INDEX_KEY), []);
+  if (!metaMirror || typeof metaMirror !== 'object' || Array.isArray(metaMirror)) metaMirror = {};
+  if (!dirtyMirror || typeof dirtyMirror !== 'object' || Array.isArray(dirtyMirror)) dirtyMirror = {};
+  if (!Array.isArray(indexMirror)) indexMirror = [];
+  function readMeta() { return metaMirror; }
+  function readDirty() { return dirtyMirror; }
+  function writeDirty(value) { dirtyMirror = value && typeof value === 'object' ? value : {}; try { localStorage.setItem(DIRTY_KEY, JSON.stringify(dirtyMirror)); } catch {} }
+  function readIndex() { return indexMirror; }
+  function writeIndex(list) { indexMirror = Array.isArray(list) ? list : []; try { localStorage.setItem(INDEX_KEY, JSON.stringify(indexMirror)); } catch {} }
 
   function parseTime(value) {
     if (typeof value === 'number' && Number.isFinite(value)) return value > 1e12 ? value : value * 1000;
@@ -289,26 +290,9 @@
     setTimeout(run, 2500);
   }
 
-  function waitForPeer(id, afterFetchedAt = 0) {
-    return new Promise(resolve => {
-      const token = `${id}:${crypto.randomUUID?.() || Math.random()}`;
-      const timer = setTimeout(() => { waiters.delete(token); resolve(null); }, WAIT_OTHER_TAB_MS);
-      waiters.set(token, { id, afterFetchedAt, resolve:async () => {
-        clearTimeout(timer);
-        waiters.delete(token);
-        resolve(await getEntry(id));
-      }});
-    });
-  }
-
   bc?.addEventListener('message', event => {
     const m = event.data;
     if (!m?.id) return;
-    if (m.type === 'updated') {
-      for (const waiter of waiters.values()) {
-        if (waiter.id === m.id && (m.fetchedAt || 0) > (waiter.afterFetchedAt || 0)) waiter.resolve();
-      }
-    }
     if (m.type === 'invalidate') memory.delete(m.id);
   });
 
@@ -322,35 +306,20 @@
 
   async function fetchWithCrossTabDedupe(self, input, init, id, staleEntry) {
     if (!navigator.locks?.request) return networkAndCache(self, input, init, id);
-    let owned = false;
-    let result = null;
     try {
-      await navigator.locks.request(`niakgpt-hotfetch:${id}`, { mode:'exclusive', ifAvailable:true }, async lock => {
-        if (!lock) return;
-        owned = true;
+      return await navigator.locks.request(`niakgpt-hotfetch:${id}`, { mode:'exclusive' }, async () => {
         const latest = await getEntry(id);
         if (latest && latest.fetchedAt > (staleEntry?.fetchedAt || 0) && entryFresh(latest, id)) {
+          deduped++;
           hits++;
-          result = responseFromEntry(latest);
           setStatus('HIT_AFTER_LOCK', id);
-          return;
+          return responseFromEntry(latest);
         }
-        result = await networkAndCache(self, input, init, id);
+        return networkAndCache(self, input, init, id);
       });
     } catch {
       return networkAndCache(self, input, init, id);
     }
-    if (owned && result) return result;
-
-    setStatus('WAIT_PEER', id);
-    const peerEntry = await waitForPeer(id, staleEntry?.fetchedAt || 0);
-    if (peerEntry && entryFresh(peerEntry, id)) {
-      deduped++;
-      hits++;
-      setStatus('HIT_PEER', id);
-      return responseFromEntry(peerEntry);
-    }
-    return networkAndCache(self, input, init, id);
   }
 
   window.fetch = async function niakgptHotCachedFetch(input, init) {
@@ -380,10 +349,24 @@
     setStatus('DIRTY', id);
   });
 
+  document.addEventListener('niakgpt:hotmeta-updated', () => {
+    const next = parseJSON(localStorage.getItem(META_KEY), {});
+    metaMirror = next && typeof next === 'object' && !Array.isArray(next) ? next : {};
+  });
+
   window.addEventListener('storage', event => {
-    if (event.key === DIRTY_KEY && event.newValue !== event.oldValue) {
-      const dirty = parseJSON(event.newValue, {});
-      for (const id of Object.keys(dirty)) memory.delete(id);
+    if (event.key === META_KEY) {
+      const next = parseJSON(event.newValue, {});
+      metaMirror = next && typeof next === 'object' && !Array.isArray(next) ? next : {};
+    }
+    if (event.key === DIRTY_KEY) {
+      const next = parseJSON(event.newValue, {});
+      dirtyMirror = next && typeof next === 'object' && !Array.isArray(next) ? next : {};
+      for (const id of Object.keys(dirtyMirror)) memory.delete(id);
+    }
+    if (event.key === INDEX_KEY) {
+      const next = parseJSON(event.newValue, []);
+      if (Array.isArray(next)) indexMirror = next;
     }
   });
 

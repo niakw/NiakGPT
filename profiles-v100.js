@@ -4,6 +4,7 @@
   window.__NIAKGPT_PROFILES_100__ = true;
 
   const KEY='niakgpt-profile-v100';
+  const SETTINGS_KEY='niakgpt-settings-v090';
   const ALLOWED=new Set(['power','code','research','focus','analyst','contrast']);
   const LABELS={power:'Power',code:'Code / IDE',research:'Research',focus:'Focus / Writing',analyst:'Analyst',contrast:'High Contrast'};
   let profile='power',decorateTimer=0;
@@ -38,9 +39,14 @@
   function scheduleDecorate(delay=0){clearTimeout(decorateTimer);decorateTimer=setTimeout(decorateControl,delay);}
 
   document.addEventListener('niakgpt:set-profile',event=>apply(event.detail?.profile,{persist:true}));
+  document.addEventListener('niakgpt:settings-changed',()=>scheduleDecorate(0));
   document.addEventListener('click',event=>{const target=event.target instanceof Element?event.target:null;if(target?.closest('#ng90-settings-btn,#ng90-control'))scheduleDecorate(0);},true);
   document.addEventListener('keydown',event=>{if(event.altKey&&event.key===',')scheduleDecorate(0);},true);
-  chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[KEY]&&ALLOWED.has(changes[KEY].newValue))apply(changes[KEY].newValue);});
+  chrome.storage.onChanged.addListener((changes,area)=>{
+    if(area!=='local')return;
+    if(changes[KEY]&&ALLOWED.has(changes[KEY].newValue))apply(changes[KEY].newValue);
+    if(changes[SETTINGS_KEY])scheduleDecorate(0);
+  });
 
   load();
 })();

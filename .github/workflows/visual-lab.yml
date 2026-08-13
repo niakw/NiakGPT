@@ -17,10 +17,14 @@ on:
       - 'visual-lab/**'
       - '.github/workflows/visual-lab.yml'
 
+concurrency:
+  group: niakgpt-visual-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   visual:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 18
     defaults:
       run:
         working-directory: visual-lab
@@ -30,9 +34,9 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: visual-lab/package.json
+          cache-dependency-path: visual-lab/package-lock.json
       - name: Install visual lab
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Run visual and unpacked-extension assertions

@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+// One-shot 0.9.6 heavy-thread convergence; remove after final certification.
 const p='app-v090.js';let s=fs.readFileSync(p,'utf8');
 const must=(c,m)=>{if(!c)throw new Error(m);};
 

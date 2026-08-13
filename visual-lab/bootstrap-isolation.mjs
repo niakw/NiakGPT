@@ -10,14 +10,15 @@ const main=base.content_scripts.find(x=>x.world==='MAIN');
 const isolated=base.content_scripts.find(x=>x.world!=='MAIN'&&x.js?.includes('app-v090.js'));
 const loader=base.content_scripts.find(x=>x.js?.includes('retro-loader-v097.js'));
 
+const slice=n=>[main,{...isolated,js:isolated.js.slice(0,n)}];
 const groups={
   none:[],
   main:[main],
-  shell:[main,{...isolated,js:isolated.js.slice(0,6)}],
-  coord:[main,{...isolated,js:isolated.js.slice(0,10)}],
-  core:[main,{...isolated,js:isolated.js.slice(0,11)}],
-  ui:[main,{...isolated,js:isolated.js.slice(0,15)}],
-  isolated:[main,isolated],
+  ui:slice(15),
+  chronology:slice(16),
+  pinfolders:slice(17),
+  hotcache:slice(18),
+  activity:slice(19),
   full:[main,isolated,loader]
 };
 
@@ -60,7 +61,7 @@ async function probe(name,scripts){
 const results=[];
 for(const [name,scripts] of Object.entries(groups))results.push(await probe(name,scripts));
 console.log('\nSUMMARY');
-for(const r of results)console.log(`${r.name.padEnd(9)} launch=${r.launch} commit=${r.commit} fixture=${r.fixture} status=${r.status} ${r.error}`);
+for(const r of results)console.log(`${r.name.padEnd(10)} launch=${r.launch} commit=${r.commit} fixture=${r.fixture} status=${r.status} ${r.error}`);
 
 const full=results.at(-1);
 if(!full.fixture)process.exitCode=2;

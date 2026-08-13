@@ -1,0 +1,61 @@
+name: NiakGPT Maintenance Converge
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'manifest.json'
+      - 'visual-lab/package.json'
+      - 'tools/generate-icons.py'
+      - 'tools/sync-readme-version.mjs'
+      - '.github/workflows/maintenance-converge.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: niakgpt-maintenance-main
+  cancel-in-progress: true
+
+jobs:
+  converge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Generate derived assets from current checkout
+        shell: bash
+        run: |
+          generate() {
+            python3 tools/generate-icons.py
+            (cd visual-lab && npm install --package-lock-only --ignore-scripts --no-audit --no-fund)
+            node tools/sync-readme-version.mjs
+          }
+          generate
+          git fetch origin main
+          REMOTE=$(git rev-parse origin/main)
+          LOCAL=$(git rev-parse HEAD)
+          if [ "$REMOTE" != "$LOCAL" ]; then
+            echo "main advanced during maintenance; regenerating from $REMOTE"
+            git reset --hard origin/main
+            generate
+          fi
+
+      - name: Commit derived files once
+        run: |
+          git add manifest.json README.md visual-lab/package-lock.json icons/
+          if git diff --cached --quiet; then
+            echo 'Derived files already converged'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Converge NiakGPT generated assets'
+          git push origin HEAD:main

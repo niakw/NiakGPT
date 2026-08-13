@@ -19,23 +19,24 @@ jobs:
           const fs = require('fs');
           const m = JSON.parse(fs.readFileSync('manifest.json','utf8'));
           if (m.name !== 'NiakGPT') throw new Error('wrong extension name');
-          if (m.version !== '0.8.6') throw new Error('wrong build version');
+          if (m.version !== '0.8.7') throw new Error('wrong build version');
           if (JSON.stringify(m.host_permissions) !== JSON.stringify(['https://chatgpt.com/*'])) throw new Error('host scope must be ChatGPT only');
           if (!m.content_scripts.every(x => x.matches.every(v => v === 'https://chatgpt.com/*'))) throw new Error('unexpected content-script host');
           const main = m.content_scripts.find(x => x.world === 'MAIN');
           const isolated = m.content_scripts.find(x => x.world !== 'MAIN');
           if (!main || !isolated) throw new Error('runtime worlds missing');
-          if (JSON.stringify(main.js) !== JSON.stringify(['page-bridge.js','manual-lock-main-v085.js','hotcache-main-v084.js'])) throw new Error('unexpected MAIN runtime');
+          if (JSON.stringify(main.js) !== JSON.stringify(['page-bridge.js','manual-lock-main-v085.js','activity-main-v087.js','hotcache-main-v084.js'])) throw new Error('unexpected MAIN runtime');
           if (JSON.stringify(isolated.js) !== JSON.stringify(['multitab-v083.js','project-governance-v085.js','project-pins-v085.js','app-v08-safe.js','polish-v081.js','chronology-v081.js','hotcache-v084.js','activity-v086.js'])) throw new Error('activity runtime missing');
           if (JSON.stringify(isolated.css) !== JSON.stringify(['theme-v08.css','polish-v081.css','chronology-v081.css','multitab-v083.css','governance-v085.css','activity-v086.css'])) throw new Error('activity theme missing');
           if (!m.content_scripts.every(x => x.run_at === 'document_start')) throw new Error('runtime must start immediately');
-          console.log('manifest v0.8.6 OK');
+          console.log('manifest v0.8.7 OK');
           NODE
 
       - name: Check JavaScript syntax
         run: |
           node --check page-bridge.js
           node --check manual-lock-main-v085.js
+          node --check activity-main-v087.js
           node --check hotcache-main-v084.js
           node --check multitab-v083.js
           node --check project-governance-v085.js
@@ -48,20 +49,30 @@ jobs:
 
       - name: Check conversation activity states
         run: |
-          grep -q "const VERSION = '0.8.6'" activity-v086.js
-          grep -q "loading: 'CHARGEMENT'" activity-v086.js
-          grep -q "waiting: 'ATTENTE'" activity-v086.js
-          grep -q "thinking: 'RÉFLEXION / ANALYSE'" activity-v086.js
-          grep -q "executing: 'EXÉCUTION'" activity-v086.js
-          grep -q "error: 'ERREUR'" activity-v086.js
-          grep -q "ready: 'PRÊT'" activity-v086.js
+          grep -q 'niakgpt:activity-network' activity-main-v087.js
+          grep -q 'niakgptActivityAwareFetch' activity-main-v087.js
+          grep -q 'SEND_RX' activity-main-v087.js
+          grep -q "emit('request'" activity-main-v087.js
+          grep -q "'headers'" activity-main-v087.js
+          grep -q "'error'" activity-main-v087.js
+          grep -q 'chrome.runtime.getManifest' activity-v086.js
+          grep -q "loading:'CHARGEMENT'" activity-v086.js
+          grep -q "waiting:'ATTENTE'" activity-v086.js
+          grep -q "thinking:'RÉFLEXION / ANALYSE'" activity-v086.js
+          grep -q "executing:'EXÉCUTION'" activity-v086.js
+          grep -q "error:'ERREUR'" activity-v086.js
+          grep -q "ready:'PRÊT'" activity-v086.js
           grep -q "localState === 'waiting'" activity-v086.js
           grep -q '120000' activity-v086.js
           grep -q 'conversationMounted' activity-v086.js
           grep -q 'BroadcastChannel' activity-v086.js
+          grep -q "type:'hello'" activity-v086.js
+          grep -q "type:'snapshot'" activity-v086.js
+          grep -q 'PRIORITY' activity-v086.js
           grep -q 'ng86-active-chat' activity-v086.js
           grep -q 'ng86-active-project' activity-v086.js
           grep -q 'ng86-status-state' activity-v086.js
+          grep -q 'setTimeout(tick' activity-v086.js
           grep -q 'data-ng86-activity="waiting"' activity-v086.css
           grep -q 'data-ng86-activity="thinking"' activity-v086.css
           grep -q 'data-ng86-activity="executing"' activity-v086.css
@@ -102,7 +113,7 @@ jobs:
 
       - name: Check privacy of Project structure
         run: |
-          if grep -Ei 'miorra|aelyron|eitty|elias|niakvio|tommy|foissy' project-governance-v085.js project-pins-v085.js manual-lock-main-v085.js governance-v085.css activity-v086.js activity-v086.css; then
+          if grep -Ei 'miorra|aelyron|eitty|elias|niakvio|tommy|foissy' project-governance-v085.js project-pins-v085.js manual-lock-main-v085.js activity-main-v087.js governance-v085.css activity-v086.js activity-v086.css; then
             echo 'personal project/person data must not be hardcoded in runtime'
             exit 1
           fi
@@ -130,6 +141,7 @@ jobs:
           grep -q 'maybeYieldHeavyWorker' multitab-v083.js
           grep -q 'CACHE PARTAGÉ' multitab-v083.js
           grep -q 'ng8-tab-role="client"' multitab-v083.css
+          grep -q 'content:none' multitab-v083.css
 
       - name: Check idle-safe performance architecture
         run: |
@@ -142,6 +154,8 @@ jobs:
           grep -q 'S.sidebarObserver.observe(side' app-v08-safe.js
           COUNT=$(grep -o 'observe(document.documentElement' app-v08-safe.js | wc -l)
           test "$COUNT" -le 1
+          grep -q 'setInterval(polish, 2600)' polish-v081.js
+          grep -q "dataset.ng8Running !== '1'" polish-v081.js
           if grep -q 'perf-guard' manifest.json; then exit 1; fi
 
       - name: Check Project counter compatibility
@@ -170,9 +184,11 @@ jobs:
           grep -q 'a\[data-ng8-project="1"\]' theme-v08.css
           grep -q '#ng8-matrix' polish-v081.css
           grep -q 'ng8-native-activity' polish-v081.css
+          grep -q 'ng8-activity-head' polish-v081.css
           grep -q 'ng8-activity-close' polish-v081.js
           grep -q 'input:focus-visible' polish-v081.css
           grep -q 'bg-token-message-surface' polish-v081.css
+          grep -q 'header a\[href\*="/g/g-p-"\] svg' polish-v081.css
           grep -q 'BY SKYNET' app-v08-safe.js
           if grep -E '#ng8-coach\{[^}]*position:fixed' theme-v08.css; then exit 1; fi
-          echo 'v0.8.6 activity + governance + hotcache + multitab + chronology + performance + polish checks OK'
+          echo 'v0.8.7 network activity + governance + hotcache + multitab + chronology + performance + polish checks OK'

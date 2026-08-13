@@ -20,7 +20,7 @@ def blend(dst,src,a):
 def png_write(path,w,h,pixels):
     def chunk(tag,data):
         return struct.pack('>I',len(data))+tag+data+struct.pack('>I',zlib.crc32(tag+data)&0xffffffff)
-    raw=b''.join(b'\x00'+bytes(pixels[y*w:(y+1)*w]) for y in range(h))
+    raw=b''.join(b'\x00'+bytes(pixels[y*w*4:(y+1)*w*4]) for y in range(h))
     sig=b'\x89PNG\r\n\x1a\n'
     ihdr=struct.pack('>IIBBBBB',w,h,8,6,0,0,0)
     with open(path,'wb') as f:

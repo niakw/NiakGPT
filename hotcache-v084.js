@@ -3,13 +3,13 @@
   if (location.hostname !== 'chatgpt.com' || window.__NIAKGPT_HOTCACHE_084__) return;
   window.__NIAKGPT_HOTCACHE_084__ = true;
 
-  const VERSION = '0.8.4';
+  const VERSION=(()=>{try{return chrome.runtime.getManifest().version||'0.9.5';}catch{return'0.9.5';}})();
   const CACHE_KEY = 'niakgpt-v08-cache';
   const META_KEY = 'niakgpt-hotmeta-v084';
   const DIRTY_KEY = 'niakgpt-hotdirty-v084';
   let lastStatus = { mode:'READY', hits:0, misses:0, network:0, deduped:0, entries:0 };
-  let lastGenerating = false;
   let syncTimer = 0;
+  let diagTimer = 0;
 
   function parseTime(value) {
     if (typeof value === 'number' && Number.isFinite(value)) return value > 1e12 ? value : value * 1000;
@@ -26,25 +26,9 @@
     return location.pathname.match(/\/c\/([0-9a-f-]{20,})/i)?.[1] || '';
   }
 
-  function isGenerating() {
-    return [...document.querySelectorAll('button,[data-testid]')]
-      .filter(el => el instanceof HTMLElement && el.getBoundingClientRect().width > 0)
-      .some(el => /stop|arrêter|arreter/i.test(`${el.getAttribute('aria-label') || ''} ${el.getAttribute('data-testid') || ''}`));
-  }
-
   function composerTarget(target) {
     if (!(target instanceof Element)) return false;
     return !!target.closest('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]');
-  }
-
-  function patchVersion() {
-    const cell = document.querySelector('#ng8-status > span:first-child');
-    if (!cell) return;
-    const nodes = [...cell.childNodes].filter(n => n.nodeType === Node.TEXT_NODE);
-    for (const node of nodes) {
-      if (/\b0\.8\.\d+\b/.test(node.nodeValue || '')) node.nodeValue = (node.nodeValue || '').replace(/\b0\.8\.\d+\b/g, VERSION);
-    }
-    cell.dataset.ng8RuntimeVersion = VERSION;
   }
 
   function markDirty(id = cidFromPath()) {
@@ -56,7 +40,9 @@
     } catch {}
     document.documentElement.setAttribute('data-ng8-hotdirty-id', id);
     document.dispatchEvent(new CustomEvent('niakgpt:hotcache-dirty', { detail:{ id } }));
-    setTimeout(() => document.documentElement.removeAttribute('data-ng8-hotdirty-id'), 1000);
+    setTimeout(() => {
+      if(document.documentElement.getAttribute('data-ng8-hotdirty-id')===id)document.documentElement.removeAttribute('data-ng8-hotdirty-id');
+    }, 1000);
   }
 
   async function syncMeta() {
@@ -88,9 +74,10 @@
   }
 
   function patchDiagnostic() {
-    patchVersion();
+    clearTimeout(diagTimer);
+    diagTimer=0;
     const diag = document.querySelector('#ng8-panel .ng8-diag');
-    if (!diag) return;
+    if (!diag) return false;
     let row = diag.querySelector(':scope > .ng8-hotcache-diagnostic');
     if (!row) {
       row = document.createElement('div');
@@ -106,6 +93,12 @@
     const hot = /^(HIT|HIT_PEER|HIT_AFTER_LOCK|STORED|READY)$/i.test(mode);
     row.innerHTML = `<span>hotcache</span><b class="${hot ? 'ok' : /ERROR/i.test(mode) ? 'err' : 'wait'}">${mode} · ${entries}/5 · ${hits} hit · ${net} net${dedupe ? ` · ${dedupe} partagé${dedupe > 1 ? 's' : ''}` : ''}</b>`;
     row.title = `Cache temporaire des conversations · NiakGPT ${VERSION}`;
+    return true;
+  }
+
+  function scheduleDiagnostic(delay=0){
+    clearTimeout(diagTimer);
+    diagTimer=setTimeout(patchDiagnostic,delay);
   }
 
   document.addEventListener('niakgpt:hotcache-status', event => {
@@ -113,29 +106,31 @@
     patchDiagnostic();
   });
 
+  document.addEventListener('niakgpt:activity-network', event => {
+    if(event.detail?.phase==='request')markDirty(String(event.detail?.chatId||cidFromPath()));
+  });
+
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes[CACHE_KEY]) scheduleMeta(160);
   });
 
   document.addEventListener('click', event => {
-    const button = event.target instanceof Element ? event.target.closest('button') : null;
-    if (!button) return;
-    const label = `${button.getAttribute('aria-label') || ''} ${button.getAttribute('data-testid') || ''}`;
-    if (/send|envoyer/i.test(label)) markDirty();
+    const target=event.target instanceof Element?event.target:null;
+    const button = target?.closest('button');
+    if (button) {
+      const label = `${button.getAttribute('aria-label') || ''} ${button.getAttribute('data-testid') || ''}`;
+      if (/send|envoyer/i.test(label)) markDirty();
+    }
+    if(target?.closest('#ng8-rail [data-tab="diag"],#ng8-panel [data-tab="diag"]'))scheduleDiagnostic(80);
   }, true);
 
   document.addEventListener('keydown', event => {
-    if (event.key !== 'Enter' || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey || event.isComposing) return;
-    if (composerTarget(event.target)) markDirty();
+    if (event.key === 'Enter' && !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey && !event.isComposing && composerTarget(event.target)) markDirty();
+    if(event.altKey&&String(event.key).toLowerCase()==='d')scheduleDiagnostic(80);
   }, true);
 
-  setInterval(() => {
-    const generating = isGenerating();
-    if (generating && !lastGenerating) markDirty();
-    lastGenerating = generating;
-    patchDiagnostic();
-  }, 1200);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)scheduleDiagnostic(100);});
 
   scheduleMeta(50);
-  setTimeout(patchDiagnostic, 600);
+  scheduleDiagnostic(600);
 })();

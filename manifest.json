@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.5",
-  "description": "Workspace power-user local pour ChatGPT : cœur event-driven, cache chaud, Projects gouvernés, profils, Command Palette, multi-onglets et états temps réel.",
+  "version": "0.9.6",
+  "description": "Workspace power-user local pour ChatGPT : cœur event-driven, cache chaud, Projects instantanés, coach contextuel, panneaux natifs adaptés, multi-onglets et états temps réel.",
   "permissions": [
     "storage"
   ],
@@ -41,7 +41,10 @@
         "core-v090.css",
         "profiles-v100.css",
         "commands-v100.css",
-        "onboarding-v100.css"
+        "onboarding-v100.css",
+        "coach-v100.css",
+        "pin-folders-v096.css",
+        "side-panels-v096.css"
       ],
       "js": [
         "onboarding-v101.js",
@@ -53,8 +56,11 @@
         "project-pins-v090.js",
         "sidebar-host-v090.js",
         "app-v090.js",
+        "coach-v100.js",
         "polish-v090.js",
+        "side-panels-v096.js",
         "chronology-v090.js",
+        "pin-folders-v096.js",
         "hotcache-v084.js",
         "activity-v086.js"
       ],

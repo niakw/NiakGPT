@@ -8,6 +8,7 @@ on:
       - 'diagnostic-bus-v096.js'
       - 'hotcache-v084.js'
       - 'hotcache-ui-v097.js'
+      - 'activity-v086.js'
       - '.github/workflows/bootstrap-isolation.yml'
 
 permissions:

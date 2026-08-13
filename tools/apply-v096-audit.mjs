@@ -8,15 +8,15 @@ const must=(cond,msg)=>{if(!cond)throw new Error(msg);};
 {
   const p='app-v090.js';
   let s=read(p);
+  if(!s.includes('function bindNavigation()')){
+    const stateOld="mainObserver:null, sidebarObserver:null, mainTimer:0, sidebarTimer:0, routeTimer:0, lastPath:location.pathname,";
+    const stateNew="mainObserver:null, sidebarObserver:null, mainRoot:null, sidebarRoot:null, mainTimer:0, sidebarTimer:0, lastPath:location.pathname, projectsRefreshed:false, refreshingProjects:false,";
+    must(s.includes(stateOld),'app state anchor missing');
+    s=s.replace(stateOld,stateNew);
 
-  const stateOld="mainObserver:null, sidebarObserver:null, mainTimer:0, sidebarTimer:0, routeTimer:0, lastPath:location.pathname,";
-  const stateNew="mainObserver:null, sidebarObserver:null, mainRoot:null, sidebarRoot:null, mainTimer:0, sidebarTimer:0, lastPath:location.pathname, projectsRefreshed:false, refreshingProjects:false,";
-  must(s.includes(stateOld),'app state anchor missing');
-  s=s.replace(stateOld,stateNew);
-
-  const indexRx=/  function scheduleIndex\(delay=1200\)\{[\s\S]*?\n  async function runOneIndex\(\)\{/;
-  must(indexRx.test(s),'schedule/refresh block anchor missing');
-  s=s.replace(indexRx,`  function scheduleIndex(delay=120){
+    const indexRx=/  function scheduleIndex\(delay=1200\)\{[\s\S]*?\n  async function runOneIndex\(\)\{/;
+    must(indexRx.test(s),'schedule/refresh block anchor missing');
+    s=s.replace(indexRx,`  function scheduleIndex(delay=120){
     clearTimeout(S.queueTimer);S.queueTimer=0;
     if(!canBackground())return;
     S.queueTimer=setTimeout(()=>{
@@ -38,12 +38,12 @@ const must=(cond,msg)=>{if(!cond)throw new Error(msg);};
   }
   async function runOneIndex(){`);
 
-  s=s.replace("if(S.indexing||!canBackground())return scheduleIndex(5000);","if(S.indexing||!canBackground())return;");
-  s=s.replace("finally{S.indexing=false;scheduleIndex(S.queue.length?500:2200);}","finally{S.indexing=false;if(canBackground())scheduleIndex(S.queue.length?260:100);}");
+    s=s.replace("if(S.indexing||!canBackground())return scheduleIndex(5000);","if(S.indexing||!canBackground())return;");
+    s=s.replace("finally{S.indexing=false;scheduleIndex(S.queue.length?500:2200);}","finally{S.indexing=false;if(canBackground())scheduleIndex(S.queue.length?260:100);}");
 
-  const mountRx=/  function mountObservers\(\)\{[\s\S]*?\n  function resetRouteVisuals\(\)\{/;
-  must(mountRx.test(s),'mountObservers block anchor missing');
-  s=s.replace(mountRx,`  function mountObservers(){
+    const mountRx=/  function mountObservers\(\)\{[\s\S]*?\n  function resetRouteVisuals\(\)\{/;
+    must(mountRx.test(s),'mountObservers block anchor missing');
+    s=s.replace(mountRx,`  function mountObservers(){
     const main=document.querySelector('main');
     if(main&&main!==S.mainRoot){S.mainObserver?.disconnect();S.mainRoot=main;S.mainObserver=new MutationObserver(queueMainNodes);S.mainObserver.observe(main,{childList:true,subtree:true});scanExistingMain();}
     const side=navRoot();
@@ -51,9 +51,9 @@ const must=(cond,msg)=>{if(!cond)throw new Error(msg);};
   }
   function resetRouteVisuals(){`);
 
-  const routeRx=/  function routeTick\(\)\{[\s\S]*?\n  function bindEvents\(\)\{/;
-  must(routeRx.test(s),'routeTick block anchor missing');
-  s=s.replace(routeRx,`  function wakeBackground(){
+    const routeRx=/  function routeTick\(\)\{[\s\S]*?\n  function bindEvents\(\)\{/;
+    must(routeRx.test(s),'routeTick block anchor missing');
+    s=s.replace(routeRx,`  function wakeBackground(){
     if(!canBackground())return;
     if(!S.projectsRefreshed&&!S.refreshingProjects)refreshProjects();else scheduleIndex(40);
   }
@@ -73,11 +73,12 @@ const must=(cond,msg)=>{if(!cond)throw new Error(msg);};
 
   function bindEvents(){`);
 
-  must(s.includes('bindEvents();routeTick();'),'boot routeTick call missing');
-  s=s.replace('bindEvents();routeTick();','bindEvents();bindNavigation();');
-  must(s.includes("setTimeout(()=>{if(canBackground())refreshProjects();else scheduleIndex(6000);},1600);"),'boot index retry anchor missing');
-  s=s.replace("setTimeout(()=>{if(canBackground())refreshProjects();else scheduleIndex(6000);},1600);","setTimeout(()=>{if(canBackground())refreshProjects();},900);");
-
+    must(s.includes('bindEvents();routeTick();'),'boot routeTick call missing');
+    s=s.replace('bindEvents();routeTick();','bindEvents();bindNavigation();');
+    must(s.includes("setTimeout(()=>{if(canBackground())refreshProjects();else scheduleIndex(6000);},1600);"),'boot index retry anchor missing');
+    s=s.replace("setTimeout(()=>{if(canBackground())refreshProjects();else scheduleIndex(6000);},1600);","setTimeout(()=>{if(canBackground())refreshProjects();},900);");
+  }
+  must(s.includes('function bindNavigation()'),'event-driven navigation missing after convergence');
   must(!s.includes('function routeTick()'),'routeTick still present');
   must(!s.includes('setTimeout(routeTick'),'routeTick timer still present');
   write(p,s);
@@ -88,9 +89,7 @@ const must=(cond,msg)=>{if(!cond)throw new Error(msg);};
   const p='multitab-v090.js';let s=read(p);
   const anchor="function formatDate(ms){if(!ms)return'—';const d=new Date(ms);return`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;}";
   must(s.includes(anchor),'multitab formatDate anchor missing');
-  if(!s.includes('function routeTo(href)')){
-    s=s.replace(anchor,`${anchor}\n  function routeTo(href){const native=[...document.querySelectorAll('a[href]')].find(a=>a.getAttribute('href')===href&&!a.closest('#ng8-quick,#ng8-panel,#ng90-control'));if(native instanceof HTMLElement){native.click();return;}location.assign(href);}`);
-  }
+  if(!s.includes('function routeTo(href)'))s=s.replace(anchor,`${anchor}\n  function routeTo(href){const native=[...document.querySelectorAll('a[href]')].find(a=>a.getAttribute('href')===href&&!a.closest('#ng8-quick,#ng8-panel,#ng90-control'));if(native instanceof HTMLElement){native.click();return;}location.assign(href);}`);
   s=s.replace("list.querySelectorAll('button').forEach(button=>button.onclick=()=>{location.href=items[Number(button.dataset.i)].href;});","list.querySelectorAll('button').forEach(button=>button.onclick=()=>{const item=items[Number(button.dataset.i)];if(item)routeTo(item.href);});");
   s=s.replace("else if(event.key==='Enter'&&items[selected]){event.preventDefault();location.href=items[selected].href;}","else if(event.key==='Enter'&&items[selected]){event.preventDefault();routeTo(items[selected].href);}");
   must(!s.includes("location.href=items["),'client Quick Open still hard reloads');
@@ -100,14 +99,21 @@ const must=(cond,msg)=>{if(!cond)throw new Error(msg);};
 // Control Center is loaded after polish-v081.css, so it is the final Matrix source of truth.
 {
   const p='control-center-v090.css';let s=read(p);
-  const rx=/html\[data-ng90-matrix="normal"\] #ng8-matrix\{[^\n]+\}\nhtml\[data-ng90-matrix="subtle"\] #ng8-matrix\{[^\n]+\}/;
-  must(rx.test(s),'Matrix preference block missing');
-  s=s.replace(rx,`html[data-ng90-matrix="normal"] #ng8-matrix{opacity:.38!important;filter:saturate(1.24) brightness(1)!important}\nhtml[data-ng90-matrix="subtle"] #ng8-matrix{opacity:.31!important;filter:saturate(1.20) brightness(.98)!important}`);
-  const off='html[data-ng90-matrix="off"] #ng8-matrix,';
-  must(s.includes(off),'Matrix off anchor missing');
-  if(!s.includes('html[data-ng8-running="1"][data-ng90-matrix] #ng8-matrix')){
-    s=s.replace(off,`html[data-ng8-running="1"][data-ng90-matrix] #ng8-matrix{opacity:.09!important;filter:none!important}\nhtml[data-ng8-running="1"][data-ng8-heavy="1"][data-ng90-matrix] #ng8-matrix{opacity:.035!important}\n${off}`);
+  if(!s.includes('html[data-ng90-matrix="subtle"] #ng8-matrix{opacity:.31')){
+    const rx=/html\[data-ng90-matrix="normal"\] #ng8-matrix\{[^\n]+\}\nhtml\[data-ng90-matrix="subtle"\] #ng8-matrix\{[^\n]+\}/;
+    must(rx.test(s),'Matrix preference block missing');
+    s=s.replace(rx,`html[data-ng90-matrix="normal"] #ng8-matrix{opacity:.38!important;filter:saturate(1.24) brightness(1)!important}\nhtml[data-ng90-matrix="subtle"] #ng8-matrix{opacity:.31!important;filter:saturate(1.20) brightness(.98)!important}`);
   }
+  const off='html[data-ng90-matrix="off"] #ng8-matrix,';must(s.includes(off),'Matrix off anchor missing');
+  if(!s.includes('html[data-ng8-running="1"][data-ng90-matrix] #ng8-matrix'))s=s.replace(off,`html[data-ng8-running="1"][data-ng90-matrix] #ng8-matrix{opacity:.09!important;filter:none!important}\nhtml[data-ng8-running="1"][data-ng8-heavy="1"][data-ng90-matrix] #ng8-matrix{opacity:.035!important}\n${off}`);
+  write(p,s);
+}
+
+// Coach marker is explicit in the DOM for QA/debugging.
+{
+  const p='coach-v100.js';let s=read(p);
+  s=s.replace("box.dataset.ng100Coach='1';","box.setAttribute('data-ng100-coach','1');");
+  must(s.includes("setAttribute('data-ng100-coach','1')"),'explicit coach marker missing');
   write(p,s);
 }
 

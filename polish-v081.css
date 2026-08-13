@@ -1,9 +1,9 @@
-/* NiakGPT v0.8.1 polish — native UI overrides only */
+/* NiakGPT polish — native UI overrides only */
 
 /* Matrix: keep the joke, reduce visual competition */
-#ng8-matrix{opacity:.30!important;filter:saturate(1.28) brightness(1.02)!important}
-html[data-ng8-running="1"] #ng8-matrix{opacity:.10!important;filter:none!important}
-html[data-ng8-running="1"][data-ng8-heavy="1"] #ng8-matrix{opacity:.035!important}
+#ng8-matrix{opacity:.27!important;filter:saturate(1.18) brightness(.96)!important}
+html[data-ng8-running="1"] #ng8-matrix{opacity:.075!important;filter:none!important}
+html[data-ng8-running="1"][data-ng8-heavy="1"] #ng8-matrix{opacity:.025!important}
 
 /* Kill remaining ChatGPT theme accent variables */
 :root{
@@ -17,10 +17,7 @@ html[data-ng8-running="1"][data-ng8-heavy="1"] #ng8-matrix{opacity:.035!importan
 }
 
 /* Inputs: no aggressive blue ring */
-input,textarea,[contenteditable="true"]{
-  caret-color:#dce7f1!important;
-  outline:none!important;
-}
+input,textarea,[contenteditable="true"]{caret-color:#dce7f1!important;outline:none!important}
 input:focus,input:focus-visible,
 textarea:focus,textarea:focus-visible,
 [contenteditable="true"]:focus,[contenteditable="true"]:focus-visible,
@@ -58,6 +55,12 @@ button[aria-label*="micro" i],button[aria-label*="dict" i]{
   color:#c7d5e2!important;
 }
 
+/* Native project/header icons must not retain account accent */
+a[data-ng8-project="1"] svg,
+#ng8-pins a svg,
+header a[href*="/g/g-p-"] svg,
+header button svg{color:currentColor!important;fill:none!important;stroke:currentColor!important}
+
 /* User bubbles: override ChatGPT account theme color */
 [data-message-author-role="user"] .bg-token-message-surface,
 [data-message-author-role="user"] [class*="bg-token-message"],
@@ -85,39 +88,74 @@ button[aria-label*="micro" i],button[aria-label*="dict" i]{
   color:#dce7f1!important;
   border-left:1px solid #2a3948!important;
   box-shadow:-16px 0 40px rgba(0,0,0,.34)!important;
+  scrollbar-color:#425669 #091019!important;
+  scrollbar-width:thin!important;
 }
 .ng8-native-activity header,
+.ng8-native-activity .ng8-activity-head,
 .ng8-native-activity [class*="sticky"]{
   background:#0d1620f4!important;
   border-color:#293846!important;
+}
+.ng8-native-activity header,
+.ng8-native-activity .ng8-activity-head{
+  min-height:52px!important;
+  padding:9px 48px 9px 12px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:8px!important;
+  border-bottom:1px solid #293846!important;
+}
+.ng8-native-activity header>div,
+.ng8-native-activity .ng8-activity-head>div{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:flex-start!important;
+  justify-content:center!important;
+  gap:2px!important;
+  min-width:0!important;
+}
+.ng8-native-activity header small,
+.ng8-native-activity .ng8-activity-head small{
+  display:block!important;
+  color:#7290a9!important;
+  font:800 9px/1.2 Consolas,monospace!important;
+  letter-spacing:.1em!important;
+  text-transform:uppercase!important;
+}
+.ng8-native-activity header b,
+.ng8-native-activity .ng8-activity-head b{
+  display:block!important;
+  color:#eef5fb!important;
+  font:750 13px/1.25 system-ui,sans-serif!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
 }
 .ng8-native-activity h1,.ng8-native-activity h2,.ng8-native-activity h3,
 .ng8-native-activity [role="heading"]{color:#eef5fb!important}
 .ng8-native-activity pre,
 .ng8-native-activity [class*="code"],
-.ng8-native-activity [class*="rounded"][class*="bg-"]{
-  border-color:#2d3d4d!important;
-}
+.ng8-native-activity [class*="rounded"][class*="bg-"]{border-color:#2d3d4d!important}
 .ng8-native-activity pre{
   background:#05090d!important;
   box-shadow:inset 2px 0 #4fc1ff!important;
+  border-radius:7px!important;
 }
-.ng8-native-activity button:not(.ng8-activity-close){
-  border-color:#314353!important;
-}
+.ng8-native-activity button:not(.ng8-activity-close){border-color:#314353!important}
 .ng8-activity-close{
-  position:sticky!important;
-  float:right!important;
-  top:8px!important;
-  right:8px!important;
+  position:absolute!important;
+  top:10px!important;
+  right:10px!important;
   z-index:2147483647!important;
-  width:30px!important;
-  height:30px!important;
-  margin:8px 8px -38px auto!important;
+  width:32px!important;
+  height:32px!important;
+  margin:0!important;
   display:grid!important;
   place-items:center!important;
   border:1px solid #3a4b5a!important;
-  border-radius:7px!important;
+  border-radius:8px!important;
   background:#111d28!important;
   color:#dce7f1!important;
   font:400 22px/1 system-ui,sans-serif!important;
@@ -125,6 +163,7 @@ button[aria-label*="micro" i],button[aria-label*="dict" i]{
   box-shadow:0 5px 16px rgba(0,0,0,.28)!important;
 }
 .ng8-activity-close:hover{background:#1b2b38!important;color:#fff!important;border-color:#587087!important}
+.ng8-activity-close:focus-visible{outline:2px solid #4fc1ff!important;outline-offset:2px!important}
 
 /* Keep the activity panel readable while Matrix remains behind the chat only */
 .ng8-native-activity #ng8-matrix{display:none!important}

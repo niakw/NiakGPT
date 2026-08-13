@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+// One-shot 0.9.6 cache-schema convergence; remove after final certification.
 const must=(c,m)=>{if(!c)throw new Error(m);};
 
 {
@@ -19,8 +20,10 @@ const must=(c,m)=>{if(!c)throw new Error(m);};
 {
   const p='project-governance-v090.js';let s=fs.readFileSync(p,'utf8');
   const rx=/  function applyMoveToCache\(chatId,targetId\)\{[\s\S]*?\n  \}\n\n  function hiddenStyle/;
-  must(rx.test(s),'Governance cache move anchor missing');
-  s=s.replace(rx,`  function applyMoveToCache(chatId,targetId){\n    const target=normalizePid(targetId),chat=(cache.chats||[]).find(c=>c.id===chatId),from=normalizePid(chat?.projectId||'');\n    if(chat)chat.projectId=target;\n    // Legacy cache compatibility only: update projectChats if an old schema is still loaded.\n    if(cache.projectChats&&typeof cache.projectChats==='object'){\n      let found=chat?{...chat}:null;\n      for(const [pid,list] of Object.entries(cache.projectChats)){const idx=(list||[]).findIndex(c=>c.id===chatId);if(idx>=0){found={...list[idx],projectId:target};list.splice(idx,1);}cache.counts??={};cache.counts[pid]=(list||[]).length;}\n      if(found&&target){cache.projectChats[target]??=[];const idx=cache.projectChats[target].findIndex(c=>c.id===chatId);if(idx>=0)cache.projectChats[target][idx]={...found,projectId:target};else cache.projectChats[target].push({...found,projectId:target});cache.counts[target]=cache.projectChats[target].length;}\n    }else{\n      cache.counts??={};\n      if(from&&Number.isFinite(Number(cache.counts[from])))cache.counts[from]=Math.max(0,Number(cache.counts[from])-1);\n      if(target&&target!==from&&Number.isFinite(Number(cache.counts[target])))cache.counts[target]=Number(cache.counts[target])+1;\n    }\n  }\n\n  function hiddenStyle`);
+  if(!s.includes('Legacy cache compatibility only')){
+    must(rx.test(s),'Governance cache move anchor missing');
+    s=s.replace(rx,`  function applyMoveToCache(chatId,targetId){\n    const target=normalizePid(targetId),chat=(cache.chats||[]).find(c=>c.id===chatId),from=normalizePid(chat?.projectId||'');\n    if(chat)chat.projectId=target;\n    // Legacy cache compatibility only: update projectChats if an old schema is still loaded.\n    if(cache.projectChats&&typeof cache.projectChats==='object'){\n      let found=chat?{...chat}:null;\n      for(const [pid,list] of Object.entries(cache.projectChats)){const idx=(list||[]).findIndex(c=>c.id===chatId);if(idx>=0){found={...list[idx],projectId:target};list.splice(idx,1);}cache.counts??={};cache.counts[pid]=(list||[]).length;}\n      if(found&&target){cache.projectChats[target]??=[];const idx=cache.projectChats[target].findIndex(c=>c.id===chatId);if(idx>=0)cache.projectChats[target][idx]={...found,projectId:target};else cache.projectChats[target].push({...found,projectId:target});cache.counts[target]=cache.projectChats[target].length;}\n    }else{\n      cache.counts??={};\n      if(from&&Number.isFinite(Number(cache.counts[from])))cache.counts[from]=Math.max(0,Number(cache.counts[from])-1);\n      if(target&&target!==from&&Number.isFinite(Number(cache.counts[target])))cache.counts[target]=Number(cache.counts[target])+1;\n    }\n  }\n\n  function hiddenStyle`);
+  }
   must(s.includes('Legacy cache compatibility only'),'Governance normalized cache compatibility missing');
   fs.writeFileSync(p,s);
 }

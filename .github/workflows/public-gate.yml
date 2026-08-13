@@ -17,7 +17,7 @@ on:
       - '.github/workflows/public-gate.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: niakgpt-public-gate-${{ github.ref }}
@@ -40,8 +40,10 @@ jobs:
       - name: Capture tested commit
         run: echo "NIAKGPT_TESTED_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
-      - name: Validate runtime invariants
-        run: node tools/check-runtime.mjs
+      - name: Validate runtime and hot-path invariants
+        run: |
+          node tools/check-runtime.mjs
+          node tools/check-hotpath-v096.mjs
 
       - name: Check JavaScript syntax from manifest
         run: |
@@ -82,35 +84,18 @@ jobs:
             exit 1
           fi
 
-      - name: Upload certified package and QA report
-        uses: actions/upload-artifact@v4
-        with:
-          name: niakgpt-public-gate
-          path: |
-            dist/niakgpt-*.zip
-            visual-lab/artifacts
-            visual-lab/playwright-report
-            visual-lab/test-results
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Publish quality marker if main is unchanged
-        shell: bash
+      - name: Generate immutable certification record
         run: |
-          git fetch origin main
-          CURRENT_REMOTE=$(git rev-parse origin/main)
-          if [ "$CURRENT_REMOTE" != "$NIAKGPT_TESTED_SHA" ]; then
-            echo "main advanced from $NIAKGPT_TESTED_SHA to $CURRENT_REMOTE; skip stale certification marker"
-            exit 0
-          fi
           VERSION=$(node -p "require('./manifest.json').version")
-          cat > QUALITY_GATE.json <<EOF
+          cat > dist/QUALITY_GATE.json <<EOF
           {
             "status": "passed",
             "version": "$VERSION",
             "tested_commit": "$NIAKGPT_TESTED_SHA",
+            "workflow_run": "$GITHUB_RUN_ID",
             "validated": [
               "runtime-invariants",
+              "hot-path-invariants",
               "javascript-syntax",
               "visual-lab",
               "real-unpacked-extension",
@@ -119,12 +104,16 @@ jobs:
             ]
           }
           EOF
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add QUALITY_GATE.json
-          if git diff --cached --quiet; then
-            echo 'Quality marker already current'
-            exit 0
-          fi
-          git commit -m "Certify NiakGPT public quality gate $VERSION"
-          git push origin HEAD:main
+
+      - name: Upload certified package and QA report
+        uses: actions/upload-artifact@v4
+        with:
+          name: niakgpt-public-gate-${{ github.sha }}
+          path: |
+            dist/niakgpt-*.zip
+            dist/QUALITY_GATE.json
+            visual-lab/artifacts
+            visual-lab/playwright-report
+            visual-lab/test-results
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,64 @@
+name: Debug NiakGPT extension load 0.9.6
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/debug-extension-load-v096.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: visual-lab/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: visual-lab
+      - run: npx playwright install --with-deps chromium
+        working-directory: visual-lab
+      - name: Probe MV3 extension startup
+        working-directory: visual-lab
+        run: |
+          node - <<'NODE'
+          const { chromium } = require('@playwright/test');
+          const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+          const extensionPath=path.resolve('..');
+          const fixture=fs.readFileSync('runtime-fixture.html','utf8');
+          const dir=fs.mkdtempSync(path.join(os.tmpdir(),'niakgpt-probe-'));
+          console.log('extensionPath',extensionPath);
+          const t0=Date.now();
+          const context=await chromium.launchPersistentContext(dir,{
+            headless:true,
+            channel:'chromium',
+            viewport:{width:1280,height:800},
+            args:[`--disable-extensions-except=${extensionPath}`,`--load-extension=${extensionPath}`]
+          });
+          console.log('context launched ms',Date.now()-t0);
+          console.log('initial workers',context.serviceWorkers().map(w=>w.url()));
+          context.on('serviceworker',w=>console.log('serviceworker event',w.url()));
+          await context.route('https://chatgpt.com/**',route=>{
+            const u=new URL(route.request().url());
+            if(route.request().resourceType()==='document')return route.fulfill({status:200,contentType:'text/html; charset=utf-8',body:fixture});
+            if(u.pathname==='/api/auth/session')return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({accessToken:'probe-token'})});
+            return route.fulfill({status:204,body:''});
+          });
+          const page=context.pages()[0]||await context.newPage();
+          page.on('pageerror',e=>console.log('PAGEERROR',e.message));
+          page.on('console',m=>console.log('PAGECONSOLE',m.type(),m.text()));
+          await page.goto('https://chatgpt.com/c/11111111-1111-4111-8111-111111111111',{waitUntil:'domcontentloaded',timeout:20000});
+          console.log('after goto workers',context.serviceWorkers().map(w=>w.url()));
+          await page.waitForTimeout(2500);
+          console.log('status count',await page.locator('#ng8-status').count());
+          console.log('html role',await page.locator('html').getAttribute('data-ng8-tab-role'));
+          console.log('body prefix',(await page.locator('body').innerText()).slice(0,300));
+          await context.close();
+          fs.rmSync(dir,{recursive:true,force:true});
+          NODE

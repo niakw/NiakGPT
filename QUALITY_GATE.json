@@ -1,0 +1,12 @@
+{
+  "status": "passed",
+  "version": "0.9.5",
+  "tested_commit": "3bc89bf6d2a78294c7a4f54263856b72a43232af",
+  "validated": [
+    "runtime-invariants",
+    "javascript-syntax",
+    "visual-lab",
+    "real-unpacked-extension",
+    "clean-installable-package"
+  ]
+}

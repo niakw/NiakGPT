@@ -17,8 +17,8 @@ if(!manifest.content_scripts.every(x=>x.matches?.every(v=>v==='https://chatgpt.c
 const main=manifest.content_scripts.find(x=>x.world==='MAIN');
 const isolated=manifest.content_scripts.find(x=>x.world!=='MAIN');
 const expectedMain=['page-bridge.js','manual-lock-main-v085.js','activity-main-v087.js','hotcache-main-v084.js'];
-const expectedIsolated=['onboarding-v101.js','profiles-v100.js','control-center-v090.js','commands-v100.js','multitab-v090.js','project-governance-v090.js','project-pins-v090.js','sidebar-host-v090.js','app-v090.js','polish-v090.js','chronology-v090.js','hotcache-v084.js','activity-v086.js'];
-const expectedCss=['theme-v08.css','polish-v081.css','chronology-v081.css','multitab-v083.css','governance-v085.css','activity-v086.css','control-center-v090.css','core-v090.css','profiles-v100.css','commands-v100.css','onboarding-v100.css'];
+const expectedIsolated=['onboarding-v101.js','profiles-v100.js','control-center-v090.js','commands-v100.js','multitab-v090.js','project-governance-v090.js','project-pins-v090.js','sidebar-host-v090.js','app-v090.js','coach-v100.js','polish-v090.js','side-panels-v096.js','chronology-v090.js','pin-folders-v096.js','hotcache-v084.js','activity-v086.js'];
+const expectedCss=['theme-v08.css','polish-v081.css','chronology-v081.css','multitab-v083.css','governance-v085.css','activity-v086.css','control-center-v090.css','core-v090.css','profiles-v100.css','commands-v100.css','onboarding-v100.css','coach-v100.css','pin-folders-v096.css','side-panels-v096.css'];
 if(JSON.stringify(main?.js)!==JSON.stringify(expectedMain))fail('MAIN runtime order mismatch');
 if(JSON.stringify(isolated?.js)!==JSON.stringify(expectedIsolated))fail('Isolated runtime order mismatch');
 if(JSON.stringify(isolated?.css)!==JSON.stringify(expectedCss))fail('CSS runtime order mismatch');
@@ -30,14 +30,24 @@ const texts=Object.fromEntries([...expectedMain,...expectedIsolated].map(path=>[
 const cssTexts=Object.fromEntries(expectedCss.map(path=>[path,read(path)]));
 const background=read(manifest.background.service_worker);
 
-for(const file of ['app-v090.js','chronology-v090.js','polish-v090.js','control-center-v090.js','project-governance-v090.js','project-pins-v090.js','sidebar-host-v090.js','profiles-v100.js','commands-v100.js','onboarding-v101.js','hotcache-v084.js','multitab-v090.js','activity-v086.js'])no(texts[file],'setInterval(',`Permanent polling forbidden in ${file}`);
+for(const file of ['app-v090.js','chronology-v090.js','polish-v090.js','control-center-v090.js','project-governance-v090.js','project-pins-v090.js','sidebar-host-v090.js','profiles-v100.js','commands-v100.js','onboarding-v101.js','hotcache-v084.js','multitab-v090.js','activity-v086.js','coach-v100.js','pin-folders-v096.js','side-panels-v096.js'])no(texts[file],'setInterval(',`Permanent polling forbidden in ${file}`);
 
 // Core / performance invariants.
 has(texts['app-v090.js'],'MutationObserver(queueMainNodes)');
 has(texts['app-v090.js'],'S.pendingMain');
 has(texts['app-v090.js'],'canBackground');
 has(texts['app-v090.js'],'setTimeout(matrixLoop');
-has(texts['app-v090.js'],'setTimeout(routeTick,2400)');
+has(texts['app-v090.js'],'function bindNavigation()');
+has(texts['app-v090.js'],'function wakeBackground()');
+has(texts['app-v090.js'],'projectsRefreshed:false');
+has(texts['app-v090.js'],'refreshingProjects:false');
+has(texts['app-v090.js'],'mainRoot:null');
+has(texts['app-v090.js'],'sidebarRoot:null');
+has(texts['app-v090.js'],"attributeFilter:['data-ng8-tab-role','data-ng86-activity','data-ng8-running','data-ng8-heavy','data-ng90-safe']");
+no(texts['app-v090.js'],'function routeTick()','Periodic route tick reintroduced');
+no(texts['app-v090.js'],'setTimeout(routeTick','Periodic route tick reintroduced');
+no(texts['app-v090.js'],'scheduleIndex(6000)','Client periodic index retry reintroduced');
+no(texts['app-v090.js'],'scheduleIndex(7000)','Background polling retry reintroduced');
 no(texts['app-v090.js'],"querySelectorAll('button,[data-testid]')",'Broad generation button scan reintroduced');
 no(texts['app-v090.js'],'requestAnimationFrame(draw)','Perpetual RAF Matrix loop reintroduced');
 
@@ -67,6 +77,14 @@ has(texts['activity-v086.js'],'BroadcastChannel');
 no(texts['activity-v086.js'],'function tick()','Permanent activity tick reintroduced');
 no(texts['activity-v086.js'],"setTimeout(tick",'Recursive activity tick reintroduced');
 
+// Bottom status geometry must not reflow when labels change.
+has(cssTexts['activity-v086.css'],'--ng86-status-w:154px');
+has(cssTexts['activity-v086.css'],'position:absolute!important');
+has(cssTexts['activity-v086.css'],'width:var(--ng86-status-w)!important');
+has(cssTexts['activity-v086.css'],'#ng8-status>strong');
+has(cssTexts['multitab-v083.css'],'width:54px');
+has(cssTexts['core-v090.css'],'.ng90-safe-badge{position:absolute!important');
+
 // Multi-tab: state attributes are authoritative; never recount the full conversation.
 has(texts['multitab-v090.js'],'navigator.locks');
 has(texts['multitab-v090.js'],'canRunWorkerIdle');
@@ -76,9 +94,11 @@ has(texts['multitab-v090.js'],'releaseWorkerForSafeMode');
 has(texts['multitab-v090.js'],"attributeFilter:['data-ng8-running','data-ng8-heavy','data-ng90-safe']");
 has(texts['multitab-v090.js'],'schedulePulse');
 has(texts['multitab-v090.js'],'renewFallbackLease');
+has(texts['multitab-v090.js'],'function routeTo(href)');
 no(texts['multitab-v090.js'],'turnCount(','Full-thread recount reintroduced in multi-tab coordinator');
 no(texts['multitab-v090.js'],'conversation-turn-','Multi-tab coordinator must not scan conversation turns');
 no(texts['multitab-v090.js'],"querySelectorAll('button,[data-testid]')",'Broad multi-tab DOM scan reintroduced');
+no(texts['multitab-v090.js'],'location.href=items[','Client Quick Open hard reload reintroduced');
 
 // Governance + manual priority.
 has(texts['manual-lock-main-v085.js'],'niakgpt:manual-project-move');
@@ -92,10 +112,33 @@ for(const token of ['syncEnabled','nativePinnedIds','verifyPinned','désépingle
 has(texts['project-pins-v090.js'],"role()==='worker'");
 has(texts['project-pins-v090.js'],'settings.safeMode!==true');
 
+// Managed pinned Projects are instant folders, not mandatory Project-page navigation.
+for(const token of ['aria-expanded','chatsFor(pid)','routeNative(href)','ng96-pin-drawer','ng96-project-open','SESSION_KEY'])has(texts['pin-folders-v096.js'],token);
+has(texts['pin-folders-v096.js'],'cidFromHref');
+has(cssTexts['pin-folders-v096.css'],'.ng96-folder-list');
+has(cssTexts['pin-folders-v096.css'],'max-height:min(34vh,310px)');
+
+// Native right-side panels must coexist with NiakGPT rail in open and collapsed states.
+for(const token of ['activity','sources','outputs','decorateTriggers','ng96-native-side-trigger','ng96-native-sidepanel'])has(texts['side-panels-v096.js'],token);
+has(cssTexts['side-panels-v096.css'],'right:var(--ng8-rail)!important');
+has(cssTexts['side-panels-v096.css'],'right:calc(var(--ng8-rail) + 8px)!important');
+has(cssTexts['side-panels-v096.css'],'body.ng8-panel-open .ng96-native-sidepanel');
+
 // Hot cache: IndexedDB + cross-tab dedupe, with no periodic DOM scan.
 for(const token of ['indexedDB.open','MAX_ENTRIES = 5','MAX_TOTAL_BYTES = 96','WAIT_PEER','HIT_PEER'])has(texts['hotcache-main-v084.js'],token);
 has(texts['hotcache-v084.js'],'niakgpt:activity-network');
 no(texts['hotcache-v084.js'],"querySelectorAll('button,[data-testid]')",'Hot cache broad generation scan reintroduced');
+
+// Matrix preferences are the final cascade source and stay attenuated during work.
+has(cssTexts['control-center-v090.css'],'html[data-ng90-matrix="subtle"] #ng8-matrix{opacity:.31');
+has(cssTexts['control-center-v090.css'],'html[data-ng90-matrix="normal"] #ng8-matrix{opacity:.38');
+has(cssTexts['control-center-v090.css'],'html[data-ng8-running="1"][data-ng90-matrix] #ng8-matrix{opacity:.09');
+has(cssTexts['control-center-v090.css'],'html[data-ng8-running="1"][data-ng8-heavy="1"][data-ng90-matrix] #ng8-matrix{opacity:.035');
+
+// Contextual coach: current prompt dominates, context only disambiguates, three distinct jobs.
+for(const token of ['function classify(prompt,context)','function constraints(prompt)','function entities(prompt)','function recent()','Diagnostic + patch','Régression / cas limites','Livrable vérifiable','data-ng100-coach'])has(texts['coach-v100.js'],token);
+has(cssTexts['coach-v100.css'],'data-ng100-coach="1"');
+no(texts['coach-v100.js'],'setInterval(','Coach polling reintroduced');
 
 // Control Center public controls + accessibility.
 for(const token of ['sanitize(raw','SETTINGS_MIRROR','syncGovernanceAutomation','exportConfig','importConfig','copyDiagnostic','wipeAllLocalData','trapTab','returnFocus'])has(texts['control-center-v090.js'],token);
@@ -123,7 +166,7 @@ has(texts['commands-v100.js'],'Project Governance');
 has(texts['commands-v100.js'],'Profil : Code / IDE');
 
 // User-facing core features.
-for(const token of ['fetchProjects','fetchGeneralBestEffort','openQuick','suggestionSet','ensureCoach','ng8-toc-search','ng90-project-extras','BY SKYNET'])has(texts['app-v090.js'],token);
+for(const token of ['fetchProjects','fetchGeneralBestEffort','openQuick','ensureCoach','ng8-toc-search','ng90-project-extras','BY SKYNET'])has(texts['app-v090.js'],token);
 has(cssTexts['core-v090.css'],'focus-visible');
 has(cssTexts['profiles-v100.css'],'data-ng100-profile="contrast"');
 has(cssTexts['commands-v100.css'],'#ng100-command');

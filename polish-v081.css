@@ -1,0 +1,130 @@
+/* NiakGPT v0.8.1 polish — native UI overrides only */
+
+/* Matrix: keep the joke, reduce visual competition */
+#ng8-matrix{opacity:.30!important;filter:saturate(1.28) brightness(1.02)!important}
+html[data-ng8-running="1"] #ng8-matrix{opacity:.10!important;filter:none!important}
+html[data-ng8-running="1"][data-ng8-heavy="1"] #ng8-matrix{opacity:.035!important}
+
+/* Kill remaining ChatGPT theme accent variables */
+:root{
+  --accent:var(--ng8-current-project,#3794ff)!important;
+  --accent-blue:var(--ng8-current-project,#3794ff)!important;
+  --interactive-bg-primary-default:var(--ng8-current-project,#3794ff)!important;
+  --interactive-bg-primary-hover:color-mix(in srgb,var(--ng8-current-project,#3794ff) 82%,white 18%)!important;
+  --composer-blue-bg:#111d29!important;
+  --message-surface:#111b25!important;
+  --message-surface-hover:#172431!important;
+}
+
+/* Inputs: no aggressive blue ring */
+input,textarea,[contenteditable="true"]{
+  caret-color:#dce7f1!important;
+  outline:none!important;
+}
+input:focus,input:focus-visible,
+textarea:focus,textarea:focus-visible,
+[contenteditable="true"]:focus,[contenteditable="true"]:focus-visible,
+#prompt-textarea:focus,#prompt-textarea:focus-visible,
+[data-testid="prompt-textarea"]:focus,[data-testid="prompt-textarea"]:focus-visible{
+  outline:none!important;
+  border-color:#3d4c5a!important;
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--ng8-current-project,#3794ff) 18%,#344452 82%)!important;
+}
+[class*="ring-blue"],[class*="ring-primary"],[class*="border-blue"]{
+  --tw-ring-color:transparent!important;
+  --tw-ring-shadow:0 0 #0000!important;
+  border-color:#334451!important;
+}
+
+/* Composer: remove preference pink from voice/send actions */
+form:has(#prompt-textarea) button[class*="rounded-full"],
+form:has([data-testid="prompt-textarea"]) button[class*="rounded-full"],
+[data-type="unified-composer"] button[class*="rounded-full"]{
+  background:#172431!important;
+  border-color:#334858!important;
+  color:#d7e2ec!important;
+  box-shadow:none!important;
+}
+button[data-testid*="send"],
+button[aria-label*="Envoyer" i],button[aria-label*="Send" i],
+form button[data-testid*="submit"]{
+  background:var(--ng8-current-project,#3794ff)!important;
+  border-color:color-mix(in srgb,var(--ng8-current-project,#3794ff) 56%,#607080 44%)!important;
+  color:#fff!important;
+}
+button[aria-label*="voix" i],button[aria-label*="voice" i],
+button[aria-label*="micro" i],button[aria-label*="dict" i]{
+  background:#172431!important;
+  color:#c7d5e2!important;
+}
+
+/* User bubbles: override ChatGPT account theme color */
+[data-message-author-role="user"] .bg-token-message-surface,
+[data-message-author-role="user"] [class*="bg-token-message"],
+[data-message-author-role="user"] [class*="rounded"][style*="background"],
+[data-ng8-role="user"] .bg-token-message-surface,
+[data-ng8-role="user"] [class*="bg-token-message"]{
+  background:linear-gradient(135deg,color-mix(in srgb,var(--ng8-current-project,#3794ff) 17%,#16222e 83%),#101b25)!important;
+  border:1px solid color-mix(in srgb,var(--ng8-current-project,#3794ff) 22%,#32404d 78%)!important;
+  color:#edf6ff!important;
+}
+
+/* Current project is unmistakable */
+#ng8-pins a.ng8-active-project{
+  opacity:1!important;
+  filter:none!important;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--ng-project,#3794ff) 31%,#172431 69%),#101820)!important;
+  border-color:color-mix(in srgb,var(--ng-project,#3794ff) 78%,white 22%)!important;
+  box-shadow:inset 3px 0 var(--ng-project,#3794ff),0 0 0 1px color-mix(in srgb,var(--ng-project,#3794ff) 22%,transparent)!important;
+}
+#ng8-pins a.ng8-active-project span{color:#fff!important;font-weight:700!important}
+
+/* Native Activity / Details panel */
+.ng8-native-activity{
+  background:linear-gradient(180deg,#091019,#070d13)!important;
+  color:#dce7f1!important;
+  border-left:1px solid #2a3948!important;
+  box-shadow:-16px 0 40px rgba(0,0,0,.34)!important;
+}
+.ng8-native-activity header,
+.ng8-native-activity [class*="sticky"]{
+  background:#0d1620f4!important;
+  border-color:#293846!important;
+}
+.ng8-native-activity h1,.ng8-native-activity h2,.ng8-native-activity h3,
+.ng8-native-activity [role="heading"]{color:#eef5fb!important}
+.ng8-native-activity pre,
+.ng8-native-activity [class*="code"],
+.ng8-native-activity [class*="rounded"][class*="bg-"]{
+  border-color:#2d3d4d!important;
+}
+.ng8-native-activity pre{
+  background:#05090d!important;
+  box-shadow:inset 2px 0 #4fc1ff!important;
+}
+.ng8-native-activity button:not(.ng8-activity-close){
+  border-color:#314353!important;
+}
+.ng8-activity-close{
+  position:sticky!important;
+  float:right!important;
+  top:8px!important;
+  right:8px!important;
+  z-index:2147483647!important;
+  width:30px!important;
+  height:30px!important;
+  margin:8px 8px -38px auto!important;
+  display:grid!important;
+  place-items:center!important;
+  border:1px solid #3a4b5a!important;
+  border-radius:7px!important;
+  background:#111d28!important;
+  color:#dce7f1!important;
+  font:400 22px/1 system-ui,sans-serif!important;
+  cursor:pointer!important;
+  box-shadow:0 5px 16px rgba(0,0,0,.28)!important;
+}
+.ng8-activity-close:hover{background:#1b2b38!important;color:#fff!important;border-color:#587087!important}
+
+/* Keep the activity panel readable while Matrix remains behind the chat only */
+.ng8-native-activity #ng8-matrix{display:none!important}

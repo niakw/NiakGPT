@@ -1,0 +1,43 @@
+name: Package NiakGPT
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'manifest.json'
+      - '*.js'
+      - '*.css'
+      - 'README.md'
+      - 'PRIVACY.md'
+      - 'SECURITY.md'
+      - 'CHANGELOG.md'
+      - 'tools/package-extension.mjs'
+      - '.github/workflows/package-extension.yml'
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build clean extension package
+        run: node tools/package-extension.mjs
+      - name: Verify package root and scope
+        run: |
+          ZIP=$(find dist -maxdepth 1 -name 'niakgpt-*.zip' -print -quit)
+          test -n "$ZIP"
+          unzip -l "$ZIP" | grep -q 'manifest.json'
+          if unzip -l "$ZIP" | grep -E 'visual-lab|app-v08-safe|project-governance-v085.js|project-pins-v085.js|multitab-v083.js|chronology-v081.js|polish-v081.js'; then
+            echo 'Development or legacy files leaked into installable ZIP'
+            exit 1
+          fi
+      - name: Upload installable extension
+        uses: actions/upload-artifact@v4
+        with:
+          name: niakgpt-installable
+          path: dist/niakgpt-*.zip
+          if-no-files-found: error
+          retention-days: 30

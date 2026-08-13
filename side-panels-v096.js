@@ -44,7 +44,9 @@
       const text=`${el.getAttribute('aria-label')||''} ${el.getAttribute('data-testid')||''} ${el.title||''} ${(el.textContent||'').trim().slice(0,60)}`;
       if(!LABEL_RX.test(text))continue;
       const r=el.getBoundingClientRect();if(r.right<innerWidth-115||r.width>160||r.height>90)continue;
-      const type=panelType(text);if(!type)continue;el.classList.add('ng96-native-side-trigger',`ng96-side-trigger-${type}`);el.dataset.ng96SideTrigger=type;
+      const type=panelType(text);if(!type)continue;
+      el.classList.add('ng96-native-side-trigger',`ng96-side-trigger-${type}`);el.dataset.ng96SideTrigger=type;
+      const position=getComputedStyle(el).position;el.classList.toggle('ng96-side-trigger-static',position==='static');
     }
   }
   function scan(root=document){

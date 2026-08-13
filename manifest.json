@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.11",
+  "version": "0.9.12",
   "description": "Workspace power-user local pour ChatGPT : cœur event-driven, cache chaud, Projects instantanés, coach contextuel, panneaux natifs adaptés, multi-onglets et états temps réel.",
   "permissions": ["storage", "scripting"],
   "host_permissions": ["https://chatgpt.com/*"],
@@ -17,6 +17,11 @@
       "matches": ["https://chatgpt.com/*"],
       "js": ["boot-gate-v100.js"],
       "run_at": "document_start"
+    },
+    {
+      "matches": ["https://chatgpt.com/*"],
+      "js": ["dom-project-boundary-v0912.js"],
+      "run_at": "document_idle"
     },
     {
       "matches": ["https://chatgpt.com/*"],

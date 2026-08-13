@@ -50,6 +50,9 @@ no(texts['app-v090.js'],'scheduleIndex(6000)','Client periodic index retry reint
 no(texts['app-v090.js'],'scheduleIndex(7000)','Background polling retry reintroduced');
 no(texts['app-v090.js'],"querySelectorAll('button,[data-testid]')",'Broad generation button scan reintroduced');
 no(texts['app-v090.js'],'requestAnimationFrame(draw)','Perpetual RAF Matrix loop reintroduced');
+no(texts['app-v090.js'],'function suggestionSet(prompt)','Legacy prompt classifier reintroduced in core');
+no(texts['app-v090.js'],'function ensureCoach()','Legacy coach renderer reintroduced in core');
+no(texts['app-v090.js'],'location.href=href','Worker Quick Open hard reload reintroduced');
 
 // Managed Project host must be unique and inside the sidebar.
 has(texts['sidebar-host-v090.js'],"document.querySelectorAll('#ng8-pins')");
@@ -112,9 +115,10 @@ for(const token of ['syncEnabled','nativePinnedIds','verifyPinned','désépingle
 has(texts['project-pins-v090.js'],"role()==='worker'");
 has(texts['project-pins-v090.js'],'settings.safeMode!==true');
 
-// Managed pinned Projects are instant folders, not mandatory Project-page navigation.
-for(const token of ['aria-expanded','chatsFor(pid)','routeNative(href)','ng96-pin-drawer','ng96-project-open','SESSION_KEY'])has(texts['pin-folders-v096.js'],token);
+// Managed pinned Projects are instant accessible folders, not mandatory Project-page navigation.
+for(const token of ['aria-expanded','aria-controls','role','chatsFor(pid)','routeNative(href)','ng96-pin-drawer','ng96-project-open','SESSION_KEY','ArrowRight','ArrowLeft'])has(texts['pin-folders-v096.js'],token);
 has(texts['pin-folders-v096.js'],'cidFromHref');
+has(texts['pin-folders-v096.js'],"drawer.setAttribute('role','region')");
 has(cssTexts['pin-folders-v096.css'],'.ng96-folder-list');
 has(cssTexts['pin-folders-v096.css'],'max-height:min(34vh,310px)');
 
@@ -123,6 +127,10 @@ for(const token of ['activity','sources','outputs','decorateTriggers','ng96-nati
 has(cssTexts['side-panels-v096.css'],'right:var(--ng8-rail)!important');
 has(cssTexts['side-panels-v096.css'],'right:calc(var(--ng8-rail) + 8px)!important');
 has(cssTexts['side-panels-v096.css'],'body.ng8-panel-open .ng96-native-sidepanel');
+no(texts['side-panels-v096.js'],'niakgpt:activity-network','Native side-panel adapter must not wake on generation traffic');
+no(texts['side-panels-v096.js'],'arm(7000)','Native side-panel global startup observer reintroduced');
+no(texts['polish-v090.js'],'MutationObserver','Duplicate native panel observer reintroduced in polish');
+no(cssTexts['polish-v081.css'],'.ng8-native-activity','Legacy Activity CSS owner reintroduced in polish');
 
 // Hot cache: IndexedDB + cross-tab dedupe, with no periodic DOM scan.
 for(const token of ['indexedDB.open','MAX_ENTRIES = 5','MAX_TOTAL_BYTES = 96','WAIT_PEER','HIT_PEER'])has(texts['hotcache-main-v084.js'],token);
@@ -135,8 +143,8 @@ has(cssTexts['control-center-v090.css'],'html[data-ng90-matrix="normal"] #ng8-ma
 has(cssTexts['control-center-v090.css'],'html[data-ng8-running="1"][data-ng90-matrix] #ng8-matrix{opacity:.09');
 has(cssTexts['control-center-v090.css'],'html[data-ng8-running="1"][data-ng8-heavy="1"][data-ng90-matrix] #ng8-matrix{opacity:.035');
 
-// Contextual coach: current prompt dominates, context only disambiguates, three distinct jobs.
-for(const token of ['function classify(prompt,context)','function constraints(prompt)','function entities(prompt)','function recent()','Diagnostic + patch','Régression / cas limites','Livrable vérifiable','data-ng100-coach'])has(texts['coach-v100.js'],token);
+// Contextual coach is a single owner: current prompt dominates and status is event-driven.
+for(const token of ['function classify(prompt,context)','function constraints(prompt)','function entities(prompt)','function recent()','Diagnostic + patch','Régression / cas limites','Livrable vérifiable','data-ng100-coach','function setCoachStatus(','data-ng100-coach-status','stateObserver'])has(texts['coach-v100.js'],token);
 has(cssTexts['coach-v100.css'],'data-ng100-coach="1"');
 no(texts['coach-v100.js'],'setInterval(','Coach polling reintroduced');
 
@@ -166,7 +174,7 @@ has(texts['commands-v100.js'],'Project Governance');
 has(texts['commands-v100.js'],'Profil : Code / IDE');
 
 // User-facing core features.
-for(const token of ['fetchProjects','fetchGeneralBestEffort','openQuick','ensureCoach','ng8-toc-search','ng90-project-extras','BY SKYNET'])has(texts['app-v090.js'],token);
+for(const token of ['fetchProjects','fetchGeneralBestEffort','openQuick','ng8-toc-search','ng90-project-extras','BY SKYNET'])has(texts['app-v090.js'],token);
 has(cssTexts['core-v090.css'],'focus-visible');
 has(cssTexts['profiles-v100.css'],'data-ng100-profile="contrast"');
 has(cssTexts['commands-v100.css'],'#ng100-command');

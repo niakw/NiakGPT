@@ -21,8 +21,13 @@
       if (own === 'ChatGPT Plus' || own === 'NiakGPT Plus' || own === 'ChatGPT') {
         el.textContent = 'NiakGPT';
         el.dataset.ng8Brand = '1';
-        return;
+        break;
       }
+    }
+
+    const version = document.querySelector('#ng8-status > span:first-child');
+    if (version && /NiakGPT/.test(version.textContent || '')) {
+      version.innerHTML = '<b>NiakGPT</b> 0.8.2';
     }
   }
 

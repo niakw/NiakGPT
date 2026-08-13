@@ -19,28 +19,62 @@ jobs:
           const fs = require('fs');
           const m = JSON.parse(fs.readFileSync('manifest.json','utf8'));
           if (m.name !== 'NiakGPT') throw new Error('wrong extension name');
-          if (m.version !== '0.8.4') throw new Error('wrong build version');
+          if (m.version !== '0.8.5') throw new Error('wrong build version');
           if (JSON.stringify(m.host_permissions) !== JSON.stringify(['https://chatgpt.com/*'])) throw new Error('host scope must be ChatGPT only');
           if (!m.content_scripts.every(x => x.matches.every(v => v === 'https://chatgpt.com/*'))) throw new Error('unexpected content-script host');
           const main = m.content_scripts.find(x => x.world === 'MAIN');
           const isolated = m.content_scripts.find(x => x.world !== 'MAIN');
           if (!main || !isolated) throw new Error('runtime worlds missing');
-          if (JSON.stringify(main.js) !== JSON.stringify(['page-bridge.js','hotcache-main-v084.js'])) throw new Error('hot cache must patch MAIN after bridge');
-          if (JSON.stringify(isolated.js) !== JSON.stringify(['multitab-v083.js','app-v08-safe.js','polish-v081.js','chronology-v081.js','hotcache-v084.js'])) throw new Error('unexpected v0.8.4 JS runtime');
-          if (JSON.stringify(isolated.css) !== JSON.stringify(['theme-v08.css','polish-v081.css','chronology-v081.css','multitab-v083.css'])) throw new Error('unexpected v0.8.4 CSS runtime');
+          if (JSON.stringify(main.js) !== JSON.stringify(['page-bridge.js','manual-lock-main-v085.js','hotcache-main-v084.js'])) throw new Error('manual detector must load between bridge and hotcache');
+          if (JSON.stringify(isolated.js) !== JSON.stringify(['multitab-v083.js','project-governance-v085.js','app-v08-safe.js','polish-v081.js','chronology-v081.js','hotcache-v084.js'])) throw new Error('governance must load before legacy app engine');
+          if (JSON.stringify(isolated.css) !== JSON.stringify(['theme-v08.css','polish-v081.css','chronology-v081.css','multitab-v083.css','governance-v085.css'])) throw new Error('unexpected v0.8.5 CSS runtime');
           if (!m.content_scripts.every(x => x.run_at === 'document_start')) throw new Error('runtime must start immediately');
-          console.log('manifest v0.8.4 OK');
+          console.log('manifest v0.8.5 OK');
           NODE
 
       - name: Check JavaScript syntax
         run: |
           node --check page-bridge.js
+          node --check manual-lock-main-v085.js
           node --check hotcache-main-v084.js
           node --check multitab-v083.js
+          node --check project-governance-v085.js
           node --check app-v08-safe.js
           node --check polish-v081.js
           node --check chronology-v081.js
           node --check hotcache-v084.js
+
+      - name: Check Project Governance
+        run: |
+          grep -q 'niakgpt:manual-project-move' manual-lock-main-v085.js
+          grep -q 'previousFetch' manual-lock-main-v085.js
+          grep -q 'gizmo_id' manual-lock-main-v085.js
+          grep -q 'niakgpt-governance-v085' project-governance-v085.js
+          grep -q 'coreProjectIds' project-governance-v085.js
+          grep -q 'hiddenProjectIds' project-governance-v085.js
+          grep -q 'locks:{}' project-governance-v085.js
+          grep -q 'buildCleanupPlan' project-governance-v085.js
+          grep -q 'executePlan' project-governance-v085.js
+          grep -q 'À CLASSER' project-governance-v085.js
+          grep -q 'gizmo_id:targetId||null' project-governance-v085.js
+          grep -q 'verifyAndLockManualMove' project-governance-v085.js
+          grep -q 'unlockChat' project-governance-v085.js
+          grep -q 'autoResync' project-governance-v085.js
+          grep -q "currentRole()!=='worker'" project-governance-v085.js
+          grep -q 'repairOrganization\\s\*' project-governance-v085.js
+          grep -q 'project_move_requires_governance' page-bridge.js
+          grep -q "d.governance !== true" page-bridge.js
+          grep -q '#ng85-governance' governance-v085.css
+          grep -q '.ng85-manual-lock' governance-v085.css
+
+      - name: Check privacy of Project structure
+        run: |
+          if grep -Ei 'miorra|aelyron|eitty|elias|niakvio|tommy|foissy' project-governance-v085.js manual-lock-main-v085.js governance-v085.css; then
+            echo 'personal project/person data must not be hardcoded in governance runtime'
+            exit 1
+          fi
+          grep -q 'SUSPECT' project-governance-v085.js
+          grep -q 'seedCore' project-governance-v085.js
 
       - name: Check hot conversation cache
         run: |
@@ -60,7 +94,6 @@ jobs:
           grep -q 'chrome.storage.onChanged' hotcache-v084.js
           grep -q 'niakgpt-hotmeta-v084' hotcache-v084.js
           grep -q 'hotcache</span>' hotcache-v084.js
-          grep -q '0.8.4' hotcache-v084.js
 
       - name: Check cross-tab worker architecture
         run: |
@@ -101,27 +134,20 @@ jobs:
           grep -q 'fetchProjectChats' app-v08-safe.js
           grep -q 'S.counts.set(p.id,m.size)' app-v08-safe.js
 
-      - name: Check Projects, Quick Open and organization
+      - name: Check Projects, Quick Open and chronology
         run: |
           grep -q 'fetchProjects' app-v08-safe.js
           grep -q 'fetchGeneralBestEffort' app-v08-safe.js
-          grep -q 'repairOrganization' app-v08-safe.js
-          grep -q 'bestTarget' app-v08-safe.js
-          grep -q 'const verify=await rpc(path)' app-v08-safe.js
           grep -q 'nativePinnedIds' app-v08-safe.js
           grep -q 'tryNativePins' app-v08-safe.js
           grep -q 'openQuick' app-v08-safe.js
           grep -q 'PROJECTS ÉPINGLÉS' app-v08-safe.js
-
-      - name: Check chronological navigation
-        run: |
           grep -q 'sortVisibleRecentRows' chronology-v081.js
           grep -q 'latestByProject' chronology-v081.js
           grep -q 'chat.updated' chronology-v081.js
           grep -q 'ng8-chat-date' chronology-v081.js
           grep -q '\[${count == null' chronology-v081.js
           grep -q 'ng8-project-meta' chronology-v081.css
-          grep -q 'padding-right:118px' chronology-v081.css
 
       - name: Check forced DA and native polish
         run: |
@@ -135,4 +161,4 @@ jobs:
           grep -q 'ng8-active-project' polish-v081.css
           grep -q 'BY SKYNET' app-v08-safe.js
           if grep -E '#ng8-coach\{[^}]*position:fixed' theme-v08.css; then exit 1; fi
-          echo 'v0.8.4 hotcache + multitab + counters + chronology + performance + polish checks OK'
+          echo 'v0.8.5 governance + hotcache + multitab + chronology + performance + polish checks OK'

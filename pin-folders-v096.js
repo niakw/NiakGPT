@@ -16,6 +16,7 @@
   const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt',"'":'&#39;','"':'&quot;'}[c]));
   const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
   const pidFromHref=h=>String(h||'').match(/\/g\/(g-p-[^/]+)\/(?:project|c\/)/i)?.[1]||'';
+  const cidFromHref=h=>String(h||'').match(/\/c\/([0-9a-f-]{20,})/i)?.[1]||'';
   const parseTime=v=>{if(typeof v==='number'&&Number.isFinite(v))return v>1e12?v:v*1000;if(typeof v==='string'){const n=Number(v);if(Number.isFinite(n))return n>1e12?n:n*1000;const d=Date.parse(v);return Number.isFinite(d)?d:0;}return 0;};
   const fmt=ms=>{if(!ms)return'—';const d=new Date(ms),now=new Date(),base=`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;return d.getFullYear()===now.getFullYear()?base:`${base}/${String(d.getFullYear()).slice(-2)}`;};
 
@@ -23,8 +24,9 @@
   function projectHref(pid){return cache.projects?.find(p=>p?.id===pid)?.href||`/g/${pid}/project`;}
   function chatHref(c,pid){return c?.href||`/g/${pid}/c/${c.id}`;}
   function routeNative(href){
-    const own=document.querySelector(`#ng8-pins a[href="${CSS.escape(href)}"]`);
-    const native=[...document.querySelectorAll(`a[href="${CSS.escape(href)}"]`)].find(a=>a!==own&&!a.closest('#ng8-pins,#ng8-panel,#ng8-quick,#ng90-control,#ng100-command'));
+    const chatId=cidFromHref(href),projectId=pidFromHref(href);
+    const links=[...document.querySelectorAll('a[href]')].filter(a=>!a.closest('#ng8-pins,#ng8-panel,#ng8-quick,#ng90-control,#ng100-command'));
+    const native=links.find(a=>a.getAttribute('href')===href)||(chatId?links.find(a=>cidFromHref(a.getAttribute('href'))===chatId):null)||(projectId?links.find(a=>pidFromHref(a.getAttribute('href'))===projectId&&/\/project(?:$|\?)/.test(a.getAttribute('href')||'')):null);
     if(native instanceof HTMLElement){native.click();return;}
     location.assign(href);
   }

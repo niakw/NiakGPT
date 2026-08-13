@@ -4,11 +4,15 @@ on:
   workflow_dispatch:
   push:
     paths:
+      - 'manifest.json'
+      - '*.js'
       - '*.css'
       - 'visual-lab/**'
       - '.github/workflows/visual-lab.yml'
   pull_request:
     paths:
+      - 'manifest.json'
+      - '*.js'
       - '*.css'
       - 'visual-lab/**'
       - '.github/workflows/visual-lab.yml'
@@ -16,7 +20,7 @@ on:
 jobs:
   visual:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: visual-lab
@@ -31,9 +35,9 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Run visual assertions
+      - name: Run visual and unpacked-extension assertions
         run: npm test
-      - name: Upload visual screenshots
+      - name: Upload visual screenshots and report
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -41,5 +45,6 @@ jobs:
           path: |
             visual-lab/artifacts
             visual-lab/playwright-report
+            visual-lab/test-results
           if-no-files-found: warn
           retention-days: 14

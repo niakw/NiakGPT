@@ -16,8 +16,7 @@
   const MAX_ENTRY_BYTES = 40 * 1024 * 1024;
   const UNKNOWN_META_TTL = 2 * 60 * 1000;
   const HARD_TTL = 6 * 60 * 60 * 1000;
-  const WAIT_OTHER_TAB_MS = 4500;
-  const TARGET = /^\/backend-api\/conversation\/([0-9a-f-]{20,})(?:\?.*)?$/i;
+  const WAIT_OTHER_TAB_MS = 9000;
 
   const nativeFetch = window.fetch.bind(window);
   const memory = new Map();
@@ -39,7 +38,7 @@
     root.dataset.ng8HotcacheNetwork = String(network);
     root.dataset.ng8HotcacheDeduped = String(deduped);
     root.dataset.ng8HotcacheEntries = String(readIndex().length);
-    document.dispatchEvent(new CustomEvent('niakgpt:hotcache-status', { detail:{ mode,id,hits,misses,network,deduped,writes,entries:readIndex().length } }));
+    document.dispatchEvent(new CustomEvent('niakgpt:hotcache-status', { detail:{ mode,id,hits,misses,network,deduped,writes,entries:readIndex().length,version:VERSION } }));
   }
 
   function parseJSON(raw, fallback) {
@@ -225,13 +224,18 @@
     return res;
   }
 
-  function extractTopMeta(text) {
+  function extractResponseMeta(text) {
     let updateTime = 0;
     let currentNode = '';
     try {
-      // Avoid a second full JSON.parse of very large histories. Top-level values are enough for validation.
-      const updateMatch = text.match(/\"update_time\"\s*:\s*(\"[^\"]+\"|\d+(?:\.\d+)?)/);
-      if (updateMatch) updateTime = parseTime(updateMatch[1]?.replace(/^\"|\"$/g, ''));
+      // Scan timestamps without a full second JSON.parse. Taking the maximum is safer than
+      // taking the first update_time, which may belong to an old message inside mapping.
+      const timeRx = /\"update_time\"\s*:\s*(\"[^\"]+\"|\d+(?:\.\d+)?)/g;
+      let match;
+      while ((match = timeRx.exec(text))) {
+        const value = parseTime(String(match[1] || '').replace(/^\"|\"$/g, ''));
+        if (value > updateTime) updateTime = value;
+      }
       const nodeMatch = text.match(/\"current_node\"\s*:\s*\"([^\"]+)\"/);
       if (nodeMatch) currentNode = nodeMatch[1];
     } catch {}
@@ -240,21 +244,21 @@
 
   async function storeResponse(id, response) {
     try {
-      const clone = response.clone();
-      const text = await clone.text();
+      const text = await response.text();
       const bytes = new Blob([text]).size;
       if (!text || bytes > MAX_ENTRY_BYTES) {
         setStatus('TOO_LARGE', id);
         return;
       }
-      const top = extractTopMeta(text);
+      const parsed = extractResponseMeta(text);
+      const known = latestKnownUpdate(id);
       const entry = {
         id,
         body:text,
         bytes,
         fetchedAt:Date.now(),
-        updateTime:top.updateTime || latestKnownUpdate(id) || Date.now(),
-        currentNode:top.currentNode || '',
+        updateTime:Math.max(parsed.updateTime || 0, known || 0) || Date.now(),
+        currentNode:parsed.currentNode || '',
         status:response.status,
         statusText:response.statusText,
         headers:[...response.headers.entries()],
@@ -276,12 +280,13 @@
   }
 
   function scheduleStore(id, response) {
-    const clone = response.clone();
+    let clone;
+    try { clone = response.clone(); } catch { return; }
     const run = () => storeResponse(id, clone);
     if ('requestIdleCallback' in window) {
-      try { window.requestIdleCallback(run, { timeout:5000 }); return; } catch {}
+      try { window.requestIdleCallback(run, { timeout:12000 }); return; } catch {}
     }
-    setTimeout(run, 1200);
+    setTimeout(run, 2500);
   }
 
   function waitForPeer(id, afterFetchedAt = 0) {
@@ -304,9 +309,7 @@
         if (waiter.id === m.id && (m.fetchedAt || 0) > (waiter.afterFetchedAt || 0)) waiter.resolve();
       }
     }
-    if (m.type === 'invalidate') {
-      memory.delete(m.id);
-    }
+    if (m.type === 'invalidate') memory.delete(m.id);
   });
 
   async function networkAndCache(self, input, init, id) {
@@ -325,7 +328,6 @@
       await navigator.locks.request(`niakgpt-hotfetch:${id}`, { mode:'exclusive', ifAvailable:true }, async lock => {
         if (!lock) return;
         owned = true;
-        // Another tab may have refreshed between our initial lookup and lock acquisition.
         const latest = await getEntry(id);
         if (latest && latest.fetchedAt > (staleEntry?.fetchedAt || 0) && entryFresh(latest, id)) {
           hits++;
@@ -353,9 +355,7 @@
 
   window.fetch = async function niakgptHotCachedFetch(input, init) {
     const info = requestInfo(input, init);
-    if (info.method !== 'GET' || !info.id || !TARGET.test(new URL(info.url, location.origin).pathname)) {
-      return nativeFetch.call(this, input, init);
-    }
+    if (info.method !== 'GET' || !info.id) return nativeFetch.call(this, input, init);
 
     const cached = await getEntry(info.id);
     if (cached && entryFresh(cached, info.id)) {
@@ -369,10 +369,8 @@
     return fetchWithCrossTabDedupe(this, input, init, info.id, cached);
   };
 
-  // Mark the currently opened conversation stale when the page starts a write/stream request.
-  // We do not inspect message content; only the current conversation id is recorded.
   document.addEventListener('niakgpt:hotcache-dirty', event => {
-    const id = String(event.detail?.id || '');
+    const id = String(event.detail?.id || document.documentElement.getAttribute('data-ng8-hotdirty-id') || '');
     if (!id) return;
     const dirty = readDirty();
     dirty[id] = Date.now();

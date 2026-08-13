@@ -2,7 +2,7 @@
 
 NiakGPT transforme l’interface web de ChatGPT en workspace power-user local : Projects gouvernés, navigation rapide, cache chaud, états temps réel, sommaire, coach contextuel, outils code, organisation assistée et DA dense inspirée des IDE.
 
-> **État actuel : 0.9.7 RC** — architecture en validation intensive. L’extension utilise des endpoints internes de ChatGPT qui ne sont pas documentés publiquement par OpenAI et peuvent changer sans préavis.
+> **État actuel : 0.9.8 RC** — architecture en validation intensive. L’extension utilise des endpoints internes de ChatGPT qui ne sont pas documentés publiquement par OpenAI et peuvent changer sans préavis.
 
 ## Principes
 
@@ -72,6 +72,8 @@ Depuis 0.9.6 :
 - les onglets CLIENT ne se réveillent plus périodiquement pour retenter l’indexation ;
 - `CLIENT → WORKER`, retour à `PRÊT`, navigation et visibilité réveillent directement la file idle ;
 - les observers `main/sidebar` sont rebranchés uniquement si leurs nœuds changent réellement.
+
+Depuis 0.9.8, les hooks réseau MAIN et les CSS restent chargés tôt, mais tout le runtime dépendant du DOM est injecté à `document_idle`. Cela empêche le cas où le thème visuel apparaît alors que le shell NiakGPT ne s'est jamais initialisé.
 
 ### WORKER / CLIENT
 
@@ -230,6 +232,7 @@ Deux chaînes principales GitHub Actions sont utilisées.
 Contrôles statiques :
 
 - manifest et ordre de chargement ;
+- séparation stricte `document_start` / `document_idle` ;
 - syntaxe JavaScript ;
 - absence des anciens moteurs dans le runtime ;
 - invariants performance ;
@@ -252,11 +255,12 @@ Playwright exécute :
 - Governance ;
 - Control Center ;
 - Safe Mode ;
-- **vraie extension non empaquetée chargée dans Chromium** sur un `chatgpt.com` mocké.
+- **vraie extension non empaquetée chargée dans Chromium** sur un `chatgpt.com` mocké ;
+- un smoke test d'accueil calé sur la structure actuelle de ChatGPT qui exige le shell complet et interdit le cas « CSS chargé mais runtime absent ».
 
-Le banc runtime vérifie notamment le bootstrap réel, les compteurs, la pagination sans `cursor=0`, les états réseau, les verrous manuels, Safe Mode, l’élection WORKER/CLIENT, les dossiers Projects sans navigation intermédiaire, la stabilité de la barre basse et le coach contextuel.
+Le banc runtime vérifie notamment le bootstrap réel, les chats récents, les Projects, les compteurs, la pagination sans `cursor=0`, les états réseau, les verrous manuels, Safe Mode, l’élection WORKER/CLIENT, les dossiers Projects sans navigation intermédiaire, la stabilité de la barre basse et le coach contextuel.
 
-La 0.9.7 verrouille aussi explicitement les régressions Matrix, les trois easter eggs Terminator, `BY SKYNET`, les diagnostics `organizer/pins`, les pièces jointes du composer et le handoff d’un WORKER lourd vers un CLIENT léger.
+La 0.9.8 verrouille explicitement les régressions Matrix, les trois easter eggs Terminator, `BY SKYNET`, les diagnostics `organizer/pins`, les pièces jointes du composer, le handoff d’un WORKER lourd vers un CLIENT léger et le montage complet de NiakGPT sur la page d'accueil actuelle.
 
 ## Limites connues
 

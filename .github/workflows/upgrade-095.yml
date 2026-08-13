@@ -1,88 +1,13 @@
-name: Upgrade NiakGPT 0.9.5 RC6
+name: Archived — Upgrade NiakGPT 0.9.5 RC6
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'background-v100.js'
-      - 'onboarding-v101.js'
-      - '.github/workflows/upgrade-095.yml'
 
 permissions:
-  contents: write
-
-concurrency:
-  group: niakgpt-upgrade-095
-  cancel-in-progress: true
+  contents: read
 
 jobs:
-  upgrade:
+  archived:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - name: Upgrade manifest and QA expectations
-        run: |
-          node - <<'NODE'
-          const fs=require('fs');
-          const m=JSON.parse(fs.readFileSync('manifest.json','utf8'));
-          m.version='0.9.5';
-          m.background={service_worker:'background-v100.js'};
-          for(const script of m.content_scripts||[]){
-            if(script.world==='MAIN')continue;
-            script.js=(script.js||[]).map(x=>x==='onboarding-v100.js'?'onboarding-v101.js':x);
-          }
-          fs.writeFileSync('manifest.json',JSON.stringify(m,null,2)+'\n');
-
-          let check=fs.readFileSync('tools/check-runtime.mjs','utf8');
-          check=check.replace("manifest.version !== '0.9.4'","manifest.version !== '0.9.5'");
-          check=check.replace('Expected 0.9.4','Expected 0.9.5');
-          check=check.replace("['onboarding-v100.js','profiles-v100.js'","['onboarding-v101.js','profiles-v100.js'");
-          check=check.replace("'onboarding-v100.js'","'onboarding-v101.js'");
-          if(!check.includes("background-v100.js")){
-            check=check.replace("if (manifest.version !== '0.9.5') fail(`Expected 0.9.5, got ${manifest.version}`);","if (manifest.version !== '0.9.5') fail(`Expected 0.9.5, got ${manifest.version}`);\nif (manifest.background?.service_worker !== 'background-v100.js') fail('Lifecycle service worker required');");
-            check=check.replace("// 1.0 UX: onboarding, profiles, command palette.","// Install lifecycle + 1.0 UX.\nconst background=read('background-v100.js');\nhas(background, 'chrome.runtime.onInstalled');\nhas(background, \"reason:details.reason\");\nhas(texts['onboarding-v101.js'], 'INSTALL_META');\nhas(texts['onboarding-v101.js'], \"lifecycle?.reason==='install'\");\nhas(texts['onboarding-v101.js'], \"lifecycle?.reason==='update'\");\nno(texts['onboarding-v101.js'], 'hasLegacyMirror');\n\n// 1.0 UX: onboarding, profiles, command palette.");
-          }
-          fs.writeFileSync('tools/check-runtime.mjs',check);
-
-          let test=fs.readFileSync('visual-lab/tests/runtime-extension.spec.js','utf8');
-          test=test.replaceAll("0.9.4","0.9.5");
-          fs.writeFileSync('visual-lab/tests/runtime-extension.spec.js',test);
-
-          let race=fs.readFileSync('visual-lab/tests/onboarding-race.spec.js','utf8');
-          race=race.replace("onboarding-v100.js","onboarding-v101.js");
-          race=race.replace("expect(source).toContain('LEGACY_STORAGE_KEYS');","expect(source).toContain('LEGACY_STORAGE_KEYS');\n  expect(source).toContain('INSTALL_META');\n  expect(source).toContain(\"lifecycle?.reason==='install'\");\n  expect(source).toContain(\"lifecycle?.reason==='update'\");");
-          fs.writeFileSync('visual-lab/tests/onboarding-race.spec.js',race);
-          NODE
-      - name: Add explicit update-no-onboarding runtime scenario
-        run: |
-          node - <<'NODE'
-          const fs=require('fs'),p='visual-lab/tests/runtime-extension.spec.js';
-          let s=fs.readFileSync(p,'utf8');
-          if(!s.includes('lifecycle update never forces onboarding')){
-            const anchor="test('real extension boots and Project counters use cursor-safe pagination'";
-            const idx=s.indexOf(anchor);
-            if(idx<0)throw new Error('runtime test insertion anchor missing');
-            const test=`test('lifecycle update never forces onboarding', async () => {\n  const rt = await launchRuntime();\n  try {\n    await rt.page.goto(\`https://chatgpt.com/c/${CHAT1}\`, { waitUntil: 'domcontentloaded' });\n    await rt.page.evaluate(async () => {\n      await chrome.storage.local.set({'niakgpt-install-meta-v100':{reason:'update',previousVersion:'0.9.4',currentVersion:'0.9.5',changedAt:Date.now()}});\n      await chrome.storage.local.remove('niakgpt-onboarding-v100');\n    });\n    await rt.page.reload({waitUntil:'domcontentloaded'});\n    await expect(rt.page.locator('#ng8-status')).toBeVisible({timeout:12000});\n    await rt.page.waitForTimeout(2200);\n    await expect(rt.page.locator('#ng100-onboarding')).toHaveCount(0);\n  } finally { await rt.close(); }\n});\n\n`;
-            s=s.slice(0,idx)+test+s.slice(idx);
-            fs.writeFileSync(p,s);
-          }
-          NODE
-      - name: Validate upgraded source
-        run: |
-          node tools/check-runtime.mjs
-          node --check background-v100.js
-          node --check onboarding-v101.js
-      - name: Commit upgrade if changed
-        run: |
-          git add manifest.json tools/check-runtime.mjs visual-lab/tests/runtime-extension.spec.js visual-lab/tests/onboarding-race.spec.js
-          if git diff --cached --quiet; then exit 0; fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'Upgrade NiakGPT to 0.9.5 RC6'
-          git push origin HEAD:main
+      - run: echo "Archived migration workflow. No repository writes are performed."

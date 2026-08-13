@@ -1,0 +1,117 @@
+name: NiakGPT Public Quality Gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'manifest.json'
+      - '*.js'
+      - '*.css'
+      - 'tools/**'
+      - 'visual-lab/**'
+      - 'README.md'
+      - 'PRIVACY.md'
+      - 'SECURITY.md'
+      - 'CHANGELOG.md'
+      - '.github/workflows/public-gate.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: visual-lab/package.json
+
+      - name: Capture tested commit
+        run: echo "NIAKGPT_TESTED_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Validate runtime invariants
+        run: node tools/check-runtime.mjs
+
+      - name: Check JavaScript syntax
+        run: |
+          for f in $(node -e "const m=require('./manifest.json'); console.log([...new Set(m.content_scripts.flatMap(x=>x.js||[]))].join(' '))"); do
+            node --check "$f"
+          done
+
+      - name: Install Visual Lab
+        working-directory: visual-lab
+        run: npm install --no-audit --no-fund
+
+      - name: Install Chromium
+        working-directory: visual-lab
+        run: npx playwright install --with-deps chromium
+
+      - name: Run visual and real unpacked-extension tests
+        working-directory: visual-lab
+        run: npm test
+
+      - name: Build clean installable ZIP
+        run: node tools/package-extension.mjs
+
+      - name: Verify installable ZIP
+        run: |
+          ZIP=$(find dist -maxdepth 1 -name 'niakgpt-*.zip' -print -quit)
+          test -n "$ZIP"
+          unzip -l "$ZIP" | grep -q 'manifest.json'
+          if unzip -l "$ZIP" | grep -E 'visual-lab|tools/|app-v08-safe|project-governance-v085.js|project-pins-v085.js|multitab-v083.js|chronology-v081.js|polish-v081.js'; then
+            echo 'Development or legacy files leaked into installable ZIP'
+            exit 1
+          fi
+
+      - name: Upload certified package and QA report
+        uses: actions/upload-artifact@v4
+        with:
+          name: niakgpt-public-gate
+          path: |
+            dist/niakgpt-*.zip
+            visual-lab/artifacts
+            visual-lab/playwright-report
+            visual-lab/test-results
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish quality marker if main is unchanged
+        shell: bash
+        run: |
+          git fetch origin main
+          CURRENT_REMOTE=$(git rev-parse origin/main)
+          if [ "$CURRENT_REMOTE" != "$NIAKGPT_TESTED_SHA" ]; then
+            echo "main advanced from $NIAKGPT_TESTED_SHA to $CURRENT_REMOTE; skip stale certification marker"
+            exit 0
+          fi
+          VERSION=$(node -p "require('./manifest.json').version")
+          cat > QUALITY_GATE.json <<EOF
+          {
+            "status": "passed",
+            "version": "$VERSION",
+            "tested_commit": "$NIAKGPT_TESTED_SHA",
+            "validated": [
+              "runtime-invariants",
+              "javascript-syntax",
+              "visual-lab",
+              "real-unpacked-extension",
+              "clean-installable-package"
+            ]
+          }
+          EOF
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add QUALITY_GATE.json
+          if git diff --cached --quiet; then
+            echo 'Quality marker already current'
+            exit 0
+          fi
+          git commit -m "Certify NiakGPT public quality gate $VERSION"
+          git push origin HEAD:main

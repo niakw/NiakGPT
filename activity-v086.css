@@ -1,0 +1,93 @@
+/* NiakGPT v0.8.6 — conversation / Project runtime activity */
+:root{
+  --ng86-loading:#3794ff;
+  --ng86-waiting:#f59e0b;
+  --ng86-thinking:#c586c0;
+  --ng86-executing:#4ec9b0;
+  --ng86-error:#f14c4c;
+}
+
+/* CHAT ROWS — direct native anchor styling, independent from ChatGPT wrappers */
+a[data-ng86-activity="loading"]{--ng86-state:var(--ng86-loading)}
+a[data-ng86-activity="waiting"]{--ng86-state:var(--ng86-waiting)}
+a[data-ng86-activity="thinking"]{--ng86-state:var(--ng86-thinking)}
+a[data-ng86-activity="executing"]{--ng86-state:var(--ng86-executing)}
+a[data-ng86-activity="error"]{--ng86-state:var(--ng86-error)}
+
+a.ng86-active-chat{
+  position:relative!important;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--ng86-state) 24%,#0c131a 76%),color-mix(in srgb,var(--ng86-state) 7%,#0c131a 93%))!important;
+  border:1px solid color-mix(in srgb,var(--ng86-state) 62%,transparent)!important;
+  box-shadow:inset 3px 0 var(--ng86-state),0 0 12px color-mix(in srgb,var(--ng86-state) 24%,transparent)!important;
+  color:#fff!important;
+}
+a.ng86-active-chat::after{
+  content:"";
+  position:absolute;
+  right:7px;
+  top:50%;
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  transform:translateY(-50%);
+  background:var(--ng86-state);
+  box-shadow:0 0 10px var(--ng86-state);
+  animation:ng86Pulse 1.05s ease-in-out infinite;
+  z-index:8;
+}
+a.ng86-current-chat.ng86-active-chat{
+  box-shadow:inset 4px 0 var(--ng86-state),0 0 18px color-mix(in srgb,var(--ng86-state) 38%,transparent)!important;
+}
+
+/* State-specific visibility */
+a[data-ng86-activity="loading"].ng86-active-chat{background:linear-gradient(90deg,rgba(55,148,255,.30),rgba(55,148,255,.055))!important}
+a[data-ng86-activity="waiting"].ng86-active-chat{background:linear-gradient(90deg,rgba(245,158,11,.30),rgba(245,158,11,.055))!important}
+a[data-ng86-activity="thinking"].ng86-active-chat{background:linear-gradient(90deg,rgba(197,134,192,.30),rgba(197,134,192,.055))!important}
+a[data-ng86-activity="executing"].ng86-active-chat{background:linear-gradient(90deg,rgba(78,201,176,.30),rgba(78,201,176,.055))!important}
+a[data-ng86-activity="error"].ng86-active-chat{background:linear-gradient(90deg,rgba(241,76,76,.34),rgba(241,76,76,.06))!important}
+
+/* PROJECT ROWS inherit the most relevant active conversation state */
+a.ng86-active-project[data-ng86-activity="loading"]{--ng86-state:var(--ng86-loading)}
+a.ng86-active-project[data-ng86-activity="waiting"]{--ng86-state:var(--ng86-waiting)}
+a.ng86-active-project[data-ng86-activity="thinking"]{--ng86-state:var(--ng86-thinking)}
+a.ng86-active-project[data-ng86-activity="executing"]{--ng86-state:var(--ng86-executing)}
+a.ng86-active-project[data-ng86-activity="error"]{--ng86-state:var(--ng86-error)}
+a.ng86-active-project{
+  border-color:color-mix(in srgb,var(--ng86-state) 70%,#263544 30%)!important;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--ng86-state) 20%,#101821 80%),#0b1118)!important;
+  box-shadow:inset 3px 0 var(--ng86-state),0 0 10px color-mix(in srgb,var(--ng86-state) 18%,transparent)!important;
+  color:#fff!important;
+}
+
+/* Bottom status = single source of truth */
+#ng8-status .ng86-old-state{display:none!important}
+#ng8-status .ng86-status-state{
+  justify-self:end;
+  min-width:116px;
+  padding:2px 7px;
+  border-radius:4px;
+  text-align:center;
+  font:800 9px/1.4 Consolas,monospace;
+  letter-spacing:.07em;
+  color:#fff!important;
+  border:1px solid rgba(255,255,255,.22);
+  background:rgba(0,0,0,.18)!important;
+}
+#ng8-status[data-ng86-activity="loading"]{background:linear-gradient(90deg,#164f83,#1d72ad,#164f83)!important}
+#ng8-status[data-ng86-activity="waiting"]{background:linear-gradient(90deg,#76510a,#a46e08,#76510a)!important}
+#ng8-status[data-ng86-activity="thinking"]{background:linear-gradient(90deg,#57345e,#79467e,#57345e)!important}
+#ng8-status[data-ng86-activity="executing"]{background:linear-gradient(90deg,#176c61,#208f7d,#176c61)!important}
+#ng8-status[data-ng86-activity="error"]{background:linear-gradient(90deg,#7d2020,#a92f2f,#7d2020)!important}
+#ng8-status[data-ng86-activity="ready"] .ng86-status-state{color:#dfffee!important}
+
+/* Global current-state context, deliberately subtle */
+html[data-ng86-activity="waiting"] main{box-shadow:inset 0 2px rgba(245,158,11,.16)!important}
+html[data-ng86-activity="thinking"] main{box-shadow:inset 0 2px rgba(197,134,192,.16)!important}
+html[data-ng86-activity="executing"] main{box-shadow:inset 0 2px rgba(78,201,176,.16)!important}
+html[data-ng86-activity="error"] main{box-shadow:inset 0 2px rgba(241,76,76,.20)!important}
+
+@keyframes ng86Pulse{
+  0%,100%{opacity:.48;transform:translateY(-50%) scale(.78)}
+  50%{opacity:1;transform:translateY(-50%) scale(1.12)}
+}
+@media(prefers-reduced-motion:reduce){a.ng86-active-chat::after{animation:none!important}}

@@ -1,76 +1,13 @@
-name: NiakGPT 0.9.6 Audit Convergence
+name: Archived — audit convergence 0.9.6
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'tools/apply-v096-audit.mjs'
-      - 'tools/hotpath-v096.mjs'
-      - 'tools/render-hotpath-v096.mjs'
-      - 'tools/multitab-ui-hotpath-v096.mjs'
-      - 'tools/hotcache-v096.mjs'
-      - 'tools/hotcache-lock-hold-v096.mjs'
-      - 'tools/cache-normalize-v096.mjs'
-      - 'tools/cache-bus-consumers-v096.mjs'
-      - 'tools/matrix-cadence-v096.mjs'
-      - 'tools/cache-write-batch-v096.mjs'
-      - 'tools/cache-feedback-v096.mjs'
   workflow_dispatch:
 
 permissions:
-  contents: write
-
-concurrency:
-  group: niakgpt-v096-converge
-  cancel-in-progress: true
+  contents: read
 
 jobs:
-  converge:
+  archived:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - name: Apply audited runtime changes
-        run: |
-          node tools/apply-v096-audit.mjs
-          node tools/hotpath-v096.mjs
-          node tools/render-hotpath-v096.mjs
-          node tools/multitab-ui-hotpath-v096.mjs
-          node tools/hotcache-v096.mjs
-          node tools/hotcache-lock-hold-v096.mjs
-          node tools/cache-normalize-v096.mjs
-          node tools/cache-bus-consumers-v096.mjs
-          node tools/matrix-cadence-v096.mjs
-          node tools/cache-write-batch-v096.mjs
-          node tools/cache-feedback-v096.mjs
-      - name: Validate converged runtime
-        run: |
-          node --check app-v090.js
-          node --check multitab-v090.js
-          node --check coach-v100.js
-          node --check side-panels-v096.js
-          node --check project-governance-v090.js
-          node --check chronology-v090.js
-          node --check pin-folders-v096.js
-          node --check hotcache-main-v084.js
-          node --check hotcache-v084.js
-          node --check cache-bus-v096.js
-          node tools/check-runtime.mjs
-          node tools/check-hotpath-v096.mjs
-      - name: Commit convergence
-        run: |
-          if git diff --quiet; then
-            echo 'No convergence changes required'
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app-v090.js multitab-v090.js control-center-v090.css coach-v100.js project-governance-v090.js chronology-v090.js pin-folders-v096.js hotcache-main-v084.js hotcache-v084.js tools/check-runtime.mjs tools/check-hotpath-v096.mjs
-          git commit -m "Converge NiakGPT 0.9.6 audited runtime"
-          git pull --rebase origin main
-          git push origin HEAD:main
+      - run: echo "Archived migration workflow. No repository writes are performed."

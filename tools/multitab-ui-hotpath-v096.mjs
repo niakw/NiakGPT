@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+// One-shot 0.9.6 helper; remove after the final certified build.
 const p='multitab-v090.js';
 let s=fs.readFileSync(p,'utf8');
 s=s.replace("  const nativeRAF=window.requestAnimationFrame.bind(window);\n  const nativeCAF=window.cancelAnimationFrame.bind(window);\n",'');
@@ -8,5 +9,6 @@ const rx=/\n  window\.requestAnimationFrame=function niakgptCoordinatedRAF\(cb\)
 if(rx.test(s))s=s.replace(rx,'\n');
 if(s.includes('window.requestAnimationFrame=function niakgptCoordinatedRAF'))throw new Error('NiakGPT RAF override still present');
 if(s.includes('rafTasks'))throw new Error('RAF task registry still present');
+if(s.includes('virtualRafSeq'))throw new Error('RAF virtual sequence still present');
 fs.writeFileSync(p,s);
 console.log('NiakGPT 0.9.6 UI RAF remains native');

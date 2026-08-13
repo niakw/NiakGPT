@@ -3,7 +3,7 @@
   if (location.hostname !== 'chatgpt.com' || window.__NIAKGPT_HOTCACHE_084__) return;
   window.__NIAKGPT_HOTCACHE_084__ = true;
 
-  const VERSION=(()=>{try{return chrome.runtime.getManifest().version||'0.9.5';}catch{return'0.9.5';}})();
+  const VERSION=(()=>{try{return chrome.runtime.getManifest().version||'dev';}catch{return'dev';}})();
   const CACHE_KEY = 'niakgpt-v08-cache';
   const META_KEY = 'niakgpt-hotmeta-v084';
   const DIRTY_KEY = 'niakgpt-hotdirty-v084';
@@ -61,6 +61,7 @@
       for (const chat of raw.chats || []) ingest(chat);
       for (const [pid, list] of Object.entries(raw.projectChats || {})) for (const chat of list || []) ingest(chat, pid);
       localStorage.setItem(META_KEY, JSON.stringify(meta));
+      document.dispatchEvent(new CustomEvent('niakgpt:hotmeta-updated'));
       document.documentElement.dataset.ng8Hotmeta = String(Object.keys(meta).length);
       patchDiagnostic();
     } catch (error) {
@@ -90,7 +91,7 @@
     const net = Number(document.documentElement.dataset.ng8HotcacheNetwork || lastStatus.network || 0);
     const dedupe = Number(document.documentElement.dataset.ng8HotcacheDeduped || lastStatus.deduped || 0);
     const entries = Number(document.documentElement.dataset.ng8HotcacheEntries || lastStatus.entries || 0);
-    const hot = /^(HIT|HIT_PEER|HIT_AFTER_LOCK|STORED|READY)$/i.test(mode);
+    const hot = /^(HIT|HIT_AFTER_LOCK|STORED|READY)$/i.test(mode);
     row.innerHTML = `<span>hotcache</span><b class="${hot ? 'ok' : /ERROR/i.test(mode) ? 'err' : 'wait'}">${mode} · ${entries}/5 · ${hits} hit · ${net} net${dedupe ? ` · ${dedupe} partagé${dedupe > 1 ? 's' : ''}` : ''}</b>`;
     row.title = `Cache temporaire des conversations · NiakGPT ${VERSION}`;
     return true;

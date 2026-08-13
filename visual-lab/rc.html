@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="fr" data-ng8-tab-role="worker" data-ng86-activity="ready" data-ng90-safe="0" data-ng90-matrix="subtle" data-ng90-coach="on" data-ng90-activity="on" data-ng90-motion="on" data-ng90-density="compact" data-ng90-dates="on" data-ng90-project-badges="on" data-ng90-status="on" data-ng90-eggs="on">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>NiakGPT Public RC Lab</title>
+  <link rel="stylesheet" href="./lab.css">
+  <link rel="stylesheet" href="../theme-v08.css">
+  <link rel="stylesheet" href="../polish-v081.css">
+  <link rel="stylesheet" href="../chronology-v081.css">
+  <link rel="stylesheet" href="../multitab-v083.css">
+  <link rel="stylesheet" href="../governance-v085.css">
+  <link rel="stylesheet" href="../activity-v086.css">
+  <link rel="stylesheet" href="../control-center-v090.css">
+</head>
+<body class="ng8-ready">
+  <header class="lab-topbar"><span class="lab-brand" data-ng8-brand="1">NiakGPT</span><span>PUBLIC RC · Visual QA</span><span class="lab-project-title">Studio</span></header>
+  <div class="lab-shell">
+    <nav class="lab-sidebar ng8-sidebar" data-testid="conversation-sidebar">
+      <div class="lab-section-title">Projects</div>
+      <a data-ng8-project="1" href="/g/g-p-1111111111111111/project" style="--ng-project:#4fc1ff"><i>◇</i><span>Studio</span></a>
+      <div class="lab-section-title">Récents</div>
+      <a id="rc-chat" data-ng8-chat="1" data-ng8-zebra="0" href="/c/11111111-1111-4111-8111-111111111111" style="--ng-project:#4fc1ff"><span>Public RC visual audit</span><span class="ng8-chat-date">13/08</span><span class="ng8-chat-project" style="--ng-project:#4fc1ff">Studio</span></a>
+      <a data-ng8-chat="1" data-ng8-zebra="1" href="/c/22222222-2222-4222-8222-222222222222"><span>Conversation secondaire</span><span class="ng8-chat-date">12/08</span></a>
+    </nav>
+    <main class="lab-main">
+      <canvas id="ng8-matrix"></canvas>
+      <section class="lab-conversation">
+        <article class="lab-turn" data-ng8-turn="0" data-ng8-role="user"><small>UTILISATEUR</small><div data-message-author-role="user"><p>Construis une interface power-user qui reste rapide sur les fils lourds.</p></div></article>
+        <article class="lab-turn" data-ng8-turn="1" data-ng8-role="assistant"><small>ASSISTANT</small><div data-message-author-role="assistant"><p>Le Control Center doit rendre chaque automatisation explicite et réversible.</p></div></article>
+      </section>
+      <div class="lab-composer-shell"><div id="ng8-coach"><div class="ng8-coach-label">✦ NIAKGPT · RECO</div><div class="ng8-sug-grid"><button class="ng8-sug ng8-design"><b>Audit UX</b><span>Vérifie densité, états et accessibilité.</span></button></div></div><form class="lab-composer" data-type="unified-composer"><textarea id="prompt-textarea" data-testid="prompt-textarea"></textarea><button aria-label="Envoyer" data-testid="send-button">↑</button></form></div>
+    </main>
+  </div>
+  <aside id="ng8-rail"><button>▤</button><button>☷</button><button>◉</button><button id="ng90-settings-btn">⚙</button><span></span><button>⌘</button></aside>
+  <div id="ng8-status" data-ng86-activity="ready" data-tab-role="WORKER"><span><b>NiakGPT</b> 0.9.0</span><span>Studio</span><button>⌘ Alt+K</button><strong>BY SKYNET</strong><span class="ng86-status-state">PRÊT</span></div>
+
+  <template id="control-template">
+    <div id="ng90-control" class="open" role="dialog" aria-modal="true" aria-label="Centre de contrôle NiakGPT"><div class="ng90-card">
+      <header><div><small>CONTROL CENTER · 0.9.0</small><b>NiakGPT</b><span>Workspace power-user local pour ChatGPT</span></div><button data-close aria-label="Fermer">×</button></header>
+      <div class="ng90-safe"><div><b>SAFE MODE</b><span>Mode de secours ultra-léger pour les fils extrêmes</span></div><label><input type="checkbox"><i></i></label></div>
+      <div class="ng90-grid">
+        <section><h3>APPARENCE</h3><label class="ng90-select"><span><b>Matrix</b><small>Intensité du fond animé</small></span><select><option>Subtil</option></select></label><label class="ng90-select"><span><b>Densité</b><small>Sidebar et métadonnées</small></span><select><option>Compacte</option></select></label><label class="ng90-toggle-row"><span><b>Animations</b><small>Pulse d’activité et transitions</small></span><input type="checkbox" checked><i></i></label><label class="ng90-toggle-row"><span><b>Couleurs d’activité</b><small>Chats / Projects / barre basse</small></span><input type="checkbox" checked><i></i></label></section>
+        <section><h3>ASSISTANCE</h3><label class="ng90-toggle-row"><span><b>Coach de prompts</b><small>Suggestions contextuelles</small></span><input type="checkbox" checked><i></i></label><label class="ng90-toggle-row"><span><b>Dates des chats</b><small>Dernier échange dans la sidebar</small></span><input type="checkbox" checked><i></i></label><label class="ng90-toggle-row"><span><b>Badges Projects</b><small>Projet associé à chaque conversation</small></span><input type="checkbox" checked><i></i></label><label class="ng90-toggle-row"><span><b>Barre d’état</b><small>État, Project et BY SKYNET</small></span><input type="checkbox" checked><i></i></label></section>
+        <section><h3>AUTOMATISATION</h3><label class="ng90-toggle-row"><span><b>Resynchronisation automatique</b><small>Chats hors projet non verrouillés</small></span><input type="checkbox" checked><i></i></label><label class="ng90-toggle-row"><span><b>Pins natifs</b><small>Projects principaux dans ChatGPT</small></span><input type="checkbox" checked><i></i></label><div class="ng90-info"><b>Manuel &gt; automatique</b><span>Un déplacement manuel reste verrouillé.</span></div></section>
+        <section><h3>PERFORMANCE & CACHE</h3><div class="ng90-metrics"><div><b>4</b><span>fils chauds</span></div><div><b>19</b><span>hits</span></div><div><b>3</b><span>réseau</span></div><div><b>28.4</b><span>Mo</span></div></div><div class="ng90-actions"><button>Purger cache chaud</button><button>Reconstruire l’index</button><button>Copier diagnostic</button></div><div class="ng90-info"><b>Local-first</b><span>Aucun serveur NiakGPT, aucune analytics.</span></div></section>
+      </div>
+      <footer><div><button>Exporter</button><button>Importer</button></div><span></span><button>Réinitialiser préférences</button><button class="danger">Effacer données locales</button></footer>
+    </div></div>
+  </template>
+  <script>
+    const p=new URLSearchParams(location.search);const scene=p.get('scene')||'control';
+    if(scene==='control')document.body.appendChild(document.getElementById('control-template').content.cloneNode(true));
+    if(scene==='safe'){
+      const root=document.documentElement;root.dataset.ng90Safe='1';root.dataset.ng90Matrix='off';root.dataset.ng90Coach='off';root.dataset.ng90Motion='off';root.dataset.ng90NativePins='off';root.dataset.ng90AutoResync='off';
+      const badge=document.createElement('span');badge.className='ng90-safe-badge';badge.textContent='SAFE';document.getElementById('ng8-status').appendChild(badge);
+    }
+    const c=document.getElementById('ng8-matrix'),x=c.getContext('2d');function draw(){const r=c.getBoundingClientRect();c.width=Math.max(1,r.width/2);c.height=Math.max(1,r.height/2);x.font='10px monospace';for(let i=0;i<c.width;i+=22){for(let j=(i*3)%35;j<c.height;j+=38){x.fillStyle='rgba(28,255,88,.28)';x.fillText((i+j)%2?'1':'ア',i,j);}}}draw();
+  </script>
+</body>
+</html>

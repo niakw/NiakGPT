@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - 'visual-lab/bootstrap-isolation.mjs'
+      - 'diagnostic-bus-v096.js'
+      - 'hotcache-v084.js'
+      - 'hotcache-ui-v097.js'
       - '.github/workflows/bootstrap-isolation.yml'
 
 permissions:

@@ -38,7 +38,7 @@ has(cacheBusText,"chrome.storage.local.get(KEY)");
 has(cacheBusText,'__NIAKGPT_CACHE_BUS__');
 has(cacheBusText,'subscribe(fn)');
 for(const file of ['app-v090.js','chronology-v090.js','pin-folders-v096.js','hotcache-v084.js','project-governance-v090.js','multitab-v090.js'])has(texts[file],'__NIAKGPT_CACHE_BUS__',`Cache bus missing from ${file}`);
-for(const file of ['chronology-v090.js','pin-folders-v096.js','hotcache-v084.js','project-governance-v090.js','multitab-v090.js'])no(texts[file],'chrome.storage.local.get(CACHE_KEY)',`Direct large cache read reintroduced in ${file}`);
+for(const file of ['app-v090.js','chronology-v090.js','pin-folders-v096.js','hotcache-v084.js','project-governance-v090.js','multitab-v090.js'])no(texts[file],'chrome.storage.local.get(CACHE_KEY)',`Direct large cache read reintroduced in ${file}`);
 
 // Core / performance invariants.
 has(texts['app-v090.js'],'MutationObserver(queueMainNodes)');

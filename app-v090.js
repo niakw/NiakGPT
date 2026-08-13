@@ -85,7 +85,7 @@
   async function loadCache(rawOverride){
     try{
       const bus=window.__NIAKGPT_CACHE_BUS__;
-      const raw=rawOverride!==undefined?rawOverride:(bus?await bus.get():(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]);
+      const raw=rawOverride!==undefined?rawOverride:(bus?await bus.get():null);
       if(raw){
         S.projects=[];S.projectById.clear();for(const p of raw.projects||[])upsertProject(p);
         S.chats=[];S.chatById.clear();for(const c of raw.chats||[])upsertChat(c);
@@ -363,7 +363,7 @@
     document.addEventListener('keydown',e=>{if(e.altKey&&!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&String(e.key).toLowerCase()==='k'){e.preventDefault();openQuick();}},true);
     document.addEventListener('niakgpt:settings-changed',()=>{ensureMatrix();ensureBots();renderPins();});
     window.addEventListener('resize',()=>{resizeMatrix();},{passive:true});
-    chrome.storage.onChanged.addListener((changes,area)=>{if(area!=='local')return;if(changes[GOV_KEY]){S.governance={...S.governance,...(changes[GOV_KEY].newValue||{})};decorateSidebar();renderPanel();}if(changes[CACHE_KEY]&&!S.indexing){loadCache().then(()=>{decorateSidebar();renderPanel();});}});
+    chrome.storage.onChanged.addListener((changes,area)=>{if(area!=='local')return;if(changes[GOV_KEY]){S.governance={...S.governance,...(changes[GOV_KEY].newValue||{})};decorateSidebar();renderPanel();}if(changes[CACHE_KEY]&&!S.indexing){loadCache(changes[CACHE_KEY].newValue).then(()=>{decorateSidebar();if(S.panelOpen)renderPanel();});}});
   }
 
   async function boot(){

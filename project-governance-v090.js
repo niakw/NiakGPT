@@ -180,8 +180,10 @@
   }
 
   document.addEventListener('click',event=>{
-    const unlock=event.target instanceof Element?event.target.closest('.ng85-manual-lock[data-unlock]'):null;if(unlock){event.preventDefault();event.stopPropagation();unlockChat(unlock.dataset.unlock);return;}
-    const repair=event.target instanceof Element?event.target.closest('[data-repair],[data-ng90-governance]'):null;if(repair){event.preventDefault();event.stopImmediatePropagation();openGovernance();return;}
+    const target=event.target instanceof Element?event.target:null;
+    const unlock=target?.closest('.ng85-manual-lock[data-unlock]');if(unlock){event.preventDefault();event.stopPropagation();unlockChat(unlock.dataset.unlock);return;}
+    const repair=target?.closest('[data-repair],[data-ng90-governance]');if(repair){event.preventDefault();event.stopImmediatePropagation();openGovernance();return;}
+    if(!target?.closest('nav,[data-testid*="sidebar" i],#ng8-panel,#ng8-rail,#ng90-control,#ng85-governance'))return;
     setTimeout(()=>{bindSidebar();decorateLocks();patchExplorer();patchDiagnostic();},90);
   },true);
   document.addEventListener('keydown',event=>{

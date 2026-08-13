@@ -14,14 +14,12 @@
 
   const nativeRIC=typeof window.requestIdleCallback==='function'?window.requestIdleCallback.bind(window):null;
   const nativeCIC=typeof window.cancelIdleCallback==='function'?window.cancelIdleCallback.bind(window):null;
-  const nativeRAF=window.requestAnimationFrame.bind(window);
-  const nativeCAF=window.cancelAnimationFrame.bind(window);
   const bc=typeof BroadcastChannel==='function'?new BroadcastChannel(CHANNEL_NAME):null;
 
   let role='ELECTING',acquiring=false,releaseLock=null,cooldownUntil=0,fallbackWorker=false;
-  let taskSeq=0,activeIdle=false,virtualRafSeq=2000000,safeMode=false;
+  let taskSeq=0,activeIdle=false,safeMode=false;
   let pulseTimer=0,leaseTimer=0,yieldTimer=0,diagnosticTimer=0;
-  const idleTasks=new Map(),rafTasks=new Map(),peers=new Map();
+  const idleTasks=new Map(),peers=new Map();
 
   function state(){
     const generating=document.documentElement.dataset.ng8Running==='1';
@@ -65,13 +63,6 @@
     idleTasks.delete(id);if(task.nativeId!=null){if(nativeCIC)nativeCIC(task.nativeId);else clearTimeout(task.nativeId);}
   };
 
-  window.requestAnimationFrame=function niakgptCoordinatedRAF(cb){
-    const s=state();if(role==='WORKER'&&!s.heavy&&!document.hidden)return nativeRAF(cb);
-    const id=++virtualRafSeq,gap=document.hidden?1200:safeMode?520:role==='CLIENT'?420:220;
-    const timeout=setTimeout(()=>{const real=nativeRAF(time=>{rafTasks.delete(id);cb(time);});rafTasks.set(id,{kind:'raf',id:real});},gap);
-    rafTasks.set(id,{kind:'timeout',id:timeout});return id;
-  };
-  window.cancelAnimationFrame=function niakgptCancelCoordinatedRAF(id){const task=rafTasks.get(id);if(!task)return nativeCAF(id);rafTasks.delete(id);if(task.kind==='timeout')clearTimeout(task.id);else nativeCAF(task.id);};
 
   function heartbeat(){const s=state();return{type:'heartbeat',id:tabId,role,visible:!document.hidden,heavy:s.heavy,safeMode,ts:Date.now()};}
   function broadcast(reason='state'){bc?.postMessage({...heartbeat(),reason});}

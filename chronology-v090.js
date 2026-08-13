@@ -51,7 +51,7 @@
 
   chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY])readCache();});
   document.addEventListener('niakgpt:rpc-response',()=>scheduleApply(navRoot()||document,500));
-  document.addEventListener('click',()=>setTimeout(bindSidebar,80),true);
+  document.addEventListener('click',event=>{const target=event.target instanceof Element?event.target:null;if(target?.closest('nav,[data-testid*="sidebar" i],#ng8-pins'))setTimeout(bindSidebar,80);},true);
   window.addEventListener('popstate',()=>setTimeout(bindSidebar,80));
   readCache();bindSidebar();
 })();

@@ -151,7 +151,7 @@
       const items=Array.isArray(r.data?.items)?r.data.items:[];for(const raw of items){const c=chatFromRaw(raw);if(c)upsertChat(c);}
       if(!items.length)break;offset+=items.length;if(!(r.data?.has_more===true||r.data?.hasMore===true)&&items.length<100)break;await sleep(90);
     }
-    S.generalLoaded=true;await saveCache();renderPins();decorateSidebar();health('quick',`OK · ${S.projects.length+S.chats.length} entrées`);
+    S.generalLoaded=true;await saveCache();decorateSidebar();health('quick',`OK · ${S.projects.length+S.chats.length} entrées`);
   }
 
   function scheduleIndex(delay=120){
@@ -170,19 +170,19 @@
       const list=await fetchProjects();for(const p of list)upsertProject(p);buildDuplicates();
       S.projectsRefreshed=true;S.indexComplete=false;
       S.queue=S.projects.filter(p=>!S.projectChats.has(p.id)||S.counts.get(p.id)==null);
-      health('bridge','OK');health('projects',`OK · ${S.projects.length} Projects`);renderPins();decorateSidebar();renderPanel();await saveCache();scheduleIndex(60);
+      health('bridge','OK');health('projects',`OK · ${S.projects.length} Projects`);decorateSidebar();renderPanel();await saveCache();scheduleIndex(60);
     }catch(e){if(String(e?.message)!=='paused'){error('projects',e);health('projects',`ERREUR · ${String(e?.message||e).slice(0,80)}`);}}
     finally{S.refreshingProjects=false;}
   }
   async function runOneIndex(){
     if(S.indexing||!canBackground())return;
     if(!S.queue.length){
-      if(!S.indexComplete){S.indexComplete=true;health('data',`OK · ${S.projects.length} Projects · ${S.chats.length} chats`);await saveCache();setTimeout(()=>{if(canBackground())fetchGeneralBestEffort();},1800);}return;
+      if(!S.indexComplete){S.indexComplete=true;health('data',`OK · ${S.projects.length} Projects · ${S.chats.length} chats`);await saveCache();decorateSidebar();if(S.panelOpen)renderPanel();setTimeout(()=>{if(canBackground())fetchGeneralBestEffort();},1800);}return;
     }
     S.indexing=true;const p=S.queue.shift();
     try{
       const list=await fetchProjectChats(p),map=new Map();for(const c of list){map.set(c.id,c);upsertChat(c);}S.projectChats.set(p.id,map);S.counts.set(p.id,map.size);buildDuplicates();
-      health('data',`INDEX IDLE · ${S.projects.length-S.queue.length}/${S.projects.length}`);await saveCache();renderPins();renderPanel();
+      health('data',`INDEX IDLE · ${S.projects.length-S.queue.length}/${S.projects.length}`);await saveCache();
     }catch(e){if(String(e?.message)==='paused')S.queue.unshift(p);else{S.counts.set(p.id,null);error(`project:${p.name}`,e);await saveCache();}}
     finally{S.indexing=false;if(canBackground())scheduleIndex(S.queue.length?260:100);}
   }
@@ -358,11 +358,11 @@
     document.addEventListener('keydown',e=>{if(e.altKey&&!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&String(e.key).toLowerCase()==='k'){e.preventDefault();openQuick();}},true);
     document.addEventListener('niakgpt:settings-changed',()=>{ensureMatrix();ensureBots();renderPins();});
     window.addEventListener('resize',()=>{resizeMatrix();},{passive:true});
-    chrome.storage.onChanged.addListener((changes,area)=>{if(area!=='local')return;if(changes[GOV_KEY]){S.governance={...S.governance,...(changes[GOV_KEY].newValue||{})};renderPins();decorateSidebar();renderPanel();}if(changes[CACHE_KEY]&&!S.indexing){loadCache().then(()=>{renderPins();decorateSidebar();renderPanel();});}});
+    chrome.storage.onChanged.addListener((changes,area)=>{if(area!=='local')return;if(changes[GOV_KEY]){S.governance={...S.governance,...(changes[GOV_KEY].newValue||{})};decorateSidebar();renderPanel();}if(changes[CACHE_KEY]&&!S.indexing){loadCache().then(()=>{decorateSidebar();renderPanel();});}});
   }
 
   async function boot(){
-    ensureShell();await Promise.all([loadGovernance(),loadCache()]);brand();mergeDOM();buildDuplicates();renderPins();decorateSidebar();mountObservers();ensureMatrix();ensureBots();bindEvents();bindNavigation();
+    ensureShell();await Promise.all([loadGovernance(),loadCache()]);brand();mergeDOM();buildDuplicates();decorateSidebar();mountObservers();ensureMatrix();ensureBots();bindEvents();bindNavigation();
     if(role()==='client')health('bridge','DÉLÉGUÉ · WORKER');
     setTimeout(()=>{if(canBackground())refreshProjects();},900);
   }

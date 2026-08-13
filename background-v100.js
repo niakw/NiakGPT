@@ -20,6 +20,7 @@ const ISOLATED_RUNTIME=[
   'project-governance-v090.js',
   'project-pins-v090.js',
   'sidebar-host-v090.js',
+  'dom-index-v101.js',
   'app-v090.js',
   'coach-v101.js',
   'polish-v090.js',

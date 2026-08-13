@@ -1,0 +1,45 @@
+name: NiakGPT 0.9.6 Audit Convergence
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/apply-v096-audit.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: niakgpt-v096-converge
+  cancel-in-progress: true
+
+jobs:
+  converge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply audited runtime changes
+        run: node tools/apply-v096-audit.mjs
+      - name: Syntax check changed runtime
+        run: |
+          node --check app-v090.js
+          node --check multitab-v090.js
+      - name: Commit convergence
+        run: |
+          if git diff --quiet; then
+            echo 'No convergence changes required'
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app-v090.js multitab-v090.js control-center-v090.css
+          git commit -m "Converge NiakGPT 0.9.6 event-driven runtime"
+          git pull --rebase origin main
+          git push origin HEAD:main

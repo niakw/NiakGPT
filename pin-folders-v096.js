@@ -19,6 +19,7 @@
   const cidFromHref=h=>String(h||'').match(/\/c\/([0-9a-f-]{20,})/i)?.[1]||'';
   const parseTime=v=>{if(typeof v==='number'&&Number.isFinite(v))return v>1e12?v:v*1000;if(typeof v==='string'){const n=Number(v);if(Number.isFinite(n))return n>1e12?n:n*1000;const d=Date.parse(v);return Number.isFinite(d)?d:0;}return 0;};
   const fmt=ms=>{if(!ms)return'—';const d=new Date(ms),now=new Date(),base=`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;return d.getFullYear()===now.getFullYear()?base:`${base}/${String(d.getFullYear()).slice(-2)}`;};
+  const drawerId=pid=>`ng96-folder-${String(pid||'').replace(/[^A-Za-z0-9_-]/g,'')}`;
 
   function setOpen(pid){openPid=pid||'';filter='';try{openPid?sessionStorage.setItem(SESSION_KEY,openPid):sessionStorage.removeItem(SESSION_KEY);}catch{}}
   function projectHref(pid){return cache.projects?.find(p=>p?.id===pid)?.href||`/g/${pid}/project`;}
@@ -50,10 +51,14 @@
   function decorateAnchor(anchor){
     const pid=pidFromHref(anchor.getAttribute('href'));if(!pid)return;
     const entry=wrapAnchor(anchor);if(!entry)return;
-    anchor.dataset.ng96Folder='1';anchor.setAttribute('aria-haspopup','true');anchor.setAttribute('aria-expanded',pid===openPid?'true':'false');anchor.title='Afficher les conversations du Project';
+    anchor.dataset.ng96Folder='1';anchor.setAttribute('role','button');anchor.setAttribute('aria-haspopup','true');anchor.setAttribute('aria-controls',drawerId(pid));anchor.setAttribute('aria-expanded',pid===openPid?'true':'false');anchor.title='Afficher les conversations du Project';
     let chevron=anchor.querySelector(':scope > .ng96-chevron');if(!chevron){chevron=document.createElement('em');chevron.className='ng96-chevron';chevron.textContent='›';chevron.setAttribute('aria-hidden','true');anchor.appendChild(chevron);}
     const open=entry.querySelector('.ng96-project-open');if(open&&!open.dataset.bound){open.dataset.bound='1';open.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();routeNative(projectHref(pid));});}
-    if(!anchor.dataset.ng96Bound){anchor.dataset.ng96Bound='1';anchor.addEventListener('click',event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();event.stopPropagation();toggle(pid,anchor);});}
+    if(!anchor.dataset.ng96Bound){
+      anchor.dataset.ng96Bound='1';
+      anchor.addEventListener('click',event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();event.stopPropagation();toggle(pid,anchor);});
+      anchor.addEventListener('keydown',event=>{if(event.key===' '){event.preventDefault();toggle(pid,anchor);}else if(event.key==='ArrowRight'&&openPid!==pid){event.preventDefault();setOpen(pid);renderDrawer(pid,anchor);}else if(event.key==='ArrowLeft'&&openPid===pid){event.preventDefault();setOpen('');closeDrawers();}});
+    }
   }
 
   function closeDrawers(){for(const d of document.querySelectorAll('#ng8-pins .ng96-pin-drawer'))d.remove();document.querySelectorAll(PIN_SEL).forEach(a=>a.setAttribute('aria-expanded','false'));}
@@ -62,10 +67,11 @@
     const entry=rowFor(anchor);if(!entry)return;
     anchor.setAttribute('aria-expanded','true');
     const all=chatsFor(pid),q=norm(filter),shown=q?all.filter(c=>norm(`${c.title||''} ${c.snippet||''}`).includes(q)):all;
-    const drawer=document.createElement('div');drawer.className='ng96-pin-drawer';drawer.dataset.pid=pid;
+    const drawer=document.createElement('div');drawer.className='ng96-pin-drawer';drawer.id=drawerId(pid);drawer.dataset.pid=pid;drawer.setAttribute('role','region');drawer.setAttribute('aria-label','Conversations du Project');
     drawer.innerHTML=`${all.length>8?`<div class="ng96-folder-search"><input type="search" value="${esc(filter)}" placeholder="Filtrer ${all.length} conversations…" aria-label="Filtrer les conversations du Project"></div>`:''}<div class="ng96-folder-list">${shown.length?shown.slice(0,160).map(c=>`<button type="button" data-chat="${esc(c.id)}" title="${esc(c.title||'Conversation')}"><span>${esc(c.title||'Conversation sans titre')}</span><time>${fmt(c.updated)}</time></button>`).join(''):'<div class="ng96-folder-empty">Aucune conversation indexée</div>'}</div>${all.length>160?`<small class="ng96-folder-limit">160 / ${all.length} affichées · utilise la recherche</small>`:''}`;
     entry.insertAdjacentElement('afterend',drawer);
-    const input=drawer.querySelector('input');if(input){input.addEventListener('input',()=>{filter=input.value;renderDrawer(pid,anchor);requestAnimationFrame(()=>{const next=document.querySelector(`.ng96-pin-drawer[data-pid="${CSS.escape(pid)}"] input`);if(next){next.focus();next.setSelectionRange(next.value.length,next.value.length);}});});}
+    drawer.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();setOpen('');closeDrawers();anchor.focus();}});
+    const input=drawer.querySelector('input');if(input){input.addEventListener('input',()=>{filter=input.value;renderDrawer(pid,anchor);requestAnimationFrame(()=>{const next=document.querySelector(`#${CSS.escape(drawerId(pid))} input`);if(next){next.focus();next.setSelectionRange(next.value.length,next.value.length);}});});}
     drawer.querySelectorAll('[data-chat]').forEach(button=>button.addEventListener('click',()=>{const c=all.find(x=>x.id===button.dataset.chat);if(c)routeNative(chatHref(c,pid));}));
   }
   function toggle(pid,anchor){

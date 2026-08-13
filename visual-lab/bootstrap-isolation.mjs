@@ -14,11 +14,9 @@ const slice=n=>[main,{...isolated,js:isolated.js.slice(0,n)}];
 const groups={
   none:[],
   main:[main],
-  ui:slice(15),
-  chronology:slice(16),
-  pinfolders:slice(17),
-  hotcache:slice(18),
-  activity:slice(19),
+  throughChronology:slice(15),
+  throughPinFolders:slice(16),
+  activityUI:slice(17),
   full:[main,isolated,loader]
 };
 
@@ -61,7 +59,7 @@ async function probe(name,scripts){
 const results=[];
 for(const [name,scripts] of Object.entries(groups))results.push(await probe(name,scripts));
 console.log('\nSUMMARY');
-for(const r of results)console.log(`${r.name.padEnd(10)} launch=${r.launch} commit=${r.commit} fixture=${r.fixture} status=${r.status} ${r.error}`);
+for(const r of results)console.log(`${r.name.padEnd(18)} launch=${r.launch} commit=${r.commit} fixture=${r.fixture} status=${r.status} ${r.error}`);
 
 const full=results.at(-1);
-if(!full.fixture)process.exitCode=2;
+if(!full.fixture||!full.status)process.exitCode=2;

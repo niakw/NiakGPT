@@ -3,7 +3,7 @@
   if (location.hostname !== 'chatgpt.com' || window.__NIAKGPT_ACTIVITY_086__) return;
   window.__NIAKGPT_ACTIVITY_086__ = true;
 
-  const VERSION = (() => { try { return chrome.runtime.getManifest().version || '0.8.7'; } catch { return '0.8.7'; } })();
+  const VERSION = (() => { try { return chrome.runtime.getManifest().version || '0.9.3'; } catch { return '0.9.3'; } })();
   const CHANNEL = 'niakgpt-activity-v087';
   const bc = typeof BroadcastChannel === 'function' ? new BroadcastChannel(CHANNEL) : null;
   const states = new Map();
@@ -20,6 +20,7 @@
   let lastSidebarRenderAt = 0;
   let lastHeartbeatAt = 0;
   let tickTimer = 0;
+  let tickErrors = 0;
 
   const CHAT_SEL = 'a[href*="/c/"]';
   const PROJECT_SEL = 'a[href^="/g/g-p-"][href*="/project"]';
@@ -79,7 +80,8 @@
   }
 
   function mainRoot() {
-    return document.querySelector('main') || document.body;
+    // Content scripts run at document_start: body may not exist yet.
+    return document.querySelector('main') || document.body || document.documentElement;
   }
 
   function detectStopButton() {
@@ -127,7 +129,12 @@
 
   function conversationMounted() {
     const root = mainRoot();
-    return !!root.querySelector('[data-message-author-role],article[data-testid^="conversation-turn-"]') && !!document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]');
+    const hasConversation = !!root.querySelector('[data-message-author-role],article[data-testid^="conversation-turn-"]');
+    const hasComposer = !!document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]');
+    // Existing/loaded conversation: turns + composer. Empty/new conversation: composer alone is enough after startup settles.
+    if (hasConversation && hasComposer) return true;
+    if (hasComposer && Date.now() - localSince > 1200 && !detectStopButton()) return true;
+    return false;
   }
 
   function inferState() {
@@ -143,6 +150,12 @@
     const thinking = detectThinkingMarker();
     const len = assistantLength();
     if (stop) lastStopSeenAt = Date.now();
+
+    if (localState === 'loading' && conversationMounted()) {
+      lastAssistantLen = len;
+      setState('ready');
+      return;
+    }
 
     if (len > lastAssistantLen) {
       lastAssistantLen = len;
@@ -169,8 +182,7 @@
     }
 
     if (localState === 'loading') {
-      if (conversationMounted()) setState('ready');
-      else if (Date.now() - localSince > 30000) setState('error');
+      if (Date.now() - localSince > 30000) setState('error');
       return;
     }
 
@@ -239,7 +251,7 @@
     }
 
     for (const a of root.querySelectorAll(CHAT_SEL)) {
-      if (a.closest('#ng8-quick,#ng85-governance')) continue;
+      if (a.closest('#ng8-quick,#ng85-governance,#ng90-control')) continue;
       const id = cidFromHref(a.getAttribute('href'));
       const info = states.get(id);
       const state = info?.state || (id === currentChatId() ? localState : 'ready');
@@ -249,7 +261,7 @@
     }
 
     for (const a of root.querySelectorAll(PROJECT_SEL)) {
-      if (a.closest('#ng8-quick,#ng85-governance')) continue;
+      if (a.closest('#ng8-quick,#ng85-governance,#ng90-control')) continue;
       const pid = pidFromHref(a.getAttribute('href'));
       const state = activeByProject.get(pid) || (pid && pid === currentProjectId() ? localState : 'ready');
       a.dataset.ng86Activity = state;
@@ -345,21 +357,30 @@
 
   function tick() {
     clearTimeout(tickTimer);
-    markLoadingOnRoute();
-    if (ACTIVE.has(localState)) inferState();
+    let nextDelay = ACTIVE.has(localState) ? 650 : 2200;
+    try {
+      markLoadingOnRoute();
+      if (ACTIVE.has(localState)) inferState();
 
-    const now = Date.now();
-    const renderEvery = ACTIVE.has(localState) ? 1500 : 4200;
-    if (now - lastSidebarRenderAt > renderEvery) renderSidebar();
-    renderStatus();
+      const now = Date.now();
+      const renderEvery = ACTIVE.has(localState) ? 1500 : 4200;
+      if (now - lastSidebarRenderAt > renderEvery) renderSidebar();
+      renderStatus();
 
-    if (ACTIVE.has(localState) && now - lastHeartbeatAt > 20000) {
-      lastHeartbeatAt = now;
-      const cid = currentChatId();
-      if (cid) broadcast(cid, localState, currentProjectId(), now);
+      if (ACTIVE.has(localState) && now - lastHeartbeatAt > 20000) {
+        lastHeartbeatAt = now;
+        const cid = currentChatId();
+        if (cid) broadcast(cid, localState, currentProjectId(), now);
+      }
+      tickErrors = 0;
+      nextDelay = ACTIVE.has(localState) ? 650 : 2200;
+    } catch (error) {
+      tickErrors++;
+      if (tickErrors <= 2) console.warn('[NiakGPT activity] tick recovered', error);
+      nextDelay = Math.min(4000, 650 * Math.max(1, tickErrors));
+    } finally {
+      tickTimer = setTimeout(tick, nextDelay);
     }
-
-    tickTimer = setTimeout(tick, ACTIVE.has(localState) ? 650 : 2200);
   }
 
   setState(currentChatId() ? 'loading' : 'ready', { force:true });

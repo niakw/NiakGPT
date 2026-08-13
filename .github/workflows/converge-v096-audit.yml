@@ -7,6 +7,7 @@ on:
       - 'tools/apply-v096-audit.mjs'
       - 'tools/hotpath-v096.mjs'
       - 'tools/render-hotpath-v096.mjs'
+      - 'tools/multitab-ui-hotpath-v096.mjs'
   workflow_dispatch:
 
 permissions:
@@ -32,6 +33,7 @@ jobs:
           node tools/apply-v096-audit.mjs
           node tools/hotpath-v096.mjs
           node tools/render-hotpath-v096.mjs
+          node tools/multitab-ui-hotpath-v096.mjs
       - name: Validate converged runtime
         run: |
           node --check app-v090.js

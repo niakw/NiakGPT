@@ -290,6 +290,16 @@
     setTimeout(run, 2500);
   }
 
+  function storeResponseAfterRender(id, clone) {
+    return new Promise(resolve => {
+      const run = async () => { try { await storeResponse(id, clone); } finally { resolve(); } };
+      if ('requestIdleCallback' in window) {
+        try { window.requestIdleCallback(run, { timeout:3000 }); return; } catch {}
+      }
+      setTimeout(run, 900);
+    });
+  }
+
   bc?.addEventListener('message', event => {
     const m = event.data;
     if (!m?.id) return;
@@ -304,22 +314,37 @@
     return response;
   }
 
-  async function fetchWithCrossTabDedupe(self, input, init, id, staleEntry) {
+  function fetchWithCrossTabDedupe(self, input, init, id, staleEntry) {
     if (!navigator.locks?.request) return networkAndCache(self, input, init, id);
-    try {
-      return await navigator.locks.request(`niakgpt-hotfetch:${id}`, { mode:'exclusive' }, async () => {
+    return new Promise((resolve, reject) => {
+      let exposed = false;
+      const expose = value => { if (!exposed) { exposed = true; resolve(value); } };
+      navigator.locks.request(`niakgpt-hotfetch:${id}`, { mode:'exclusive' }, async () => {
         const latest = await getEntry(id);
         if (latest && latest.fetchedAt > (staleEntry?.fetchedAt || 0) && entryFresh(latest, id)) {
           deduped++;
           hits++;
           setStatus('HIT_AFTER_LOCK', id);
-          return responseFromEntry(latest);
+          expose(responseFromEntry(latest));
+          return;
         }
-        return networkAndCache(self, input, init, id);
+        network++;
+        setStatus('NETWORK', id);
+        let response;
+        try { response = await nativeFetch.call(self, input, init); }
+        catch (error) { if (!exposed) { exposed = true; reject(error); } return; }
+        let clone = null;
+        if (response.ok) { try { clone = response.clone(); } catch {} }
+        expose(response);
+        // The caller receives the real response immediately. The lock intentionally
+        // stays held until the cloned body is persisted, so the next tab cannot
+        // slip into a duplicate full GET between headers and IndexedDB commit.
+        if (clone) await storeResponseAfterRender(id, clone);
+      }).catch(error => {
+        if (exposed) return;
+        networkAndCache(self, input, init, id).then(expose, reject);
       });
-    } catch {
-      return networkAndCache(self, input, init, id);
-    }
+    });
   }
 
   window.fetch = async function niakgptHotCachedFetch(input, init) {

@@ -135,6 +135,8 @@ no(cssTexts['polish-v081.css'],'.ng8-native-activity','Legacy Activity CSS owner
 // Hot cache: IndexedDB + cross-tab dedupe, with no periodic DOM scan.
 for(const token of ['indexedDB.open','MAX_ENTRIES = 5','MAX_TOTAL_BYTES = 96','metaMirror','dirtyMirror','indexMirror'])has(texts['hotcache-main-v084.js'],token);
 has(texts['hotcache-main-v084.js'],"navigator.locks.request(`niakgpt-hotfetch:${id}`, { mode:'exclusive' }");
+has(texts['hotcache-main-v084.js'],'storeResponseAfterRender');
+has(texts['hotcache-main-v084.js'],'if (clone) await storeResponseAfterRender(id, clone);');
 no(texts['hotcache-main-v084.js'],'waitForPeer(','Peer timeout dedupe reintroduced');
 no(texts['hotcache-main-v084.js'],'WAIT_OTHER_TAB_MS','Peer timeout dedupe reintroduced');
 has(texts['hotcache-main-v084.js'],'niakgpt:hotmeta-updated');

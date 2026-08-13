@@ -4,7 +4,7 @@
   window.__NIAKGPT_POLISH_090__ = true;
 
   const OWN='#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng8-pins,#ng90-control';
-  let observer=null,observerTimer=0,scanTimer=0;
+  let observer=null,observerTimer=0,scanTimer=0,a11yTimer=0;
 
   function visible(el){if(!(el instanceof HTMLElement))return false;const r=el.getBoundingClientRect();return r.width>0&&r.height>0&&r.bottom>0&&r.right>0;}
   function looksLikeActivity(panel){
@@ -26,15 +26,22 @@
     const head=panel.querySelector('header,[role="heading"]')?.closest('header,div')||panel.querySelector('header');if(head instanceof HTMLElement)head.classList.add('ng8-activity-head');
     let close=panel.querySelector(':scope > .ng8-activity-close');if(!close){close=document.createElement('button');close.type='button';close.className='ng8-activity-close';close.setAttribute('aria-label','Fermer le panneau Activité');close.title='Fermer Activité';close.textContent='×';close.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();closeActivity(panel);});panel.appendChild(close);}return true;
   }
+  function polishControlAccessibility(){
+    const modal=document.getElementById('ng90-control');if(!modal)return false;
+    const safe=modal.querySelector('[data-setting="safeMode"]');if(safe instanceof HTMLInputElement){safe.setAttribute('aria-label','Activer le Safe Mode');safe.setAttribute('role','switch');safe.setAttribute('aria-checked',safe.checked?'true':'false');if(!safe.dataset.ng90A11yBound){safe.dataset.ng90A11yBound='1';safe.addEventListener('change',()=>safe.setAttribute('aria-checked',safe.checked?'true':'false'));}}
+    return true;
+  }
+  function scheduleControlA11y(delay=0){clearTimeout(a11yTimer);a11yTimer=setTimeout(polishControlAccessibility,delay);}
   function scan(root=document){clearTimeout(scanTimer);const panel=findActivity(root)||findActivity(document);if(panel){decorate(panel);disarm();return true;}return false;}
   function scheduleScan(delay=120,root=document){clearTimeout(scanTimer);scanTimer=setTimeout(()=>scan(root),delay);}
   function arm(duration=16000){
-    disarm();if(!document.body)return;observer=new MutationObserver(records=>{for(const record of records){for(const node of record.addedNodes){if(!(node instanceof Element))continue;const panel=findActivity(node);if(panel){decorate(panel);disarm();return;}}}});observer.observe(document.body,{childList:true,subtree:true});observerTimer=setTimeout(disarm,duration);
+    disarm();if(!document.body)return;observer=new MutationObserver(records=>{for(const record of records){for(const node of record.addedNodes){if(!(node instanceof Element))continue;if(node.id==='ng90-control'||node.querySelector?.('#ng90-control'))scheduleControlA11y(0);const panel=findActivity(node);if(panel){decorate(panel);disarm();return;}}}});observer.observe(document.body,{childList:true,subtree:true});observerTimer=setTimeout(disarm,duration);
   }
   function disarm(){observer?.disconnect();observer=null;clearTimeout(observerTimer);observerTimer=0;}
 
   document.addEventListener('niakgpt:activity-network',event=>{if(event.detail?.phase==='request'||event.detail?.phase==='headers'){arm();scheduleScan(300);}},true);
-  document.addEventListener('click',()=>{scheduleScan(150);},true);
+  document.addEventListener('click',()=>{scheduleScan(150);scheduleControlA11y(0);},true);
+  document.addEventListener('keydown',event=>{if(event.altKey&&event.key===',')scheduleControlA11y(0);},true);
   window.addEventListener('popstate',()=>scheduleScan(120));
   scheduleScan(300);
 })();

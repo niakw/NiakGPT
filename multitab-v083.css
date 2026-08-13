@@ -4,7 +4,7 @@ html[data-ng8-tab-role="client"][data-ng8-running="1"] #ng8-matrix{opacity:.035!
 html[data-ng8-tab-role="client"] .ng8-bot{opacity:.08!important}
 
 #ng8-status{position:fixed!important}
-#ng8-status::before{content:attr(data-tab-role);position:absolute;right:86px;top:50%;transform:translateY(-50%);padding:1px 5px;border-radius:4px;border:1px solid rgba(255,255,255,.18);background:rgba(4,10,16,.22);color:#d9efff;font:700 8px/1.35 Consolas,monospace;letter-spacing:.07em;pointer-events:none}
+#ng8-status::before{content:attr(data-tab-role);position:absolute;right:170px;top:50%;transform:translateY(-50%);width:54px;box-sizing:border-box;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:1px 4px;border-radius:4px;border:1px solid rgba(255,255,255,.18);background:rgba(4,10,16,.22);color:#d9efff;font:700 8px/1.35 Consolas,monospace;letter-spacing:.045em;pointer-events:none}
 html[data-ng8-tab-role="client"] #ng8-status::before{color:#dcdcaa;border-color:rgba(220,220,170,.28);background:rgba(55,52,20,.2)}
 html[data-ng8-tab-role="worker"] #ng8-status::before{color:#4ec9b0;border-color:rgba(78,201,176,.3);background:rgba(12,52,45,.2)}
 

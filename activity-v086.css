@@ -5,6 +5,7 @@
   --ng86-thinking:#c586c0;
   --ng86-executing:#4ec9b0;
   --ng86-error:#f14c4c;
+  --ng86-status-w:154px;
 }
 
 /* CHAT ROWS — direct native anchor styling, independent from ChatGPT wrappers */
@@ -59,19 +60,41 @@ a.ng86-active-project{
   color:#fff!important;
 }
 
-/* Bottom status = single source of truth */
+/* Bottom status = single source of truth. Activity is absolutely positioned so
+   label length can never reflow the status-bar grid. */
+#ng8-status{padding-right:calc(var(--ng86-status-w) + 128px)!important}
 #ng8-status .ng86-old-state{display:none!important}
 #ng8-status .ng86-status-state{
-  justify-self:end;
-  min-width:116px;
+  position:absolute!important;
+  right:8px!important;
+  top:50%!important;
+  transform:translateY(-50%)!important;
+  width:var(--ng86-status-w)!important;
+  min-width:var(--ng86-status-w)!important;
+  max-width:var(--ng86-status-w)!important;
+  box-sizing:border-box!important;
   padding:2px 7px;
   border-radius:4px;
   text-align:center;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
   font:800 9px/1.4 Consolas,monospace;
-  letter-spacing:.07em;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.055em;
   color:#fff!important;
   border:1px solid rgba(255,255,255,.22);
   background:rgba(0,0,0,.18)!important;
+  z-index:6!important;
+}
+#ng8-status>strong{
+  position:absolute!important;
+  left:50%!important;
+  top:50%!important;
+  transform:translate(-50%,-50%)!important;
+  margin:0!important;
+  white-space:nowrap!important;
+  pointer-events:none!important;
 }
 #ng8-status[data-ng86-activity="loading"]{background:linear-gradient(90deg,#164f83,#1d72ad,#164f83)!important}
 #ng8-status[data-ng86-activity="waiting"]{background:linear-gradient(90deg,#76510a,#a46e08,#76510a)!important}
@@ -90,4 +113,6 @@ html[data-ng86-activity="error"] main{box-shadow:inset 0 2px rgba(241,76,76,.20)
   0%,100%{opacity:.48;transform:translateY(-50%) scale(.78)}
   50%{opacity:1;transform:translateY(-50%) scale(1.12)}
 }
+@media(max-width:950px){#ng8-status{padding-right:calc(var(--ng86-status-w) + 18px)!important}}
+@media(max-width:760px){:root{--ng86-status-w:118px}#ng8-status{padding-right:132px!important}#ng8-status .ng86-status-state{right:6px!important;font-size:8px!important;letter-spacing:.025em!important}}
 @media(prefers-reduced-motion:reduce){a.ng86-active-chat::after{animation:none!important}}

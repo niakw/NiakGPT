@@ -149,6 +149,7 @@
   function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
   function parseTime(v){if(typeof v==='number'&&Number.isFinite(v))return v>1e12?v:v*1000;if(typeof v==='string'){const n=Number(v);if(Number.isFinite(n))return n>1e12?n:n*1000;const d=Date.parse(v);return Number.isFinite(d)?d:0;}return 0;}
   function formatDate(ms){if(!ms)return'—';const d=new Date(ms);return`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;}
+  function routeTo(href){const native=[...document.querySelectorAll('a[href]')].find(a=>a.getAttribute('href')===href&&!a.closest('#ng8-quick,#ng8-panel,#ng90-control'));if(native instanceof HTMLElement){native.click();return;}location.assign(href);}
 
   async function openClientQuick(){
     if(role!=='CLIENT')return false;document.getElementById('ng8-quick')?.remove();
@@ -164,10 +165,10 @@
       const cs=chats.filter(c=>{const p=projectById.get(c.projectId);return!q||norm(`${c.title} ${p?.name||''}`).includes(q);}).sort((a,b)=>parseTime(b.updated)-parseTime(a.updated)).slice(0,q?120:80).map(c=>{const p=projectById.get(c.projectId);return{type:'CHAT',title:c.title,sub:`${formatDate(parseTime(c.updated))} · ${p?.name||'Hors projet'}`,href:c.href||(c.projectId?`/g/${c.projectId}/c/${c.id}`:`/c/${c.id}`),color:p?.color||'#607080'};});
       items=[...ps,...cs].slice(0,140);selected=Math.min(selected,Math.max(0,items.length-1));
       list.innerHTML=items.map((x,i)=>`<button class="${i===selected?'sel':''}" data-i="${i}"><i style="--ng-project:${x.color}"></i><span>${esc(x.title)}</span><small>${esc(x.sub)}</small><em>${x.type}</em></button>`).join('');
-      list.querySelectorAll('button').forEach(button=>button.onclick=()=>{location.href=items[Number(button.dataset.i)].href;});
+      list.querySelectorAll('button').forEach(button=>button.onclick=()=>{const item=items[Number(button.dataset.i)];if(item)routeTo(item.href);});
     };
     input.oninput=()=>{selected=0;paint();};
-    input.onkeydown=event=>{if(event.key==='ArrowDown'){event.preventDefault();selected=Math.min(selected+1,items.length-1);paint();}else if(event.key==='ArrowUp'){event.preventDefault();selected=Math.max(0,selected-1);paint();}else if(event.key==='Enter'&&items[selected]){event.preventDefault();location.href=items[selected].href;}else if(event.key==='Escape')modal.remove();};
+    input.onkeydown=event=>{if(event.key==='ArrowDown'){event.preventDefault();selected=Math.min(selected+1,items.length-1);paint();}else if(event.key==='ArrowUp'){event.preventDefault();selected=Math.max(0,selected-1);paint();}else if(event.key==='Enter'&&items[selected]){event.preventDefault();routeTo(items[selected].href);}else if(event.key==='Escape')modal.remove();};
     modal.onmousedown=e=>{if(e.target===modal)modal.remove();};paint();setTimeout(()=>input.focus(),0);return true;
   }
 

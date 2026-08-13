@@ -1,8 +1,10 @@
 /* NiakGPT v0.9 Control Center */
 
 /* Runtime preference hooks */
-html[data-ng90-matrix="normal"] #ng8-matrix{opacity:.34!important;filter:saturate(1.25) brightness(1)!important}
-html[data-ng90-matrix="subtle"] #ng8-matrix{opacity:.19!important;filter:saturate(1.05) brightness(.88)!important}
+html[data-ng90-matrix="normal"] #ng8-matrix{opacity:.38!important;filter:saturate(1.24) brightness(1)!important}
+html[data-ng90-matrix="subtle"] #ng8-matrix{opacity:.31!important;filter:saturate(1.20) brightness(.98)!important}
+html[data-ng8-running="1"][data-ng90-matrix] #ng8-matrix{opacity:.09!important;filter:none!important}
+html[data-ng8-running="1"][data-ng8-heavy="1"][data-ng90-matrix] #ng8-matrix{opacity:.035!important}
 html[data-ng90-matrix="off"] #ng8-matrix,
 html[data-ng90-safe="1"] #ng8-matrix{display:none!important}
 html[data-ng90-coach="off"] #ng8-coach,

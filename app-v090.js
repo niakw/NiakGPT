@@ -17,7 +17,7 @@
     projects:[], projectById:new Map(), chats:[], chatById:new Map(), projectChats:new Map(), counts:new Map(), duplicates:new Map(),
     health:{bridge:'PRÊT',data:'CACHE',projects:'CACHE',quick:'PRÊT',coach:'INACTIF',toc:'INACTIF',performance:'PRÊT',matrix:'INACTIF',ui:'PRÊT'},
     errors:[], panelOpen:false, tab:'explorer', queue:[], queueTimer:0, indexing:false, indexComplete:false, generalLoaded:false,
-    mainObserver:null, sidebarObserver:null, mainTimer:0, sidebarTimer:0, routeTimer:0, lastPath:location.pathname,
+    mainObserver:null, sidebarObserver:null, mainRoot:null, sidebarRoot:null, mainTimer:0, sidebarTimer:0, lastPath:location.pathname, projectsRefreshed:false, refreshingProjects:false,
     pendingMain:new Set(), turns:[], turnSeen:new WeakSet(), codeSeen:new WeakSet(), codeCount:0,
     matrix:null, matrixCtx:null, matrixTimer:0, matrixResize:null, matrixCols:[], matrixW:0, matrixH:0,
     governance:{coreProjectIds:[],hiddenProjectIds:[]}, cacheLoaded:false
@@ -154,24 +154,28 @@
     S.generalLoaded=true;await saveCache();renderPins();decorateSidebar();health('quick',`OK · ${S.projects.length+S.chats.length} entrées`);
   }
 
-  function scheduleIndex(delay=1200){
-    clearTimeout(S.queueTimer);
+  function scheduleIndex(delay=120){
+    clearTimeout(S.queueTimer);S.queueTimer=0;
+    if(!canBackground())return;
     S.queueTimer=setTimeout(()=>{
-      if(!canBackground())return scheduleIndex(7000);
-      if('requestIdleCallback'in window)requestIdleCallback(()=>runOneIndex(),{timeout:3500});else runOneIndex();
+      S.queueTimer=0;if(!canBackground())return;
+      if('requestIdleCallback'in window)requestIdleCallback(()=>runOneIndex(),{timeout:2600});else runOneIndex();
     },delay);
   }
   async function refreshProjects(){
-    if(!canBackground())return scheduleIndex(7000);
+    if(S.refreshingProjects||!canBackground())return;
+    S.refreshingProjects=true;
     try{
       health('projects','INDEXATION · Projects');
       const list=await fetchProjects();for(const p of list)upsertProject(p);buildDuplicates();
+      S.projectsRefreshed=true;S.indexComplete=false;
       S.queue=S.projects.filter(p=>!S.projectChats.has(p.id)||S.counts.get(p.id)==null);
-      health('bridge','OK');health('projects',`OK · ${S.projects.length} Projects`);renderPins();decorateSidebar();renderPanel();await saveCache();scheduleIndex(300);
-    }catch(e){if(String(e?.message)!=='paused'){error('projects',e);health('projects',`ERREUR · ${String(e?.message||e).slice(0,80)}`);}scheduleIndex(7000);}
+      health('bridge','OK');health('projects',`OK · ${S.projects.length} Projects`);renderPins();decorateSidebar();renderPanel();await saveCache();scheduleIndex(60);
+    }catch(e){if(String(e?.message)!=='paused'){error('projects',e);health('projects',`ERREUR · ${String(e?.message||e).slice(0,80)}`);}}
+    finally{S.refreshingProjects=false;}
   }
   async function runOneIndex(){
-    if(S.indexing||!canBackground())return scheduleIndex(5000);
+    if(S.indexing||!canBackground())return;
     if(!S.queue.length){
       if(!S.indexComplete){S.indexComplete=true;health('data',`OK · ${S.projects.length} Projects · ${S.chats.length} chats`);await saveCache();setTimeout(()=>{if(canBackground())fetchGeneralBestEffort();},1800);}return;
     }
@@ -180,7 +184,7 @@
       const list=await fetchProjectChats(p),map=new Map();for(const c of list){map.set(c.id,c);upsertChat(c);}S.projectChats.set(p.id,map);S.counts.set(p.id,map.size);buildDuplicates();
       health('data',`INDEX IDLE · ${S.projects.length-S.queue.length}/${S.projects.length}`);await saveCache();renderPins();renderPanel();
     }catch(e){if(String(e?.message)==='paused')S.queue.unshift(p);else{S.counts.set(p.id,null);error(`project:${p.name}`,e);await saveCache();}}
-    finally{S.indexing=false;scheduleIndex(S.queue.length?500:2200);}
+    finally{S.indexing=false;if(canBackground())scheduleIndex(S.queue.length?260:100);}
   }
 
   function navRoot(){ return document.querySelector('[data-testid="conversation-sidebar"]')||document.querySelector('[data-testid="sidebar"]')||[...document.querySelectorAll('nav,aside')].find(x=>x.querySelector(CHAT_SEL)||x.querySelector(PROJECT_SEL))||document.querySelector('nav')||null; }
@@ -356,15 +360,30 @@
   }
 
   function mountObservers(){
-    const main=document.querySelector('main');if(main&&!S.mainObserver){S.mainObserver=new MutationObserver(queueMainNodes);S.mainObserver.observe(main,{childList:true,subtree:true});scanExistingMain();}
-    const side=navRoot();if(side&&!S.sidebarObserver){S.sidebarObserver=new MutationObserver(()=>{if(S.sidebarTimer)return;S.sidebarTimer=setTimeout(()=>{S.sidebarTimer=0;decorateSidebar();},activity()==='ready'?260:1300);});S.sidebarObserver.observe(side,{childList:true,subtree:true});}
+    const main=document.querySelector('main');
+    if(main&&main!==S.mainRoot){S.mainObserver?.disconnect();S.mainRoot=main;S.mainObserver=new MutationObserver(queueMainNodes);S.mainObserver.observe(main,{childList:true,subtree:true});scanExistingMain();}
+    const side=navRoot();
+    if(side&&side!==S.sidebarRoot){S.sidebarObserver?.disconnect();S.sidebarRoot=side;S.sidebarObserver=new MutationObserver(()=>{if(S.sidebarTimer)return;S.sidebarTimer=setTimeout(()=>{S.sidebarTimer=0;decorateSidebar();},activity()==='ready'?260:1300);});S.sidebarObserver.observe(side,{childList:true,subtree:true});}
   }
   function resetRouteVisuals(){
     S.turns=[];S.turnSeen=new WeakSet();S.codeSeen=new WeakSet();S.codeCount=0;document.documentElement.dataset.ng8Heavy='0';renderStatusBase();decorateSidebar();setTimeout(scanExistingMain,500);ensureCoach();
   }
-  function routeTick(){
-    clearTimeout(S.routeTimer);if(location.pathname!==S.lastPath){S.lastPath=location.pathname;resetRouteVisuals();}
-    if(!S.mainObserver||!S.sidebarObserver)mountObservers();S.routeTimer=setTimeout(routeTick,2400);
+  function wakeBackground(){
+    if(!canBackground())return;
+    if(!S.projectsRefreshed&&!S.refreshingProjects)refreshProjects();else scheduleIndex(40);
+  }
+  function handleRouteChange(){
+    mountObservers();const next=location.pathname;if(next===S.lastPath)return;
+    S.lastPath=next;resetRouteVisuals();mountObservers();wakeBackground();
+  }
+  function bindNavigation(){
+    const later=()=>setTimeout(handleRouteChange,0);
+    window.addEventListener('popstate',later);
+    document.addEventListener('click',event=>{const target=event.target instanceof Element?event.target:null;if(target?.closest('a[href]'))later();},true);
+    if(window.navigation?.addEventListener){window.navigation.addEventListener('navigatesuccess',handleRouteChange);window.navigation.addEventListener('currententrychange',later);}
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden){mountObservers();handleRouteChange();wakeBackground();}});
+    const runtimeObserver=new MutationObserver(records=>{if(records.some(r=>['data-ng8-tab-role','data-ng86-activity','data-ng8-running','data-ng8-heavy','data-ng90-safe'].includes(r.attributeName)))wakeBackground();});
+    runtimeObserver.observe(document.documentElement,{attributes:true,attributeFilter:['data-ng8-tab-role','data-ng86-activity','data-ng8-running','data-ng8-heavy','data-ng90-safe']});
   }
 
   function bindEvents(){
@@ -377,9 +396,9 @@
   }
 
   async function boot(){
-    ensureShell();await Promise.all([loadGovernance(),loadCache()]);brand();mergeDOM();buildDuplicates();renderPins();decorateSidebar();mountObservers();ensureMatrix();ensureBots();ensureCoach();bindEvents();routeTick();
+    ensureShell();await Promise.all([loadGovernance(),loadCache()]);brand();mergeDOM();buildDuplicates();renderPins();decorateSidebar();mountObservers();ensureMatrix();ensureBots();ensureCoach();bindEvents();bindNavigation();
     if(role()==='client')health('bridge','DÉLÉGUÉ · WORKER');
-    setTimeout(()=>{if(canBackground())refreshProjects();else scheduleIndex(6000);},1600);
+    setTimeout(()=>{if(canBackground())refreshProjects();},900);
   }
 
   if(document.body)boot();else{const mo=new MutationObserver(()=>{if(document.body){mo.disconnect();boot();}});mo.observe(document.documentElement,{childList:true,subtree:true});}

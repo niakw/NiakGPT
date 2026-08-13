@@ -1,0 +1,13 @@
+/* NiakGPT 1.0 — contextual prompt coach */
+#ng8-coach[data-ng100-coach="1"]{border-color:#344858!important;background:linear-gradient(180deg,#101923,#0c141d)!important}
+#ng8-coach[data-ng100-coach="1"] .ng8-coach-label{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;min-width:0!important;padding:6px 8px!important;background:#0d1620!important}
+#ng8-coach[data-ng100-coach="1"] .ng8-coach-label>span{flex:0 0 auto;color:#8fbad7!important;font:800 8.5px/1.2 Consolas,monospace!important;letter-spacing:.085em!important}
+#ng8-coach[data-ng100-coach="1"] .ng8-coach-label>em{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#667f93!important;font:700 8px/1.2 Consolas,monospace!important;font-style:normal!important;text-align:right!important}
+#ng8-coach[data-ng100-coach="1"] .ng8-sug{min-height:66px!important;display:flex!important;flex-direction:column!important;justify-content:flex-start!important;gap:3px!important}
+#ng8-coach[data-ng100-coach="1"] .ng8-sug b{font-size:10.5px!important;line-height:1.2!important}
+#ng8-coach[data-ng100-coach="1"] .ng8-sug span{-webkit-line-clamp:3!important;font-size:9.7px!important;line-height:1.38!important;color:#95a5b4!important}
+#ng8-coach[data-ng100-coach="1"] .ng8-sug:focus-visible{outline:2px solid #4fc1ff!important;outline-offset:-2px!important}
+#ng8-coach[data-ng100-coach="1"].compact .ng8-coach-label>em{display:none!important}
+#ng8-coach[data-ng100-coach="1"].compact .ng8-sug{min-height:42px!important}
+html[data-ng8-running="1"] #ng8-coach[data-ng100-coach="1"],html[data-ng90-safe="1"] #ng8-coach[data-ng100-coach="1"]{display:none!important}
+@media(max-width:760px){#ng8-coach[data-ng100-coach="1"] .ng8-coach-label>em{display:none!important}#ng8-coach[data-ng100-coach="1"] .ng8-sug span{-webkit-line-clamp:2!important}}

@@ -4,10 +4,12 @@ const path = require('node:path');
 
 const source = fs.readFileSync(path.join(__dirname, '..', '..', 'onboarding-v101.js'), 'utf8');
 
-test('onboarding relies on extension lifecycle metadata and persistent storage only', async () => {
+test('onboarding fast path never loads the full NiakGPT storage', async () => {
   expect(source).toContain('LEGACY_STORAGE_KEYS');
   expect(source).toContain('INSTALL_META');
-  expect(source).toContain('chrome.storage.local.get(null)');
+  expect(source).toContain('chrome.storage.local.get([KEY,INSTALL_META])');
+  expect(source).toContain('chrome.storage.local.get(LEGACY_STORAGE_KEYS)');
+  expect(source).not.toContain('chrome.storage.local.get(null)');
   expect(source).toContain("lifecycle?.reason==='install'");
   expect(source).toContain("lifecycle?.reason==='update'");
   expect(source).toContain("status:'upgrade-skipped'");
@@ -18,9 +20,9 @@ test('onboarding relies on extension lifecycle metadata and persistent storage o
   const body = match[1];
   expect(body).not.toContain('localStorage');
   expect(body).not.toContain('indexedDB');
-  expect(body).toContain('LEGACY_STORAGE_KEYS');
-  expect(body).toContain('INSTALL_META');
-  expect(body).toContain('chrome.storage.local.get(null)');
+  expect(body).not.toContain('get(null)');
+  expect(body).toContain('chrome.storage.local.get([KEY,INSTALL_META])');
+  expect(body).toContain('chrome.storage.local.get(LEGACY_STORAGE_KEYS)');
   expect(body).toContain("lifecycle?.reason==='install'");
   expect(body).toContain("lifecycle?.reason==='update'");
 });

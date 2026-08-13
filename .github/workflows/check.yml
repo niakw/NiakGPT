@@ -15,7 +15,9 @@ jobs:
           node-version: '22'
 
       - name: Validate runtime invariants
-        run: node tools/check-runtime.mjs
+        run: |
+          node tools/check-runtime.mjs
+          node tools/check-hotpath-v096.mjs
 
       - name: Check JavaScript syntax from manifest
         run: |
@@ -42,4 +44,4 @@ jobs:
           fi
 
       - name: Summary
-        run: node -e "const m=require('./manifest.json'); console.log('NiakGPT '+m.version+' static checks OK')"
+        run: node -e "const m=require('./manifest.json'); console.log('NiakGPT '+m.version+' static + hot-path checks OK')"

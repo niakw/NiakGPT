@@ -12,6 +12,7 @@ on:
       - 'tools/hotcache-lock-hold-v096.mjs'
       - 'tools/cache-normalize-v096.mjs'
       - 'tools/cache-bus-consumers-v096.mjs'
+      - 'tools/matrix-cadence-v096.mjs'
   workflow_dispatch:
 
 permissions:
@@ -42,6 +43,7 @@ jobs:
           node tools/hotcache-lock-hold-v096.mjs
           node tools/cache-normalize-v096.mjs
           node tools/cache-bus-consumers-v096.mjs
+          node tools/matrix-cadence-v096.mjs
       - name: Validate converged runtime
         run: |
           node --check app-v090.js
@@ -64,7 +66,7 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app-v090.js multitab-v090.js control-center-v090.css coach-v100.js project-governance-v090.js chronology-v090.js pin-folders-v096.js hotcache-main-v084.js hotcache-v084.js tools/check-runtime.mjs
+          git add app-v090.js multitab-v090.js control-center-v090.css coach-v100.js project-governance-v090.js chronology-v090.js pin-folders-v096.js hotcache-main-v084.js hotcache-v084.js tools/check-runtime.mjs tools/check-hotpath-v096.mjs
           git commit -m "Converge NiakGPT 0.9.6 audited runtime"
           git pull --rebase origin main
           git push origin HEAD:main

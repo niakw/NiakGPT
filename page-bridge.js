@@ -34,7 +34,8 @@
         const requested = Number(url.searchParams.get('limit') || 0);
         if (!requested || requested > 20) url.searchParams.set('limit', '20');
       }
-      if (!url.searchParams.has('cursor')) url.searchParams.set('cursor', '0');
+      // Never invent a cursor. The first Project page is requested without one;
+      // subsequent requests reuse only the opaque cursor returned by ChatGPT.
       return `${url.pathname}${url.search}`;
     } catch {
       return path;
@@ -182,8 +183,7 @@
       return;
     }
 
-    // Since v0.8.5, all NiakGPT project moves go through Project Governance.
-    // This prevents the legacy classifier from overriding a user's manual move.
+    // All NiakGPT project moves go through Project Governance.
     if (method === 'PATCH' && conversationRx.test(path) && d.governance !== true) {
       document.dispatchEvent(new CustomEvent(RES, {
         detail: { id, ok:false, status:409, data:null, error:'project_move_requires_governance', transport:'governance-guard' }

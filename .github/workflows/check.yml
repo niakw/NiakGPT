@@ -134,7 +134,9 @@ jobs:
         run: |
           grep -q 'niakgpt-settings-v090' project-pins-v085.js
           grep -q 'publicSettings' project-pins-v085.js
-          grep -q 'nativePins===false' project-pins-v085.js
+          grep -q 'syncEnabled' project-pins-v085.js
+          grep -q 'publicSettings.safeMode!==true' project-pins-v085.js
+          grep -q '!syncEnabled()' project-pins-v085.js
           grep -q 'coreProjectIds' project-pins-v085.js
           grep -q 'hiddenProjectIds' project-pins-v085.js
           grep -q 'nativePinnedIds' project-pins-v085.js

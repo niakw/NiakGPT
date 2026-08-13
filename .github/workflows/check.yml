@@ -19,24 +19,48 @@ jobs:
           const fs = require('fs');
           const m = JSON.parse(fs.readFileSync('manifest.json','utf8'));
           if (m.name !== 'NiakGPT') throw new Error('wrong extension name');
-          if (m.version !== '0.8.3') throw new Error('wrong build version');
+          if (m.version !== '0.8.4') throw new Error('wrong build version');
           if (JSON.stringify(m.host_permissions) !== JSON.stringify(['https://chatgpt.com/*'])) throw new Error('host scope must be ChatGPT only');
           if (!m.content_scripts.every(x => x.matches.every(v => v === 'https://chatgpt.com/*'))) throw new Error('unexpected content-script host');
+          const main = m.content_scripts.find(x => x.world === 'MAIN');
           const isolated = m.content_scripts.find(x => x.world !== 'MAIN');
-          if (!isolated) throw new Error('isolated script missing');
-          if (JSON.stringify(isolated.js) !== JSON.stringify(['multitab-v083.js','app-v08-safe.js','polish-v081.js','chronology-v081.js'])) throw new Error('unexpected v0.8.3 JS runtime');
-          if (JSON.stringify(isolated.css) !== JSON.stringify(['theme-v08.css','polish-v081.css','chronology-v081.css','multitab-v083.css'])) throw new Error('unexpected v0.8.3 CSS runtime');
-          if (isolated.run_at !== 'document_start') throw new Error('runtime must start immediately');
-          console.log('manifest v0.8.3 OK');
+          if (!main || !isolated) throw new Error('runtime worlds missing');
+          if (JSON.stringify(main.js) !== JSON.stringify(['page-bridge.js','hotcache-main-v084.js'])) throw new Error('hot cache must patch MAIN after bridge');
+          if (JSON.stringify(isolated.js) !== JSON.stringify(['multitab-v083.js','app-v08-safe.js','polish-v081.js','chronology-v081.js','hotcache-v084.js'])) throw new Error('unexpected v0.8.4 JS runtime');
+          if (JSON.stringify(isolated.css) !== JSON.stringify(['theme-v08.css','polish-v081.css','chronology-v081.css','multitab-v083.css'])) throw new Error('unexpected v0.8.4 CSS runtime');
+          if (!m.content_scripts.every(x => x.run_at === 'document_start')) throw new Error('runtime must start immediately');
+          console.log('manifest v0.8.4 OK');
           NODE
 
       - name: Check JavaScript syntax
         run: |
           node --check page-bridge.js
+          node --check hotcache-main-v084.js
           node --check multitab-v083.js
           node --check app-v08-safe.js
           node --check polish-v081.js
           node --check chronology-v081.js
+          node --check hotcache-v084.js
+
+      - name: Check hot conversation cache
+        run: |
+          grep -q 'indexedDB.open' hotcache-main-v084.js
+          grep -q 'MAX_ENTRIES = 5' hotcache-main-v084.js
+          grep -q 'MAX_TOTAL_BYTES = 96' hotcache-main-v084.js
+          grep -q 'HARD_TTL = 6' hotcache-main-v084.js
+          grep -q 'window.fetch = async function niakgptHotCachedFetch' hotcache-main-v084.js
+          grep -q '/backend-api\\/conversation\\/' hotcache-main-v084.js
+          grep -q 'entryFresh' hotcache-main-v084.js
+          grep -q 'latestKnownUpdate' hotcache-main-v084.js
+          grep -q 'niakgpt-hotfetch:' hotcache-main-v084.js
+          grep -q 'BroadcastChannel' hotcache-main-v084.js
+          grep -q 'WAIT_PEER' hotcache-main-v084.js
+          grep -q 'HIT_PEER' hotcache-main-v084.js
+          grep -q 'niakgpt:hotcache-dirty' hotcache-main-v084.js
+          grep -q 'chrome.storage.onChanged' hotcache-v084.js
+          grep -q 'niakgpt-hotmeta-v084' hotcache-v084.js
+          grep -q 'hotcache</span>' hotcache-v084.js
+          grep -q '0.8.4' hotcache-v084.js
 
       - name: Check cross-tab worker architecture
         run: |
@@ -111,4 +135,4 @@ jobs:
           grep -q 'ng8-active-project' polish-v081.css
           grep -q 'BY SKYNET' app-v08-safe.js
           if grep -E '#ng8-coach\{[^}]*position:fixed' theme-v08.css; then exit 1; fi
-          echo 'v0.8.3 multitab + counters + chronology + performance + polish checks OK'
+          echo 'v0.8.4 hotcache + multitab + counters + chronology + performance + polish checks OK'

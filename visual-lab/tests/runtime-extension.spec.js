@@ -120,17 +120,31 @@ async function launchRuntime({ onboarding = 'done' } = {}) {
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(String(error?.message || error)));
 
+  async function waitFixture(p) {
+    await expect(p.locator('#native-brand')).toBeVisible({ timeout: 8000 });
+    await expect(p.locator('#prompt-textarea')).toBeVisible({ timeout: 8000 });
+  }
   async function open(p = page, id = CHAT1) {
-    await p.goto(`https://chatgpt.com/c/${id}`, { waitUntil: 'domcontentloaded' });
+    // The intercepted fixture can commit before Chromium emits DOMContentLoaded when
+    // unpacked MV3 document_start scripts are active. Commit + explicit DOM markers
+    // tests the extension itself instead of depending on that browser lifecycle event.
+    await p.goto(`https://chatgpt.com/c/${id}`, { waitUntil: 'commit' });
+    await waitFixture(p);
     await expect(p.locator('#ng8-status')).toBeVisible({ timeout: 12000 });
     await expect(p.locator('#ng8-status')).toContainText(EXPECTED_VERSION);
+    return p;
+  }
+  async function reload(p = page) {
+    await p.reload({ waitUntil: 'commit' });
+    await waitFixture(p);
+    await expect(p.locator('#ng8-status')).toBeVisible({ timeout: 12000 });
     return p;
   }
   async function close() {
     await context.close();
     fs.rmSync(userDataDir, { recursive: true, force: true });
   }
-  return { context, worker, page, state, pageErrors, open, close };
+  return { context, worker, page, state, pageErrors, open, reload, close };
 }
 
 async function waitReady(page) {
@@ -147,7 +161,7 @@ test('fresh install exposes skippable onboarding only once', async () => {
     await expect(onboarding.locator('[data-skip]')).toBeVisible();
     await onboarding.locator('[data-skip]').click();
     await expect(onboarding).toHaveCount(0);
-    await rt.page.reload({ waitUntil: 'domcontentloaded' });
+    await rt.reload();
     await rt.page.waitForTimeout(1700);
     await expect(rt.page.locator('#ng100-onboarding')).toHaveCount(0);
   } finally { await rt.close(); }

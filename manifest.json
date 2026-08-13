@@ -50,6 +50,7 @@
         "onboarding-v101.js",
         "profiles-v100.js",
         "control-center-v090.js",
+        "cache-bus-v096.js",
         "commands-v100.js",
         "multitab-v090.js",
         "project-governance-v090.js",

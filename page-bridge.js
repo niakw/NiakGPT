@@ -12,6 +12,7 @@
     /^\/backend-api\/gizmos\/snorlax\/sidebar(?:\?|$)/,
     /^\/backend-api\/gizmos\/g-p-[A-Za-z0-9_-]+\/conversations(?:\?|$)/
   ];
+  const projectConversationsRx = /^\/backend-api\/gizmos\/g-p-[A-Za-z0-9_-]+\/conversations(?:\?|$)/;
 
   let cachedToken = '';
   let tokenAt = 0;
@@ -20,6 +21,23 @@
     if (!allowed.some(rx => rx.test(path))) return false;
     if (method === 'GET') return true;
     return method === 'PATCH' && /^\/backend-api\/conversation\//.test(path);
+  }
+
+  function normalizeProjectConversationPath(path, mode = 'safe') {
+    if (!projectConversationsRx.test(path)) return path;
+    try {
+      const url = new URL(path, location.origin);
+      if (mode === 'default') {
+        url.searchParams.delete('limit');
+      } else {
+        const requested = Number(url.searchParams.get('limit') || 0);
+        if (!requested || requested > 20) url.searchParams.set('limit', '20');
+      }
+      if (!url.searchParams.has('cursor')) url.searchParams.set('cursor', '0');
+      return `${url.pathname}${url.search}`;
+    } catch {
+      return path;
+    }
   }
 
   async function getAccessToken(force = false) {
@@ -101,22 +119,10 @@
     }
   }
 
-  async function backendFetch(path, method, body, forceToken = false) {
-    const token = await getAccessToken(forceToken);
-    if (!token) return { ok:false, status:401, data:null, error:'auth_session_missing', transport:'auth' };
-
+  async function requestWithTransportFallback(path, method, body, token) {
     let result = await fetchRequest(path, method, body, token);
-    if (result.status === 401 && !forceToken) {
-      cachedToken = '';
-      return backendFetch(path, method, body, true);
-    }
-
     if (result.status === 0) {
       const xhr = await xhrRequest(path, method, body, token);
-      if (xhr.status === 401 && !forceToken) {
-        cachedToken = '';
-        return backendFetch(path, method, body, true);
-      }
       if (xhr.ok || xhr.status !== 0) result = xhr;
       else result = {
         ok:false,
@@ -125,6 +131,39 @@
         error:`${result.error};${xhr.error}`,
         transport:'fetch+xhr'
       };
+    }
+    return result;
+  }
+
+  async function backendFetch(path, method, body, forceToken = false) {
+    const token = await getAccessToken(forceToken);
+    if (!token) return { ok:false, status:401, data:null, error:'auth_session_missing', transport:'auth' };
+
+    const originalPath = path;
+    let effectivePath = method === 'GET' ? normalizeProjectConversationPath(path, 'safe') : path;
+    let result = await requestWithTransportFallback(effectivePath, method, body, token);
+
+    if (result.status === 401 && !forceToken) {
+      cachedToken = '';
+      return backendFetch(originalPath, method, body, true);
+    }
+
+    if (method === 'GET' && projectConversationsRx.test(originalPath) && result.status === 422) {
+      const noLimitPath = normalizeProjectConversationPath(originalPath, 'default');
+      if (noLimitPath !== effectivePath) {
+        const retry = await requestWithTransportFallback(noLimitPath, method, body, token);
+        if (retry.status === 401 && !forceToken) {
+          cachedToken = '';
+          return backendFetch(originalPath, method, body, true);
+        }
+        result = retry;
+        effectivePath = noLimitPath;
+      }
+    }
+
+    if (effectivePath !== originalPath) {
+      result.request_path = effectivePath;
+      result.normalized_by_bridge = true;
     }
     return result;
   }

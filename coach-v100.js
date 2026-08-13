@@ -123,7 +123,7 @@
     const prompt=editorText(c.editor).trim();if(prompt.length<5){if(old)old.hidden=true;return;}
     let box=old;if(!box){box=document.createElement('div');box.id='ng8-coach';c.shell.insertBefore(box,c.form);}else if(box.parentElement!==c.shell){box.remove();c.shell.insertBefore(box,c.form);}
     observeBox(box);const model=cards(prompt),sig=JSON.stringify([prompt,model.kind,model.scope,model.items.map(x=>x.text)]);if(sig===lastSig&&box.dataset.ng100Coach==='1'){box.hidden=false;return;}lastSig=sig;
-    box.dataset.ng100Coach='1';box.hidden=false;const attachments=c.form.querySelectorAll('[data-testid*="attachment"],[data-testid*="file"],img').length;box.classList.toggle('compact',attachments>0||c.form.getBoundingClientRect().height>180);
+    box.setAttribute('data-ng100-coach','1');box.hidden=false;const attachments=c.form.querySelectorAll('[data-testid*="attachment"],[data-testid*="file"],img').length;box.classList.toggle('compact',attachments>0||c.form.getBoundingClientRect().height>180);
     box.innerHTML=`<div class="ng8-coach-label"><span>✦ NIAKGPT · COACH</span><em>${esc(model.kind.toUpperCase())}${model.scope?` · ${esc(model.scope.slice(0,90))}`:''}</em></div><div class="ng8-sug-grid">${model.items.map((x,i)=>`<button type="button" data-ng100-i="${i}" class="ng8-sug ng8-${x.key}"><b>${esc(x.title)}</b><span>${esc(x.text)}</span></button>`).join('')}</div>`;
     box.querySelectorAll('[data-ng100-i]').forEach(button=>button.addEventListener('click',()=>append(c.editor,model.items[Number(button.dataset.ng100I)].text)));
   }

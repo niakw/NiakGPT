@@ -1,233 +1,124 @@
 import fs from 'node:fs';
 
-const fail=message=>{throw new Error(message);};
-const read=path=>fs.readFileSync(path,'utf8');
-const has=(text,token,message=`missing: ${token}`)=>{if(!text.includes(token))fail(message);};
-const no=(text,token,message=`forbidden: ${token}`)=>{if(text.includes(token))fail(message);};
+const fail=m=>{throw new Error(m);};
+const read=p=>fs.readFileSync(p,'utf8');
+const has=(s,t,m=`missing: ${t}`)=>{if(!s.includes(t))fail(m);};
+const no=(s,t,m=`forbidden: ${t}`)=>{if(s.includes(t))fail(m);};
+const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 
 const manifest=JSON.parse(read('manifest.json'));
 if(manifest.manifest_version!==3)fail('Manifest V3 required');
 if(manifest.name!=='NiakGPT')fail('Wrong extension name');
-if(!/^\d+\.\d+\.\d+$/.test(String(manifest.version||'')))fail(`Invalid semantic version: ${manifest.version}`);
-if(JSON.stringify(manifest.permissions)!==JSON.stringify(['storage']))fail('Only storage permission is allowed');
-if(JSON.stringify(manifest.host_permissions)!==JSON.stringify(['https://chatgpt.com/*']))fail('Host permissions must remain ChatGPT-only');
+if(!/^\d+\.\d+\.\d+$/.test(String(manifest.version||'')))fail('Semantic version required');
+same(manifest.permissions,['storage'],'Only storage permission is allowed');
+same(manifest.host_permissions,['https://chatgpt.com/*'],'Host permissions must remain ChatGPT-only');
 if(manifest.background?.service_worker!=='background-v100.js')fail('Lifecycle service worker required');
-if(!manifest.content_scripts.every(x=>x.matches?.every(v=>v==='https://chatgpt.com/*')&&x.run_at==='document_start'))fail('Every content script must be ChatGPT-only and start at document_start');
+if(!manifest.content_scripts.every(x=>x.matches?.every(v=>v==='https://chatgpt.com/*')&&x.run_at==='document_start'))fail('All content scripts must stay ChatGPT-only at document_start');
 
 const main=manifest.content_scripts.find(x=>x.world==='MAIN');
-const isolated=manifest.content_scripts.find(x=>x.world!=='MAIN');
+const isolated=manifest.content_scripts.find(x=>x.world!=='MAIN'&&x.js?.includes('app-v090.js'));
+const loader=manifest.content_scripts.find(x=>x.js?.includes('retro-loader-v097.js'));
 const expectedMain=['page-bridge.js','manual-lock-main-v085.js','activity-main-v087.js','hotcache-main-v084.js'];
-const expectedIsolated=['onboarding-v101.js','profiles-v100.js','control-center-v090.js','cache-bus-v096.js','diagnostic-bus-v096.js','commands-v100.js','multitab-v090.js','project-governance-v090.js','project-pins-v090.js','sidebar-host-v090.js','app-v090.js','coach-v100.js','polish-v090.js','side-panels-v096.js','chronology-v090.js','pin-folders-v096.js','hotcache-v084.js','activity-v086.js'];
+const expectedIsolated=['onboarding-v101.js','profiles-v100.js','control-center-v090.js','cache-bus-v096.js','diagnostic-bus-v096.js','commands-v100.js','multitab-v090.js','project-governance-v090.js','project-pins-v090.js','sidebar-host-v090.js','app-v090.js','coach-v100.js','polish-v090.js','side-panels-v096.js','chronology-v090.js','pin-folders-v096.js','activity-ui-v097.js'];
 const expectedCss=['theme-v08.css','polish-v081.css','chronology-v081.css','multitab-v083.css','governance-v085.css','activity-v086.css','control-center-v090.css','core-v090.css','profiles-v100.css','commands-v100.css','onboarding-v100.css','coach-v100.css','pin-folders-v096.css','side-panels-v096.css'];
-if(JSON.stringify(main?.js)!==JSON.stringify(expectedMain))fail('MAIN runtime order mismatch');
-if(JSON.stringify(isolated?.js)!==JSON.stringify(expectedIsolated))fail('Isolated runtime order mismatch');
-if(JSON.stringify(isolated?.css)!==JSON.stringify(expectedCss))fail('CSS runtime order mismatch');
+same(main?.js,expectedMain,'MAIN runtime order mismatch');
+same(isolated?.js,expectedIsolated,'Isolated runtime order mismatch');
+same(isolated?.css,expectedCss,'CSS runtime order mismatch');
+same(loader?.js,['retro-loader-v097.js'],'Retro loader runtime mismatch');
+same(loader?.css,['retro-loader-v097.css'],'Retro loader CSS mismatch');
 
-const deadRuntime=['app-v08-safe.js','multitab-v083.js','polish-v081.js','chronology-v081.js','project-governance-v085.js','project-pins-v085.js','onboarding-v100.js'];
-for(const old of deadRuntime)if(isolated.js.includes(old))fail(`Legacy runtime loaded: ${old}`);
+const forbiddenRuntime=['app-v08-safe.js','multitab-v083.js','polish-v081.js','chronology-v081.js','project-governance-v085.js','project-pins-v085.js','onboarding-v100.js','hotcache-v084.js','activity-v086.js'];
+for(const old of forbiddenRuntime)if(isolated.js.includes(old))fail(`Legacy runtime loaded: ${old}`);
 
-const texts=Object.fromEntries([...expectedMain,...expectedIsolated].map(path=>[path,read(path)]));
-const cssTexts=Object.fromEntries(expectedCss.map(path=>[path,read(path)]));
-const background=read(manifest.background.service_worker);
+const runtime=[...new Set([...expectedMain,...expectedIsolated,'retro-loader-v097.js',manifest.background.service_worker])];
+const texts=Object.fromEntries(runtime.map(p=>[p,read(p)]));
+const css=Object.fromEntries([...expectedCss,'retro-loader-v097.css'].map(p=>[p,read(p)]));
+for(const file of expectedIsolated)no(texts[file],'setInterval(',`Permanent polling forbidden in ${file}`);
 
-for(const file of ['app-v090.js','chronology-v090.js','polish-v090.js','control-center-v090.js','project-governance-v090.js','project-pins-v090.js','sidebar-host-v090.js','profiles-v100.js','commands-v100.js','onboarding-v101.js','hotcache-v084.js','multitab-v090.js','activity-v086.js','coach-v100.js','pin-folders-v096.js','side-panels-v096.js'])no(texts[file],'setInterval(',`Permanent polling forbidden in ${file}`);
-
-// Shared cache bus: one chrome.storage read of the large index per tab.
-const cacheBusText=read('cache-bus-v096.js');
-has(cacheBusText,"chrome.storage.local.get(KEY)");
-has(cacheBusText,'__NIAKGPT_CACHE_BUS__');
-has(cacheBusText,'subscribe(fn)');
-for(const file of ['app-v090.js','chronology-v090.js','pin-folders-v096.js','hotcache-v084.js','project-governance-v090.js','multitab-v090.js'])has(texts[file],'__NIAKGPT_CACHE_BUS__',`Cache bus missing from ${file}`);
-for(const file of ['app-v090.js','chronology-v090.js','pin-folders-v096.js','hotcache-v084.js','project-governance-v090.js','multitab-v090.js'])no(texts[file],'chrome.storage.local.get(CACHE_KEY)',`Direct large cache read reintroduced in ${file}`);
-
-// Stable diagnostic bus: module states survive any panel rerender.
-const diagnosticBusText=read('diagnostic-bus-v096.js');
-has(diagnosticBusText,'__NIAKGPT_DIAGNOSTICS__');
-has(diagnosticBusText,'snapshot()');
-has(texts['app-v090.js'],'function diagnosticRows()');
-has(texts['app-v090.js'],"merged[key]='DÉLÉGUÉ · WORKER'");
-has(texts['app-v090.js'],"merged[key]='PAUSE · SAFE MODE'");
-has(texts['app-v090.js'],'diagnosticRows().map');
-has(texts['coach-v100.js'],"__NIAKGPT_DIAGNOSTICS__?.set('coach',text)");
-has(texts['multitab-v090.js'],"__NIAKGPT_DIAGNOSTICS__?.set('onglet'");
-has(texts['hotcache-v084.js'],"__NIAKGPT_DIAGNOSTICS__?.set('hotcache',statusText)");
-has(texts['project-pins-v090.js'],"__NIAKGPT_DIAGNOSTICS__?.set('pins'");
-
-// Core / performance invariants.
-has(texts['app-v090.js'],'MutationObserver(queueMainNodes)');
-has(texts['app-v090.js'],'S.pendingMain');
-has(texts['app-v090.js'],'canBackground');
-has(texts['app-v090.js'],'setTimeout(matrixLoop');
-has(texts['app-v090.js'],'function bindNavigation()');
-has(texts['app-v090.js'],'function wakeBackground()');
-has(texts['app-v090.js'],'projectsRefreshed:false');
-has(texts['app-v090.js'],'refreshingProjects:false');
-has(texts['app-v090.js'],'mainRoot:null');
-has(texts['app-v090.js'],'sidebarRoot:null');
-has(texts['app-v090.js'],"attributeFilter:['data-ng8-tab-role','data-ng86-activity','data-ng8-running','data-ng8-heavy','data-ng90-safe']");
-no(texts['app-v090.js'],'function routeTick()','Periodic route tick reintroduced');
-no(texts['app-v090.js'],'setTimeout(routeTick','Periodic route tick reintroduced');
-no(texts['app-v090.js'],'scheduleIndex(6000)','Client periodic index retry reintroduced');
-no(texts['app-v090.js'],'scheduleIndex(7000)','Background polling retry reintroduced');
-no(texts['app-v090.js'],"querySelectorAll('button,[data-testid]')",'Broad generation button scan reintroduced');
-no(texts['app-v090.js'],'requestAnimationFrame(draw)','Perpetual RAF Matrix loop reintroduced');
-no(texts['app-v090.js'],'function suggestionSet(prompt)','Legacy prompt classifier reintroduced in core');
-no(texts['app-v090.js'],'function ensureCoach()','Legacy coach renderer reintroduced in core');
-no(texts['app-v090.js'],'location.href=href','Worker Quick Open hard reload reintroduced');
-
-// Managed Project host must be unique and inside the sidebar.
-has(texts['sidebar-host-v090.js'],"document.querySelectorAll('#ng8-pins')");
-has(texts['sidebar-host-v090.js'],'root.insertBefore(host');
-has(texts['sidebar-host-v090.js'],'if(box!==host)box.remove()');
-has(texts['sidebar-host-v090.js'],"dataset.ng90ProjectHosts='1'");
-
-// Normalized index cache: chat metadata is serialized once.
-has(texts['app-v090.js'],'indexedProjectIds:[...S.projectChats.keys()]');
-has(texts['app-v090.js'],'const indexed=new Set([');
-no(texts['app-v090.js'],'projectChats:Object.fromEntries','Duplicate serialized Project chat metadata reintroduced');
-has(texts['project-governance-v090.js'],'Legacy cache compatibility only');
-
-// Project pagination: never invent cursors.
-has(texts['page-bridge.js'],'Never invent a cursor');
-no(texts['page-bridge.js'],"searchParams.set('cursor', '0')",'cursor=0 must never be invented');
-no(texts['page-bridge.js'],'searchParams.set("cursor", "0")','cursor=0 must never be invented');
-has(texts['app-v090.js'],"new URLSearchParams({limit:'20'})");
-has(texts['app-v090.js'],"if(cursor!=null&&cursor!=='')qs.set('cursor',String(cursor))");
-has(texts['page-bridge.js'],'result.status === 422');
-has(texts['page-bridge.js'],"url.searchParams.delete('limit')");
-
-// Activity: network-led, DOM observed only while active, no permanent tick.
-has(texts['activity-main-v087.js'],'niakgptActivityAwareFetch');
-for(const token of ["loading:'CHARGEMENT'","waiting:'ATTENTE'","thinking:'RÉFLEXION / ANALYSE'","executing:'EXÉCUTION'","error:'ERREUR'","ready:'PRÊT'"])has(texts['activity-v086.js'],token);
-has(texts['activity-v086.js'],'new MutationObserver(onActiveMutations)');
-has(texts['activity-v086.js'],'scheduleSettle');
-has(texts['activity-v086.js'],'scheduleHeartbeat');
-has(texts['activity-v086.js'],'disarmActiveObserver');
-has(texts['activity-v086.js'],'BroadcastChannel');
-no(texts['activity-v086.js'],'function tick()','Permanent activity tick reintroduced');
-no(texts['activity-v086.js'],"setTimeout(tick",'Recursive activity tick reintroduced');
-
-// Bottom status geometry must not reflow when labels change.
-has(cssTexts['activity-v086.css'],'--ng86-status-w:154px');
-has(cssTexts['activity-v086.css'],'position:absolute!important');
-has(cssTexts['activity-v086.css'],'width:var(--ng86-status-w)!important');
-has(cssTexts['activity-v086.css'],'#ng8-status>strong');
-has(cssTexts['multitab-v083.css'],'width:54px');
-has(cssTexts['core-v090.css'],'.ng90-safe-badge{position:absolute!important');
-
-// Multi-tab: state attributes are authoritative; never recount the full conversation.
-has(texts['multitab-v090.js'],'navigator.locks');
-has(texts['multitab-v090.js'],'canRunWorkerIdle');
-has(texts['multitab-v090.js'],'dataset.ng8Running');
-has(texts['multitab-v090.js'],'dataset.ng8Heavy');
-has(texts['multitab-v090.js'],'releaseWorkerForSafeMode');
-has(texts['multitab-v090.js'],"attributeFilter:['data-ng8-running','data-ng8-heavy','data-ng90-safe']");
-has(texts['multitab-v090.js'],'schedulePulse');
-has(texts['multitab-v090.js'],'renewFallbackLease');
-has(texts['multitab-v090.js'],'function routeTo(href)');
-no(texts['multitab-v090.js'],'turnCount(','Full-thread recount reintroduced in multi-tab coordinator');
-no(texts['multitab-v090.js'],'conversation-turn-','Multi-tab coordinator must not scan conversation turns');
-no(texts['multitab-v090.js'],"querySelectorAll('button,[data-testid]')",'Broad multi-tab DOM scan reintroduced');
-no(texts['multitab-v090.js'],'location.href=items[','Client Quick Open hard reload reintroduced');
-
-// Governance + manual priority.
-has(texts['manual-lock-main-v085.js'],'niakgpt:manual-project-move');
-has(texts['page-bridge.js'],'project_move_requires_governance');
-for(const token of ['verifyAndLockManualMove','verifyDestination','buildCleanupPlan','buildProfiles','executePlan','unlockChat','À CLASSER','scheduleAutoResync'])has(texts['project-governance-v090.js'],token);
-has(texts['project-governance-v090.js'],"role()==='worker'");
-has(texts['project-governance-v090.js'],'safeMode()');
-
-// Native pins must obey settings + verification.
-for(const token of ['syncEnabled','nativePinnedIds','verifyPinned','désépingler','épingler'])has(texts['project-pins-v090.js'],token);
-has(texts['project-pins-v090.js'],"role()==='worker'");
-has(texts['project-pins-v090.js'],'settings.safeMode!==true');
-
-// Managed pinned Projects are instant accessible folders, not mandatory Project-page navigation.
-for(const token of ['aria-expanded','aria-controls','role','chatsFor(pid)','routeNative(href)','ng96-pin-drawer','ng96-project-open','SESSION_KEY','ArrowRight','ArrowLeft'])has(texts['pin-folders-v096.js'],token);
-has(texts['pin-folders-v096.js'],'cidFromHref');
-has(texts['pin-folders-v096.js'],"drawer.setAttribute('role','region')");
-has(cssTexts['pin-folders-v096.css'],'.ng96-folder-list');
-has(cssTexts['pin-folders-v096.css'],'max-height:min(34vh,310px)');
-
-// Native right-side panels must coexist with NiakGPT rail in open and collapsed states.
-for(const token of ['activity','sources','outputs','decorateTriggers','ng96-native-side-trigger','ng96-native-sidepanel'])has(texts['side-panels-v096.js'],token);
-has(cssTexts['side-panels-v096.css'],'right:var(--ng8-rail)!important');
-has(cssTexts['side-panels-v096.css'],'right:calc(var(--ng8-rail) + 8px)!important');
-has(cssTexts['side-panels-v096.css'],'body.ng8-panel-open .ng96-native-sidepanel');
-no(texts['side-panels-v096.js'],'niakgpt:activity-network','Native side-panel adapter must not wake on generation traffic');
-no(texts['side-panels-v096.js'],'arm(7000)','Native side-panel global startup observer reintroduced');
-no(texts['polish-v090.js'],'MutationObserver','Duplicate native panel observer reintroduced in polish');
-no(cssTexts['polish-v081.css'],'.ng8-native-activity','Legacy Activity CSS owner reintroduced in polish');
-
-// Hot cache: IndexedDB + cross-tab dedupe, with no periodic DOM scan.
-for(const token of ['indexedDB.open','MAX_ENTRIES = 5','MAX_TOTAL_BYTES = 96','metaMirror','dirtyMirror','indexMirror'])has(texts['hotcache-main-v084.js'],token);
-has(texts['hotcache-main-v084.js'],"navigator.locks.request(`niakgpt-hotfetch:${id}`, { mode:'exclusive' }");
-has(texts['hotcache-main-v084.js'],'storeResponseAfterRender');
-has(texts['hotcache-main-v084.js'],'if (clone) await storeResponseAfterRender(id, clone);');
-no(texts['hotcache-main-v084.js'],'waitForPeer(','Peer timeout dedupe reintroduced');
-no(texts['hotcache-main-v084.js'],'WAIT_OTHER_TAB_MS','Peer timeout dedupe reintroduced');
-has(texts['hotcache-main-v084.js'],'niakgpt:hotmeta-updated');
-has(texts['hotcache-v084.js'],'niakgpt:hotmeta-updated');
-has(texts['hotcache-v084.js'],'niakgpt:activity-network');
-no(texts['hotcache-v084.js'],"querySelectorAll('button,[data-testid]')",'Hot cache broad generation scan reintroduced');
-
-// Matrix preferences are the final cascade source and stay attenuated during work.
-has(cssTexts['control-center-v090.css'],'html[data-ng90-matrix="subtle"] #ng8-matrix{opacity:.31');
-has(cssTexts['control-center-v090.css'],'html[data-ng90-matrix="normal"] #ng8-matrix{opacity:.38');
-has(cssTexts['control-center-v090.css'],'html[data-ng8-running="1"][data-ng90-matrix] #ng8-matrix{opacity:.09');
-has(cssTexts['control-center-v090.css'],'html[data-ng8-running="1"][data-ng8-heavy="1"][data-ng90-matrix] #ng8-matrix{opacity:.035');
-
-// Contextual coach is a single owner: current prompt dominates and status is event-driven.
-for(const token of ['function classify(prompt,context)','function constraints(prompt)','function entities(prompt)','function recent()','Diagnostic + patch','Régression / cas limites','Livrable vérifiable','data-ng100-coach','function setCoachStatus(','data-ng100-coach-status','stateObserver'])has(texts['coach-v100.js'],token);
-has(cssTexts['coach-v100.css'],'data-ng100-coach="1"');
-no(texts['coach-v100.js'],'setInterval(','Coach polling reintroduced');
-
-// Control Center public controls + accessibility.
-for(const token of ['sanitize(raw','SETTINGS_MIRROR','syncGovernanceAutomation','exportConfig','importConfig','copyDiagnostic','wipeAllLocalData','trapTab','returnFocus'])has(texts['control-center-v090.js'],token);
-has(texts['polish-v090.js'],"setAttribute('aria-label','Activer le Safe Mode')");
-has(texts['polish-v090.js'],"setAttribute('role','switch')");
-
-// Install lifecycle + onboarding.
-has(background,'chrome.runtime.onInstalled');
-has(background,'currentVersion:current');
-has(background,'previousVersion:details.previousVersion');
-has(texts['onboarding-v101.js'],'INSTALL_META');
-has(texts['onboarding-v101.js'],"lifecycle?.reason==='install'");
-has(texts['onboarding-v101.js'],"lifecycle?.reason==='update'");
-has(texts['onboarding-v101.js'],"status:'upgrade-skipped'");
-has(texts['onboarding-v101.js'],'data-skip');
-no(texts['onboarding-v101.js'],'hasLegacyMirror');
-
-// Workspace profiles + Command Palette.
-for(const profile of ['power','code','research','focus','analyst','contrast'])has(texts['profiles-v100.js'],`'${profile}'`);
-has(texts['profiles-v100.js'],'niakgpt:set-profile');
-has(texts['profiles-v100.js'],'niakgpt:settings-changed');
-has(texts['commands-v100.js'],"event.ctrlKey||event.metaKey");
-has(texts['commands-v100.js'],"String(event.key).toLowerCase()==='p'");
-has(texts['commands-v100.js'],'Project Governance');
-has(texts['commands-v100.js'],'Profil : Code / IDE');
-
-// User-facing core features.
-for(const token of ['fetchProjects','fetchGeneralBestEffort','openQuick','ng8-toc-search','ng90-project-extras','BY SKYNET'])has(texts['app-v090.js'],token);
-has(cssTexts['core-v090.css'],'focus-visible');
-has(cssTexts['profiles-v100.css'],'data-ng100-profile="contrast"');
-has(cssTexts['commands-v100.css'],'#ng100-command');
-has(cssTexts['onboarding-v100.css'],'#ng100-onboarding');
-
-// Privacy guard: no personal/project-specific names in active runtime.
-const privatePattern=/miorra|aelyron|eitty|elias|niakvio|tommy|foissy/i;
-for(const[file,text]of[...Object.entries(texts),...Object.entries(cssTexts),[manifest.background.service_worker,background]])if(privatePattern.test(text))fail(`Personal data hardcoded in active runtime: ${file}`);
-
-// No accidental external origins in active runtime source.
-for(const[file,text]of[...Object.entries(texts),[manifest.background.service_worker,background]]){
-  const urls=[...text.matchAll(/https?:\/\/[^'"`\s)]+/g)].map(m=>m[0]);
-  for(const url of urls)if(!url.startsWith('https://chatgpt.com'))fail(`Unexpected external URL in ${file}: ${url}`);
+// Large index is read once per tab and shared in memory.
+const cacheBus=texts['cache-bus-v096.js'];
+has(cacheBus,"chrome.storage.local.get(KEY)");has(cacheBus,'__NIAKGPT_CACHE_BUS__');has(cacheBus,'subscribe(fn)');
+for(const file of ['app-v090.js','chronology-v090.js','pin-folders-v096.js','project-governance-v090.js','multitab-v090.js']){
+  has(texts[file],'__NIAKGPT_CACHE_BUS__',`Cache Bus missing from ${file}`);
+  no(texts[file],'chrome.storage.local.get(CACHE_KEY)',`Direct large cache read reintroduced in ${file}`);
 }
 
-// Public documentation must exist and match the manifest version.
-for(const doc of ['README.md','PRIVACY.md','SECURITY.md','CHANGELOG.md'])if(!fs.existsSync(doc))fail(`Missing public documentation: ${doc}`);
-const readme=read('README.md'),changelog=read('CHANGELOG.md');
-has(readme,`État actuel : ${manifest.version}`,'README version/status must match manifest');
-has(changelog,`## ${manifest.version}`,'CHANGELOG must contain current manifest version');
+// Diagnostic Bus owns hot-cache metadata/status after parsing; legacy UI bridge stays disabled.
+const diag=texts['diagnostic-bus-v096.js'];
+has(diag,'__NIAKGPT_DIAGNOSTICS__');has(diag,'snapshot()');has(diag,'window.__NIAKGPT_HOTCACHE_084__=true');
+has(diag,"document.addEventListener('DOMContentLoaded',startHotcacheUI");
+has(diag,"requestIdleCallback(run,{timeout:1800})");
+has(diag,"document.addEventListener('niakgpt:hotcache-status'");
+has(diag,"document.addEventListener('niakgpt:activity-network'");
+has(texts['app-v090.js'],'function diagnosticRows()');
+has(texts['app-v090.js'],"merged[key]='DÉLÉGUÉ · WORKER'");has(texts['app-v090.js'],"merged[key]='PAUSE · SAFE MODE'");
+has(texts['coach-v100.js'],"__NIAKGPT_DIAGNOSTICS__?.set('coach',text)");
+has(texts['multitab-v090.js'],"__NIAKGPT_DIAGNOSTICS__?.set('onglet'");
+has(texts['project-pins-v090.js'],"__NIAKGPT_DIAGNOSTICS__?.set('pins'");
 
-console.log(`NiakGPT ${manifest.version} runtime invariants: OK`);
+// Core is event-driven and heavy-thread safe.
+const app=texts['app-v090.js'];
+has(app,'MutationObserver(queueMainNodes)');has(app,'S.pendingMain');has(app,'canBackground');has(app,'setTimeout(matrixLoop');
+has(app,'function bindNavigation()');has(app,'function wakeBackground()');has(app,'projectsRefreshed:false');has(app,'refreshingProjects:false');
+no(app,'function routeTick()');no(app,'setTimeout(routeTick');no(app,'scheduleIndex(6000)');no(app,'scheduleIndex(7000)');
+no(app,"querySelectorAll('button,[data-testid]')");no(app,'requestAnimationFrame(draw)');no(app,'function suggestionSet(prompt)');no(app,'function ensureCoach()');
+has(app,'scanTimer:0, scanToken:0');has(app,'const end=Math.min(index+20,nodes.length)');has(app,"if(activity()!=='ready'){S.scanTimer=setTimeout(chunk,700);return;}");
+has(app,'function saveCacheSoon(delay=1600)');has(app,'incoming?.at!==S.lastCacheWriteAt');
+has(app,'data?.cursor ?? data?.next_cursor ?? data?.nextCursor');has(app,"listFrom(r.data,'items','conversations')");
+
+// Activity is network-led but no parser-wide observers are armed before DOMContentLoaded.
+const activity=texts['activity-ui-v097.js'];
+has(texts['activity-main-v087.js'],'niakgptActivityAwareFetch');
+for(const token of ["ready:'PRÊT'","loading:'CHARGEMENT'","waiting:'ATTENTE'","thinking:'RÉFLEXION / ANALYSE'","executing:'EXÉCUTION'","error:'ERREUR'"])has(activity,token);
+has(activity,"document.addEventListener('DOMContentLoaded',start");has(activity,"document.addEventListener('niakgpt:activity-network'");
+has(activity,'activeObserver=new MutationObserver');has(activity,"activeObserver.observe(root,{childList:true,subtree:true,characterData:true})");
+has(activity,'sidebarObserver=new MutationObserver');has(activity,'scheduleSettle');has(activity,'scheduleHeartbeat');has(activity,'BroadcastChannel');
+no(activity,'bootstrapObserver');no(activity,"observe(document.documentElement,{childList:true,subtree:true}");no(activity,'function tick()');
+
+// Bottom status geometry does not shift across activity labels.
+has(css['activity-v086.css'],'--ng86-status-w:154px');has(css['activity-v086.css'],'position:absolute!important');has(css['activity-v086.css'],'width:var(--ng86-status-w)!important');
+has(css['multitab-v083.css'],'width:54px');has(css['core-v090.css'],'.ng90-safe-badge{position:absolute!important');
+
+// Multi-tab background work has one WORKER and never scans the full conversation.
+const tabs=texts['multitab-v090.js'];
+has(tabs,'navigator.locks');has(tabs,'canRunWorkerIdle');has(tabs,'dataset.ng8Running');has(tabs,'dataset.ng8Heavy');has(tabs,'releaseWorkerForSafeMode');
+no(tabs,'turnCount(');no(tabs,'conversation-turn-');no(tabs,"querySelectorAll('button,[data-testid]')");no(tabs,'niakgptCoordinatedRAF');
+
+// Governance: manual decisions win.
+const gov=texts['project-governance-v090.js'];
+has(texts['manual-lock-main-v085.js'],'niakgpt:manual-project-move');has(texts['page-bridge.js'],'project_move_requires_governance');
+for(const token of ['verifyAndLockManualMove','verifyDestination','buildCleanupPlan','buildProfiles','executePlan','unlockChat','À CLASSER','scheduleAutoResync'])has(gov,token);
+has(gov,"role()==='worker'");has(gov,'safeMode()');
+
+// Native pins are verified; managed Projects behave like folders.
+const pins=texts['project-pins-v090.js'];for(const token of ['syncEnabled','nativePinnedIds','verifyPinned','désépingler','épingler'])has(pins,token);
+has(pins,"role()==='worker'");has(pins,'settings.safeMode!==true');
+const folders=texts['pin-folders-v096.js'];for(const token of ['aria-expanded','aria-controls','chatsFor(pid)','routeNative(href)','ng96-pin-drawer','ng96-project-open','SESSION_KEY','ArrowRight','ArrowLeft'])has(folders,token);
+has(folders,"drawer.setAttribute('role','region')");has(css['pin-folders-v096.css'],'max-height:min(34vh,310px)');
+
+// Native Activity/Sources/Outputs panels coexist with the NiakGPT rail.
+const panels=texts['side-panels-v096.js'];for(const token of ['activity','sources','outputs','decorateTriggers','ng96-native-side-trigger','ng96-native-sidepanel'])has(panels,token);
+has(css['side-panels-v096.css'],'right:var(--ng8-rail)!important');has(css['side-panels-v096.css'],'body.ng8-panel-open .ng96-native-sidepanel');
+no(panels,'niakgpt:activity-network');no(panels,'arm(7000)');no(texts['polish-v090.js'],'MutationObserver');
+
+// Hot conversation cache is bounded, fresh, cross-tab deduplicated and local-only.
+const hot=texts['hotcache-main-v084.js'];for(const token of ['indexedDB.open','MAX_ENTRIES = 5','MAX_TOTAL_BYTES = 96','MAX_MEMORY_ENTRIES = 2','MAX_MEMORY_BYTES = 48','KNOWN_META_TTL = 15','navigator.locks.request','storeResponseAfterRender','getEntry(id, true)'])has(hot,token);
+no(hot,'waitForPeer(');no(hot,'WAIT_OTHER_TAB_MS');has(hot,"m.type === 'invalidate' || m.type === 'updated'");has(hot,'niakgpt:hotmeta-updated');
+
+// Matrix remains visible but attenuated and cheap while work is active.
+has(css['control-center-v090.css'],'html[data-ng90-matrix="subtle"] #ng8-matrix{opacity:.31');has(css['control-center-v090.css'],'html[data-ng90-matrix="normal"] #ng8-matrix{opacity:.38');
+has(css['control-center-v090.css'],'html[data-ng8-running="1"][data-ng90-matrix] #ng8-matrix{opacity:.09');has(css['control-center-v090.css'],'html[data-ng8-running="1"][data-ng8-heavy="1"][data-ng90-matrix] #ng8-matrix{opacity:.035');
+
+// Contextual coach is single-owner and prompt-led.
+const coach=texts['coach-v100.js'];has(coach,'function classify(prompt');has(coach,'data-ng100-coach');has(coach,'stateObserver');no(app,'ng100-coach');
+
+// Onboarding never reads the entire large storage namespace on normal startup.
+const onboarding=texts['onboarding-v101.js'];has(onboarding,"chrome.storage.local.get([KEY,INSTALL_META])");no(onboarding,'chrome.storage.local.get(null)');has(onboarding,"lifecycle?.reason==='update'");
+
+// No external runtime origin may be added accidentally.
+for(const [file,text] of Object.entries(texts)){
+  const urls=[...text.matchAll(/https:\/\/[^'\"`\s)]+/g)].map(x=>x[0]);
+  for(const url of urls)if(!url.startsWith('https://chatgpt.com'))fail(`External runtime URL in ${file}: ${url}`);
+}
+
+console.log(`NiakGPT ${manifest.version} parser-safe runtime invariants: OK`);

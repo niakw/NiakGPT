@@ -16,9 +16,9 @@
   function navRoot(){return document.querySelector('[data-testid="conversation-sidebar"]')||document.querySelector('[data-testid="sidebar"]')||[...document.querySelectorAll('nav,aside')].find(x=>x.querySelector(CHAT_SEL))||document.querySelector('nav');}
   function mergeChat(chat,projectId=''){if(!chat?.id)return;const updated=parseTime(chat.updated||chat.update_time||chat.create_time),old=chats.get(chat.id);const next={...old,...chat,projectId:chat.projectId||projectId||old?.projectId||'',updated:Math.max(old?.updated||0,updated)};chats.set(chat.id,next);if(next.projectId&&next.updated>(latestByProject.get(next.projectId)||0))latestByProject.set(next.projectId,next.updated);}
 
-  async function readCache(){
+  async function readCache(rawOverride){
     try{
-      const raw=(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||{};chats=new Map();counts=new Map(Object.entries(raw.counts||{}));latestByProject=new Map();
+      const bus=window.__NIAKGPT_CACHE_BUS__,raw=rawOverride!==undefined?(rawOverride||{}):(bus?(await bus.get()||{}):{});chats=new Map();counts=new Map(Object.entries(raw.counts||{}));latestByProject=new Map();
       for(const chat of raw.chats||[])mergeChat(chat);
       for(const [projectId,list] of Object.entries(raw.projectChats||{}))for(const chat of list||[])mergeChat(chat,projectId);
       scheduleApply(document,40);
@@ -49,9 +49,10 @@
   }
   function activityDelay(){return document.documentElement.dataset.ng8Running==='1'?900:180;}
 
-  chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY])readCache();});
+  const cacheBus=window.__NIAKGPT_CACHE_BUS__;
+  if(cacheBus)cacheBus.subscribe(raw=>readCache(raw));else chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY])readCache(changes[CACHE_KEY].newValue);});
   document.addEventListener('niakgpt:rpc-response',()=>scheduleApply(navRoot()||document,500));
   document.addEventListener('click',event=>{const target=event.target instanceof Element?event.target:null;if(target?.closest('nav,[data-testid*="sidebar" i],#ng8-pins'))setTimeout(bindSidebar,80);},true);
   window.addEventListener('popstate',()=>setTimeout(bindSidebar,80));
-  readCache();bindSidebar();
+  if(!cacheBus)readCache({});bindSidebar();
 })();

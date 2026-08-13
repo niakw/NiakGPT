@@ -82,9 +82,10 @@
   function serialize(){ return{schema:2,at:Date.now(),projects:S.projects,chats:S.chats,counts:Object.fromEntries(S.counts),indexedProjectIds:[...S.projectChats.keys()]}; }
   async function saveCache(){ try{await chrome.storage.local.set({[CACHE_KEY]:serialize()});}catch{} }
   async function loadGovernance(){ try{const g=(await chrome.storage.local.get(GOV_KEY))[GOV_KEY];if(g)S.governance={...S.governance,...g};}catch{} }
-  async function loadCache(){
+  async function loadCache(rawOverride){
     try{
-      const raw=(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY];
+      const bus=window.__NIAKGPT_CACHE_BUS__;
+      const raw=rawOverride!==undefined?rawOverride:(bus?await bus.get():(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]);
       if(raw){
         S.projects=[];S.projectById.clear();for(const p of raw.projects||[])upsertProject(p);
         S.chats=[];S.chatById.clear();for(const c of raw.chats||[])upsertChat(c);

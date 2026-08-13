@@ -144,7 +144,7 @@
 
   async function openClientQuick(){
     if(role!=='CLIENT')return false;document.getElementById('ng8-quick')?.remove();
-    let raw={};try{raw=(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||{};}catch{}
+    let raw={};try{raw=(await window.__NIAKGPT_CACHE_BUS__?.get())||{};}catch{}
     const projects=Array.isArray(raw.projects)?raw.projects:[],chats=Array.isArray(raw.chats)?raw.chats:[],counts=raw.counts||{},projectById=new Map(projects.map(p=>[p.id,p]));
     const modal=document.createElement('div');modal.id='ng8-quick';modal.classList.add('ng8-client-quick');modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');
     modal.innerHTML=`<div><input autofocus placeholder="Quick Open — cache partagé"><section></section><footer>CLIENT · ${projects.length} Projects · ${chats.length} chats · aucune requête réseau</footer></div>`;document.body.appendChild(modal);

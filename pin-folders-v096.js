@@ -21,6 +21,12 @@
   const fmt=ms=>{if(!ms)return'—';const d=new Date(ms),now=new Date(),base=`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;return d.getFullYear()===now.getFullYear()?base:`${base}/${String(d.getFullYear()).slice(-2)}`;};
   const drawerId=pid=>`ng96-folder-${String(pid||'').replace(/[^A-Za-z0-9_-]/g,'')}`;
 
+  function projectSnapshotSignature(raw,pid){
+    if(!pid)return'';const chats=(raw?.chats||[]).filter(c=>c?.projectId===pid).map(c=>[c.id,c.updated||c.update_time||0,c.title||'']);return JSON.stringify([raw?.counts?.[pid]??null,chats]);
+  }
+  function acceptCache(next){
+    const before=projectSnapshotSignature(cache,openPid);cache=next&&typeof next==='object'?next:cache;const after=projectSnapshotSignature(cache,openPid);if(!observedBox)bindBox();if(openPid&&before!==after)schedule(40);else if(!openPid)schedule(80);
+  }
   function setOpen(pid){openPid=pid||'';filter='';try{openPid?sessionStorage.setItem(SESSION_KEY,openPid):sessionStorage.removeItem(SESSION_KEY);}catch{}}
   function projectHref(pid){return cache.projects?.find(p=>p?.id===pid)?.href||`/g/${pid}/project`;}
   function chatHref(c,pid){return c?.href||`/g/${pid}/c/${c.id}`;}
@@ -94,10 +100,9 @@
     if(bindBox())return;
     bootstrapObserver=new MutationObserver(()=>{if(bindBox()){bootstrapObserver?.disconnect();bootstrapObserver=null;}});bootstrapObserver.observe(document.documentElement,{childList:true,subtree:true});setTimeout(()=>{bootstrapObserver?.disconnect();bootstrapObserver=null;},15000);
   }
-  async function loadCache(){try{cache=(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||cache;}catch{}schedule(0);}
-
-  chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY]){cache=changes[CACHE_KEY].newValue||cache;schedule(40);}});
+  const cacheBus=window.__NIAKGPT_CACHE_BUS__;
+  if(cacheBus)cacheBus.subscribe(acceptCache);else chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY])acceptCache(changes[CACHE_KEY].newValue);});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){bindBox();schedule(80);}});
   window.addEventListener('popstate',()=>schedule(60));
-  loadCache();bootstrap();
+  bootstrap();
 })();

@@ -9,6 +9,7 @@
   const DIRTY_KEY = 'niakgpt-hotdirty-v084';
   let lastStatus = { mode:'READY', hits:0, misses:0, network:0, deduped:0, entries:0 };
   let syncTimer = 0;
+  let pendingCache = null;
   let diagTimer = 0;
 
   function parseTime(value) {
@@ -45,11 +46,9 @@
     }, 1000);
   }
 
-  async function syncMeta() {
-    clearTimeout(syncTimer);
-    syncTimer = 0;
-    try {
-      const raw = (await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY] || {};
+  async function syncMeta(rawOverride) {
+    clearTimeout(syncTimer);syncTimer=0;
+    try {const raw=rawOverride&&typeof rawOverride==='object'?rawOverride:{};
       const meta = {};
       const ingest = (chat, forcedProject = '') => {
         if (!chat?.id) return;
@@ -69,10 +68,7 @@
     }
   }
 
-  function scheduleMeta(delay = 300) {
-    clearTimeout(syncTimer);
-    syncTimer = setTimeout(syncMeta, delay);
-  }
+  function scheduleMeta(raw,delay = 300) {if(raw&&typeof raw==='object')pendingCache=raw;clearTimeout(syncTimer);syncTimer=setTimeout(()=>{const next=pendingCache;pendingCache=null;syncMeta(next);},delay);}
 
   function patchDiagnostic() {
     clearTimeout(diagTimer);
@@ -111,9 +107,8 @@
     if(event.detail?.phase==='request')markDirty(String(event.detail?.chatId||cidFromPath()));
   });
 
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes[CACHE_KEY]) scheduleMeta(160);
-  });
+  const cacheBus=window.__NIAKGPT_CACHE_BUS__;
+  if(cacheBus)cacheBus.subscribe(raw=>scheduleMeta(raw,160));else chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY])scheduleMeta(changes[CACHE_KEY].newValue,160);});
 
   document.addEventListener('click', event => {
     const target=event.target instanceof Element?event.target:null;
@@ -132,6 +127,6 @@
 
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)scheduleDiagnostic(100);});
 
-  scheduleMeta(50);
+  if(!cacheBus)scheduleMeta({},50);
   scheduleDiagnostic(600);
 })();

@@ -41,7 +41,8 @@
   }
 
   async function loadConfig(){try{const raw=(await chrome.storage.local.get(GOV_KEY))[GOV_KEY];if(raw&&typeof raw==='object')config={...config,...raw,locks:raw.locks||{}};}catch{}mirrorLocks();}
-  async function loadCache(){try{cache=(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||{projects:[],chats:[],counts:{},projectChats:{}};}catch{cache={projects:[],chats:[],counts:{},projectChats:{}};}return cache;}
+  function cloneCache(raw){const fallback={schema:2,projects:[],chats:[],counts:{},indexedProjectIds:[]};if(!raw||typeof raw!=='object')return fallback;try{return structuredClone(raw);}catch{try{return JSON.parse(JSON.stringify(raw));}catch{return fallback;}}}
+  async function loadCache(){try{const bus=window.__NIAKGPT_CACHE_BUS__,raw=bus?await bus.get():null;cache=cloneCache(raw);return cache;}catch{cache={schema:2,projects:[],chats:[],counts:{},indexedProjectIds:[]};return cache;}}
   async function saveCache(){cache.at=Date.now();try{await chrome.storage.local.set({[CACHE_KEY]:cache});}catch{}}
   async function saveConfig(){mirrorLocks();try{await chrome.storage.local.set({[GOV_KEY]:config});}catch{}applyHiddenProjects();decorateLocks();patchExplorer();patchDiagnostic();bc?.postMessage({type:'config',at:Date.now()});}
   function mirrorLocks(){try{localStorage.setItem(LOCK_MIRROR_KEY,JSON.stringify(config.locks||{}));}catch{}}
@@ -112,8 +113,8 @@
       if(found&&target){cache.projectChats[target]??=[];const idx=cache.projectChats[target].findIndex(c=>c.id===chatId);if(idx>=0)cache.projectChats[target][idx]={...found,projectId:target};else cache.projectChats[target].push({...found,projectId:target});cache.counts[target]=cache.projectChats[target].length;}
     }else{
       cache.counts??={};
-      if(from&&Number.isFinite(Number(cache.counts[from])))cache.counts[from]=Math.max(0,Number(cache.counts[from])-1);
-      if(target&&target!==from&&Number.isFinite(Number(cache.counts[target])))cache.counts[target]=Number(cache.counts[target])+1;
+      if(from&&cache.counts[from]!=null&&Number.isFinite(Number(cache.counts[from])))cache.counts[from]=Math.max(0,Number(cache.counts[from])-1);
+      if(target&&target!==from&&cache.counts[target]!=null&&Number.isFinite(Number(cache.counts[target])))cache.counts[target]=Number(cache.counts[target])+1;
     }
   }
 

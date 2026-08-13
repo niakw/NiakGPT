@@ -1,0 +1,15 @@
+/* NiakGPT 0.9 event-driven core polish */
+#ng8-pins{max-height:min(48vh,520px)!important;overflow:hidden!important}
+#ng8-pins>.ng8-pin-list{max-height:min(31vh,320px)!important;overflow:auto!important}
+.ng90-project-extras{margin-top:5px;border-top:1px solid rgba(79,193,255,.12);padding-top:4px}.ng90-project-extras>summary{list-style:none;cursor:pointer;padding:6px 7px;border-radius:5px;color:#7e92a6;font:800 8.5px/1.2 Consolas,monospace;letter-spacing:.08em}.ng90-project-extras>summary::-webkit-details-marker{display:none}.ng90-project-extras>summary::before{content:'›';display:inline-block;margin-right:6px;color:#4fc1ff;transition:transform .12s}.ng90-project-extras[open]>summary::before{transform:rotate(90deg)}.ng90-project-extras>div{max-height:180px;overflow:auto;padding-top:2px}
+
+#ng8-rail button:focus-visible,#ng8-panel button:focus-visible,#ng8-panel a:focus-visible,#ng8-quick button:focus-visible,#ng8-quick input:focus-visible,#ng8-pins a:focus-visible,a[data-ng8-chat="1"]:focus-visible,a[data-ng8-project="1"]:focus-visible{outline:2px solid #4fc1ff!important;outline-offset:1px!important;box-shadow:0 0 0 3px rgba(79,193,255,.12)!important}
+#ng8-quick[role="dialog"]>div{max-height:min(78vh,720px)!important;overflow:hidden!important}#ng8-quick section{max-height:min(60vh,610px)!important;overflow:auto!important}
+
+html[data-ng90-safe="1"] #ng8-pins>.ng8-pin-list{max-height:24vh!important}html[data-ng90-safe="1"] .ng90-project-extras{display:none!important}
+html[data-ng8-heavy="1"] #ng8-pins>.ng8-pin-list{max-height:25vh!important}
+
+#ng8-status .ng8-version,#ng8-status .ng8-status-project,#ng8-status .ng8-core-state{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ng8-status-project{max-width:190px}
+
+@media(max-width:1100px){#ng8-pins{max-height:42vh!important}#ng8-pins>.ng8-pin-list{max-height:25vh!important}.ng90-project-extras>div{max-height:120px}.ng8-status-project{max-width:130px}}
+@media(max-width:760px){#ng8-pins{max-height:none!important}.ng90-project-extras{display:none!important}}

@@ -14,6 +14,11 @@ const panels=read('side-panels-v096.js');
 const polish=read('polish-v090.js');
 const coach=read('coach-v100.js');
 
+// Matrix stays visually present but low-frequency, especially on CLIENT tabs.
+has(app,"client?(mode==='normal'?360:700)",'client Matrix cadence must remain low');
+has(app,'document.hidden?5000','hidden Matrix cadence must remain very low');
+has(app,'mountObservers();ensureMatrix();wakeBackground();','Matrix must remount only on real route changes');
+
 // UI animation must stay native; coordination is for idle/background work only.
 no(tabs,'niakgptCoordinatedRAF','Global NiakGPT RAF throttling reintroduced');
 no(tabs,'rafTasks','RAF task registry reintroduced');

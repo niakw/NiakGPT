@@ -44,8 +44,7 @@
         "onboarding-v100.css",
         "coach-v100.css",
         "pin-folders-v096.css",
-        "side-panels-v096.css",
-        "retro-loader-v097.css"
+        "side-panels-v096.css"
       ],
       "js": [
         "onboarding-v101.js",
@@ -65,7 +64,18 @@
         "chronology-v090.js",
         "pin-folders-v096.js",
         "hotcache-v084.js",
-        "activity-v086.js",
+        "activity-v086.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://chatgpt.com/*"
+      ],
+      "css": [
+        "retro-loader-v097.css"
+      ],
+      "js": [
         "retro-loader-v097.js"
       ],
       "run_at": "document_start"

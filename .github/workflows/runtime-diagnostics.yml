@@ -23,6 +23,7 @@ concurrency:
   group: niakgpt-runtime-diagnostics-${{ github.ref }}
   cancel-in-progress: true
 
+# Diagnostic-only workflow: each family runs independently on the exact current SHA.
 jobs:
   runtime-extension:
     runs-on: ubuntu-latest

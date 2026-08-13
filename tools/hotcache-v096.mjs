@@ -16,17 +16,23 @@ const waitRx=/\n  function waitForPeer\(id, afterFetchedAt = 0\) \{[\s\S]*?\n  \
 if(waitRx.test(s))s=s.replace(waitRx,`\n  bc?.addEventListener('message', event => {\n    const m = event.data;\n    if (!m?.id) return;\n    if (m.type === 'invalidate') memory.delete(m.id);\n  });`);
 
 const dedupeRx=/  async function fetchWithCrossTabDedupe\(self, input, init, id, staleEntry\) \{[\s\S]*?\n  \}\n\n  window\.fetch = async function niakgptHotCachedFetch/;
-must(dedupeRx.test(s),'hot-cache dedupe function anchor missing');
-s=s.replace(dedupeRx,`  async function fetchWithCrossTabDedupe(self, input, init, id, staleEntry) {\n    if (!navigator.locks?.request) return networkAndCache(self, input, init, id);\n    try {\n      return await navigator.locks.request(\`niakgpt-hotfetch:\${id}\`, { mode:'exclusive' }, async () => {\n        const latest = await getEntry(id);\n        if (latest && latest.fetchedAt > (staleEntry?.fetchedAt || 0) && entryFresh(latest, id)) {\n          deduped++;\n          hits++;\n          setStatus('HIT_AFTER_LOCK', id);\n          return responseFromEntry(latest);\n        }\n        return networkAndCache(self, input, init, id);\n      });\n    } catch {\n      return networkAndCache(self, input, init, id);\n    }\n  }\n\n  window.fetch = async function niakgptHotCachedFetch`);
+if(dedupeRx.test(s))s=s.replace(dedupeRx,`  async function fetchWithCrossTabDedupe(self, input, init, id, staleEntry) {\n    if (!navigator.locks?.request) return networkAndCache(self, input, init, id);\n    try {\n      return await navigator.locks.request(\`niakgpt-hotfetch:\${id}\`, { mode:'exclusive' }, async () => {\n        const latest = await getEntry(id);\n        if (latest && latest.fetchedAt > (staleEntry?.fetchedAt || 0) && entryFresh(latest, id)) {\n          deduped++;\n          hits++;\n          setStatus('HIT_AFTER_LOCK', id);\n          return responseFromEntry(latest);\n        }\n        return networkAndCache(self, input, init, id);\n      });\n    } catch {\n      return networkAndCache(self, input, init, id);\n    }\n  }\n\n  window.fetch = async function niakgptHotCachedFetch`);
 
 // Same-tab isolated-world metadata sync + cross-tab storage sync.
-const storageEventRx=/  window\.addEventListener\('storage', event => \{[\s\S]*?\n  \}\);/;
-must(storageEventRx.test(s),'storage event anchor missing');
-s=s.replace(storageEventRx,`  document.addEventListener('niakgpt:hotmeta-updated', () => {\n    const next = parseJSON(localStorage.getItem(META_KEY), {});\n    metaMirror = next && typeof next === 'object' && !Array.isArray(next) ? next : {};\n  });\n\n  window.addEventListener('storage', event => {\n    if (event.key === META_KEY) {\n      const next = parseJSON(event.newValue, {});\n      metaMirror = next && typeof next === 'object' && !Array.isArray(next) ? next : {};\n    }\n    if (event.key === DIRTY_KEY) {\n      const next = parseJSON(event.newValue, {});\n      dirtyMirror = next && typeof next === 'object' && !Array.isArray(next) ? next : {};\n      for (const id of Object.keys(dirtyMirror)) memory.delete(id);\n    }\n    if (event.key === INDEX_KEY) {\n      const next = parseJSON(event.newValue, []);\n      if (Array.isArray(next)) indexMirror = next;\n    }\n  });`);
+if(!s.includes("document.addEventListener('niakgpt:hotmeta-updated'")){
+  const storageEventRx=/  window\.addEventListener\('storage', event => \{[\s\S]*?\n  \}\);/;
+  must(storageEventRx.test(s),'storage event anchor missing');
+  s=s.replace(storageEventRx,`  document.addEventListener('niakgpt:hotmeta-updated', () => {\n    const next = parseJSON(localStorage.getItem(META_KEY), {});\n    metaMirror = next && typeof next === 'object' && !Array.isArray(next) ? next : {};\n  });\n\n  window.addEventListener('storage', event => {\n    if (event.key === META_KEY) {\n      const next = parseJSON(event.newValue, {});\n      metaMirror = next && typeof next === 'object' && !Array.isArray(next) ? next : {};\n    }\n    if (event.key === DIRTY_KEY) {\n      const next = parseJSON(event.newValue, {});\n      dirtyMirror = next && typeof next === 'object' && !Array.isArray(next) ? next : {};\n      for (const id of Object.keys(dirtyMirror)) memory.delete(id);\n    }\n    if (event.key === INDEX_KEY) {\n      const next = parseJSON(event.newValue, []);\n      if (Array.isArray(next)) indexMirror = next;\n    }\n  });`);
+}
 
 must(!s.includes('WAIT_OTHER_TAB_MS'),'old peer timeout still present');
 must(!s.includes('waitForPeer('),'old peer waiter still present');
 must(!s.includes('ifAvailable:true'),'hot-fetch lock still non-queued');
 must(s.includes("navigator.locks.request(`niakgpt-hotfetch:${id}`, { mode:'exclusive' }"),'queued hot-fetch lock missing');
 fs.writeFileSync(p,s);
+
+// Keep the main runtime checker aligned with the queued-lock design.
+const cp='tools/check-runtime.mjs';let c=fs.readFileSync(cp,'utf8');
+c=c.replace("for(const token of ['indexedDB.open','MAX_ENTRIES = 5','MAX_TOTAL_BYTES = 96','WAIT_PEER','HIT_PEER'])has(texts['hotcache-main-v084.js'],token);", "for(const token of ['indexedDB.open','MAX_ENTRIES = 5','MAX_TOTAL_BYTES = 96','metaMirror','dirtyMirror','indexMirror'])has(texts['hotcache-main-v084.js'],token);\nhas(texts['hotcache-main-v084.js'],\"navigator.locks.request(`niakgpt-hotfetch:${id}`, { mode:'exclusive' }\");\nno(texts['hotcache-main-v084.js'],'waitForPeer(','Peer timeout dedupe reintroduced');\nno(texts['hotcache-main-v084.js'],'WAIT_OTHER_TAB_MS','Peer timeout dedupe reintroduced');\nhas(texts['hotcache-main-v084.js'],'niakgpt:hotmeta-updated');\nhas(texts['hotcache-v084.js'],'niakgpt:hotmeta-updated');");
+fs.writeFileSync(cp,c);
 console.log('NiakGPT 0.9.6 hot cache memory + queued lock converged');

@@ -3,6 +3,7 @@ name: NiakGPT Visual Lab
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     paths:
       - 'manifest.json'
       - '*.js'

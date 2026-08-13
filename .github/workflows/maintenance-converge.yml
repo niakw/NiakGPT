@@ -12,7 +12,7 @@ on:
       - '.github/workflows/maintenance-converge.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: niakgpt-maintenance-main

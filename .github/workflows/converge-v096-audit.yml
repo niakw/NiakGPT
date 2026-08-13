@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'tools/apply-v096-audit.mjs'
+      - 'tools/hotpath-v096.mjs'
   workflow_dispatch:
 
 permissions:
@@ -26,13 +27,17 @@ jobs:
         with:
           node-version: '22'
       - name: Apply audited runtime changes
-        run: node tools/apply-v096-audit.mjs
+        run: |
+          node tools/apply-v096-audit.mjs
+          node tools/hotpath-v096.mjs
       - name: Validate converged runtime
         run: |
           node --check app-v090.js
           node --check multitab-v090.js
           node --check coach-v100.js
           node --check side-panels-v096.js
+          node --check project-governance-v090.js
+          node --check chronology-v090.js
           node tools/check-runtime.mjs
       - name: Commit convergence
         run: |
@@ -42,7 +47,7 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app-v090.js multitab-v090.js control-center-v090.css coach-v100.js tools/check-runtime.mjs
+          git add app-v090.js multitab-v090.js control-center-v090.css coach-v100.js project-governance-v090.js chronology-v090.js tools/check-runtime.mjs
           git commit -m "Converge NiakGPT 0.9.6 audited runtime"
           git pull --rebase origin main
           git push origin HEAD:main

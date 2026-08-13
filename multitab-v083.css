@@ -1,0 +1,26 @@
+/* NiakGPT v0.8.3 — cross-tab worker/client coordination */
+html[data-ng8-tab-role="client"] #ng8-matrix{opacity:.08!important;filter:saturate(.8) brightness(.75)!important}
+html[data-ng8-tab-role="client"][data-ng8-running="1"] #ng8-matrix{opacity:.035!important}
+html[data-ng8-tab-role="client"] .ng8-bot{opacity:.08!important}
+
+#ng8-status{position:fixed!important}
+#ng8-status::before{content:attr(data-tab-role);position:absolute;right:86px;top:50%;transform:translateY(-50%);padding:1px 5px;border-radius:4px;border:1px solid rgba(255,255,255,.18);background:rgba(4,10,16,.22);color:#d9efff;font:700 8px/1.35 Consolas,monospace;letter-spacing:.07em;pointer-events:none}
+html[data-ng8-tab-role="client"] #ng8-status::before{color:#dcdcaa;border-color:rgba(220,220,170,.28);background:rgba(55,52,20,.2)}
+html[data-ng8-tab-role="worker"] #ng8-status::before{color:#4ec9b0;border-color:rgba(78,201,176,.3);background:rgba(12,52,45,.2)}
+
+/* Display current build without forcing the core engine to redraw on every tab. */
+#ng8-status>span:first-child{font-size:0!important}
+#ng8-status>span:first-child b{font-size:10.5px!important}
+#ng8-status>span:first-child::after{content:" 0.8.3";font-size:10.5px!important;font-weight:400}
+
+.ng8-tab-diagnostic{background:linear-gradient(90deg,rgba(79,193,255,.055),transparent)!important;border-top:1px solid rgba(79,193,255,.09)!important;border-bottom:1px solid rgba(79,193,255,.13)!important;margin-bottom:3px!important;padding-left:5px!important}
+html[data-ng8-tab-role="client"] .ng8-tab-diagnostic b{color:#dcdcaa!important}
+html[data-ng8-tab-role="worker"] .ng8-tab-diagnostic b{color:#4ec9b0!important}
+
+#ng8-tab-toast{position:fixed;z-index:2147483647;right:64px;bottom:40px;max-width:360px;padding:9px 12px;border-radius:7px;border:1px solid #455363;background:#111a24;color:#dce7f1;box-shadow:0 12px 34px rgba(0,0,0,.38);font:11px/1.4 system-ui,sans-serif;opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .14s ease,transform .14s ease}
+#ng8-tab-toast.show{opacity:1;transform:translateY(0)}
+
+#ng8-quick.ng8-client-quick>div{border-color:rgba(220,220,170,.26)!important}
+#ng8-quick.ng8-client-quick footer{color:#dcdcaa!important}
+
+@media(max-width:950px){#ng8-status::before{display:none}}

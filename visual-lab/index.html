@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="fr" data-ng8-tab-role="worker" data-ng86-activity="ready">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>NiakGPT Visual Lab</title>
+  <link rel="stylesheet" href="./lab.css">
+  <link rel="stylesheet" href="../theme-v08.css">
+  <link rel="stylesheet" href="../polish-v081.css">
+  <link rel="stylesheet" href="../chronology-v081.css">
+  <link rel="stylesheet" href="../multitab-v083.css">
+  <link rel="stylesheet" href="../governance-v085.css">
+  <link rel="stylesheet" href="../activity-v086.css">
+</head>
+<body class="ng8-ready">
+  <header class="lab-topbar">
+    <span class="lab-brand" data-ng8-brand="1">NiakGPT</span>
+    <div class="lab-controls" aria-label="États du labo">
+      <button data-state="ready">Prêt</button><button data-state="loading">Charge</button><button data-state="waiting">Attend</button><button data-state="thinking">Analyse</button><button data-state="executing">Exécute</button><button data-state="error">Erreur</button>
+    </div>
+    <span class="lab-project-title">Visual QA · Project Studio</span>
+  </header>
+
+  <div class="lab-shell">
+    <nav class="lab-sidebar ng8-sidebar" data-testid="conversation-sidebar">
+      <div class="lab-section-title">Projects</div>
+      <a data-ng8-project="1" href="/g/g-p-1111111111111111/project" style="--ng-project:#4fc1ff"><i>◇</i><span>Studio</span></a>
+      <a data-ng8-project="1" href="/g/g-p-2222222222222222/project" style="--ng-project:#4ec9b0"><i>§</i><span>Legal</span></a>
+      <a data-ng8-project="1" href="/g/g-p-3333333333333333/project" style="--ng-project:#c586c0"><i>▤</i><span>Research</span></a>
+
+      <section id="ng8-pins">
+        <div class="ng8-pin-head"><span>PROJECTS ÉPINGLÉS</span><b>3</b></div>
+        <div class="ng8-pin-list">
+          <a data-ng8-pin="1" class="ng8-active-project" href="/g/g-p-1111111111111111/project" style="--ng-project:#4fc1ff"><i>◇</i><span>Studio</span><small class="ng8-project-meta">13/08 [27]</small></a>
+          <a data-ng8-pin="1" href="/g/g-p-2222222222222222/project" style="--ng-project:#4ec9b0"><i>§</i><span>Legal</span><small class="ng8-project-meta">12/08 [9]</small></a>
+          <a data-ng8-pin="1" href="/g/g-p-3333333333333333/project" style="--ng-project:#c586c0"><i>▤</i><span>Research</span><small class="ng8-project-meta">09/08 [14]</small></a>
+        </div>
+      </section>
+
+      <div class="lab-section-title">Récents</div>
+      <a id="lab-chat-active" data-ng8-chat="1" data-ng8-zebra="0" href="/c/11111111-1111-4111-8111-111111111111" style="--ng-project:#4fc1ff"><span>Améliorer les états d'activité</span><span class="ng8-chat-date">13/08</span><span class="ng8-chat-project" style="--ng-project:#4fc1ff">Studio</span></a>
+      <a data-ng8-chat="1" data-ng8-zebra="1" href="/c/22222222-2222-4222-8222-222222222222" style="--ng-project:#4ec9b0"><span>Audit des contrats</span><span class="ng8-chat-date">12/08</span><span class="ng8-chat-project" style="--ng-project:#4ec9b0">Legal</span></a>
+      <a data-ng8-chat="1" data-ng8-zebra="0" href="/c/33333333-3333-4333-8333-333333333333" style="--ng-project:#c586c0"><span>Analyse documentaire longue</span><span class="ng8-chat-date">09/08</span><span class="ng8-chat-project" style="--ng-project:#c586c0">Research</span></a>
+      <a data-ng8-chat="1" data-ng8-zebra="1" href="/c/44444444-4444-4444-8444-444444444444"><span>Conversation hors projet</span><span class="ng8-chat-date">08/08</span></a>
+      <a data-ng8-chat="1" data-ng8-zebra="0" href="/c/55555555-5555-4555-8555-555555555555"><span>Un titre volontairement très long pour tester les débordements du menu gauche</span><span class="ng8-chat-date">07/08</span></a>
+    </nav>
+
+    <main class="lab-main">
+      <canvas id="ng8-matrix" aria-hidden="true"></canvas>
+      <section class="lab-conversation" id="lab-conversation">
+        <article class="lab-turn" data-testid="conversation-turn-1" data-ng8-turn="0" data-ng8-role="user"><small>UTILISATEUR</small><div data-message-author-role="user"><p>Peux-tu rendre cette interface plus claire sans perdre la densité d'information ?</p></div></article>
+        <article class="lab-turn" data-testid="conversation-turn-2" data-ng8-turn="1" data-ng8-role="assistant"><small>ASSISTANT</small><div data-message-author-role="assistant"><p>Oui. Le principe est de réserver la couleur aux états et à la hiérarchie plutôt qu'à la décoration.</p><pre><code class="language-js">const state = activity.current();
+renderSidebar(state);
+renderStatus(state);</code></pre></div></article>
+        <article class="lab-turn" data-testid="conversation-turn-3" data-ng8-turn="2" data-ng8-role="user"><small>UTILISATEUR</small><div data-message-author-role="user"><p>Et garde le panneau Activité lisible, le coach au-dessus du composer et les gros fils fluides.</p></div></article>
+        <article class="lab-turn" data-testid="conversation-turn-4" data-ng8-turn="3" data-ng8-role="assistant"><small>ASSISTANT</small><div data-message-author-role="assistant"><p>Scène de référence prête pour les contrôles visuels automatiques.</p></div></article>
+      </section>
+
+      <div class="lab-composer-shell" id="lab-composer-shell">
+        <div id="ng8-coach">
+          <div class="ng8-coach-label">✦ NIAKGPT · RECO</div>
+          <div class="ng8-sug-grid"><button class="ng8-sug ng8-design"><b>DA système</b><span>Harmonise états, densité et contraste.</span></button><button class="ng8-sug ng8-perf"><b>Performance</b><span>Évite les scans pendant le streaming.</span></button></div>
+        </div>
+        <form class="lab-composer" data-type="unified-composer">
+          <textarea id="prompt-textarea" data-testid="prompt-textarea" placeholder="Message NiakGPT"></textarea>
+          <button type="button" aria-label="Envoyer" data-testid="send-button">↑</button>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <aside class="lab-activity ng8-native-activity" id="lab-activity" hidden>
+    <header><div><small>ACTIVITÉ</small><b>Analyse · 51s</b></div><button class="ng8-activity-close" aria-label="Fermer le panneau Activité">×</button></header>
+    <div class="lab-activity-card"><b>Lecture du contexte</b><p>Inspection d'un fil long et de ses éléments actifs.</p></div>
+    <div class="lab-activity-card"><b>Exécution</b><p>Application de changements de style et vérification du layout.</p></div>
+    <pre><code>visual.assertNoOverlap();
+visual.capture('activity-panel');</code></pre>
+  </aside>
+
+  <aside id="ng8-rail"><button>▤</button><button>☷</button><button>◉</button><span></span><button>⌘</button></aside>
+  <div id="ng8-status" data-ng86-activity="ready"><span><b>NiakGPT</b> 0.8.6</span><span>Studio</span><button>⌘ Alt+K</button><strong>BY SKYNET</strong><span class="ng86-status-state">PRÊT</span></div>
+
+  <template id="lab-governance-template">
+    <div id="ng85-governance"><div class="ng85-governance-card">
+      <header><div><small>PROJECT GOVERNANCE · LAB</small><b>Nettoyer & reconstruire</b></div><button>×</button></header>
+      <div class="ng85-summary"><div><b>4</b><span>Projects principaux</span></div><div><b>7</b><span>reliquats / doublons</span></div><div><b>3</b><span>placements manuels</span></div><div><b>19</b><span>actions proposées</span></div></div>
+      <section class="ng85-note"><b>Règle absolue :</b> un déplacement manuel reste prioritaire.</section>
+      <div class="ng85-columns"><section><h3>Structure principale</h3><div class="ng85-project-choice"><label><input type="checkbox" checked><span>◇ Studio</span><em>PRINCIPAL</em></label><label><input type="checkbox" checked><span>§ Legal</span><em>PRINCIPAL</em></label><label><input type="checkbox"><span>▤ Design</span><em>RELIQUAT</em></label></div></section><section><h3>Plan de nettoyage</h3><div class="ng85-plan-list"><div><b>Design</b><span>RELIQUAT</span><em>0 verrouillé</em></div><div><b>Test</b><span>TEST/TEMP</span><em>1 verrouillé</em></div></div></section></div>
+      <section class="ng85-plan-stats"><span>→ 12 réaffectations</span><span>○ 7 vers Hors projet</span><span>🔒 3 préservés</span></section>
+      <footer><button>Réafficher</button><span></span><button>Recalculer</button><button class="primary">Exécuter le nettoyage</button></footer>
+    </div></div>
+  </template>
+
+  <script src="./lab.js"></script>
+</body>
+</html>

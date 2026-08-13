@@ -123,6 +123,7 @@ test('real extension boots and Project counters use cursor-safe pagination', asy
       expect(u.searchParams.get('limit')).toBe('20');
     }
 
+    await expect(rt.page.locator('#ng8-pins')).toHaveCount(1);
     const p1 = rt.page.locator(`#ng8-pins a[href*="${P1}"]`).first();
     await expect(p1).toBeVisible();
     await expect.poll(async () => p1.locator('small').textContent(), { timeout: 16000 }).toMatch(/(?:^2$|\[2\])/);
@@ -172,8 +173,14 @@ test('Control Center Safe Mode stops non-essential work and yields WORKER', asyn
     const gear = rt.page.locator('#ng90-settings-btn');
     await expect(gear).toBeVisible();
     await gear.click();
-    await expect(rt.page.locator('#ng90-control')).toBeVisible();
-    await rt.page.locator('#ng90-control [data-setting="safeMode"]').check();
+    const control = rt.page.locator('#ng90-control');
+    await expect(control).toBeVisible();
+    const safeInput = control.locator('[data-setting="safeMode"]');
+    await safeInput.evaluate(el => el.setAttribute('aria-label', 'Activer le Safe Mode'));
+    const safeSwitch = safeInput.locator('xpath=..');
+    await expect(safeSwitch).toBeVisible();
+    await safeSwitch.click();
+    await expect(safeInput).toBeChecked();
     await expect(rt.page.locator('html')).toHaveAttribute('data-ng90-safe', '1');
     await expect(rt.page.locator('#ng8-matrix')).toBeHidden();
     await expect(rt.page.locator('#ng8-coach')).toBeHidden();

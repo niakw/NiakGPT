@@ -17,7 +17,7 @@
     projects:[], projectById:new Map(), chats:[], chatById:new Map(), projectChats:new Map(), counts:new Map(), duplicates:new Map(),
     health:{bridge:'PRÊT',data:'CACHE',projects:'CACHE',quick:'PRÊT',coach:'INACTIF',toc:'INACTIF',performance:'PRÊT',matrix:'INACTIF',ui:'PRÊT'},
     errors:[], panelOpen:false, tab:'explorer', queue:[], queueTimer:0, indexing:false, indexComplete:false, generalLoaded:false,
-    mainObserver:null, sidebarObserver:null, mainRoot:null, sidebarRoot:null, mainTimer:0, sidebarTimer:0, lastPath:location.pathname, projectsRefreshed:false, refreshingProjects:false,
+    mainObserver:null, sidebarObserver:null, mainRoot:null, sidebarRoot:null, mainTimer:0, sidebarTimer:0, sidebarNeedsPins:false, lastPath:location.pathname, projectsRefreshed:false, refreshingProjects:false,
     pendingMain:new Set(), turns:[], turnSeen:new WeakSet(), codeSeen:new WeakSet(), codeCount:0,
     matrix:null, matrixCtx:null, matrixTimer:0, matrixResize:null, matrixCols:[], matrixW:0, matrixH:0,
     governance:{coreProjectIds:[],hiddenProjectIds:[]}, cacheLoaded:false
@@ -205,7 +205,7 @@
       upsertChat({id,title,projectId:pidFromHref(a.getAttribute('href'))||old?.projectId||'',snippet:old?.snippet||'',updated:old?.updated||0,href:a.getAttribute('href')||old?.href||''});
     }
   }
-  function decorateSidebar(){
+  function decorateSidebar(renderManaged=true){
     const root=navRoot();if(!root)return;mergeDOM();buildDuplicates();
     const currentCid=currentChatId(),currentPid=currentProject();
     let z=0;
@@ -219,7 +219,7 @@
       let badge=a.querySelector(':scope > .ng8-chat-project');
       if(p&&!badge){badge=document.createElement('span');badge.className='ng8-chat-project';a.appendChild(badge);}if(badge){if(p){badge.textContent=p.name;badge.style.setProperty('--ng-project',p.color);}else badge.remove();}
     }
-    renderPins();
+    if(renderManaged)renderPins();
   }
   function currentProject(){
     const path=currentProjectIdFromPath();if(path)return S.projectById.get(path)||null;
@@ -336,7 +336,7 @@
     const main=document.querySelector('main');
     if(main&&main!==S.mainRoot){S.mainObserver?.disconnect();S.mainRoot=main;S.mainObserver=new MutationObserver(queueMainNodes);S.mainObserver.observe(main,{childList:true,subtree:true});scanExistingMain();}
     const side=navRoot();
-    if(side&&side!==S.sidebarRoot){S.sidebarObserver?.disconnect();S.sidebarRoot=side;S.sidebarObserver=new MutationObserver(()=>{if(S.sidebarTimer)return;S.sidebarTimer=setTimeout(()=>{S.sidebarTimer=0;decorateSidebar();},activity()==='ready'?260:1300);});S.sidebarObserver.observe(side,{childList:true,subtree:true});}
+    if(side&&side!==S.sidebarRoot){S.sidebarObserver?.disconnect();S.sidebarRoot=side;S.sidebarObserver=new MutationObserver(records=>{let relevant=false,projectTouched=false;for(const record of records)for(const node of record.addedNodes){if(!(node instanceof Element))continue;const hasProject=node.matches?.(PROJECT_SEL)||node.querySelector?.(PROJECT_SEL);const hasChat=node.matches?.(CHAT_SEL)||node.querySelector?.(CHAT_SEL);if(hasProject){relevant=true;projectTouched=true;}else if(hasChat)relevant=true;}if(!relevant)return;S.sidebarNeedsPins=S.sidebarNeedsPins||projectTouched;if(S.sidebarTimer)return;S.sidebarTimer=setTimeout(()=>{S.sidebarTimer=0;const pins=S.sidebarNeedsPins;S.sidebarNeedsPins=false;decorateSidebar(pins);},activity()==='ready'?260:1300);});S.sidebarObserver.observe(side,{childList:true,subtree:true});}
   }
   function resetRouteVisuals(){
     S.turns=[];S.turnSeen=new WeakSet();S.codeSeen=new WeakSet();S.codeCount=0;document.documentElement.dataset.ng8Heavy='0';renderStatusBase();decorateSidebar();setTimeout(scanExistingMain,500);

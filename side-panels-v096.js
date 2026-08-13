@@ -32,10 +32,12 @@
     if(!(panel instanceof HTMLElement))return;
     panel.classList.add('ng96-native-sidepanel',`ng96-sidepanel-${type}`);panel.dataset.ng96Sidepanel=type;
     if(getComputedStyle(panel).position==='static')panel.style.position='relative';
-    const head=panel.querySelector('header,[role="heading"]')?.closest('header,div')||panel.querySelector('header');if(head instanceof HTMLElement)head.classList.add('ng96-sidepanel-head');
+    const head=panel.querySelector('header,[role="heading"]')?.closest('header,div')||panel.querySelector('header');if(head instanceof HTMLElement){head.classList.add('ng96-sidepanel-head');if(getComputedStyle(head).position==='static')head.style.position='relative';}
     if(type==='activity')panel.classList.add('ng8-native-activity');
-    let close=panel.querySelector(':scope > .ng96-side-close,:scope > .ng8-activity-close');
-    if(!close){close=document.createElement('button');close.type='button';close.className='ng96-side-close';close.setAttribute('aria-label',`Fermer ${type==='activity'?'Activité':type==='sources'?'Sources':'Sorties'}`);close.textContent='×';close.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();closePanel(panel);});panel.appendChild(close);}
+    const closeHost=head instanceof HTMLElement?head:panel;
+    let close=closeHost.querySelector(':scope > .ng96-side-close,:scope > .ng8-activity-close')||panel.querySelector(':scope > .ng96-side-close,:scope > .ng8-activity-close');
+    if(close&&close.parentElement!==closeHost)closeHost.appendChild(close);
+    if(!close){close=document.createElement('button');close.type='button';close.className='ng96-side-close';close.setAttribute('aria-label',`Fermer ${type==='activity'?'Activité':type==='sources'?'Sources':'Sorties'}`);close.textContent='×';close.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();closePanel(panel);});closeHost.appendChild(close);}
   }
   function decorateTriggers(root=document){
     const candidates=[...(root.querySelectorAll?.('button,[role="button"],a')||[])];

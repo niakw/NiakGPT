@@ -48,6 +48,7 @@ no(panels,'niakgpt:activity-network','Side-panel adapter must not wake from gene
 no(panels,'arm(7000)','Long startup body observer reintroduced');
 has(panels,"attributeFilter:['data-ng86-activity']",'Side-panel READY refresh observer missing');
 has(panels,'if(!relevant)return;arm();scheduleScan(80','Side-panel interaction scoping missing');
+has(panels,'const closeHost=head instanceof HTMLElement?head:panel;','sticky side-panel close missing');
 no(polish,'MutationObserver','Duplicate panel observer reintroduced in polish');
 
 console.log('NiakGPT 0.9.6 hot-path invariants: OK');

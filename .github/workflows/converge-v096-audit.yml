@@ -11,6 +11,7 @@ on:
       - 'tools/hotcache-v096.mjs'
       - 'tools/hotcache-lock-hold-v096.mjs'
       - 'tools/cache-normalize-v096.mjs'
+      - 'tools/cache-bus-consumers-v096.mjs'
   workflow_dispatch:
 
 permissions:
@@ -40,6 +41,7 @@ jobs:
           node tools/hotcache-v096.mjs
           node tools/hotcache-lock-hold-v096.mjs
           node tools/cache-normalize-v096.mjs
+          node tools/cache-bus-consumers-v096.mjs
       - name: Validate converged runtime
         run: |
           node --check app-v090.js
@@ -48,7 +50,10 @@ jobs:
           node --check side-panels-v096.js
           node --check project-governance-v090.js
           node --check chronology-v090.js
+          node --check pin-folders-v096.js
           node --check hotcache-main-v084.js
+          node --check hotcache-v084.js
+          node --check cache-bus-v096.js
           node tools/check-runtime.mjs
           node tools/check-hotpath-v096.mjs
       - name: Commit convergence
@@ -59,7 +64,7 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app-v090.js multitab-v090.js control-center-v090.css coach-v100.js project-governance-v090.js chronology-v090.js hotcache-main-v084.js tools/check-runtime.mjs
+          git add app-v090.js multitab-v090.js control-center-v090.css coach-v100.js project-governance-v090.js chronology-v090.js pin-folders-v096.js hotcache-main-v084.js hotcache-v084.js tools/check-runtime.mjs
           git commit -m "Converge NiakGPT 0.9.6 audited runtime"
           git pull --rebase origin main
           git push origin HEAD:main

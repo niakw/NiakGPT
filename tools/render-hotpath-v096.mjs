@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+// One-shot 0.9.6 helper; removed after final certification.
 const p='app-v090.js';
 let s=fs.readFileSync(p,'utf8');
 s=s.replaceAll('renderPins();decorateSidebar();','decorateSidebar();');

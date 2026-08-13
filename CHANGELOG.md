@@ -2,6 +2,47 @@
 
 Les changements notables de NiakGPT sont regroupés ici. Le projet est encore en phase RC : les versions 0.x peuvent faire évoluer l’architecture interne rapidement.
 
+## 0.9.6 — Audit RC
+
+### UX / navigation
+
+- les Projects épinglés deviennent de vrais dossiers dépliables : clic Project = liste instantanée des conversations depuis le cache local, bouton `↗` séparé pour ouvrir la page Project complète ;
+- conversations du sous-menu triées par dernière activité avec date visible et filtre local sur les gros Projects ;
+- Quick Open en onglet CLIENT privilégie les liens SPA natifs au lieu d’un reload complet ;
+- barre basse stabilisée : zones d’état, rôle WORKER/CLIENT, SAFE et `BY SKYNET` ne doivent plus se décaler lors des changements d’état ;
+- Matrix légèrement plus visible au repos sans augmentation de cadence CPU, toujours fortement atténuée en activité/gros fil.
+
+### Coach
+
+- nouveau coach contextuel : le prompt courant domine le classement, Project/titre/derniers échanges servent uniquement à désambiguïser ;
+- extraction de contraintes, technologies et entités réellement citées ;
+- trois rôles distincts par recommandation : approche/diagnostic, angle mort/vérification, livrable/action ;
+- recommandations spécialisées pour code, performance, design/UX, recherche, droit, comparaison, organisation, données et rédaction.
+
+### Panneaux natifs
+
+- traitement commun des panneaux **Activité**, **Sources** et **Sorties / Outputs** ;
+- DA NiakGPT cohérente, header lisible et fermeture toujours accessible ;
+- panneaux ouverts décalés à gauche du rail NiakGPT ;
+- poignées/boutons repliés eux aussi déplacés pour ne jamais se chevaucher avec la barre latérale droite ;
+- adaptation automatique lorsque le panneau NiakGPT droit est lui-même ouvert.
+
+### Performance / architecture
+
+- suppression du `routeTick` périodique du cœur ;
+- navigation SPA pilotée par Navigation API / clic / `popstate` ;
+- rebinding des observers uniquement quand les nœuds `main` ou sidebar changent réellement ;
+- suppression des retries périodiques d’indexation sur les onglets qui ne peuvent pas travailler ;
+- `CLIENT → WORKER`, retour à `PRÊT`, visibilité et navigation réveillent directement la file idle ;
+- plus aucun polling permanent autorisé dans les nouveaux modules coach, dossiers épinglés ou panneaux latéraux.
+
+### QA
+
+- nouveaux invariants anti-`routeTick`, anti-retry périodique et anti-reload Quick Open CLIENT ;
+- garde de géométrie pour la barre basse ;
+- garde de coexistence rail droit / Activité / Sources / Sorties ;
+- garde sur les dossiers épinglés instantanés et le coach contextuel.
+
 ## 0.9.5 — RC6
 
 ### Runtime / cycle de vie

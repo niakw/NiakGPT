@@ -37,7 +37,8 @@ async function runtime(){
     return route.fulfill({status:204,body:''});
   });
   const page=context.pages()[0]||await context.newPage();
-  await page.goto(`https://chatgpt.com/c/${CHAT}`,{waitUntil:'domcontentloaded'});
+  await page.goto(`https://chatgpt.com/c/${CHAT}`,{waitUntil:'commit'});
+  await expect(page.locator('#native-brand')).toBeVisible({timeout:8000});
   await expect(page.locator('#ng8-status')).toBeVisible({timeout:12000});
   return {context,page,state,userDataDir};
 }

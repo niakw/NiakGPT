@@ -13,12 +13,22 @@ async function assertNoHorizontalOverflow(page) {
   expect(dims.scrollWidth).toBeLessThanOrEqual(dims.clientWidth + 2);
 }
 
-async function assertComposerFlow(page) {
-  const coach = await page.locator('#ng8-coach').boundingBox();
-  const composer = await page.locator('.lab-composer').boundingBox();
-  expect(coach).not.toBeNull();
-  expect(composer).not.toBeNull();
-  expect(coach.y + coach.height).toBeLessThanOrEqual(composer.y + 2);
+async function assertComposerFlow(page, { coachExpected = true } = {}) {
+  const composer = page.locator('.lab-composer');
+  await expect(composer).toBeVisible();
+  const composerBox = await composer.boundingBox();
+  expect(composerBox).not.toBeNull();
+
+  const coach = page.locator('#ng8-coach');
+  if (!coachExpected) {
+    await expect(coach).toBeHidden();
+    return;
+  }
+
+  await expect(coach).toBeVisible();
+  const coachBox = await coach.boundingBox();
+  expect(coachBox).not.toBeNull();
+  expect(coachBox.y + coachBox.height).toBeLessThanOrEqual(composerBox.y + 2);
 }
 
 const states = {
@@ -36,7 +46,7 @@ for (const [state, label] of Object.entries(states)) {
     await page.goto(`./?state=${state}`);
     await expect(page.locator('.ng86-status-state')).toHaveText(label);
     await assertNoHorizontalOverflow(page);
-    await assertComposerFlow(page);
+    await assertComposerFlow(page, { coachExpected: state === 'ready' || state === 'error' });
 
     const chat = page.locator('#lab-chat-active');
     await expect(chat).toHaveAttribute('data-ng86-activity', state);
@@ -58,8 +68,9 @@ test('laptop layout keeps composer and status usable', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.goto('./?state=thinking');
   await assertNoHorizontalOverflow(page);
-  await assertComposerFlow(page);
+  await assertComposerFlow(page, { coachExpected: false });
   const status = await page.locator('#ng8-status').boundingBox();
+  expect(status).not.toBeNull();
   expect(status.y + status.height).toBeLessThanOrEqual(768.5);
   await page.screenshot({ path: path.join(artifacts, 'laptop-thinking.png') });
 });
@@ -72,6 +83,7 @@ test('activity panel has an accessible close control and no viewport overflow', 
   const close = page.locator('#lab-activity .ng8-activity-close');
   await expect(close).toBeVisible();
   const box = await close.boundingBox();
+  expect(box).not.toBeNull();
   expect(box.x).toBeGreaterThanOrEqual(0);
   expect(box.x + box.width).toBeLessThanOrEqual(1440);
   expect(box.y).toBeGreaterThanOrEqual(0);
@@ -85,7 +97,7 @@ test('heavy thread remains structurally stable', async ({ page }) => {
   await page.goto('./?scene=heavy&state=executing');
   await expect(page.locator('.lab-turn')).toHaveCount(84);
   await assertNoHorizontalOverflow(page);
-  await assertComposerFlow(page);
+  await assertComposerFlow(page, { coachExpected: false });
   await page.locator('.lab-main').evaluate(el => { el.scrollTop = Math.floor(el.scrollHeight * .55); });
   await page.waitForTimeout(100);
   await page.screenshot({ path: path.join(artifacts, 'heavy-thread-midscroll.png') });
@@ -97,6 +109,7 @@ test('Project Governance modal fits desktop viewport', async ({ page }) => {
   const modal = page.locator('#ng85-governance');
   await expect(modal).toBeVisible();
   const card = await page.locator('.ng85-governance-card').boundingBox();
+  expect(card).not.toBeNull();
   expect(card.width).toBeLessThan(1370);
   expect(card.height).toBeLessThanOrEqual(810.5);
   await page.screenshot({ path: path.join(artifacts, 'project-governance.png') });

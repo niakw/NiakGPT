@@ -3,6 +3,7 @@
   if (location.hostname !== 'chatgpt.com' || window.__NIAKGPT_ACTIVITY_086__) return;
   window.__NIAKGPT_ACTIVITY_086__ = true;
 
+  const VERSION = '0.8.6';
   const CHANNEL = 'niakgpt-activity-v086';
   const bc = typeof BroadcastChannel === 'function' ? new BroadcastChannel(CHANNEL) : null;
   const states = new Map();
@@ -12,6 +13,7 @@
   let lastPath = location.pathname;
   let lastAssistantLen = 0;
   let lastAssistantGrowthAt = 0;
+  let lastStopSeenAt = 0;
 
   const CHAT_SEL = 'a[href*="/c/"]';
   const PROJECT_SEL = 'a[href^="/g/g-p-"][href*="/project"]';
@@ -24,6 +26,7 @@
   function setState(state, extra = {}) {
     const cid = currentChatId();
     const pid = currentProjectId();
+    if (localState === state && !extra.force) return;
     localState = state;
     localSince = Date.now();
     document.documentElement.dataset.ng86Activity = state;
@@ -44,13 +47,25 @@
   }
 
   function detectThinkingMarker() {
-    const candidates = document.querySelectorAll('[data-testid*="thinking"],[class*="thinking"],[data-state],button,span');
+    const candidates = document.querySelectorAll('[data-testid*="thinking"],[class*="thinking"],[data-state="thinking"],[data-state="loading"],[aria-busy="true"]');
     for (const el of candidates) {
       if (!(el instanceof HTMLElement)) continue;
       const r = el.getBoundingClientRect();
       if (!r.width || !r.height) continue;
       const txt = (el.getAttribute('aria-label') || el.textContent || '').trim().toLowerCase();
-      if (/^(thinking|réflexion|reflexion|analyse|analyzing|reasoning|raisonnement)/i.test(txt)) return true;
+      if (!txt || /thinking|réflexion|reflexion|analyse|analyzing|reasoning|raisonnement|working|travail/i.test(txt)) return true;
+    }
+    return false;
+  }
+
+  function detectErrorMarker() {
+    const candidates = document.querySelectorAll('[role="alert"],[data-testid*="error" i],[class*="error" i]');
+    for (const el of candidates) {
+      if (!(el instanceof HTMLElement)) continue;
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      const txt = (el.textContent || el.getAttribute('aria-label') || '').trim();
+      if (/something went wrong|une erreur|erreur réseau|network error|failed|échec/i.test(txt)) return true;
     }
     return false;
   }
@@ -61,13 +76,25 @@
     return (last?.innerText || last?.textContent || '').length;
   }
 
+  function conversationMounted() {
+    return !!document.querySelector('[data-message-author-role],article[data-testid^="conversation-turn-"]') && !!document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]');
+  }
+
   function inferState() {
     const cid = currentChatId();
     if (!cid) return;
 
+    if (detectErrorMarker()) {
+      if (localState !== 'error') setState('error');
+      return;
+    }
+
     const stop = detectStopButton();
     const thinking = detectThinkingMarker();
     const len = assistantLength();
+
+    if (stop) lastStopSeenAt = Date.now();
+
     if (len > lastAssistantLen) {
       lastAssistantLen = len;
       lastAssistantGrowthAt = Date.now();
@@ -81,14 +108,28 @@
     }
 
     if (stop) {
-      const recentlyGrowing = Date.now() - lastAssistantGrowthAt < 1800;
+      const recentlyGrowing = Date.now() - lastAssistantGrowthAt < 2200;
       const wanted = recentlyGrowing ? 'executing' : (Date.now() - localSince > 1200 ? 'thinking' : 'waiting');
       if (localState !== wanted) setState(wanted);
       return;
     }
 
-    if (['waiting','thinking','executing','loading'].includes(localState)) {
-      if (Date.now() - localSince > 700) setState('ready');
+    // A freshly sent prompt may wait several seconds before ChatGPT exposes a Stop button.
+    // Do NOT report READY just because the DOM has not caught up yet.
+    if (localState === 'waiting') {
+      if (Date.now() - localSince > 120000) setState('error');
+      return;
+    }
+
+    if (localState === 'loading') {
+      if (conversationMounted()) setState('ready');
+      else if (Date.now() - localSince > 30000) setState('error');
+      return;
+    }
+
+    if (localState === 'thinking' || localState === 'executing') {
+      const quietFor = Date.now() - Math.max(lastAssistantGrowthAt, lastStopSeenAt, localSince);
+      if (quietFor > 1200) setState('ready');
     }
   }
 
@@ -100,7 +141,7 @@
     if (/send|envoyer|submit/i.test(label)) {
       clearTimeout(pendingTimer);
       setState('waiting');
-      pendingTimer = setTimeout(() => { if (localState === 'waiting') inferState(); }, 1300);
+      pendingTimer = setTimeout(() => inferState(), 1000);
     }
   }
 
@@ -110,7 +151,7 @@
     if (!composer || event.key !== 'Enter' || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return;
     clearTimeout(pendingTimer);
     setState('waiting');
-    pendingTimer = setTimeout(() => { if (localState === 'waiting') inferState(); }, 1300);
+    pendingTimer = setTimeout(() => inferState(), 1000);
   }
 
   function markLoadingOnRoute() {
@@ -118,10 +159,9 @@
     lastPath = location.pathname;
     lastAssistantLen = 0;
     lastAssistantGrowthAt = 0;
-    if (currentChatId()) {
-      setState('loading');
-      setTimeout(() => { if (localState === 'loading') setState('ready'); }, 1800);
-    }
+    lastStopSeenAt = 0;
+    if (currentChatId()) setState('loading');
+    else setState('ready');
   }
 
   function renderSidebar() {
@@ -154,6 +194,10 @@
     const bar = document.getElementById('ng8-status');
     if (!bar) return;
     bar.dataset.ng86Activity = localState;
+
+    const first = bar.firstElementChild;
+    if (first && /NiakGPT/i.test(first.textContent || '')) first.innerHTML = `<b>NiakGPT</b> ${VERSION}`;
+
     let stateEl = bar.querySelector('.ng86-status-state');
     if (!stateEl) {
       stateEl = document.createElement('span');
@@ -170,10 +214,9 @@
     };
     stateEl.textContent = labels[localState] || 'PRÊT';
 
-    // Hide the old status word so there is a single source of truth.
     for (const child of [...bar.children]) {
       if (child === stateEl) continue;
-      if (/^(PRÊT|PRET|EXÉCUTION|EXECUTION|DIAGNOSTIC)$/i.test((child.textContent || '').trim())) child.classList.add('ng86-old-state');
+      if (/^(PRÊT|PRET|EXÉCUTION|EXECUTION|DIAGNOSTIC|ATTENTE|CHARGEMENT|RÉFLEXION|REFLEXION)$/i.test((child.textContent || '').trim())) child.classList.add('ng86-old-state');
     }
   }
 
@@ -198,6 +241,5 @@
     render();
   }, 700);
 
-  setState(currentChatId() ? 'loading' : 'ready');
-  setTimeout(() => { if (localState === 'loading') setState('ready'); }, 1600);
+  setState(currentChatId() ? 'loading' : 'ready', { force:true });
 })();

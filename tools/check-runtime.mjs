@@ -30,7 +30,7 @@ const texts = Object.fromEntries([...expectedMain, ...expectedIsolated].map(path
 const cssTexts = Object.fromEntries(expectedCss.map(path => [path, read(path)]));
 const background = read(manifest.background.service_worker);
 
-for (const file of ['app-v090.js','chronology-v090.js','polish-v090.js','control-center-v090.js','project-governance-v090.js','project-pins-v090.js','sidebar-host-v090.js','profiles-v100.js','commands-v100.js','onboarding-v101.js']) {
+for (const file of ['app-v090.js','chronology-v090.js','polish-v090.js','control-center-v090.js','project-governance-v090.js','project-pins-v090.js','sidebar-host-v090.js','profiles-v100.js','commands-v100.js','onboarding-v101.js','hotcache-v084.js']) {
   no(texts[file], 'setInterval(', `Permanent polling forbidden in ${file}`);
 }
 
@@ -85,8 +85,11 @@ for (const token of ['syncEnabled','nativePinnedIds','verifyPinned','désépingl
 has(texts['project-pins-v090.js'], "role()==='worker'");
 has(texts['project-pins-v090.js'], 'settings.safeMode!==true');
 
-// Hot cache.
+// Hot cache: IndexedDB + cross-tab dedupe, with no periodic DOM scan.
 for (const token of ['indexedDB.open','MAX_ENTRIES = 5','MAX_TOTAL_BYTES = 96','WAIT_PEER','HIT_PEER']) has(texts['hotcache-main-v084.js'], token);
+has(texts['hotcache-v084.js'], 'niakgpt:activity-network');
+no(texts['hotcache-v084.js'], "querySelectorAll('button,[data-testid]')", 'Hot cache broad generation scan reintroduced');
+no(texts['hotcache-v084.js'], 'setInterval(', 'Hot cache polling reintroduced');
 
 // Control Center public controls + accessibility.
 for (const token of ['sanitize(raw','SETTINGS_MIRROR','syncGovernanceAutomation','exportConfig','importConfig','copyDiagnostic','wipeAllLocalData','trapTab','returnFocus']) has(texts['control-center-v090.js'], token);
@@ -107,6 +110,7 @@ no(texts['onboarding-v101.js'], 'hasLegacyMirror');
 // Workspace profiles + Command Palette.
 for (const profile of ['power','code','research','focus','analyst','contrast']) has(texts['profiles-v100.js'], `'${profile}'`);
 has(texts['profiles-v100.js'], 'niakgpt:set-profile');
+has(texts['profiles-v100.js'], 'niakgpt:settings-changed');
 has(texts['commands-v100.js'], "event.ctrlKey||event.metaKey");
 has(texts['commands-v100.js'], "String(event.key).toLowerCase()==='p'");
 has(texts['commands-v100.js'], 'Project Governance');

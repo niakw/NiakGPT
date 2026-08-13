@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+const p='app-v090.js';
+let s=fs.readFileSync(p,'utf8');
+s=s.replaceAll('renderPins();decorateSidebar();','decorateSidebar();');
+s=s.replace("health('data',`INDEX IDLE · ${S.projects.length-S.queue.length}/${S.projects.length}`);await saveCache();renderPins();renderPanel();","health('data',`INDEX IDLE · ${S.projects.length-S.queue.length}/${S.projects.length}`);await saveCache();");
+s=s.replace("if(!S.indexComplete){S.indexComplete=true;health('data',`OK · ${S.projects.length} Projects · ${S.chats.length} chats`);await saveCache();setTimeout(()=>{if(canBackground())fetchGeneralBestEffort();},1800);}","if(!S.indexComplete){S.indexComplete=true;health('data',`OK · ${S.projects.length} Projects · ${S.chats.length} chats`);await saveCache();decorateSidebar();if(S.panelOpen)renderPanel();setTimeout(()=>{if(canBackground())fetchGeneralBestEffort();},1800);}");
+if(s.includes('await saveCache();renderPins();renderPanel();'))throw new Error('per-Project full render still present');
+if(s.includes('renderPins();decorateSidebar();'))throw new Error('duplicate Project render still present');
+fs.writeFileSync(p,s);
+console.log('NiakGPT 0.9.6 Project render hot path converged');

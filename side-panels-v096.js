@@ -67,6 +67,10 @@
   window.addEventListener('popstate',()=>scheduleScan(100));
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)scheduleScan(120);});
 
-  // Short hydration probes only: no global observer is left armed at rest.
+  // Attribute-only observer: when generation settles, perform one cheap right-edge refresh.
+  const stateObserver=new MutationObserver(records=>{if(records.some(r=>r.attributeName==='data-ng86-activity')&&document.documentElement.dataset.ng86Activity==='ready')scheduleScan(120);});
+  stateObserver.observe(document.documentElement,{attributes:true,attributeFilter:['data-ng86-activity']});
+
+  // Short hydration probes only: no global body observer is left armed at rest.
   scheduleScan(180);setTimeout(()=>scheduleScan(600),600);setTimeout(()=>scheduleScan(1500),1500);
 })();

@@ -250,8 +250,11 @@
   function applyProjectTheme(){ const p=currentProject();document.documentElement.style.setProperty('--ng8-current-project',p?.color||'#3794ff'); }
 
   function diagnosticRows(){
-    const external=window.__NIAKGPT_DIAGNOSTICS__?.snapshot?.()||{};
-    return Object.entries({...S.health,...external});
+    const external=window.__NIAKGPT_DIAGNOSTICS__?.snapshot?.()||{},merged={...S.health,...external},root=document.documentElement,tabRole=root.dataset.ng8TabRole||'unknown',safe=root.dataset.ng90Safe==='1';
+    if(safe){for(const key of ['projects','data','organizer','pins'])merged[key]='PAUSE · SAFE MODE';}
+    else if(tabRole==='client'){for(const key of ['bridge','projects','data','organizer'])if(/^(ATTENTE|CACHE|INDEX)/i.test(String(merged[key]||'')))merged[key]='DÉLÉGUÉ · WORKER';}
+    if(/^ATTENTE/i.test(String(merged.toc||'')))merged.toc=location.pathname.includes('/c/')?'VIDE · 0 bloc':'INACTIF · hors conversation';
+    return Object.entries(merged);
   }
   function renderPanelIfDiag(){ if(S.panelOpen&&S.tab==='diag')renderPanel(); }
   function liveTurns(){ S.turns=S.turns.filter(t=>t?.isConnected);return S.turns; }

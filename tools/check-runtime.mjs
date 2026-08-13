@@ -45,6 +45,8 @@ const diagnosticBusText=read('diagnostic-bus-v096.js');
 has(diagnosticBusText,'__NIAKGPT_DIAGNOSTICS__');
 has(diagnosticBusText,'snapshot()');
 has(texts['app-v090.js'],'function diagnosticRows()');
+has(texts['app-v090.js'],"merged[key]='DÉLÉGUÉ · WORKER'");
+has(texts['app-v090.js'],"merged[key]='PAUSE · SAFE MODE'");
 has(texts['app-v090.js'],'diagnosticRows().map');
 has(texts['coach-v100.js'],"__NIAKGPT_DIAGNOSTICS__?.set('coach',text)");
 has(texts['multitab-v090.js'],"__NIAKGPT_DIAGNOSTICS__?.set('onglet'");

@@ -12,6 +12,7 @@
     /^\/backend-api\/gizmos\/snorlax\/sidebar(?:\?|$)/,
     /^\/backend-api\/gizmos\/g-p-[A-Za-z0-9_-]+\/conversations(?:\?|$)/
   ];
+  const conversationRx = /^\/backend-api\/conversation\/[A-Za-z0-9_-]+$/;
   const projectConversationsRx = /^\/backend-api\/gizmos\/g-p-[A-Za-z0-9_-]+\/conversations(?:\?|$)/;
 
   let cachedToken = '';
@@ -20,7 +21,7 @@
   function isAllowed(path, method) {
     if (!allowed.some(rx => rx.test(path))) return false;
     if (method === 'GET') return true;
-    return method === 'PATCH' && /^\/backend-api\/conversation\//.test(path);
+    return method === 'PATCH' && conversationRx.test(path);
   }
 
   function normalizeProjectConversationPath(path, mode = 'safe') {
@@ -177,6 +178,15 @@
     if (!id || !isAllowed(path, method)) {
       document.dispatchEvent(new CustomEvent(RES, {
         detail: { id, ok:false, status:0, error:`blocked_request:${method}:${path}`, transport:'guard' }
+      }));
+      return;
+    }
+
+    // Since v0.8.5, all NiakGPT project moves go through Project Governance.
+    // This prevents the legacy classifier from overriding a user's manual move.
+    if (method === 'PATCH' && conversationRx.test(path) && d.governance !== true) {
+      document.dispatchEvent(new CustomEvent(RES, {
+        detail: { id, ok:false, status:409, data:null, error:'project_move_requires_governance', transport:'governance-guard' }
       }));
       return;
     }

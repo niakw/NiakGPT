@@ -13,9 +13,11 @@ html[data-ng90-safe="1"] #ng8-pins>.ng8-pin-list{max-height:24vh!important}html[
 html[data-ng8-heavy="1"] #ng8-pins>.ng8-pin-list{max-height:25vh!important}
 
 #ng8-status .ng8-version,#ng8-status .ng8-status-project,#ng8-status .ng8-core-state{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ng8-status-project{max-width:190px}
-#ng8-status .ng90-safe-badge{position:absolute!important;right:178px!important;top:50%!important;transform:translateY(-50%)!important;margin:0!important;z-index:4!important}
-html[data-ng90-safe="1"] #ng8-status::before{right:90px!important}
+/* Fixed badges: they never participate in the status grid, therefore state changes cannot cause text jumps. */
+#ng8-status .ng90-safe-badge{position:absolute!important;right:232px!important;top:50%!important;transform:translateY(-50%)!important;width:36px!important;box-sizing:border-box!important;text-align:center!important;white-space:nowrap!important;margin:0!important;z-index:7!important}
+html[data-ng90-safe="1"] #ng8-status::before{right:170px!important}
 
-@media(max-width:1100px){#ng8-pins{max-height:42vh!important}#ng8-pins>.ng8-pin-list{max-height:25vh!important}.ng90-project-extras>div{max-height:120px}.ng8-status-project{max-width:130px}#ng8-status .ng90-safe-badge{right:150px!important}}
-@media(max-width:850px){#ng8-status .ng90-safe-badge{right:86px!important}html[data-ng90-safe="1"] #ng8-status::before{display:none!important}}
-@media(max-width:760px){#ng8-pins{max-height:none!important}.ng90-project-extras{display:none!important}#ng8-status .ng90-safe-badge{right:64px!important}}
+@media(max-width:1100px){#ng8-pins{max-height:42vh!important}#ng8-pins>.ng8-pin-list{max-height:25vh!important}.ng90-project-extras>div{max-height:120px}.ng8-status-project{max-width:130px}}
+@media(max-width:950px){#ng8-status .ng90-safe-badge{right:170px!important}}
+@media(max-width:850px){#ng8-status .ng90-safe-badge{right:132px!important}html[data-ng90-safe="1"] #ng8-status::before{display:none!important}}
+@media(max-width:760px){#ng8-pins{max-height:none!important}.ng90-project-extras{display:none!important}#ng8-status .ng90-safe-badge{display:none!important}}

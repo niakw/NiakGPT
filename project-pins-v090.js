@@ -38,9 +38,7 @@
     if(!link)return false;const row=link.closest('li,[data-sidebar-item="true"]')||link.parentElement;if(!row)return false;if(!await openMenu(row,link))return false;const item=menuItem(rx);if(!item){document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));return false;}item.click();await sleep(260);return true;
   }
 
-  async function verifyPinned(id,wanted){
-    for(let i=0;i<3;i++){await sleep(i?220:80);const has=nativePinnedIds().has(id);if(has===wanted)return true;}return false;
-  }
+  async function verifyPinned(id,wanted){for(let i=0;i<3;i++){await sleep(i?220:80);const has=nativePinnedIds().has(id);if(has===wanted)return true;}return false;}
   async function setNativePin(id,wanted){
     let current=nativePinnedIds();if(current.has(id)===wanted)return true;const link=anyProjectLink(id,{pinned:!wanted});if(!link)return false;
     const rx=wanted?/^(épingler|epingler|pin)\b/i:/^(désépingler|desepingler|unpin)\b/i;
@@ -75,7 +73,11 @@
   chrome.storage.onChanged.addListener((changes,area)=>{if(area!=='local')return;if(changes[GOV_KEY])config={...config,...(changes[GOV_KEY].newValue||{})};if(changes[SETTINGS_KEY])settings={...settings,...(changes[SETTINGS_KEY].newValue||{})};if(changes[GOV_KEY]||changes[SETTINGS_KEY])schedule(800);});
   document.addEventListener('niakgpt:settings-changed',()=>schedule(700));
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){bindSidebar();schedule(1100);}});
-  document.addEventListener('click',()=>{setTimeout(()=>{bindSidebar();patchDiagnostic();},120);},true);
+  document.addEventListener('click',event=>{
+    const target=event.target instanceof Element?event.target:null;
+    if(!target?.closest('nav,[data-testid*="sidebar" i],#ng8-panel,#ng8-rail,#ng90-control'))return;
+    setTimeout(()=>{bindSidebar();patchDiagnostic();},120);
+  },true);
   window.addEventListener('popstate',()=>setTimeout(()=>{bindSidebar();schedule(1200);},100));
 
   loadState().then(()=>{bindSidebar();schedule(4200);});

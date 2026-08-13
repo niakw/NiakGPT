@@ -15,7 +15,7 @@
     {
       "matches": ["https://chatgpt.com/*"],
       "css": ["theme-v08.css", "polish-v081.css", "chronology-v081.css", "multitab-v083.css", "governance-v085.css", "activity-v086.css", "control-center-v090.css", "core-v090.css"],
-      "js": ["control-center-v090.js", "multitab-v090.js", "project-governance-v090.js", "project-pins-v090.js", "app-v090.js", "polish-v090.js", "chronology-v090.js", "hotcache-v084.js", "activity-v086.js"],
+      "js": ["control-center-v090.js", "multitab-v090.js", "project-governance-v090.js", "project-pins-v090.js", "sidebar-host-v090.js", "app-v090.js", "polish-v090.js", "chronology-v090.js", "hotcache-v084.js", "activity-v086.js"],
       "run_at": "document_start"
     }
   ],

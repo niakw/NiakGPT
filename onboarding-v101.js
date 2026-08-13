@@ -6,24 +6,28 @@
   const KEY='niakgpt-onboarding-v100';
   const PROFILE_KEY='niakgpt-profile-v100';
   const INSTALL_META='niakgpt-install-meta-v100';
-  const VERSION=(()=>{try{return chrome.runtime.getManifest().version||'0.9.5';}catch{return'0.9.5';}})();
-  const LEGACY_STORAGE_KEYS=new Set(['niakgpt-v08-cache','niakgpt-governance-v085','niakgpt-settings-v090','niakgpt-profile-v100']);
+  const VERSION=(()=>{try{return chrome.runtime.getManifest().version||'dev';}catch{return'dev';}})();
+  const LEGACY_STORAGE_KEYS=['niakgpt-v08-cache','niakgpt-governance-v085','niakgpt-settings-v090','niakgpt-profile-v100'];
   let modal=null,step=0,selectedProfile='power',returnFocus=null;
   const profiles=[['power','Power','Dense et complet'],['code','Code / IDE','Code et outils techniques'],['research','Research','Lecture longue et sources'],['focus','Focus / Writing','Calme et écriture'],['analyst','Analyst','Métadonnées et tableaux'],['contrast','High Contrast','Accessibilité renforcée']];
 
   async function shouldShow(){
     try{
-      const all=await chrome.storage.local.get(null);
-      if(all[KEY])return false;
-      const lifecycle=all[INSTALL_META];
+      // Fast path on every normal page load: only two tiny keys, never the chat/index cache.
+      const known=await chrome.storage.local.get([KEY,INSTALL_META]);
+      if(known[KEY])return false;
+      const lifecycle=known[INSTALL_META];
       if(lifecycle?.reason==='install')return true;
       if(lifecycle?.reason==='update'){
         await chrome.storage.local.set({[KEY]:{status:'upgrade-skipped',version:VERSION,previousVersion:lifecycle.previousVersion||'',at:Date.now()}});
         return false;
       }
-      // Defensive fallback for profiles where the lifecycle event predates this module.
-      const previous=Object.keys(all).some(k=>LEGACY_STORAGE_KEYS.has(k)||k.startsWith('niakgpt-governance-')||k.startsWith('niakgpt-settings-'));
-      if(previous){await chrome.storage.local.set({[KEY]:{status:'legacy-skipped',version:VERSION,at:Date.now()}});return false;}
+      // Defensive legacy fallback for installations predating lifecycle metadata.
+      const legacy=await chrome.storage.local.get(LEGACY_STORAGE_KEYS);
+      if(LEGACY_STORAGE_KEYS.some(key=>legacy[key]!=null)){
+        await chrome.storage.local.set({[KEY]:{status:'legacy-skipped',version:VERSION,at:Date.now()}});
+        return false;
+      }
       return true;
     }catch{return false;}
   }

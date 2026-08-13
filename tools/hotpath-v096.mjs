@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 
+// One-shot 0.9.6 convergence helper. Removed after the final certified build.
 const read=p=>fs.readFileSync(p,'utf8');
 const write=(p,s)=>fs.writeFileSync(p,s);
 const must=(cond,msg)=>{if(!cond)throw new Error(msg);};

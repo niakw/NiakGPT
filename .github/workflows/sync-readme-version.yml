@@ -9,7 +9,7 @@ on:
       - '.github/workflows/sync-readme-version.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   sync:

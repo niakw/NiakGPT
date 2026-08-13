@@ -1,6 +1,6 @@
 /* NiakGPT polish — native UI overrides only */
 
-/* Matrix: slightly more visible at rest, still heavily attenuated during active/heavy work. */
+/* Matrix baseline. Control Center is loaded later and is the final preference source. */
 #ng8-matrix{opacity:.31!important;filter:saturate(1.20) brightness(.98)!important}
 html[data-ng90-matrix="normal"] #ng8-matrix{opacity:.38!important;filter:saturate(1.24) brightness(1)!important}
 html[data-ng8-running="1"] #ng8-matrix{opacity:.09!important;filter:none!important}
@@ -82,89 +82,3 @@ header button svg{color:currentColor!important;fill:none!important;stroke:curren
   box-shadow:inset 3px 0 var(--ng-project,#3794ff),0 0 0 1px color-mix(in srgb,var(--ng-project,#3794ff) 22%,transparent)!important;
 }
 #ng8-pins a.ng8-active-project span{color:#fff!important;font-weight:700!important}
-
-/* Native Activity / Details panel */
-.ng8-native-activity{
-  background:linear-gradient(180deg,#091019,#070d13)!important;
-  color:#dce7f1!important;
-  border-left:1px solid #2a3948!important;
-  box-shadow:-16px 0 40px rgba(0,0,0,.34)!important;
-  scrollbar-color:#425669 #091019!important;
-  scrollbar-width:thin!important;
-}
-.ng8-native-activity header,
-.ng8-native-activity .ng8-activity-head,
-.ng8-native-activity [class*="sticky"]{
-  background:#0d1620f4!important;
-  border-color:#293846!important;
-}
-.ng8-native-activity header,
-.ng8-native-activity .ng8-activity-head{
-  min-height:52px!important;
-  padding:9px 48px 9px 12px!important;
-  display:flex!important;
-  align-items:center!important;
-  justify-content:flex-start!important;
-  gap:8px!important;
-  border-bottom:1px solid #293846!important;
-}
-.ng8-native-activity header>div,
-.ng8-native-activity .ng8-activity-head>div{
-  display:flex!important;
-  flex-direction:column!important;
-  align-items:flex-start!important;
-  justify-content:center!important;
-  gap:2px!important;
-  min-width:0!important;
-}
-.ng8-native-activity header small,
-.ng8-native-activity .ng8-activity-head small{
-  display:block!important;
-  color:#7290a9!important;
-  font:800 9px/1.2 Consolas,monospace!important;
-  letter-spacing:.1em!important;
-  text-transform:uppercase!important;
-}
-.ng8-native-activity header b,
-.ng8-native-activity .ng8-activity-head b{
-  display:block!important;
-  color:#eef5fb!important;
-  font:750 13px/1.25 system-ui,sans-serif!important;
-  white-space:nowrap!important;
-  overflow:hidden!important;
-  text-overflow:ellipsis!important;
-}
-.ng8-native-activity h1,.ng8-native-activity h2,.ng8-native-activity h3,
-.ng8-native-activity [role="heading"]{color:#eef5fb!important}
-.ng8-native-activity pre,
-.ng8-native-activity [class*="code"],
-.ng8-native-activity [class*="rounded"][class*="bg-"]{border-color:#2d3d4d!important}
-.ng8-native-activity pre{
-  background:#05090d!important;
-  box-shadow:inset 2px 0 #4fc1ff!important;
-  border-radius:7px!important;
-}
-.ng8-native-activity button:not(.ng8-activity-close){border-color:#314353!important}
-.ng8-activity-close{
-  position:absolute!important;
-  top:10px!important;
-  right:10px!important;
-  z-index:2147483647!important;
-  width:32px!important;
-  height:32px!important;
-  margin:0!important;
-  display:grid!important;
-  place-items:center!important;
-  border:1px solid #3a4b5a!important;
-  border-radius:8px!important;
-  background:#111d28!important;
-  color:#dce7f1!important;
-  font:400 22px/1 system-ui,sans-serif!important;
-  cursor:pointer!important;
-  box-shadow:0 5px 16px rgba(0,0,0,.28)!important;
-}
-.ng8-activity-close:hover{background:#1b2b38!important;color:#fff!important;border-color:#587087!important}
-.ng8-activity-close:focus-visible{outline:2px solid #4fc1ff!important;outline-offset:2px!important}
-
-/* Keep the activity panel readable while Matrix remains behind the chat only */
-.ng8-native-activity #ng8-matrix{display:none!important}

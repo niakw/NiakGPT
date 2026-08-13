@@ -2,7 +2,7 @@
 
 NiakGPT transforme l’interface web de ChatGPT en workspace power-user local : Projects gouvernés, navigation rapide, cache chaud, états temps réel, sommaire, coach contextuel, outils code, organisation assistée et DA dense inspirée des IDE.
 
-> **État actuel : 0.9.5 RC** — architecture en validation intensive. L’extension utilise des endpoints internes de ChatGPT qui ne sont pas documentés publiquement par OpenAI et peuvent changer sans préavis.
+> **État actuel : 0.9.6 RC** — architecture en validation intensive. L’extension utilise des endpoints internes de ChatGPT qui ne sont pas documentés publiquement par OpenAI et peuvent changer sans préavis.
 
 ## Principes
 

@@ -20,21 +20,21 @@ jobs:
           if(JSON.stringify(m.host_permissions)!==JSON.stringify(['https://chatgpt.com/*']))throw new Error('wrong scope');
           const main=m.content_scripts.find(x=>x.world==='MAIN'),iso=m.content_scripts.find(x=>x.world!=='MAIN');
           const mainExpected=['page-bridge.js','manual-lock-main-v085.js','activity-main-v087.js','hotcache-main-v084.js'];
-          const isoExpected=['control-center-v090.js','multitab-v090.js','project-governance-v090.js','project-pins-v090.js','app-v090.js','polish-v090.js','chronology-v090.js','hotcache-v084.js','activity-v086.js'];
+          const isoExpected=['control-center-v090.js','multitab-v090.js','project-governance-v090.js','project-pins-v090.js','sidebar-host-v090.js','app-v090.js','polish-v090.js','chronology-v090.js','hotcache-v084.js','activity-v086.js'];
           const cssExpected=['theme-v08.css','polish-v081.css','chronology-v081.css','multitab-v083.css','governance-v085.css','activity-v086.css','control-center-v090.css','core-v090.css'];
           if(JSON.stringify(main?.js)!==JSON.stringify(mainExpected)||JSON.stringify(iso?.js)!==JSON.stringify(isoExpected)||JSON.stringify(iso?.css)!==JSON.stringify(cssExpected))throw new Error('runtime mismatch');
           if(!m.content_scripts.every(x=>x.matches.every(v=>v==='https://chatgpt.com/*')&&x.run_at==='document_start'))throw new Error('runtime scope/start invalid');
           for(const old of ['app-v08-safe.js','multitab-v083.js','polish-v081.js','chronology-v081.js','project-governance-v085.js','project-pins-v085.js'])if(iso.js.includes(old))throw new Error(`legacy JS loaded: ${old}`);
-          console.log('manifest 0.9.3 RC4 OK');
+          console.log('manifest 0.9.3 RC4+ OK');
           NODE
 
       - name: Check JavaScript syntax
         run: |
-          for f in page-bridge.js manual-lock-main-v085.js activity-main-v087.js hotcache-main-v084.js control-center-v090.js multitab-v090.js project-governance-v090.js project-pins-v090.js app-v090.js polish-v090.js chronology-v090.js hotcache-v084.js activity-v086.js; do node --check "$f"; done
+          for f in page-bridge.js manual-lock-main-v085.js activity-main-v087.js hotcache-main-v084.js control-center-v090.js multitab-v090.js project-governance-v090.js project-pins-v090.js sidebar-host-v090.js app-v090.js polish-v090.js chronology-v090.js hotcache-v084.js activity-v086.js; do node --check "$f"; done
 
       - name: Check no-poll application modules
         run: |
-          for f in app-v090.js chronology-v090.js polish-v090.js control-center-v090.js project-governance-v090.js project-pins-v090.js; do
+          for f in app-v090.js chronology-v090.js polish-v090.js control-center-v090.js project-governance-v090.js project-pins-v090.js sidebar-host-v090.js; do
             if grep -q 'setInterval(' "$f"; then echo "permanent polling forbidden in $f"; exit 1; fi
           done
           grep -q 'MutationObserver(queueMainNodes)' app-v090.js
@@ -44,6 +44,14 @@ jobs:
           grep -q 'setTimeout(routeTick,2400)' app-v090.js
           if grep -q "querySelectorAll('button,\[data-testid\]')" app-v090.js; then exit 1; fi
           if grep -q 'requestAnimationFrame(draw)' app-v090.js; then exit 1; fi
+
+      - name: Check managed Project host invariant
+        run: |
+          grep -q '__NIAKGPT_SIDEBAR_HOST_090__' sidebar-host-v090.js
+          grep -q "document.querySelectorAll('#ng8-pins')" sidebar-host-v090.js
+          grep -q 'root.insertBefore(host' sidebar-host-v090.js
+          grep -q 'if(box!==host)box.remove()' sidebar-host-v090.js
+          grep -q "dataset.ng90ProjectHosts='1'" sidebar-host-v090.js
 
       - name: Check Project cursor safety and counter path
         run: |
@@ -116,6 +124,8 @@ jobs:
       - name: Check activity and multi-tab performance
         run: |
           grep -q 'niakgptActivityAwareFetch' activity-main-v087.js
+          grep -q 'body may not exist yet' activity-v086.js
+          grep -q 'tick recovered' activity-v086.js
           grep -q "waiting:'ATTENTE'" activity-v086.js
           grep -q "thinking:'RÉFLEXION / ANALYSE'" activity-v086.js
           grep -q "executing:'EXÉCUTION'" activity-v086.js
@@ -144,6 +154,6 @@ jobs:
 
       - name: Check runtime privacy
         run: |
-          FILES='project-governance-v090.js project-pins-v090.js manual-lock-main-v085.js activity-main-v087.js control-center-v090.js multitab-v090.js app-v090.js polish-v090.js chronology-v090.js governance-v085.css activity-v086.js activity-v086.css control-center-v090.css core-v090.css'
+          FILES='project-governance-v090.js project-pins-v090.js sidebar-host-v090.js manual-lock-main-v085.js activity-main-v087.js control-center-v090.js multitab-v090.js app-v090.js polish-v090.js chronology-v090.js governance-v085.css activity-v086.js activity-v086.css control-center-v090.css core-v090.css'
           if grep -Ei 'miorra|aelyron|eitty|elias|niakvio|tommy|foissy' $FILES; then echo 'personal data hardcoded'; exit 1; fi
-          echo 'NiakGPT 0.9.3 RC4 checks OK'
+          echo 'NiakGPT 0.9.3 RC4+ checks OK'

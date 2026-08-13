@@ -1,36 +1,13 @@
-name: Normalize NiakGPT Onboarding Guard
+name: Archived — onboarding comment fix
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - '.github/workflows/fix-onboarding-comment.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  fix:
+  archived:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Keep source comment compatible with the storage invariant
-        run: |
-          node - <<'NODE'
-          const fs=require('fs');
-          const p='onboarding-v100.js';
-          let s=fs.readFileSync(p,'utf8');
-          s=s.replace('MAIN-world scripts may create transient localStorage/IndexedDB entries during this same page load.','MAIN-world scripts may create transient site-storage entries during this same page load.');
-          fs.writeFileSync(p,s);
-          NODE
-      - name: Commit if changed
-        run: |
-          if git diff --quiet -- onboarding-v100.js; then exit 0; fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add onboarding-v100.js
-          git commit -m 'Clarify onboarding storage guard comment'
-          git push origin HEAD:main
+      - run: echo "Archived fix workflow. No repository writes are performed."

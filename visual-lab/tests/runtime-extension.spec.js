@@ -176,11 +176,13 @@ test('Control Center Safe Mode stops non-essential work and yields WORKER', asyn
     const control = rt.page.locator('#ng90-control');
     await expect(control).toBeVisible();
     const safeInput = control.locator('[data-setting="safeMode"]');
-    await safeInput.evaluate(el => el.setAttribute('aria-label', 'Activer le Safe Mode'));
+    await expect(safeInput).toHaveAttribute('aria-label', 'Activer le Safe Mode');
+    await expect(safeInput).toHaveAttribute('role', 'switch');
     const safeSwitch = safeInput.locator('xpath=..');
     await expect(safeSwitch).toBeVisible();
     await safeSwitch.click();
     await expect(safeInput).toBeChecked();
+    await expect(safeInput).toHaveAttribute('aria-checked', 'true');
     await expect(rt.page.locator('html')).toHaveAttribute('data-ng90-safe', '1');
     await expect(rt.page.locator('#ng8-matrix')).toBeHidden();
     await expect(rt.page.locator('#ng8-coach')).toBeHidden();

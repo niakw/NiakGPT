@@ -7,6 +7,9 @@ const source = fs.readFileSync(path.join(__dirname, '..', '..', 'onboarding-v101
 test('onboarding fast path never loads the full NiakGPT storage', async () => {
   expect(source).toContain('LEGACY_STORAGE_KEYS');
   expect(source).toContain('INSTALL_META');
+  expect(source).toContain("lifecycle?.reason==='install'");
+  expect(source).toContain("lifecycle?.reason==='update'");
+  expect(source).toContain('INSTALL_META');
   expect(source).toContain('chrome.storage.local.get([KEY,INSTALL_META])');
   expect(source).toContain('chrome.storage.local.get(LEGACY_STORAGE_KEYS)');
   expect(source).not.toContain('chrome.storage.local.get(null)');

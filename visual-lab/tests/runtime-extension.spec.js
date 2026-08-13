@@ -53,7 +53,7 @@ async function launchRuntime({ onboarding = 'done' } = {}) {
       await chrome.storage.local.remove('niakgpt-onboarding-v100');
       await chrome.storage.local.set({
         'niakgpt-install-meta-v100': {
-          reason: 'update', previousVersion: '0.9.4', currentVersion: version, changedAt: Date.now()
+          reason: 'update', previousVersion: '0.9.5', currentVersion: version, changedAt: Date.now()
         }
       });
     }, EXPECTED_VERSION);

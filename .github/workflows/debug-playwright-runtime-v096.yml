@@ -1,31 +1,13 @@
-name: Debug NiakGPT Playwright runtime 0.9.6
+name: Archived — Playwright runtime debug 0.9.6
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/debug-playwright-runtime-v096.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  debug:
+  archived:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: visual-lab/package-lock.json
-      - run: npm ci --no-audit --no-fund
-        working-directory: visual-lab
-      - run: npx playwright install --with-deps chromium
-        working-directory: visual-lab
-      - name: Trace one real-extension test
-        working-directory: visual-lab
-        env:
-          DEBUG: pw:api
-        run: npx playwright test tests/runtime-extension.spec.js -g "fresh install" --timeout=60000 --reporter=line
+      - run: echo "Archived debug workflow. No repository writes are performed."

@@ -14,7 +14,7 @@
   function looksLikePanel(el){
     if(!(el instanceof HTMLElement)||el.closest(OWN)||!visible(el))return'';
     const r=el.getBoundingClientRect();if(r.width<250||r.width>820||r.right<innerWidth-150)return'';
-    const type=panelType(labelOf(el));return type||'';
+    return panelType(labelOf(el));
   }
   function findPanel(root=document){
     if(root instanceof Element){const type=looksLikePanel(root);if(type)return{panel:root,type};}
@@ -52,20 +52,21 @@
   }
   function scheduleScan(delay=100,root=document){clearTimeout(scanTimer);scanTimer=setTimeout(()=>scan(root),delay);}
   function disarm(){observer?.disconnect();observer=null;clearTimeout(observerTimer);observerTimer=0;}
-  function arm(duration=14000){
+  function arm(duration=5000){
     disarm();if(!document.body)return;
     observer=new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes){if(!(node instanceof Element))continue;decorateTriggers(node);const found=findPanel(node);if(found)decoratePanel(found.panel,found.type);}});
     observer.observe(document.body,{childList:true,subtree:true});observerTimer=setTimeout(disarm,duration);
   }
 
-  document.addEventListener('niakgpt:activity-network',event=>{if(event.detail?.phase==='request'||event.detail?.phase==='headers'){arm();scheduleScan(240);}},true);
   document.addEventListener('click',event=>{
     const target=event.target instanceof Element?event.target:null,control=target?.closest('button,[role="button"],a');if(!(control instanceof HTMLElement)||control.closest(OWN))return;
     const text=`${control.getAttribute('aria-label')||''} ${control.getAttribute('data-testid')||''} ${control.title||''} ${(control.textContent||'').trim().slice(0,60)}`,r=control.getBoundingClientRect();
     const relevant=LABEL_RX.test(text)||(r.right>innerWidth-125&&r.width<=150&&r.height<=90);
-    if(!relevant)return;arm(5000);scheduleScan(80,control.closest('header,main,aside')||document);
+    if(!relevant)return;arm();scheduleScan(80,control.closest('header,main,aside')||document);
   },true);
   window.addEventListener('popstate',()=>scheduleScan(100));
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)scheduleScan(120);});
-  scheduleScan(250);arm(7000);
+
+  // Short hydration probes only: no global observer is left armed at rest.
+  scheduleScan(180);setTimeout(()=>scheduleScan(600),600);setTimeout(()=>scheduleScan(1500),1500);
 })();

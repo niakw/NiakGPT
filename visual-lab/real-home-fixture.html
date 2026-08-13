@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ChatGPT</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Arial,sans-serif;background:#0b0f14;color:#e7edf4}body{display:flex;min-height:100vh}.native-sidebar{position:fixed;inset:0 auto 0 0;width:307px;padding:10px 8px 76px;background:#111820;border-right:1px solid #25313d;overflow:auto}.native-brand{height:52px;padding:10px 12px;font-size:19px;font-weight:700}.native-nav a,.native-nav button{display:flex;align-items:center;width:100%;min-height:42px;padding:0 12px;border:0;border-radius:10px;background:transparent;color:#dce6ef;text-decoration:none;font-size:16px}.native-nav a:hover,.native-nav button:hover{background:#1b2631}.native-recents{margin-top:24px}.native-recents h3{padding:0 12px;color:#7f91a4;font-size:14px}.native-recents a{position:relative;display:block;min-height:42px;padding:10px 85px 10px 12px;color:#e5edf5;text-decoration:none;border-radius:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.native-recents a small{position:absolute;right:10px;color:#7e91a5}.native-user{position:fixed;left:0;bottom:0;width:307px;height:72px;padding:14px 18px;background:#111820;border-top:1px solid #25313d}.native-main{margin-left:307px;width:calc(100% - 307px);min-height:100vh;position:relative;display:flex;flex-direction:column;align-items:center}.native-top{height:60px;display:flex;align-items:center;gap:0}.native-top button{height:44px;min-width:132px;border:1px solid #293744;background:#0c1117;color:#e7edf4;font-size:15px}.native-top button:first-child{border-radius:22px 0 0 22px}.native-top button:last-child{border-radius:0 22px 22px 0}.native-apps{margin-top:4px;padding:10px 30px;border:1px solid #334352;border-radius:30px}.native-home{width:min(920px,calc(100% - 80px));margin:auto 0;display:flex;flex-direction:column;align-items:center;gap:40px}.native-home h1{font-size:28px;font-weight:500}.native-composer{width:min(920px,calc(100% - 80px));min-height:64px;border:1px solid #384858;border-radius:26px;padding:14px 20px;background:#232323;display:flex;align-items:center;gap:12px}.native-composer [contenteditable]{flex:1;min-height:28px;outline:none;color:#8fa0b4}.native-cards{width:min(920px,calc(100% - 80px));padding:30px;background:#050505;border-radius:0 0 14px 14px;color:#8296aa}.native-cards div{padding:14px 0}.conversation{display:none;width:min(900px,calc(100% - 80px));padding:100px 0 180px}.conversation article{padding:24px 22px;margin:4px 0}.conversation pre{padding:18px;background:#111820;border-radius:8px}.conversation code{font-family:Consolas,monospace}.project-native{margin-top:10px}.project-native a{display:block;padding:9px 12px;text-decoration:none;color:#dce6ef}
+</style>
+</head>
+<body>
+<aside class="native-sidebar" data-testid="sidebar">
+  <div class="native-brand" id="native-brand">ChatGPT Plus</div>
+  <nav class="native-nav">
+    <button>Nouveau chat</button><a href="/library">Bibliothèque</a><a href="/projects">Projects</a><a href="/tasks">Planification</a><a href="/plugins">Plugins</a><button>Plus</button>
+    <div class="project-native"><a href="/g/g-p-aaaaaaaaaaaaaaaa/project">Miorra</a><a href="/g/g-p-bbbbbbbbbbbbbbbb/project">Niakvio</a></div>
+    <section class="native-recents"><h3>Récents</h3>
+      <a id="recent-project-chat" href="/g/g-p-aaaaaaaaaaaaaaaa/c/11111111-1111-4111-8111-111111111111">Extension Chrome ChatGPT <small>Miorra</small></a>
+      <a id="recent-chat" href="/c/22222222-2222-4222-8222-222222222222">GitHub Actions Quota</a>
+      <a href="/g/g-p-bbbbbbbbbbbbbbbb/c/33333333-3333-4333-8333-333333333333">Résultats des providers <small>Niakvio</small></a>
+    </section>
+  </nav>
+</aside>
+<div class="native-user">Tommy F<br><small>Plus</small></div>
+<main class="native-main" id="native-main">
+  <div class="native-top"><button>Chat</button><button>Work</button></div>
+  <div class="native-apps">Accomplissez vos tâches avec vos applications</div>
+  <section class="native-home" id="native-home"><h1>Bonjour Tommy. On commence ?</h1>
+    <form class="native-composer" id="home-composer" data-type="unified-composer"><button type="button">＋</button><div id="prompt-textarea" data-testid="prompt-textarea" contenteditable="true">Demander à ChatGPT</div><span>Élevé</span><button type="button">◉</button></form>
+    <div class="native-cards"><div>Reply to boutique Foissy</div><div>Review Niakvio dependency PRs</div><div>Give me a weekly check-in</div></div>
+  </section>
+  <section class="conversation" id="conversation">
+    <article data-testid="conversation-turn-1"><div data-message-author-role="user">Peux-tu vérifier ce code ?</div></article>
+    <article data-testid="conversation-turn-2"><div data-message-author-role="assistant"><p>Oui, voici le bloc :</p><pre><code>const ready = true;</code></pre></div></article>
+    <article data-testid="conversation-turn-3"><div data-message-author-role="user">Et le Project associé ?</div></article>
+    <form class="native-composer" id="conversation-composer" data-type="unified-composer"><div data-testid="prompt-textarea" contenteditable="true"></div></form>
+  </section>
+</main>
+<script>
+if(location.pathname.includes('/c/')){document.getElementById('native-home').style.display='none';document.getElementById('conversation').style.display='block';}
+</script>
+</body>
+</html>

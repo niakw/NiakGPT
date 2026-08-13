@@ -19,21 +19,22 @@ jobs:
           const fs = require('fs');
           const m = JSON.parse(fs.readFileSync('manifest.json','utf8'));
           if (m.name !== 'NiakGPT') throw new Error('wrong extension name');
-          if (m.version !== '0.8.0') throw new Error('wrong build version');
+          if (m.version !== '0.8.1') throw new Error('wrong build version');
           if (JSON.stringify(m.host_permissions) !== JSON.stringify(['https://chatgpt.com/*'])) throw new Error('host scope must be ChatGPT only');
           if (!m.content_scripts.every(x => x.matches.every(v => v === 'https://chatgpt.com/*'))) throw new Error('unexpected content-script host');
           const isolated = m.content_scripts.find(x => x.world !== 'MAIN');
           if (!isolated) throw new Error('isolated script missing');
-          if (JSON.stringify(isolated.js) !== JSON.stringify(['app-v08-safe.js'])) throw new Error('only v0.8 safe engine may be loaded');
-          if (JSON.stringify(isolated.css) !== JSON.stringify(['theme-v08.css'])) throw new Error('only v0.8 theme may be loaded');
+          if (JSON.stringify(isolated.js) !== JSON.stringify(['app-v08-safe.js','polish-v081.js'])) throw new Error('unexpected v0.8.1 JS runtime');
+          if (JSON.stringify(isolated.css) !== JSON.stringify(['theme-v08.css','polish-v081.css'])) throw new Error('unexpected v0.8.1 CSS runtime');
           if (isolated.run_at !== 'document_start') throw new Error('runtime must start immediately');
-          console.log('manifest v0.8.0 OK');
+          console.log('manifest v0.8.1 OK');
           NODE
 
       - name: Check JavaScript syntax
         run: |
           node --check page-bridge.js
           node --check app-v08-safe.js
+          node --check polish-v081.js
 
       - name: Check idle-safe performance architecture
         run: |
@@ -47,14 +48,22 @@ jobs:
           grep -q 'S.sidebarObserver.observe(side' app-v08-safe.js
           COUNT=$(grep -o 'observe(document.documentElement' app-v08-safe.js | wc -l)
           test "$COUNT" -le 1
+          grep -q 'setInterval(polish, 1800)' polish-v081.js
           if grep -q 'perf-guard' manifest.json; then exit 1; fi
 
-      - name: Check Projects, counts, Quick Open and organization
+      - name: Check Project counter compatibility
+        run: |
+          grep -q 'normalizeProjectConversationPath' page-bridge.js
+          grep -q "url.searchParams.set('limit', '20')" page-bridge.js
+          grep -q "result.status === 422" page-bridge.js
+          grep -q "url.searchParams.delete('limit')" page-bridge.js
+          grep -q 'fetchProjectChats' app-v08-safe.js
+          grep -q 'S.counts.set(p.id,m.size)' app-v08-safe.js
+
+      - name: Check Projects, Quick Open and organization
         run: |
           grep -q 'fetchProjects' app-v08-safe.js
-          grep -q 'fetchProjectChats' app-v08-safe.js
           grep -q 'fetchGeneralBestEffort' app-v08-safe.js
-          grep -q 'S.counts.set(p.id,m.size)' app-v08-safe.js
           grep -q 'repairOrganization' app-v08-safe.js
           grep -q 'bestTarget' app-v08-safe.js
           grep -q 'const verify=await rpc(path)' app-v08-safe.js
@@ -63,16 +72,16 @@ jobs:
           grep -q 'openQuick' app-v08-safe.js
           grep -q 'PROJECTS ÉPINGLÉS' app-v08-safe.js
 
-      - name: Check forced DA and composer safety
+      - name: Check forced DA and native polish
         run: |
           grep -q 'a\[data-ng8-chat="1"\]\[data-ng8-zebra="0"\]' theme-v08.css
-          grep -q 'a\[data-ng8-chat="1"\]\[data-ng8-zebra="1"\]' theme-v08.css
           grep -q 'a\[data-ng8-project="1"\]' theme-v08.css
-          grep -q 'interactive-bg-primary-default' theme-v08.css
-          grep -q 'button\[data-testid\*="send"\]' theme-v08.css
-          grep -q 'ng8-current-project' theme-v08.css
-          grep -q '#ng8-matrix' theme-v08.css
-          grep -q 'form:has(#prompt-textarea)' theme-v08.css
+          grep -q '#ng8-matrix' polish-v081.css
+          grep -q 'ng8-native-activity' polish-v081.css
+          grep -q 'ng8-activity-close' polish-v081.js
+          grep -q 'input:focus-visible' polish-v081.css
+          grep -q 'bg-token-message-surface' polish-v081.css
+          grep -q 'ng8-active-project' polish-v081.css
           grep -q 'BY SKYNET' app-v08-safe.js
           if grep -E '#ng8-coach\{[^}]*position:fixed' theme-v08.css; then exit 1; fi
-          echo 'v0.8 performance + data + forced DA checks OK'
+          echo 'v0.8.1 counters + performance + polish checks OK'

@@ -103,10 +103,18 @@
     const path=`/backend-api/conversation/${encodeURIComponent(chatId)}`;await rpc(path,{method:'PATCH',body:{gizmo_id:targetId||null},timeout:14000,governance:true});return verifyDestination(chatId,targetId,{attempts:3});
   }
   function applyMoveToCache(chatId,targetId){
-    const target=normalizePid(targetId);let found=null;
-    for(const c of cache.chats||[])if(c.id===chatId){c.projectId=target;found={...c};}
-    for(const [pid,list] of Object.entries(cache.projectChats||{})){const idx=(list||[]).findIndex(c=>c.id===chatId);if(idx>=0){found={...list[idx],projectId:target};list.splice(idx,1);}cache.counts[pid]=(list||[]).length;}
-    if(found&&target){cache.projectChats[target]??=[];const idx=cache.projectChats[target].findIndex(c=>c.id===chatId);if(idx>=0)cache.projectChats[target][idx]={...found,projectId:target};else cache.projectChats[target].push({...found,projectId:target});cache.counts[target]=cache.projectChats[target].length;}
+    const target=normalizePid(targetId),chat=(cache.chats||[]).find(c=>c.id===chatId),from=normalizePid(chat?.projectId||'');
+    if(chat)chat.projectId=target;
+    // Legacy cache compatibility only: update projectChats if an old schema is still loaded.
+    if(cache.projectChats&&typeof cache.projectChats==='object'){
+      let found=chat?{...chat}:null;
+      for(const [pid,list] of Object.entries(cache.projectChats)){const idx=(list||[]).findIndex(c=>c.id===chatId);if(idx>=0){found={...list[idx],projectId:target};list.splice(idx,1);}cache.counts??={};cache.counts[pid]=(list||[]).length;}
+      if(found&&target){cache.projectChats[target]??=[];const idx=cache.projectChats[target].findIndex(c=>c.id===chatId);if(idx>=0)cache.projectChats[target][idx]={...found,projectId:target};else cache.projectChats[target].push({...found,projectId:target});cache.counts[target]=cache.projectChats[target].length;}
+    }else{
+      cache.counts??={};
+      if(from&&Number.isFinite(Number(cache.counts[from])))cache.counts[from]=Math.max(0,Number(cache.counts[from])-1);
+      if(target&&target!==from&&Number.isFinite(Number(cache.counts[target])))cache.counts[target]=Number(cache.counts[target])+1;
+    }
   }
 
   function hiddenStyle(){let style=document.getElementById('ng90-hidden-projects');if(!style){style=document.createElement('style');style.id='ng90-hidden-projects';document.documentElement.appendChild(style);}return style;}

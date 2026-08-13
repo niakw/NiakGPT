@@ -79,7 +79,7 @@
     S.chatById.set(c.id,next);
     const i=S.chats.findIndex(x=>x.id===c.id);if(i<0)S.chats.push(next);else S.chats[i]=next;
   }
-  function serialize(){ return{at:Date.now(),projects:S.projects,chats:S.chats,counts:Object.fromEntries(S.counts),projectChats:Object.fromEntries([...S.projectChats].map(([k,m])=>[k,[...m.values()]]))}; }
+  function serialize(){ return{schema:2,at:Date.now(),projects:S.projects,chats:S.chats,counts:Object.fromEntries(S.counts),indexedProjectIds:[...S.projectChats.keys()]}; }
   async function saveCache(){ try{await chrome.storage.local.set({[CACHE_KEY]:serialize()});}catch{} }
   async function loadGovernance(){ try{const g=(await chrome.storage.local.get(GOV_KEY))[GOV_KEY];if(g)S.governance={...S.governance,...g};}catch{} }
   async function loadCache(){
@@ -88,8 +88,12 @@
       if(raw){
         S.projects=[];S.projectById.clear();for(const p of raw.projects||[])upsertProject(p);
         S.chats=[];S.chatById.clear();for(const c of raw.chats||[])upsertChat(c);
+        const legacyProjectIds=Object.keys(raw.projectChats||{});
+        for(const [pid,list] of Object.entries(raw.projectChats||{}))for(const c of list||[])upsertChat({...c,projectId:c.projectId||pid});
         S.counts=new Map(Object.entries(raw.counts||{}));
-        S.projectChats.clear();for(const [pid,list] of Object.entries(raw.projectChats||{})){const m=new Map();for(const c of list||[]){m.set(c.id,c);upsertChat(c);}S.projectChats.set(pid,m);}
+        const indexed=new Set([...(Array.isArray(raw.indexedProjectIds)?raw.indexedProjectIds:[]),...legacyProjectIds]);
+        S.projectChats.clear();for(const pid of indexed)S.projectChats.set(pid,new Map());
+        for(const c of S.chats){const m=S.projectChats.get(c.projectId);if(m)m.set(c.id,c);}
       }
       S.cacheLoaded=true;buildDuplicates();
       health('data',`CACHE · ${S.projects.length} Projects · ${S.chats.length} chats`);

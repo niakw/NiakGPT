@@ -60,6 +60,12 @@ has(texts['sidebar-host-v090.js'],'root.insertBefore(host');
 has(texts['sidebar-host-v090.js'],'if(box!==host)box.remove()');
 has(texts['sidebar-host-v090.js'],"dataset.ng90ProjectHosts='1'");
 
+// Normalized index cache: chat metadata is serialized once.
+has(texts['app-v090.js'],'indexedProjectIds:[...S.projectChats.keys()]');
+has(texts['app-v090.js'],'const indexed=new Set([');
+no(texts['app-v090.js'],'projectChats:Object.fromEntries','Duplicate serialized Project chat metadata reintroduced');
+has(texts['project-governance-v090.js'],'Legacy cache compatibility only');
+
 // Project pagination: never invent cursors.
 has(texts['page-bridge.js'],'Never invent a cursor');
 no(texts['page-bridge.js'],"searchParams.set('cursor', '0')",'cursor=0 must never be invented');

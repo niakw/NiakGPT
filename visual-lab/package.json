@@ -1,13 +1,13 @@
 {
   "name": "niakgpt-visual-lab",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "scripts": {
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "serve": "python3 -m http.server 4173 --directory .."
   },
   "devDependencies": {
-    "@playwright/test": "^1.55.0"
+    "@playwright/test": "1.62.1"
   }
 }

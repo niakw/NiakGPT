@@ -1,0 +1,67 @@
+name: NiakGPT 0.9.5 Final Converge
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'tools/converge-095.mjs'
+      - '.github/workflows/final-converge-095.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: niakgpt-final-converge-095
+  cancel-in-progress: true
+
+jobs:
+  converge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Converge from latest main
+        shell: bash
+        run: |
+          converge() {
+            node tools/converge-095.mjs
+            python3 tools/generate-icons.py
+            python3 tools/check-icons.py
+            (cd visual-lab && npm install --package-lock-only --ignore-scripts --no-audit --no-fund)
+            node tools/sync-readme-version.mjs
+          }
+          git fetch origin main
+          git reset --hard origin/main
+          converge
+          git fetch origin main
+          REMOTE=$(git rev-parse origin/main)
+          BASE=$(git rev-parse HEAD)
+          if [ "$REMOTE" != "$BASE" ]; then
+            echo "main advanced to $REMOTE during convergence; regenerate once from latest"
+            git reset --hard origin/main
+            converge
+          fi
+      - name: Validate converged source
+        run: |
+          node tools/check-runtime.mjs
+          node --check background-v100.js
+          for f in $(node -e "const m=require('./manifest.json'); console.log([...new Set(m.content_scripts.flatMap(x=>x.js||[]))].join(' '))"); do node --check "$f"; done
+          test -f visual-lab/package-lock.json
+          python3 tools/check-icons.py
+          node tools/package-extension.mjs
+      - name: Commit converged state
+        run: |
+          git add manifest.json README.md tools/ visual-lab/package-lock.json visual-lab/tests/runtime-extension.spec.js visual-lab/tests/onboarding-race.spec.js icons/ .github/workflows/check.yml .github/workflows/public-gate.yml
+          if git diff --cached --quiet; then
+            echo '0.9.5 already converged'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Converge NiakGPT 0.9.5 RC6'
+          git push origin HEAD:main

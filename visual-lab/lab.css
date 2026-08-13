@@ -1,0 +1,25 @@
+/* Structural scaffold only. NiakGPT production CSS is loaded after this file. */
+html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,input,textarea{font:inherit}
+.lab-topbar{position:fixed;z-index:50;top:0;left:0;right:46px;height:44px;display:flex;align-items:center;gap:14px;padding:0 14px;border-bottom:1px solid #263746}
+.lab-brand{font-weight:850}.lab-project-title{margin-left:auto;font-size:12px;opacity:.82}.lab-controls{display:flex;gap:5px}.lab-controls button{padding:4px 7px;border:1px solid #33485a;border-radius:5px;background:#101923;color:#bfcddd;cursor:pointer;font-size:10px}
+.lab-shell{position:absolute;inset:44px 46px 24px 0;display:grid;grid-template-columns:284px minmax(0,1fr);min-width:0;min-height:0}
+.lab-sidebar{min-width:0;overflow:auto;padding:8px 7px 30px;border-right:1px solid #263746}
+.lab-section-title{margin:14px 8px 6px;color:#75879a;font:800 9px/1.2 Consolas,monospace;letter-spacing:.08em;text-transform:uppercase}
+.lab-sidebar a{position:relative;display:flex;align-items:center;gap:8px;min-height:32px;margin:2px 0;padding:5px 8px;border:1px solid transparent;border-radius:6px;text-decoration:none;white-space:nowrap;overflow:hidden}
+.lab-sidebar a>span:not(.ng8-chat-project):not(.ng8-chat-date){min-width:0;overflow:hidden;text-overflow:ellipsis}.lab-sidebar a>i{width:19px;text-align:center;font-style:normal}
+#ng8-pins{margin:3px 0 8px}.ng8-pin-head{display:flex;justify-content:space-between;align-items:center;margin:8px 8px 5px;font:800 9px Consolas,monospace}.ng8-pin-list{display:grid;gap:2px;max-height:218px;overflow:auto}
+.lab-main{position:relative;min-width:0;overflow:auto}.lab-conversation{width:min(820px,calc(100% - 56px));margin:0 auto;padding:42px 0 190px}
+.lab-turn{margin:0 0 22px;padding:13px 16px;border:1px solid rgba(80,100,118,.16);border-radius:12px;line-height:1.55}.lab-turn[data-ng8-role="user"]{width:78%;margin-left:auto}.lab-turn[data-ng8-role="assistant"]{width:92%;margin-right:auto}
+.lab-turn small{display:block;margin-bottom:6px;opacity:.55;font:700 9px Consolas,monospace;letter-spacing:.08em}.lab-turn p{margin:0 0 9px}.lab-turn pre{overflow:auto;padding:12px;border-radius:8px}.lab-turn code{font-family:Consolas,"SFMono-Regular",monospace}
+.lab-composer-shell{position:fixed;z-index:25;left:calc(284px + (100vw - 330px - 46px)/2);bottom:43px;transform:translateX(-50%);width:min(760px,calc(100vw - 380px));display:flex;flex-direction:column;gap:7px}
+#ng8-coach{position:relative!important;width:100%}.lab-composer{display:flex;align-items:flex-end;gap:8px;padding:10px;border:1px solid #30404e;border-radius:18px;background:#0c151e}.lab-composer textarea{min-width:0;flex:1;min-height:48px;max-height:130px;resize:none;border:0;background:transparent;color:inherit;padding:9px}.lab-composer button{flex:0 0 38px;height:38px;border-radius:50%;border:1px solid #334858}
+#ng8-rail{position:fixed;z-index:80;top:0;right:0;bottom:24px;width:46px;display:flex;flex-direction:column;align-items:center;padding:52px 5px 8px;gap:5px;border-left:1px solid #263746}#ng8-rail button{width:34px;height:34px;border-radius:7px;border:1px solid transparent;background:transparent;color:#91a4b7}#ng8-rail span{flex:1}
+#ng8-status{position:fixed!important;z-index:100;left:0!important;right:0!important;bottom:0!important;height:24px!important;display:grid!important;grid-template-columns:auto auto 1fr auto auto!important;align-items:center!important;gap:12px!important;padding:0 8px!important;font:700 9px/1 Consolas,monospace!important}
+#ng8-status strong{justify-self:center}
+.lab-activity{position:fixed!important;z-index:60;top:44px;right:46px;bottom:24px;width:380px;overflow:auto;padding:0 14px 30px}.lab-activity>header{position:sticky;top:0;display:flex;align-items:center;justify-content:space-between;padding:12px 2px;z-index:3}.lab-activity[hidden]{display:none!important}.lab-activity-card{margin:8px 0;padding:11px;border:1px solid #2d3d4d;border-radius:8px}.lab-activity-card b{display:block;margin-bottom:6px;font-size:11px}.lab-activity-card p{margin:0;font-size:11px;line-height:1.45;opacity:.8}
+body.lab-activity-open .lab-main{margin-right:380px!important}.lab-activity-close{position:sticky!important}
+.lab-heavy-marker{display:none}
+#ng8-matrix{position:fixed!important;inset:44px 46px 24px 284px!important;width:auto!important;height:auto!important;pointer-events:none!important;z-index:0!important}
+.lab-governance-trigger{display:none}
+@media(max-width:1080px){.lab-shell{grid-template-columns:238px minmax(0,1fr)}.lab-composer-shell{left:calc(238px + (100vw - 284px - 46px)/2);width:min(680px,calc(100vw - 310px))}.lab-conversation{width:min(730px,calc(100% - 34px))}#ng8-matrix{left:238px!important}.lab-activity{width:330px}body.lab-activity-open .lab-main{margin-right:330px!important}}

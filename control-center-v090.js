@@ -1,0 +1,381 @@
+(() => {
+  'use strict';
+  if (location.hostname !== 'chatgpt.com' || window.__NIAKGPT_CONTROL_CENTER_090__) return;
+  window.__NIAKGPT_CONTROL_CENTER_090__ = true;
+
+  const VERSION = (() => { try { return chrome.runtime.getManifest().version || '0.9.0'; } catch { return '0.9.0'; } })();
+  const SETTINGS_KEY = 'niakgpt-settings-v090';
+  const SETTINGS_MIRROR = 'niakgpt-settings-mirror-v090';
+  const GOV_KEY = 'niakgpt-governance-v085';
+  const CACHE_KEY = 'niakgpt-v08-cache';
+  const HOT_DB = 'niakgpt-hotcache-v084';
+  const HOT_KEYS = ['niakgpt-hotmeta-v084','niakgpt-hotdirty-v084','niakgpt-hotindex-v084'];
+
+  const DEFAULTS = Object.freeze({
+    safeMode:false,
+    matrix:'subtle',
+    coach:true,
+    activityColors:true,
+    motion:true,
+    density:'compact',
+    nativePins:true,
+    autoResync:true,
+    dates:true,
+    projectBadges:true,
+    statusBar:true,
+    easterEggs:true
+  });
+
+  let settings = { ...DEFAULTS };
+  let modalOpen = false;
+  let ensureTimer = 0;
+
+  const esc = v => String(v ?? '').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  const bool = v => v === true;
+
+  function readMirror() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(SETTINGS_MIRROR) || '{}');
+      if (raw && typeof raw === 'object') settings = { ...DEFAULTS, ...raw };
+    } catch {}
+  }
+
+  function writeMirror() {
+    try { localStorage.setItem(SETTINGS_MIRROR, JSON.stringify(settings)); } catch {}
+  }
+
+  function effective() {
+    if (!settings.safeMode) return settings;
+    return { ...settings, matrix:'off', coach:false, motion:false, nativePins:false, autoResync:false, easterEggs:false };
+  }
+
+  function applySettings() {
+    const e = effective();
+    const root = document.documentElement;
+    root.dataset.ng90Safe = settings.safeMode ? '1' : '0';
+    root.dataset.ng90Matrix = e.matrix;
+    root.dataset.ng90Coach = e.coach ? 'on' : 'off';
+    root.dataset.ng90Activity = e.activityColors ? 'on' : 'off';
+    root.dataset.ng90Motion = e.motion ? 'on' : 'off';
+    root.dataset.ng90Density = e.density;
+    root.dataset.ng90Dates = e.dates ? 'on' : 'off';
+    root.dataset.ng90ProjectBadges = e.projectBadges ? 'on' : 'off';
+    root.dataset.ng90Status = e.statusBar ? 'on' : 'off';
+    root.dataset.ng90Eggs = e.easterEggs ? 'on' : 'off';
+    root.dataset.ng90NativePins = e.nativePins ? 'on' : 'off';
+    root.dataset.ng90AutoResync = e.autoResync ? 'on' : 'off';
+    writeMirror();
+    decorateStatus();
+  }
+
+  async function syncGovernanceAutomation() {
+    try {
+      const raw = (await chrome.storage.local.get(GOV_KEY))[GOV_KEY] || {};
+      const wanted = effective().autoResync === true;
+      if (raw.autoResync === wanted) return;
+      await chrome.storage.local.set({ [GOV_KEY]:{ ...raw, autoResync:wanted } });
+    } catch {}
+  }
+
+  async function loadSettings() {
+    try {
+      const raw = (await chrome.storage.local.get(SETTINGS_KEY))[SETTINGS_KEY];
+      if (raw && typeof raw === 'object') settings = { ...DEFAULTS, ...raw };
+    } catch {}
+    applySettings();
+    await syncGovernanceAutomation();
+    renderModalIfOpen();
+  }
+
+  async function saveSettings(next = settings) {
+    settings = { ...DEFAULTS, ...next };
+    applySettings();
+    try { await chrome.storage.local.set({ [SETTINGS_KEY]:settings }); } catch {}
+    await syncGovernanceAutomation();
+    document.dispatchEvent(new CustomEvent('niakgpt:settings-changed', { detail:{ settings:{...settings}, effective:effective() } }));
+    renderModalIfOpen();
+  }
+
+  function toast(text, kind = 'ok') {
+    let node = document.getElementById('ng90-toast');
+    if (!node) {
+      node = document.createElement('div');
+      node.id = 'ng90-toast';
+      document.body.appendChild(node);
+    }
+    node.dataset.kind = kind;
+    node.textContent = text;
+    node.classList.add('show');
+    clearTimeout(node._timer);
+    node._timer = setTimeout(() => node.classList.remove('show'), 2800);
+  }
+
+  function decorateStatus() {
+    const status = document.getElementById('ng8-status');
+    if (!status) return;
+    let badge = status.querySelector('.ng90-safe-badge');
+    if (settings.safeMode) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'ng90-safe-badge';
+        badge.textContent = 'SAFE';
+        status.appendChild(badge);
+      }
+    } else badge?.remove();
+  }
+
+  function ensureButton() {
+    clearTimeout(ensureTimer);
+    const rail = document.getElementById('ng8-rail');
+    if (!rail) {
+      ensureTimer = setTimeout(ensureButton, 900);
+      return;
+    }
+    if (!rail.querySelector('#ng90-settings-btn')) {
+      const button = document.createElement('button');
+      button.id = 'ng90-settings-btn';
+      button.type = 'button';
+      button.setAttribute('aria-label', 'Ouvrir le Centre de contrôle NiakGPT');
+      button.title = 'Centre de contrôle · Alt+,';
+      button.textContent = '⚙';
+      const spacer = rail.querySelector(':scope > span');
+      rail.insertBefore(button, spacer || null);
+      button.addEventListener('click', openModal);
+    }
+    decorateStatus();
+    ensureTimer = setTimeout(ensureButton, 5000);
+  }
+
+  function hotCacheStats() {
+    const root = document.documentElement;
+    let index = [];
+    try { index = JSON.parse(localStorage.getItem('niakgpt-hotindex-v084') || '[]'); } catch {}
+    const bytes = Array.isArray(index) ? index.reduce((sum,x)=>sum+(Number(x?.bytes)||0),0) : 0;
+    const mb = bytes / 1024 / 1024;
+    return {
+      mode:root.dataset.ng8Hotcache || '—',
+      entries:Number(root.dataset.ng8HotcacheEntries || (Array.isArray(index)?index.length:0) || 0),
+      hits:Number(root.dataset.ng8HotcacheHits || 0),
+      misses:Number(root.dataset.ng8HotcacheMisses || 0),
+      network:Number(root.dataset.ng8HotcacheNetwork || 0),
+      mb
+    };
+  }
+
+  function pageKind() {
+    const p = location.pathname;
+    if (/\/c\//.test(p)) return 'conversation';
+    if (/\/g\/g-p-[^/]+\/project/.test(p)) return 'project';
+    return 'home';
+  }
+
+  function diagnosticSnapshot() {
+    const h = hotCacheStats();
+    return {
+      product:'NiakGPT',
+      version:VERSION,
+      time:new Date().toISOString(),
+      page:pageKind(),
+      tabRole:document.documentElement.dataset.ng8TabRole || 'unknown',
+      activity:document.documentElement.dataset.ng86Activity || 'unknown',
+      heavy:document.documentElement.dataset.ng8Heavy === '1',
+      safeMode:settings.safeMode,
+      hotcache:h,
+      settings:{...settings}
+    };
+  }
+
+  async function copyDiagnostic() {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(diagnosticSnapshot(), null, 2));
+      toast('Diagnostic copié — sans contenu de conversation');
+    } catch { toast('Impossible de copier le diagnostic', 'error'); }
+  }
+
+  function downloadJSON(name, value) {
+    const blob = new Blob([JSON.stringify(value,null,2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+
+  async function exportConfig() {
+    try {
+      const raw = await chrome.storage.local.get([SETTINGS_KEY,GOV_KEY]);
+      const payload = {
+        kind:'NiakGPTConfig', schema:1, exportedAt:new Date().toISOString(), version:VERSION,
+        settings:raw[SETTINGS_KEY] || settings,
+        governance:raw[GOV_KEY] || null
+      };
+      const date = new Date().toISOString().slice(0,10);
+      downloadJSON(`niakgpt-config-${date}.json`,payload);
+      toast('Configuration exportée');
+    } catch { toast('Export impossible','error'); }
+  }
+
+  function importConfig() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json,.json';
+    input.hidden = true;
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return input.remove();
+      try {
+        const data = JSON.parse(await file.text());
+        if (data?.kind !== 'NiakGPTConfig' || data?.schema !== 1 || !data.settings) throw new Error('format');
+        const writes = { [SETTINGS_KEY]:{...DEFAULTS,...data.settings} };
+        if (data.governance && typeof data.governance === 'object') writes[GOV_KEY] = data.governance;
+        await chrome.storage.local.set(writes);
+        toast('Configuration importée');
+        await loadSettings();
+      } catch { toast('Fichier de configuration invalide','error'); }
+      input.remove();
+    };
+    document.body.appendChild(input);
+    input.click();
+  }
+
+  function deleteHotDatabase() {
+    try {
+      const req = indexedDB.deleteDatabase(HOT_DB);
+      req.onerror = () => {};
+      req.onblocked = () => {};
+    } catch {}
+  }
+
+  async function purgeHotCache() {
+    if (!confirm('Purger le cache chaud des conversations et recharger ChatGPT ?')) return;
+    for (const key of HOT_KEYS) { try { localStorage.removeItem(key); } catch {} }
+    deleteHotDatabase();
+    toast('Cache chaud purgé · rechargement…');
+    setTimeout(()=>location.reload(),650);
+  }
+
+  async function rebuildIndex() {
+    if (!confirm('Effacer uniquement l’index Projects/chats de NiakGPT et le reconstruire au prochain chargement ?')) return;
+    try { await chrome.storage.local.remove(CACHE_KEY); } catch {}
+    toast('Index supprimé · rechargement…');
+    setTimeout(()=>location.reload(),500);
+  }
+
+  async function resetPreferences() {
+    if (!confirm('Réinitialiser uniquement les préférences visuelles et de performance ?\n\nLa structure Projects et les verrous manuels seront conservés.')) return;
+    settings = { ...DEFAULTS };
+    try { await chrome.storage.local.remove(SETTINGS_KEY); } catch {}
+    await saveSettings(settings);
+    toast('Préférences réinitialisées');
+  }
+
+  async function wipeAllLocalData() {
+    if (!confirm('EFFACEMENT COMPLET DES DONNÉES NIAKGPT LOCALES\n\nCela supprime préférences, index, verrous manuels et structure de gouvernance. Les chats/Projects ChatGPT eux-mêmes ne sont pas supprimés.\n\nContinuer ?')) return;
+    if (!confirm('Dernière confirmation : effacer toutes les données locales NiakGPT ?')) return;
+    try {
+      const all = await chrome.storage.local.get(null);
+      const keys = Object.keys(all).filter(k=>k.startsWith('niakgpt-')||k.startsWith('__niakgpt_'));
+      if (keys.length) await chrome.storage.local.remove(keys);
+    } catch {}
+    try {
+      for (let i=localStorage.length-1;i>=0;i--) {
+        const key=localStorage.key(i);
+        if (key && (key.startsWith('niakgpt-')||key.startsWith('__niakgpt_'))) localStorage.removeItem(key);
+      }
+    } catch {}
+    deleteHotDatabase();
+    toast('Données locales effacées · rechargement…');
+    setTimeout(()=>location.reload(),700);
+  }
+
+  function toggleRow(key, label, help) {
+    const checked = bool(settings[key]);
+    return `<label class="ng90-toggle-row"><span><b>${esc(label)}</b><small>${esc(help)}</small></span><input type="checkbox" data-setting="${key}" ${checked?'checked':''}><i></i></label>`;
+  }
+
+  function renderModal() {
+    const modal = document.getElementById('ng90-control');
+    if (!modal) return;
+    const h = hotCacheStats();
+    modal.innerHTML = `<div class="ng90-card">
+      <header><div><small>CONTROL CENTER · ${esc(VERSION)}</small><b>NiakGPT</b><span>Workspace power-user local pour ChatGPT</span></div><button data-close aria-label="Fermer">×</button></header>
+      <div class="ng90-safe ${settings.safeMode?'on':''}">
+        <div><b>SAFE MODE</b><span>${settings.safeMode?'Actif — animations et automatisations suspendues':'Mode de secours ultra-léger pour les fils extrêmes'}</span></div>
+        <label><input type="checkbox" data-setting="safeMode" ${settings.safeMode?'checked':''}><i></i></label>
+      </div>
+      <div class="ng90-grid">
+        <section><h3>APPARENCE</h3>
+          <label class="ng90-select"><span><b>Matrix</b><small>Intensité du fond animé</small></span><select data-setting="matrix"><option value="normal" ${settings.matrix==='normal'?'selected':''}>Normal</option><option value="subtle" ${settings.matrix==='subtle'?'selected':''}>Subtil</option><option value="off" ${settings.matrix==='off'?'selected':''}>Off</option></select></label>
+          <label class="ng90-select"><span><b>Densité</b><small>Sidebar et métadonnées</small></span><select data-setting="density"><option value="compact" ${settings.density==='compact'?'selected':''}>Compacte</option><option value="comfortable" ${settings.density==='comfortable'?'selected':''}>Confortable</option></select></label>
+          ${toggleRow('motion','Animations','Pulse d’activité et transitions')}
+          ${toggleRow('activityColors','Couleurs d’activité','Chats / Projects / barre basse')}
+          ${toggleRow('easterEggs','Easter eggs','Robots et clins d’œil SKYNET')}
+        </section>
+        <section><h3>ASSISTANCE</h3>
+          ${toggleRow('coach','Coach de prompts','Suggestions contextuelles dans le flux du composer')}
+          ${toggleRow('dates','Dates des chats','Dernier échange dans la sidebar')}
+          ${toggleRow('projectBadges','Badges Projects','Projet associé à chaque conversation')}
+          ${toggleRow('statusBar','Barre d’état','État, Project et BY SKYNET')}
+        </section>
+        <section><h3>AUTOMATISATION</h3>
+          ${toggleRow('autoResync','Resynchronisation automatique','Classe uniquement les chats hors projet non verrouillés')}
+          ${toggleRow('nativePins','Pins natifs','Synchronise les Projects principaux dans ChatGPT')}
+          <div class="ng90-info"><b>Manuel > automatique</b><span>Un chat déplacé manuellement reste verrouillé et n’est jamais reclassé sans action explicite.</span></div>
+        </section>
+        <section><h3>PERFORMANCE & CACHE</h3>
+          <div class="ng90-metrics"><div><b>${h.entries}</b><span>fils chauds</span></div><div><b>${h.hits}</b><span>hits</span></div><div><b>${h.network}</b><span>réseau</span></div><div><b>${h.mb.toFixed(1)}</b><span>Mo</span></div></div>
+          <div class="ng90-actions"><button data-purge-cache>Purger cache chaud</button><button data-rebuild-index>Reconstruire l’index</button><button data-copy-diag>Copier diagnostic</button></div>
+          <div class="ng90-info"><b>Local-first</b><span>Aucun serveur NiakGPT, aucune analytics, aucune API payante.</span></div>
+        </section>
+      </div>
+      <footer><div><button data-export>Exporter</button><button data-import>Importer</button></div><span></span><button data-reset>Réinitialiser préférences</button><button class="danger" data-wipe>Effacer données locales</button></footer>
+    </div>`;
+
+    modal.querySelector('[data-close]')?.addEventListener('click', closeModal);
+    modal.addEventListener('mousedown', e=>{ if(e.target===modal) closeModal(); }, {once:true});
+    modal.querySelectorAll('[data-setting]').forEach(control=>{
+      control.addEventListener('change',async()=>{
+        const key=control.dataset.setting;
+        const value=control instanceof HTMLInputElement&&control.type==='checkbox'?control.checked:control.value;
+        await saveSettings({ ...settings, [key]:value });
+      });
+    });
+    modal.querySelector('[data-purge-cache]')?.addEventListener('click',purgeHotCache);
+    modal.querySelector('[data-rebuild-index]')?.addEventListener('click',rebuildIndex);
+    modal.querySelector('[data-copy-diag]')?.addEventListener('click',copyDiagnostic);
+    modal.querySelector('[data-export]')?.addEventListener('click',exportConfig);
+    modal.querySelector('[data-import]')?.addEventListener('click',importConfig);
+    modal.querySelector('[data-reset]')?.addEventListener('click',resetPreferences);
+    modal.querySelector('[data-wipe]')?.addEventListener('click',wipeAllLocalData);
+  }
+
+  function renderModalIfOpen() { if (modalOpen) renderModal(); }
+  function openModal() {
+    let modal = document.getElementById('ng90-control');
+    if (!modal) { modal=document.createElement('div');modal.id='ng90-control';document.body.appendChild(modal); }
+    modalOpen = true;
+    renderModal();
+    requestAnimationFrame(()=>modal.classList.add('open'));
+  }
+  function closeModal() {
+    const modal=document.getElementById('ng90-control');
+    modalOpen=false;
+    modal?.classList.remove('open');
+    setTimeout(()=>modal?.remove(),150);
+  }
+
+  document.addEventListener('keydown',event=>{
+    if(event.key==='Escape'&&modalOpen){event.preventDefault();closeModal();return;}
+    if(event.altKey&&!event.ctrlKey&&!event.metaKey&&event.key===','){event.preventDefault();modalOpen?closeModal():openModal();}
+  },true);
+
+  chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[SETTINGS_KEY])loadSettings();});
+
+  readMirror();
+  applySettings();
+  loadSettings();
+  ensureButton();
+})();

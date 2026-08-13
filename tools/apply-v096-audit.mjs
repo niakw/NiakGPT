@@ -91,7 +91,7 @@ function noHardReload(s){must(!s.includes('location.href=href'),'worker Quick Op
     const row=[...diag.querySelectorAll(':scope > div')].find(x=>(x.querySelector('span')?.textContent||'').trim().toLowerCase()==='coach');if(!row)return false;
     const value=row.querySelector('b');if(!value)return false;value.textContent=coachStatus;value.className=/^(OK|PRÊT)/.test(coachStatus)?'ok':/^ERREUR/.test(coachStatus)?'err':'wait';return true;
   }
-  function setCoachStatus(text){coachStatus=text;document.documentElement.dataset.ng100CoachStatus=text;patchDiagnostic();}`);
+  function setCoachStatus(text){coachStatus=text;document.documentElement.setAttribute('data-ng100-coach-status',text);patchDiagnostic();}`);
     s=s.replace("renderTimer=0;const c=composer(),old=document.getElementById('ng8-coach');if(!enabled()||!c?.editor||!c.form||!c.shell){if(old)old.hidden=true;return;}","renderTimer=0;const c=composer(),old=document.getElementById('ng8-coach'),root=document.documentElement;if(!enabled()||!c?.editor||!c.form||!c.shell){if(old)old.hidden=true;setCoachStatus(root.dataset.ng90Safe==='1'?'OFF · SAFE MODE':root.dataset.ng90Coach==='off'?'OFF · réglage':root.dataset.ng86Activity!=='ready'?`PAUSE · ${String(root.dataset.ng86Activity||'activité').toUpperCase()}`:'INACTIF · composer absent');return;}");
     s=s.replace("const prompt=editorText(c.editor).trim();if(prompt.length<5){if(old)old.hidden=true;return;}","const prompt=editorText(c.editor).trim();if(prompt.length<5){if(old)old.hidden=true;setCoachStatus('PRÊT · saisir 5 caractères');return;}");
     s=s.replace("if(sig===lastSig&&box.dataset.ng100Coach==='1'){box.hidden=false;return;}","if(sig===lastSig&&box.dataset.ng100Coach==='1'){box.hidden=false;setCoachStatus(`OK · ${model.kind.toUpperCase()} · ${model.items.length} suggestions`);return;}");
@@ -99,8 +99,10 @@ function noHardReload(s){must(!s.includes('location.href=href'),'worker Quick Op
     s=s.replace("  window.addEventListener('popstate',()=>{lastSig='';schedule(220);});",`  const stateObserver=new MutationObserver(records=>{if(records.some(r=>['data-ng86-activity','data-ng90-safe','data-ng90-coach'].includes(r.attributeName))){lastSig='';schedule(80);patchDiagnostic();}});stateObserver.observe(document.documentElement,{attributes:true,attributeFilter:['data-ng86-activity','data-ng90-safe','data-ng90-coach']});
   document.addEventListener('click',event=>{const t=event.target instanceof Element?event.target:null;if(t?.closest('#ng8-rail [data-tab="diag"]'))setTimeout(patchDiagnostic,60);},true);
   window.addEventListener('popstate',()=>{lastSig='';schedule(220);});`);
+  }else{
+    s=s.replace('document.documentElement.dataset.ng100CoachStatus=text;','document.documentElement.setAttribute(\'data-ng100-coach-status\',text);');
   }
-  must(s.includes("setAttribute('data-ng100-coach','1')"),'explicit coach marker missing');must(s.includes('function setCoachStatus('),'coach diagnostic owner missing');write(p,s);
+  must(s.includes("setAttribute('data-ng100-coach','1')"),'explicit coach marker missing');must(s.includes('function setCoachStatus('),'coach diagnostic owner missing');must(s.includes('data-ng100-coach-status'),'explicit coach status attribute missing');write(p,s);
 }
 
 console.log('NiakGPT 0.9.6 audited runtime convergence applied');

@@ -7,6 +7,8 @@
   window.__NIAKGPT_HOTCACHE_084__=true;
 
   const META_KEY='niakgpt-hotmeta-v084';
+  const GOV_KEY='niakgpt-governance-v085';
+  const SETTINGS_KEY='niakgpt-settings-v090';
   const values=new Map();
   let metaTimer=0,lastMetaSignature='';
   const api={
@@ -54,6 +56,32 @@
     const hits=Number(detail.hits??root.dataset.ng8HotcacheHits??0),net=Number(detail.network??root.dataset.ng8HotcacheNetwork??0),shared=Number(detail.deduped??root.dataset.ng8HotcacheDeduped??0),entries=Number(detail.entries??root.dataset.ng8HotcacheEntries??0);
     api.set('hotcache',`${mode} · ${entries}/5 · ${hits} hit · ${net} net${shared?` · ${shared} partagé${shared>1?'s':''}`:''}`);
   }
+  function role(){return document.documentElement.dataset.ng8TabRole||'unknown';}
+  function safe(){return document.documentElement.dataset.ng90Safe==='1';}
+  function publishOrganizer(governance={}){
+    if(safe()){api.set('organizer','PAUSE · SAFE MODE');return;}
+    if(role()==='client'){api.set('organizer','DÉLÉGUÉ · WORKER');return;}
+    const core=Array.isArray(governance.coreProjectIds)?governance.coreProjectIds.length:0;
+    const locks=governance.locks&&typeof governance.locks==='object'?Object.keys(governance.locks).length:0;
+    const hidden=Array.isArray(governance.hiddenProjectIds)?governance.hiddenProjectIds.length:0;
+    api.set('organizer',`OK · ${core} principaux · ${locks} manuels · ${hidden} masqués`);
+  }
+  function publishPins(settings={}){
+    if(safe()||settings.safeMode===true){api.set('pins','PAUSE · SAFE MODE');return;}
+    if(settings.nativePins===false){api.set('pins','OFF · synchro native désactivée');return;}
+    const current=String(api.snapshot().pins||'');
+    if(/^CORE ·/.test(current))return;
+    api.set('pins',role()==='client'?'DÉLÉGUÉ · WORKER':'PRÊT · synchro native');
+  }
+  async function refreshWorkspaceDiagnostics(){
+    try{
+      const raw=await chrome.storage.local.get([GOV_KEY,SETTINGS_KEY]);
+      publishOrganizer(raw[GOV_KEY]||{});
+      publishPins(raw[SETTINGS_KEY]||{});
+    }catch{
+      publishOrganizer({});publishPins({});
+    }
+  }
   function startHotcacheUI(){
     window.__NIAKGPT_CACHE_BUS__?.subscribe(raw=>scheduleMeta(raw));
     document.addEventListener('niakgpt:hotcache-status',event=>hotcacheDiagnostic(event.detail||{}));
@@ -61,7 +89,12 @@
       if(event.detail?.phase!=='request')return;const id=String(event.detail?.chatId||location.pathname.match(/\/c\/([0-9a-f-]{20,})/i)?.[1]||'');
       if(id)document.dispatchEvent(new CustomEvent('niakgpt:hotcache-dirty',{detail:{id}}));
     });
-    hotcacheDiagnostic();
+    document.addEventListener('niakgpt:settings-changed',refreshWorkspaceDiagnostics);
+    chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&(changes[GOV_KEY]||changes[SETTINGS_KEY]))refreshWorkspaceDiagnostics();});
+    const observer=new MutationObserver(records=>{if(records.some(r=>r.attributeName==='data-ng8-tab-role'||r.attributeName==='data-ng90-safe'))refreshWorkspaceDiagnostics();});
+    observer.observe(document.documentElement,{attributes:true,attributeFilter:['data-ng8-tab-role','data-ng90-safe']});
+    window.addEventListener('pagehide',()=>observer.disconnect(),{once:true});
+    hotcacheDiagnostic();refreshWorkspaceDiagnostics();
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',startHotcacheUI,{once:true});
   else queueMicrotask(startHotcacheUI);

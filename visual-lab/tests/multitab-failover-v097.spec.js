@@ -46,7 +46,10 @@ test('a heavy WORKER hands background work to a light visible CLIENT',async()=>{
   const rt=await launch();
   try{
     const [r1]=await roles(rt.p1,rt.p2),worker=r1==='worker'?rt.p1:rt.p2,client=worker===rt.p1?rt.p2:rt.p1;
+    // Let the initial Project/index pass and first multi-tab pulse settle before forcing a synthetic heavy state.
+    await worker.waitForTimeout(3500);
     await worker.locator('html').evaluate(el=>{el.dataset.ng8Heavy='1';});
+    await expect(worker.locator('html')).toHaveAttribute('data-ng8-heavy','1');
     await expect.poll(async()=>({worker:await worker.locator('html').getAttribute('data-ng8-tab-role'),client:await client.locator('html').getAttribute('data-ng8-tab-role')}),{timeout:12000}).toEqual({worker:'client',client:'worker'});
   }finally{await close(rt);}
 });

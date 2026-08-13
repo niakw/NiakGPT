@@ -75,12 +75,14 @@
   }
   function tryFallback(){
     if(navigator.locks?.request||safe()||acquiring||role==='WORKER')return;
+    if(heavy()&&eligiblePeer()){setRole('CLIENT','heavy-peer-preferred');return;}
     const lease=readLease(),now=Date.now();if(lease?.id&&lease.id!==tabId&&(lease.until||0)>now){setRole('CLIENT','lease-held');return;}
     fallbackLease=true;writeLease();setRole('WORKER','lease');renewFallbackLease();
   }
 
   async function tryAcquire(reason='election'){
     if(safe()||role==='WORKER'||acquiring)return;
+    if(heavy()&&eligiblePeer()){setRole('CLIENT','heavy-peer-preferred');return;}
     if(!navigator.locks?.request){tryFallback();return;}
     acquiring=true;
     try{
@@ -102,8 +104,7 @@
 
   function eligiblePeer(){purgePeers();return[...peers.values()].find(p=>p.role!=='WORKER'&&!p.safeMode&&!p.heavy);}
   function scheduleHeavyYield(){
-    if(role!=='WORKER'||!heavy()||safe()){clearTimeout(heavyTimer);heavyTimer=0;return;}
-    if(heavyTimer)return;
+    if(heavyTimer||role!=='WORKER'||!heavy()||safe())return;
     broadcast('heavy-request');
     heavyTimer=setTimeout(()=>{heavyTimer=0;if(role==='WORKER'&&heavy()&&eligiblePeer())releaseWorker('heavy-handoff');},500);
   }
@@ -144,6 +145,7 @@
   document.addEventListener('visibilitychange',()=>{broadcast('visibility');if(!document.hidden){pumpIdle();if(role!=='WORKER'&&!safe())tryAcquire('visible');}});
   chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[SETTINGS_KEY])loadPublicSettings();});
 
+  // Cache-only Quick Open fallback remains available on CLIENT tabs.
   const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
   function routeTo(href){
     const id=String(href||'').match(/\/c\/([0-9a-f-]{20,})/i)?.[1],root=document.querySelector('[data-testid="conversation-sidebar"],[data-testid="sidebar"],nav');

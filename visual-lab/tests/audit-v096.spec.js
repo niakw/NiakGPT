@@ -90,6 +90,20 @@ test('bottom status geometry is invariant across all activity labels',async()=>{
   }finally{await rt.close();}
 });
 
+test('Matrix, three Terminator easter eggs and BY SKYNET are actually mounted',async()=>{
+  const rt=await launch();
+  try{
+    await expect(rt.page.locator('#ng8-matrix')).toBeVisible({timeout:4000});
+    await expect(rt.page.locator('.ng8-bot')).toHaveCount(3);
+    await expect(rt.page.locator('#ng8-status>strong')).toHaveText('BY SKYNET');
+    const centered=await rt.page.evaluate(()=>{
+      const bar=document.getElementById('ng8-status').getBoundingClientRect(),mark=document.querySelector('#ng8-status>strong').getBoundingClientRect();
+      return Math.abs((mark.left+mark.width/2)-(bar.left+bar.width/2));
+    });
+    expect(centered).toBeLessThanOrEqual(1);
+  }finally{await rt.close();}
+});
+
 test('native Sources/Outputs panels and collapsed handles stay left of NiakGPT rail',async()=>{
   const rt=await launch();
   try{
@@ -127,5 +141,37 @@ test('contextual coach changes recommendations with the actual prompt',async()=>
     await expect(coach).toContainText('Hiérarchie UX',{timeout:3000});
     await expect(coach).toContainText('États complets');
     await expect(coach).toContainText('Critère visuel');
+  }finally{await rt.close();}
+});
+
+test('coach stays outside attachment previews instead of covering them',async()=>{
+  const rt=await launch();
+  try{
+    const editor=rt.page.locator('#prompt-textarea');
+    await editor.fill('Analyse cette image jointe et donne-moi trois améliorations UX précises.');
+    const coach=rt.page.locator('#ng8-coach[data-ng100-coach="1"]');
+    await expect(coach).toBeVisible({timeout:4000});
+    await rt.page.evaluate(()=>{
+      const composer=document.querySelector('[data-type="unified-composer"]');
+      const attachment=document.createElement('div');attachment.className='attachment-preview';attachment.setAttribute('data-testid','attachment-preview');attachment.textContent='image.png';Object.assign(attachment.style,{width:'150px',height:'58px',flex:'0 0 150px',border:'1px solid #777'});composer.prepend(attachment);
+    });
+    const overlap=await rt.page.evaluate(()=>{
+      const a=document.querySelector('.attachment-preview').getBoundingClientRect(),c=document.getElementById('ng8-coach').getBoundingClientRect();
+      return !(c.right<=a.left||c.left>=a.right||c.bottom<=a.top||c.top>=a.bottom);
+    });
+    expect(overlap).toBe(false);
+  }finally{await rt.close();}
+});
+
+test('organizer and pins diagnostics resolve instead of staying in ATTENTE',async()=>{
+  const rt=await launch();
+  try{
+    await rt.page.locator('#ng8-rail [data-tab="diag"]').click();
+    const diag=rt.page.locator('#ng8-panel .ng8-diag');
+    await expect(diag).toBeVisible({timeout:3000});
+    const organizer=diag.locator(':scope > div').filter({hasText:'organizer'}).locator('b');
+    const pins=diag.locator(':scope > div').filter({hasText:'pins'}).locator('b');
+    await expect.poll(()=>organizer.textContent(),{timeout:6000}).not.toMatch(/^ATTENTE|^$/);
+    await expect.poll(()=>pins.textContent(),{timeout:10000}).not.toMatch(/^ATTENTE|^$/);
   }finally{await rt.close();}
 });

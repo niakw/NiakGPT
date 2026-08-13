@@ -37,8 +37,8 @@
     const p=norm(prompt),ctx=norm(recent()),both=`${p} ${ctx.slice(-700)}`;
     const scores={perf:0,design:0,code:0,research:0,organize:0,legal:0,data:0,writing:0,general:1};
     const add=(key,rx,weight)=>{if(rx.test(p))scores[key]+=weight;if(rx.test(ctx))scores[key]+=1;};
-    add('perf',/perf|performance|lent|lourd|lag|cache|cpu|mémoire|memoire|réseau|reseau|optim|reflow|polling|timer|onglet/,12);
-    add('design',/design|\bda\b|interface|\bui\b|\bux\b|visuel|couleur|layout|thème|theme|responsive|sidebar|barre|panel|panneau|chevauch/,10);
+    add('perf',/\b(?:perf|performance|lent|lourd|lag|cache|cpu|memoire|reseau|optim|reflow|polling|timer|onglets?)\b/,12);
+    add('design',/design|\bda\b|interface|\bui\b|\bux\b|visuel|couleur|layout|thème|theme|responsive|sidebar|barre|panel|panneau|chevauch|decalage/,10);
     add('code',/code|bug|erreur|script|javascript|typescript|python|php|sql|css|html|api|github|extension|chrome|fonction|endpoint|manifest/,9);
     add('research',/recherche|source|vérifie|verifie|actualité|recent|récent|documentation|prix|tarif/,8);
     add('organize',/tri|classe|classer|projet|project|dossier|structure|organis|réaffect|reaffect/,8);

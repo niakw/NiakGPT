@@ -2,7 +2,7 @@
 
 NiakGPT transforme l’interface web de ChatGPT en workspace power-user local : Projects gouvernés, navigation rapide, cache chaud, états temps réel, sommaire, coach contextuel, outils code, organisation assistée et DA dense inspirée des IDE.
 
-> **État actuel : 0.9.6 RC** — architecture en validation intensive. L’extension utilise des endpoints internes de ChatGPT qui ne sont pas documentés publiquement par OpenAI et peuvent changer sans préavis.
+> **État actuel : 0.9.7 RC** — architecture en validation intensive. L’extension utilise des endpoints internes de ChatGPT qui ne sont pas documentés publiquement par OpenAI et peuvent changer sans préavis.
 
 ## Principes
 
@@ -255,6 +255,8 @@ Playwright exécute :
 - **vraie extension non empaquetée chargée dans Chromium** sur un `chatgpt.com` mocké.
 
 Le banc runtime vérifie notamment le bootstrap réel, les compteurs, la pagination sans `cursor=0`, les états réseau, les verrous manuels, Safe Mode, l’élection WORKER/CLIENT, les dossiers Projects sans navigation intermédiaire, la stabilité de la barre basse et le coach contextuel.
+
+La 0.9.7 verrouille aussi explicitement les régressions Matrix, les trois easter eggs Terminator, `BY SKYNET`, les diagnostics `organizer/pins`, les pièces jointes du composer et le handoff d’un WORKER lourd vers un CLIENT léger.
 
 ## Limites connues
 

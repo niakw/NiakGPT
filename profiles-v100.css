@@ -1,0 +1,51 @@
+/* NiakGPT 1.0 workspace profiles */
+.ng100-profile-section{margin:12px 14px 0;border:1px solid #2b3c4b;border-radius:9px;background:#0c151e!important;overflow:hidden}.ng100-profile-section>header{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid #263746;background:#101a24!important}.ng100-profile-section>header b{color:#8297aa;font:800 9px/1.2 Consolas,monospace;letter-spacing:.1em}.ng100-profile-section>header span{color:#c9d8e4;font:700 9px/1.2 Consolas,monospace}.ng100-profile-section>div{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#233341}.ng100-profile-section button{min-height:62px;display:flex;align-items:center;gap:9px;padding:9px;border:0;background:#0e1720!important;color:#c9d5df;text-align:left;cursor:pointer}.ng100-profile-section button:hover{background:#14212c!important;color:#fff}.ng100-profile-section button.active{background:linear-gradient(90deg,rgba(79,193,255,.14),#101b25)!important;box-shadow:inset 3px 0 #4fc1ff}.ng100-profile-section button>i{flex:0 0 18px;width:18px;height:18px;border:1px solid #405466;border-radius:5px;background:#101923}.ng100-profile-section button.active>i{border-color:#4fc1ff;background:radial-gradient(circle,#4fc1ff 0 3px,transparent 4px)}.ng100-profile-section button span{min-width:0}.ng100-profile-section button b{display:block;color:#e5edf4;font-size:10.5px}.ng100-profile-section button small{display:block;margin-top:3px;color:#718396;font-size:8.8px;line-height:1.25}
+
+/* Power — default NiakGPT personality. */
+html[data-ng100-profile="power"]{--ng100-feed-max:920px}
+
+/* Code / IDE — tighter metadata, harder code separation, cooler technical surfaces. */
+html[data-ng100-profile="code"]{--ng8-current-project:#4fc1ff;--ng100-feed-max:980px}
+html[data-ng100-profile="code"] main{background:linear-gradient(180deg,rgba(4,10,15,.88),rgba(2,7,11,.94))!important}
+html[data-ng100-profile="code"] pre[data-ng8-code="1"]{border-color:#35536b!important;box-shadow:inset 3px 0 #4fc1ff,0 10px 30px rgba(0,0,0,.28)!important}
+html[data-ng100-profile="code"] .ng8-codebar{background:#0b1721!important;color:#8fb6cf!important}
+html[data-ng100-profile="code"] a[data-ng8-chat="1"],html[data-ng100-profile="code"] #ng8-pins a{font-family:Inter,ui-sans-serif,system-ui,sans-serif!important}
+html[data-ng100-profile="code"] .ng8-chat-date,html[data-ng100-profile="code"] .ng8-chat-project,html[data-ng100-profile="code"] .ng8-project-meta{font-family:Consolas,"SFMono-Regular",monospace!important}
+
+/* Research — calmer background, longer-reading surfaces, less decorative Matrix. */
+html[data-ng100-profile="research"]{--ng100-feed-max:1020px}
+html[data-ng100-profile="research"] #ng8-matrix{opacity:.08!important;filter:saturate(.7) brightness(.7)!important}
+html[data-ng100-profile="research"] [data-ng8-role="assistant"]{background:linear-gradient(90deg,rgba(72,112,135,.08),rgba(10,16,22,.36))!important;line-height:1.65!important}
+html[data-ng100-profile="research"] [data-ng8-role="user"]{background:linear-gradient(90deg,rgba(55,148,255,.08),rgba(10,16,22,.32))!important}
+html[data-ng100-profile="research"] [data-ng8-turn] p,html[data-ng100-profile="research"] [data-ng8-turn] li{line-height:1.68!important}
+html[data-ng100-profile="research"] blockquote{border-left-width:3px!important}
+
+/* Focus / Writing — removes visual motion/noise without invoking Safe Mode. */
+html[data-ng100-profile="focus"]{--ng100-feed-max:800px}
+html[data-ng100-profile="focus"] #ng8-matrix{display:none!important}
+html[data-ng100-profile="focus"] #ng8-rail{opacity:.46;transition:opacity .15s ease}html[data-ng100-profile="focus"] #ng8-rail:hover,html[data-ng100-profile="focus"] #ng8-rail:focus-within{opacity:1}
+html[data-ng100-profile="focus"] .ng8-sidebar{filter:saturate(.72)}
+html[data-ng100-profile="focus"] [data-ng8-turn]{border-color:transparent!important;background:rgba(8,13,18,.34)!important;line-height:1.68!important}
+html[data-ng100-profile="focus"] a.ng86-active-chat::after{animation:none!important}
+
+/* Analyst — metadata/table emphasis. */
+html[data-ng100-profile="analyst"]{--ng100-feed-max:1080px}
+html[data-ng100-profile="analyst"] a[data-ng8-chat="1"][data-ng8-zebra="0"]{background:#08121a!important}html[data-ng100-profile="analyst"] a[data-ng8-chat="1"][data-ng8-zebra="1"]{background:#111d27!important}
+html[data-ng100-profile="analyst"] .ng8-chat-date,html[data-ng100-profile="analyst"] .ng8-chat-project,html[data-ng100-profile="analyst"] .ng8-project-meta{font-size:9px!important;font-weight:800!important}
+html[data-ng100-profile="analyst"] #ng8-pins{border-color:#365063!important}html[data-ng100-profile="analyst"] #ng8-status{font-family:Consolas,"SFMono-Regular",monospace!important}
+
+/* High Contrast — accessibility-first visual profile. */
+html[data-ng100-profile="contrast"]{--ng8-text:#fff;--ng8-soft:#e8f0f6;--ng8-muted:#afc0cf;--ng8-border:#6d8294;--ng100-feed-max:920px}
+html[data-ng100-profile="contrast"] #ng8-matrix{display:none!important}
+html[data-ng100-profile="contrast"] nav,html[data-ng100-profile="contrast"] .ng8-sidebar{background:#020406!important;border-color:#71889b!important}
+html[data-ng100-profile="contrast"] a[data-ng8-chat="1"],html[data-ng100-profile="contrast"] a[data-ng8-project="1"],html[data-ng100-profile="contrast"] #ng8-pins a{border-color:#586d7f!important;color:#fff!important}
+html[data-ng100-profile="contrast"] [data-ng8-turn]{color:#fff!important;border-color:#536a7d!important;background:#070b0f!important}
+html[data-ng100-profile="contrast"] [data-ng8-role="user"]{box-shadow:inset 4px 0 #4fc1ff!important}html[data-ng100-profile="contrast"] [data-ng8-role="assistant"]{box-shadow:inset 4px 0 #4ec9b0!important}
+html[data-ng100-profile="contrast"] button:focus-visible,html[data-ng100-profile="contrast"] a:focus-visible,html[data-ng100-profile="contrast"] input:focus-visible,html[data-ng100-profile="contrast"] textarea:focus-visible{outline:3px solid #fff!important;outline-offset:2px!important}
+html[data-ng100-profile="contrast"] a.ng86-active-chat::after{animation:none!important}
+
+/* Apply a common readable max width where ChatGPT exposes conversation turns. */
+html[data-ng100-profile] main [data-testid^="conversation-turn-"]>div{max-width:var(--ng100-feed-max,920px)!important;margin-inline:auto!important}
+
+@media(max-width:900px){.ng100-profile-section>div{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:620px){.ng100-profile-section>div{grid-template-columns:1fr}}

@@ -29,7 +29,8 @@ async function launch(){
     return route.fulfill({status:204,body:''});
   });
   const p1=context.pages()[0]||await context.newPage();const p2=await context.newPage();
-  await Promise.all([p1.goto(`https://chatgpt.com/c/${PAGE1}`,{waitUntil:'domcontentloaded'}),p2.goto(`https://chatgpt.com/c/${PAGE2}`,{waitUntil:'domcontentloaded'})]);
+  await Promise.all([p1.goto(`https://chatgpt.com/c/${PAGE1}`,{waitUntil:'commit'}),p2.goto(`https://chatgpt.com/c/${PAGE2}`,{waitUntil:'commit'})]);
+  await Promise.all([expect(p1.locator('#native-brand')).toBeVisible({timeout:8000}),expect(p2.locator('#native-brand')).toBeVisible({timeout:8000})]);
   await Promise.all([expect(p1.locator('#ng8-status')).toBeVisible({timeout:12000}),expect(p2.locator('#ng8-status')).toBeVisible({timeout:12000})]);
   return{context,p1,p2,get hotGets(){return hotGets;},close:async()=>{await context.close();fs.rmSync(dir,{recursive:true,force:true});}};
 }

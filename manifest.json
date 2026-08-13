@@ -1,14 +1,14 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.8.6",
-  "description": "Workspace power-user local pour ChatGPT : Projects, gouvernance et verrouillage manuel, Quick Open, DA forcée, chronologie, multi-onglets, cache chaud et états d'activité temps réel.",
+  "version": "0.8.7",
+  "description": "Workspace power-user local pour ChatGPT : Projects gouvernés, Quick Open, chronologie, multi-onglets, cache chaud, DA forcée et états d'activité réseau + DOM.",
   "permissions": ["storage"],
   "host_permissions": ["https://chatgpt.com/*"],
   "content_scripts": [
     {
       "matches": ["https://chatgpt.com/*"],
-      "js": ["page-bridge.js", "manual-lock-main-v085.js", "hotcache-main-v084.js"],
+      "js": ["page-bridge.js", "manual-lock-main-v085.js", "activity-main-v087.js", "hotcache-main-v084.js"],
       "run_at": "document_start",
       "world": "MAIN"
     },

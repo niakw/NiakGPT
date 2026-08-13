@@ -1,0 +1,73 @@
+/* NiakGPT 0.8.2 — chronology metadata */
+
+/* Native chat rows: last exchange date + project badge */
+a[data-ng8-chat="1"]{
+  padding-right:118px!important;
+}
+.ng8-chat-date{
+  position:absolute;
+  right:61px;
+  top:50%;
+  transform:translateY(-50%);
+  z-index:3;
+  min-width:34px;
+  padding:2px 3px;
+  border-radius:4px;
+  color:#8495a8!important;
+  background:#0b1219d9!important;
+  border:1px solid #263646!important;
+  font:700 8px/1.2 Consolas,"SFMono-Regular",monospace;
+  letter-spacing:.01em;
+  text-align:center;
+  pointer-events:none;
+  opacity:.88;
+}
+a[data-ng8-chat="1"]:hover .ng8-chat-date,
+a[data-ng8-chat="1"].ng8-current .ng8-chat-date{
+  color:#d9e8f4!important;
+  border-color:color-mix(in srgb,var(--ng-project,#4fc1ff) 38%,#263646 62%)!important;
+  background:#101b25f2!important;
+}
+.ng8-chat-project{
+  right:6px!important;
+  max-width:51px!important;
+}
+
+/* Project rows: LAST ACTIVITY [CHAT COUNT] */
+#ng8-pins a{
+  grid-template-columns:24px minmax(0,1fr) 73px!important;
+}
+#ng8-pins .ng8-project-meta,
+.ng8-project-table .ng8-project-meta{
+  white-space:nowrap!important;
+  text-align:right!important;
+  color:#8fa1b4!important;
+  font:700 8.5px/1.2 Consolas,"SFMono-Regular",monospace!important;
+  letter-spacing:.01em;
+}
+#ng8-pins a:hover .ng8-project-meta,
+.ng8-project-table a:hover .ng8-project-meta{
+  color:#d6e4f0!important;
+}
+.ng8-project-table .head{
+  grid-template-columns:1fr 84px!important;
+}
+.ng8-project-table a{
+  grid-template-columns:24px minmax(0,1fr) 84px!important;
+}
+
+/* Keep chronology subtle during streaming. */
+html[data-ng8-running="1"] .ng8-chat-date{
+  opacity:.48!important;
+}
+
+@media(max-width:1100px){
+  a[data-ng8-chat="1"]{padding-right:96px!important}
+  .ng8-chat-date{right:54px;min-width:31px;font-size:7.5px}
+  .ng8-chat-project{max-width:44px!important}
+}
+
+@media(max-width:760px){
+  .ng8-chat-date{display:none!important}
+  a[data-ng8-chat="1"]{padding-right:8px!important}
+}

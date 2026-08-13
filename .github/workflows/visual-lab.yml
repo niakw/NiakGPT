@@ -1,0 +1,45 @@
+name: NiakGPT Visual Lab
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '*.css'
+      - 'visual-lab/**'
+      - '.github/workflows/visual-lab.yml'
+  pull_request:
+    paths:
+      - '*.css'
+      - 'visual-lab/**'
+      - '.github/workflows/visual-lab.yml'
+
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: visual-lab
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: visual-lab/package.json
+      - name: Install visual lab
+        run: npm install --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run visual assertions
+        run: npm test
+      - name: Upload visual screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: niakgpt-visual-lab
+          path: |
+            visual-lab/artifacts
+            visual-lab/playwright-report
+          if-no-files-found: warn
+          retention-days: 14

@@ -49,6 +49,7 @@
   ]);
   const INTERACTIVE='button,[role="button"],[role="menuitem"],[role="menuitemradio"],[role="option"],[role="dialog"],[data-radix-menu-content],[data-radix-popper-content-wrapper]';
   const OWN='#ng90-control,#ng85-governance,#ng911-auto,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng100-onboarding';
+  const SURFACE=`${OWN},[role="menu"],[role="dialog"],[data-radix-menu-content],[data-radix-popper-content-wrapper]`;
   const ATTRS=['aria-label','title','placeholder'];
   let observer=null,stopTimer=0,scanTimer=0,total=0;
 
@@ -79,9 +80,13 @@
     for(const el of scope.querySelectorAll?.(`${INTERACTIVE},${OWN},${OWN} *,[aria-label],[title],[placeholder]`)||[])changed+=patchElement(el);
     if(changed){total+=changed;window.__NIAKGPT_DIAGNOSTICS__?.set('locale',`FR · ${total} libellé${total===1?'':'s'} traduit${total===1?'':'s'}`);}
   }
+  function scanOpenSurfaces(){
+    if(!french())return;
+    for(const surface of document.querySelectorAll(SURFACE))if(surface instanceof Element&&surface.getClientRects().length)scan(surface);
+  }
   function stop(){clearTimeout(stopTimer);observer?.disconnect();observer=null;}
   function arm(duration=1600,initialRoot=null){
-    if(!french()||!document.body)return;stop();if(initialRoot)scan(initialRoot);
+    if(!french()||!document.body)return;stop();if(initialRoot)scan(initialRoot);scanOpenSurfaces();
     observer=new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes)if(node instanceof Element||node instanceof DocumentFragment)scan(node);});
     observer.observe(document.body,{childList:true,subtree:true});stopTimer=setTimeout(stop,duration);
   }

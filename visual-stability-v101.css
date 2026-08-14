@@ -16,7 +16,8 @@ body.ng8-ready::before{
   transform:translateZ(0);
   backface-visibility:hidden;
 }
-body.ng8-ready main{background:transparent!important}
+body.ng8-ready main{background:transparent!important;box-shadow:none!important}
+body.ng8-ready main::before{content:none!important;display:none!important;background:none!important}
 #ng8-matrix{position:fixed!important;inset:0!important;pointer-events:none!important;z-index:0!important;max-width:none!important;max-height:none!important}
 html[data-ng8-running="1"][data-ng8-heavy="1"] #ng8-matrix{opacity:.11!important;filter:saturate(1.05)!important}
 html[data-ng90-safe="1"] body.ng8-ready main{background:transparent!important}

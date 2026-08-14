@@ -21,7 +21,10 @@ for(const file of files){
   if(!fs.existsSync(file))throw new Error(`Missing packaged file: ${file}`);
   const dest=path.join(build,file);fs.mkdirSync(path.dirname(dest),{recursive:true});fs.copyFileSync(file,dest);
 }
-for(const required of ['boot-gate-v100.js','page-bridge.js','hotcache-main-v084.js','app-v090.js','activity-ui-v097.js'])if(!fs.existsSync(path.join(build,required)))throw new Error(`Runtime omitted from ZIP: ${required}`);
+for(const required of [
+  'boot-gate-v100.js','page-bridge.js','hotcache-main-v084.js','app-v090.js','activity-ui-v097.js',
+  'governance-queue-v101.js','reclassify-v101.js','locale-fr-v101.js','visual-stability-v101.js','visual-stability-v101.css'
+])if(!fs.existsSync(path.join(build,required)))throw new Error(`Runtime omitted from ZIP: ${required}`);
 for(const dead of ['app-v08-safe.js','project-governance-v085.js','project-pins-v085.js','boot-watchdog-v099.js'])if(fs.existsSync(path.join(build,dead)))throw new Error(`Legacy runtime in ZIP: ${dead}`);
 
 execFileSync('zip',['-qr',zip,'.'],{cwd:build,stdio:'inherit'});

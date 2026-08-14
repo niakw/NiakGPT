@@ -9,6 +9,7 @@ const app=read('app-v090.js');
 const tabs=read('multitab-v090.js');
 const control=read('control-center-v090.js');
 const commands=read('commands-v100.js');
+const perf=read('performance-guard-v101.js');
 const gov=read('project-governance-v090.js');
 const reclassify=read('reclassify-v101.js');
 const locale=read('locale-fr-v101.js');
@@ -34,6 +35,14 @@ no(tabs,'rafTasks','RAF task registry reintroduced');
 no(tabs,'virtualRafSeq','Virtual RAF sequence reintroduced');
 no(tabs,'nativeRAF=','RAF wrapper reintroduced');
 has(tabs,'niakgptCoordinatedIdle','Idle coordination must remain active');
+
+// Auto-light mode marks heavy chats without impersonating the user's Safe Mode.
+has(perf,"root.dataset.ng8Heavy=heavy?'1':'0'",'Heavy guard flag missing');
+has(perf,"root.dataset.ng101AutoLight='1'",'Auto-light marker missing');
+has(perf,'if(heavyLatched){stopObserver();return;}','Heavy guard must stop observing after threshold');
+has(perf,'if(heavyLatched)return;','Heavy guard must avoid recounting a latched conversation');
+no(perf,"root.dataset.ng90Safe='1'",'Auto-light must not force user Safe Mode / hide Matrix');
+no(perf,'setInterval(','Performance guard must not poll');
 
 // Control Center waits for its rail with one bounded direct-child observer, never a retry loop.
 has(control,'railObserver.observe(document.body,{childList:true})','Control Center rail observer missing');

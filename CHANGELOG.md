@@ -2,6 +2,58 @@
 
 Les changements notables de NiakGPT sont regroupés ici. Le projet est encore en phase RC : les versions 0.x peuvent faire évoluer l’architecture interne rapidement.
 
+## 0.9.11 — Stabilisation gros fils, classement et UX
+
+### Conversations lourdes / bootstrap
+
+- suppression du délai fixe de 2,5 s et du contrôle de silence global du DOM avant bootstrap ;
+- remplacement par une vérification bornée de stabilité du shell `main + composer + sidebar` ;
+- l’état `CHARGEMENT` n’arme plus l’observer profond de génération sur tout `<main>` ;
+- observer profond réservé à `ATTENTE / RÉFLEXION / EXÉCUTION` ;
+- coach : cache des derniers échanges au lieu d’un rescan complet du fil à chaque frappe ;
+- panneaux natifs : aucun scan pendant les phases actives ;
+- loader rétro ralenti pendant le chargement et sur les conversations lourdes ;
+- localisation française limitée aux surfaces interactives ouvertes après le scan initial.
+
+### Direction artistique / stabilité visuelle
+
+- fond NiakGPT fixé au viewport afin de ne plus dépendre de la hauteur du fil ;
+- Matrix fixée au viewport et maintenue visible à faible coût sur les gros fils ;
+- blocs de conversation aplatis avec labels **TOI / YOU** et **CHATGPT** ;
+- grosses cartes ChatGPT internes ramenées à 1 px de bordure neutre, rayon faible et sans ombre ;
+- visualiseur d’image prioritaire sur tous les overlays NiakGPT ;
+- ajout d’une croix de fermeture garantie au viewer ;
+- masquage temporaire des overlays NiakGPT pendant le zoom image ;
+- onboarding rendu scrollable et stable sur écrans peu hauts.
+
+### Projets / « À classer »
+
+- **À classer** devient explicitement une file d’attente et ne peut plus être appris comme projet récurrent ;
+- purge automatique de cette file dans les projets principaux de Gouvernance ;
+- reclassement automatique par petits lots, uniquement vers de vrais projets serveur ;
+- respect strict des verrous manuels et du Mode sûr ;
+- enrichissement des chats ambigus avant décision ;
+- correspondance des mots-clés par termes complets pour éviter des biais comme `chat` dans `ChatGPT` ;
+- reconstruction automatique accélérée avec déplacements vérifiés par lots concurrents ;
+- utilisation de l’accusé du PATCH lorsqu’il confirme déjà la destination afin d’éviter des lectures réseau redondantes.
+
+### Français
+
+- onboarding et profils directement réécrits en français ;
+- traduction ciblée des actions natives encore susceptibles d’apparaître en anglais (`Add to project`, `Move to project`, `More options`, etc.) ;
+- menus et dialogues déjà ouverts rescannés sans parcourir le contenu des conversations ;
+- description Chrome de l’extension francisée.
+
+### QA / performance / CI
+
+- syntaxe contrôlée pour **tous** les modules réellement injectés dynamiquement, pas seulement les scripts du manifest ;
+- nouveaux invariants gros fils, bootstrap, viewer, localisation, reclassement et reconstruction ;
+- nouveaux tests Playwright : onboarding court, localisation, reclassement, fond fixe, style TOI/CHATGPT, viewer image, bootstrap sous mutations continues et absence d’observer profond pendant `CHARGEMENT` ;
+- correction d’un ancien garde hot-path qui testait encore `coach-v100.js` alors que le runtime charge `coach-v101.js` ;
+- packaging autonome, Quality Gate et diagnostics runtime rendus manuels pour éviter les minutes GitHub Actions dupliquées ;
+- Visual Lab automatique limité aux pull requests ;
+- Check statique + packaging propre conservé sur PR et `main`.
+
 ## 0.9.6 — Audit RC
 
 ### UX / navigation

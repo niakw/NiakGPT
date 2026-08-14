@@ -10,12 +10,14 @@ const tabs=read('multitab-v090.js');
 const gov=read('project-governance-v090.js');
 const reclassify=read('reclassify-v101.js');
 const locale=read('locale-fr-v101.js');
+const visual=read('visual-stability-v101.js');
 const sidebarHost=read('sidebar-host-v090.js');
 const chronology=read('chronology-v090.js');
 const pins=read('project-pins-v090.js');
 const panels=read('side-panels-v096.js');
 const polish=read('polish-v090.js');
-const coach=read('coach-v100.js');
+const coach=read('coach-v101.js');
+const loader=read('retro-loader-v097.js');
 const hotcache=read('hotcache-main-v084.js');
 
 // Matrix stays visually present but low-frequency, especially on CLIENT tabs.
@@ -71,10 +73,16 @@ has(reclassify,'!p.domOnly','Reclassification must never target DOM-only pseudo 
 has(reclassify,'navigator.locks.request','Reclassification cross-tab lock missing');
 has(reclassify,'if(hasTerm(text,key))','Reclassification category matching must stay boundary-safe');
 
-// French action localization is event-driven and its body observer is strictly temporary.
+// French localization: no repeated full-document scan on normal clicks.
 has(locale,"['add to project','Ajouter au projet']",'French Add to project translation missing');
-has(locale,'stopTimer=setTimeout(stop,duration)','Locale observer must self-disconnect');
+has(locale,'if(initialRoot)scan(initialRoot)','Locale interaction scan must stay scoped');
+has(locale,'setTimeout(()=>arm(2200,document),900)','Locale full scan must remain startup-only');
 no(locale,'setInterval(','Locale adapter must not poll');
+
+// Viewer detection only wakes after an image intent and never polls.
+has(visual,'if(imageIntent(target))armDetector()','Image viewer detection must stay interaction-driven');
+has(visual,'activeObserver.observe(parent,{childList:true})','Viewer observer must stay locally scoped');
+no(visual,'setInterval(','Image viewer adapter must not poll');
 
 // Hot cache bounds both staleness and RAM, and a tab waiting on the lock rechecks disk.
 has(hotcache,'const MAX_MEMORY_ENTRIES = 2','Hot-cache RAM entry bound missing');
@@ -84,18 +92,24 @@ has(hotcache,'latest <= entry.updateTime && age <= KNOWN_META_TTL','Known cache 
 has(hotcache,'const latest = await getEntry(id, true)','Cross-tab lock must recheck IndexedDB');
 has(hotcache,"m.type === 'invalidate' || m.type === 'updated'",'Cross-tab RAM invalidation missing');
 
-// Coach must have a single owner outside the core.
+// Coach must have a single owner and must not rescan the long thread on each keystroke.
 no(app,'function ensureCoach()','Legacy core coach renderer reintroduced');
 no(app,'function suggestionSet(prompt)','Legacy core coach classifier reintroduced');
 has(coach,"setAttribute('data-ng100-coach-status',text)",'Coach status DOM attribute missing');
-has(coach,'stateObserver','Coach state wakeup missing');
+has(coach,'if(!recentDirty)return recentCache','Coach recent-context cache missing');
+has(coach,"if(nextActivity==='ready'&&lastActivity!=='ready')invalidateRecent()",'Coach context invalidation missing');
 
-// Native side panels: no generation listener and no always-on body observer at rest.
+// Native side panels: no generation listener and no body scan while ChatGPT is active.
 no(panels,'niakgpt:activity-network','Side-panel adapter must not wake from generation traffic');
 no(panels,'arm(7000)','Long startup body observer reintroduced');
-has(panels,"attributeFilter:['data-ng86-activity']",'Side-panel READY refresh observer missing');
+has(panels,"const ready=()=>document.documentElement.dataset.ng86Activity==='ready'",'Side-panel readiness guard missing');
+has(panels,'if(!ready())return false','Side-panel scan must pause during activity');
 has(panels,'if(!relevant)return;arm();scheduleScan(80','Side-panel interaction scoping missing');
 has(panels,'const closeHost=head instanceof HTMLElement?head:panel;','sticky side-panel close missing');
 no(polish,'MutationObserver','Duplicate panel observer reintroduced in polish');
+
+// Loader repaint cadence backs off on heavy chats.
+has(loader,"if (root.dataset.ng8Heavy === '1') return 700",'Heavy loader throttle missing');
+has(loader,"if (root.dataset.ng86Activity === 'loading') return 420",'Loading loader throttle missing');
 
 console.log('NiakGPT 0.9.11 hot-path invariants: OK');

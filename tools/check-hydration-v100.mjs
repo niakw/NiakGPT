@@ -34,10 +34,15 @@ for(const file of isolated.filter(file=>file!=='retro-loader-v097.js'))forbid(re
 const loader=read('retro-loader-v097.js');need(loader,'function stopTicker()');need(loader,'clearInterval(timer)');need(loader,"root.dataset.ng8Heavy === '1'");
 
 const app=read('app-v090.js');need(app,'MutationObserver(queueMainNodes)');need(app,'function renderPins()');forbid(app,'function routeTick()');
+const control=read('control-center-v090.js');
+for(const token of ['CENTRE DE CONTRÔLE','MODE SÛR','railObserver.observe(document.body,{childList:true})','railWatchdog=setTimeout(stopRailWatch,15000)'])need(control,token);
+forbid(control,'setTimeout(ensureButton,700)','unbounded Control Center rail retry reintroduced');
+const commands=read('commands-v100.js');
+for(const token of ["title:'Ouverture rapide'","title:'Gouvernance des projets'",'placeholder="> Palette de commandes"'])need(commands,token);
 const governance=read('project-governance-v090.js');need(governance,'verifyAndLockManualMove');need(governance,'executePlan');
 const govQueue=read('governance-queue-v101.js');for(const token of ['QUEUE_NAMES','coreProjectIds:after','input.disabled=true','À CLASSER · FILE D’ATTENTE','changes[CACHE_KEY].newValue'])need(govQueue,token);forbid(govQueue,'setInterval(','Governance queue guard must stay event-driven');
 const reclassify=read('reclassify-v101.js');for(const token of ['QUEUE_NAMES','coreProjectIds','governance:true','BATCH=8','CONFIDENCE=58','canAutomate()','autoResync===false','!p.domOnly','if(hasTerm(text,key))'])need(reclassify,token);
-const locale=read('locale-fr-v101.js');for(const token of ["['add to project','Ajouter au projet']",'MutationObserver','setTimeout(()=>arm(2200,document),900)','if(initialRoot)scan(initialRoot)'])need(locale,token);forbid(locale,'setInterval(','French locale adapter must stay event-driven');
+const locale=read('locale-fr-v101.js');for(const token of ["['add to project','Ajouter au projet']",'MutationObserver','setTimeout(()=>arm(2200,document),900)','if(initialRoot)scan(initialRoot)','scanOpenSurfaces()'])need(locale,token);forbid(locale,'setInterval(','French locale adapter must stay event-driven');
 const visual=read('visual-stability-v101.js');for(const token of ['ng101-image-close','ng101-image-viewer-host','MutationObserver(scanViewer)'])need(visual,token);forbid(visual,'setInterval(','visual stability runtime must stay event-driven');
 const visualCss=read('visual-stability-v101.css');for(const token of ['background-attachment:fixed','content:"TOI"','content:"CHATGPT"','ng101-image-viewer-host'])need(visualCss,token);
 const coach=read('coach-v101.js');for(const token of ['recentCache','recentDirty','if(!recentDirty)return recentCache','invalidateRecent()'])need(coach,token);

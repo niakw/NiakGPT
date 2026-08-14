@@ -2,17 +2,6 @@ name: Package NiakGPT
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'manifest.json'
-      - '*.js'
-      - '*.css'
-      - 'README.md'
-      - 'PRIVACY.md'
-      - 'SECURITY.md'
-      - 'CHANGELOG.md'
-      - 'tools/package-extension.mjs'
-      - '.github/workflows/package-extension.yml'
 
 jobs:
   package:

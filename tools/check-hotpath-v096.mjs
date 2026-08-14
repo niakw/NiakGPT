@@ -7,6 +7,8 @@ const no=(s,t,m=`forbidden: ${t}`)=>{if(s.includes(t))fail(m);};
 
 const app=read('app-v090.js');
 const tabs=read('multitab-v090.js');
+const control=read('control-center-v090.js');
+const commands=read('commands-v100.js');
 const gov=read('project-governance-v090.js');
 const reclassify=read('reclassify-v101.js');
 const locale=read('locale-fr-v101.js');
@@ -32,6 +34,14 @@ no(tabs,'rafTasks','RAF task registry reintroduced');
 no(tabs,'virtualRafSeq','Virtual RAF sequence reintroduced');
 no(tabs,'nativeRAF=','RAF wrapper reintroduced');
 has(tabs,'niakgptCoordinatedIdle','Idle coordination must remain active');
+
+// Control Center waits for its rail with one bounded direct-child observer, never a retry loop.
+has(control,'railObserver.observe(document.body,{childList:true})','Control Center rail observer missing');
+has(control,'railWatchdog=setTimeout(stopRailWatch,15000)','Control Center rail watchdog missing');
+no(control,'setTimeout(ensureButton,700)','Control Center permanent rail retry reintroduced');
+has(control,'CENTRE DE CONTRÔLE','Control Center French source label missing');
+has(commands,"title:'Ouverture rapide'",'French command palette source missing');
+has(commands,"title:'Gouvernance des projets'",'French Governance command missing');
 
 // Conversation clicks must not wake administrative modules.
 has(gov,"if(!target?.closest('nav,[data-testid*=\"sidebar\" i],#ng8-panel,#ng8-rail,#ng90-control,#ng85-governance'))return;",'Governance click scope missing');
@@ -84,6 +94,7 @@ has(reclassify,'if(hasTerm(text,key))','Reclassification category matching must 
 has(locale,"['add to project','Ajouter au projet']",'French Add to project translation missing');
 has(locale,'if(initialRoot)scan(initialRoot)','Locale interaction scan must stay scoped');
 has(locale,'setTimeout(()=>arm(2200,document),900)','Locale full scan must remain startup-only');
+has(locale,'scanOpenSurfaces()','Open menu/dialog rescan missing');
 no(locale,'setInterval(','Locale adapter must not poll');
 
 // Viewer detection only wakes after an image intent and never polls.

@@ -7,7 +7,7 @@ const need=(s,t,m)=>{if(!s.includes(t))fail(m||`missing ${t}`);};
 const forbid=(s,t,m)=>{if(s.includes(t))fail(m||`forbidden ${t}`);};
 
 const main=['page-bridge.js','manual-lock-main-v085.js','activity-main-v087.js','hotcache-main-v084.js'];
-const isolated=['onboarding-v101.js','profiles-v100.js','control-center-v090.js','cache-bus-v096.js','diagnostic-bus-v096.js','commands-v100.js','multitab-v090.js','project-governance-v090.js','project-pins-v090.js','sidebar-host-v090.js','app-v090.js','coach-v101.js','polish-v090.js','side-panels-v096.js','chronology-v090.js','pin-folders-v096.js','activity-ui-v097.js','retro-loader-v097.js'];
+const isolated=['onboarding-v101.js','profiles-v100.js','control-center-v090.js','cache-bus-v096.js','diagnostic-bus-v096.js','commands-v100.js','multitab-v090.js','project-governance-v090.js','reclassify-v101.js','project-pins-v090.js','sidebar-host-v090.js','app-v090.js','coach-v101.js','polish-v090.js','side-panels-v096.js','chronology-v090.js','pin-folders-v096.js','activity-ui-v097.js','retro-loader-v097.js'];
 
 const manifest=JSON.parse(read('manifest.json'));
 same(manifest.permissions,['storage','scripting'],'permissions mismatch');
@@ -32,6 +32,7 @@ const loader=read('retro-loader-v097.js');need(loader,'function stopTicker()');n
 
 const app=read('app-v090.js');need(app,'MutationObserver(queueMainNodes)');need(app,'function renderPins()');forbid(app,'function routeTick()');
 const governance=read('project-governance-v090.js');need(governance,'verifyAndLockManualMove');need(governance,'executePlan');
+const reclassify=read('reclassify-v101.js');for(const token of ['QUEUE_NAMES','coreProjectIds','governance:true','BATCH=8','canAutomate()'])need(reclassify,token);
 const folders=read('pin-folders-v096.js');need(folders,'ng96-pin-drawer');need(folders,'ng96-project-open');
 const hot=read('hotcache-main-v084.js');need(hot,'MAX_ENTRIES = 5');need(hot,'MAX_TOTAL_BYTES = 96');
 

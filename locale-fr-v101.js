@@ -80,19 +80,23 @@
     if(changed){total+=changed;window.__NIAKGPT_DIAGNOSTICS__?.set('locale',`FR · ${total} libellé${total===1?'':'s'} traduit${total===1?'':'s'}`);}
   }
   function stop(){clearTimeout(stopTimer);observer?.disconnect();observer=null;}
-  function arm(duration=1600){
-    if(!french()||!document.body)return;stop();scan(document);
+  function arm(duration=1600,initialRoot=null){
+    if(!french()||!document.body)return;stop();if(initialRoot)scan(initialRoot);
     observer=new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes)if(node instanceof Element||node instanceof DocumentFragment)scan(node);});
     observer.observe(document.body,{childList:true,subtree:true});stopTimer=setTimeout(stop,duration);
   }
-  function schedule(delay=40){clearTimeout(scanTimer);scanTimer=setTimeout(()=>{scanTimer=0;arm();},delay);}
+  function relevantRoot(target){
+    if(!(target instanceof Element))return null;
+    return target.closest(`${INTERACTIVE},${OWN}`)||target.closest('header,nav,aside')||target;
+  }
+  function schedule(delay=40,root=null){clearTimeout(scanTimer);scanTimer=setTimeout(()=>{scanTimer=0;arm(1600,root);},delay);}
 
-  document.addEventListener('pointerdown',()=>schedule(80),true);
-  document.addEventListener('contextmenu',()=>schedule(50),true);
-  document.addEventListener('keydown',event=>{if(['Enter',' ','ArrowDown','ArrowUp'].includes(event.key))schedule(90);},true);
-  document.addEventListener('click',()=>schedule(60),true);
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden)schedule(250);});
-  window.addEventListener('popstate',()=>schedule(180));
+  document.addEventListener('pointerdown',event=>schedule(80,relevantRoot(event.target)),true);
+  document.addEventListener('contextmenu',event=>schedule(50,relevantRoot(event.target)),true);
+  document.addEventListener('keydown',event=>{if(['Enter',' ','ArrowDown','ArrowUp'].includes(event.key))schedule(90,relevantRoot(document.activeElement));},true);
+  document.addEventListener('click',event=>schedule(60,relevantRoot(event.target)),true);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)schedule(250,document.querySelector(OWN)||null);});
+  window.addEventListener('popstate',()=>schedule(180,document.querySelector(OWN)||null));
   window.addEventListener('pagehide',()=>{clearTimeout(scanTimer);stop();},{once:true});
-  setTimeout(()=>arm(2200),900);
+  setTimeout(()=>arm(2200,document),900);
 })();

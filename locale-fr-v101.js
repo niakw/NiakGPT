@@ -19,6 +19,12 @@
     ['control center','Centre de contrôle'],
     ['welcome to','Bienvenue dans'],
     ['workspace','Espace de travail'],
+    ['workspace power-user local pour chatgpt','Espace de travail avancé local pour ChatGPT'],
+    ['safe mode','Mode sûr'],
+    ['off','Désactivé'],
+    ['easter eggs','Clins d’œil'],
+    ['local-first','Local uniquement'],
+    ['hits','Succès cache'],
     ['high contrast','Contraste élevé'],
     ['focus / writing','Focus / Rédaction'],
     ['research','Recherche'],
@@ -42,6 +48,7 @@
     ['search conversations','Rechercher des conversations']
   ]);
   const INTERACTIVE='button,[role="button"],[role="menuitem"],[role="menuitemradio"],[role="option"],[role="dialog"],[data-radix-menu-content],[data-radix-popper-content-wrapper]';
+  const OWN='#ng90-control,#ng85-governance,#ng911-auto,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng100-onboarding';
   const ATTRS=['aria-label','title','placeholder'];
   let observer=null,stopTimer=0,scanTimer=0,total=0;
 
@@ -56,7 +63,8 @@
   function patchElement(el){
     if(!(el instanceof Element))return 0;let changed=0;
     for(const attr of ATTRS){const old=el.getAttribute(attr),next=translated(old);if(next&&next!==old){el.setAttribute(attr,next);changed++;}}
-    if(el.matches?.(INTERACTIVE)){
+    const mayTranslateText=el.matches?.(INTERACTIVE)||!!el.closest?.(OWN);
+    if(mayTranslateText){
       const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT,{acceptNode:node=>{
         const parent=node.parentElement;if(!parent||parent.closest('code,pre,[contenteditable="true"],textarea,input'))return NodeFilter.FILTER_REJECT;
         return translated(node.nodeValue)?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT;
@@ -68,7 +76,7 @@
     if(!french())return;let changed=0;
     if(root instanceof Element)changed+=patchElement(root);
     const scope=root instanceof Element||root instanceof Document||root instanceof DocumentFragment?root:document;
-    for(const el of scope.querySelectorAll?.(`${INTERACTIVE},[aria-label],[title],[placeholder]`)||[])changed+=patchElement(el);
+    for(const el of scope.querySelectorAll?.(`${INTERACTIVE},${OWN},${OWN} *,[aria-label],[title],[placeholder]`)||[])changed+=patchElement(el);
     if(changed){total+=changed;window.__NIAKGPT_DIAGNOSTICS__?.set('locale',`FR · ${total} libellé${total===1?'':'s'} traduit${total===1?'':'s'}`);}
   }
   function stop(){clearTimeout(stopTimer);observer?.disconnect();observer=null;}

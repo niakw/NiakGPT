@@ -65,16 +65,17 @@ html:lang(fr) [data-ng8-role="user"]::before{content:"TOI"}
   box-shadow:none!important;
 }
 
-/* Flatten content cards/tables generated inside messages; controls keep their native geometry. */
+/* Flatten content cards generated inside messages without inventing borders on borderless blocks. */
 [data-ng8-turn] :where(div,section,article,figure)[class*="rounded-3xl"],
 [data-ng8-turn] :where(div,section,article,figure)[class*="rounded-2xl"],
 [data-ng8-turn] :where(div,section,article,figure)[class*="rounded-xl"],
 [data-ng8-turn] :where(div,section,article,figure)[class*="rounded-lg"]{
-  border-width:1px!important;
-  border-style:solid!important;
-  border-color:rgba(113,130,152,.18)!important;
   border-radius:4px!important;
   box-shadow:none!important;
+}
+[data-ng8-turn] :where(div,section,article,figure)[class*="rounded"][class*="border"]{
+  border-width:1px!important;
+  border-color:rgba(113,130,152,.18)!important;
 }
 [data-ng8-turn] pre[data-ng8-code="1"]{border-radius:3px!important}
 [data-ng8-turn] table{border-radius:0!important}

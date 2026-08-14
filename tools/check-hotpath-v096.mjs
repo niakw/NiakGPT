@@ -9,7 +9,6 @@ const app=read('app-v090.js');
 const tabs=read('multitab-v090.js');
 const control=read('control-center-v090.js');
 const commands=read('commands-v100.js');
-const perf=read('performance-guard-v101.js');
 const gov=read('project-governance-v090.js');
 const reclassify=read('reclassify-v101.js');
 const locale=read('locale-fr-v101.js');
@@ -29,20 +28,16 @@ has(app,"client?(mode==='normal'?360:700)",'client Matrix cadence must remain lo
 has(app,'document.hidden?5000','hidden Matrix cadence must remain very low');
 has(app,'mountObservers();ensureMatrix();wakeBackground();','Matrix must remount only on real route changes');
 
+// Heavy state has one owner only: app-v090.js.
+has(app,"const heavy=S.turns.length>=65||S.codeCount>=35",'Core heavy-thread owner missing');
+has(app,"if(nodes.length>=65)document.documentElement.dataset.ng8Heavy='1'",'Initial heavy-thread guard missing');
+
 // UI animation must stay native; coordination is for idle/background work only.
 no(tabs,'niakgptCoordinatedRAF','Global NiakGPT RAF throttling reintroduced');
 no(tabs,'rafTasks','RAF task registry reintroduced');
 no(tabs,'virtualRafSeq','Virtual RAF sequence reintroduced');
 no(tabs,'nativeRAF=','RAF wrapper reintroduced');
 has(tabs,'niakgptCoordinatedIdle','Idle coordination must remain active');
-
-// Auto-light mode marks heavy chats without impersonating the user's Safe Mode.
-has(perf,"root.dataset.ng8Heavy=heavy?'1':'0'",'Heavy guard flag missing');
-has(perf,"root.dataset.ng101AutoLight='1'",'Auto-light marker missing');
-has(perf,'if(heavyLatched){stopObserver();return;}','Heavy guard must stop observing after threshold');
-has(perf,'if(heavyLatched)return;','Heavy guard must avoid recounting a latched conversation');
-no(perf,"root.dataset.ng90Safe='1'",'Auto-light must not force user Safe Mode / hide Matrix');
-no(perf,'setInterval(','Performance guard must not poll');
 
 // Control Center waits for its rail with one bounded direct-child observer, never a retry loop.
 has(control,'railObserver.observe(document.body,{childList:true})','Control Center rail observer missing');
@@ -106,9 +101,10 @@ has(locale,'setTimeout(()=>arm(2200,document),900)','Locale full scan must remai
 has(locale,'scanOpenSurfaces()','Open menu/dialog rescan missing');
 no(locale,'setInterval(','Locale adapter must not poll');
 
-// Viewer detection only wakes after an image intent and never polls.
+// Viewer detection only wakes after an image intent and never polls; Matrix is detached from volatile main.
 has(visual,'if(imageIntent(target))armDetector()','Image viewer detection must stay interaction-driven');
 has(visual,'activeObserver.observe(parent,{childList:true})','Viewer observer must stay locally scoped');
+has(visual,'document.body.prepend(matrix)','Matrix must be reparented out of giant main');
 no(visual,'setInterval(','Image viewer adapter must not poll');
 
 // Hot cache bounds both staleness and RAM, and a tab waiting on the lock rechecks disk.

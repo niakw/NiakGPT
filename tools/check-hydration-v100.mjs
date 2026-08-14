@@ -23,7 +23,9 @@ need(background,'chrome.scripting.executeScript');
 need(background,'niakgpt:inject-runtime-v100');
 
 const gate=read('boot-gate-v100.js');
-for(const token of ['await waitLoad()','await waitForChatShell()','await sleep(2500)','await waitForQuiet()','await nextFrames()','safeToMutate=true'])need(gate,token);
+for(const token of ['await waitLoad()','await waitForChatShell()','await sleep(650)','await waitForStableShell()','stableSamples=3','maxWait=2600','await nextFrames()','safeToMutate=true'])need(gate,token);
+forbid(gate,'waitForQuiet(','full-document hydration quiet gate reintroduced');
+forbid(gate,"observer.observe(document.documentElement,{childList:true,subtree:true,characterData:true})",'giant-thread bootstrap observer reintroduced');
 forbid(gate,'document.documentElement.dataset','pre-hydration html mutation');
 forbid(gate,'ng99Sentinel','legacy watchdog mutation');
 
@@ -33,7 +35,7 @@ const loader=read('retro-loader-v097.js');need(loader,'function stopTicker()');n
 
 const app=read('app-v090.js');need(app,'MutationObserver(queueMainNodes)');need(app,'function renderPins()');forbid(app,'function routeTick()');
 const governance=read('project-governance-v090.js');need(governance,'verifyAndLockManualMove');need(governance,'executePlan');
-const govQueue=read('governance-queue-v101.js');for(const token of ['QUEUE_NAMES','coreProjectIds:after','input.disabled=true','À CLASSER · FILE D’ATTENTE'])need(govQueue,token);forbid(govQueue,'setInterval(','Governance queue guard must stay event-driven');
+const govQueue=read('governance-queue-v101.js');for(const token of ['QUEUE_NAMES','coreProjectIds:after','input.disabled=true','À CLASSER · FILE D’ATTENTE','changes[CACHE_KEY].newValue'])need(govQueue,token);forbid(govQueue,'setInterval(','Governance queue guard must stay event-driven');
 const reclassify=read('reclassify-v101.js');for(const token of ['QUEUE_NAMES','coreProjectIds','governance:true','BATCH=8','CONFIDENCE=58','canAutomate()','autoResync===false','!p.domOnly','if(hasTerm(text,key))'])need(reclassify,token);
 const locale=read('locale-fr-v101.js');for(const token of ["['add to project','Ajouter au projet']",'MutationObserver','setTimeout(()=>arm(2200,document),900)','if(initialRoot)scan(initialRoot)'])need(locale,token);forbid(locale,'setInterval(','French locale adapter must stay event-driven');
 const visual=read('visual-stability-v101.js');for(const token of ['ng101-image-close','ng101-image-viewer-host','MutationObserver(scanViewer)'])need(visual,token);forbid(visual,'setInterval(','visual stability runtime must stay event-driven');

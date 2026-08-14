@@ -2,14 +2,6 @@ name: NiakGPT Visual Lab
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'manifest.json'
-      - '*.js'
-      - '*.css'
-      - 'visual-lab/**'
-      - '.github/workflows/visual-lab.yml'
   pull_request:
     paths:
       - 'manifest.json'

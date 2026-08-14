@@ -17,6 +17,7 @@ const ISOLATED_RUNTIME=[
   'diagnostic-bus-v096.js',
   'commands-v100.js',
   'multitab-v090.js',
+  'performance-guard-v101.js',
   'project-governance-v090.js',
   'governance-queue-v101.js',
   'reclassify-v101.js',

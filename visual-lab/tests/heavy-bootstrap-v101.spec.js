@@ -72,3 +72,28 @@ test('activity tracker keeps deep main observer disabled during navigation loadi
   expect(await page.evaluate(() => document.documentElement.dataset.ng86Activity)).toBe('loading');
   expect(await page.evaluate(() => window.__mainObserverStarts)).toBe(0);
 });
+
+test('heavy conversation enters auto-light mode, suspends Matrix, and never impersonates manual Safe Mode', async ({ page }) => {
+  const turns = Array.from({ length: 70 }, (_, i) => `<article data-testid="conversation-turn-${i}"><div data-message-author-role="${i % 2 ? 'assistant' : 'user'}">tour ${i}</div></article>`).join('');
+  await page.route('https://chatgpt.com/**', route => route.fulfill({
+    status: 200,
+    contentType: 'text/html; charset=utf-8',
+    body: `<!doctype html><html lang="fr" data-ng90-matrix="normal" data-ng90-safe="0" data-ng86-activity="ready"><body><main>${turns}</main></body></html>`
+  }));
+  await page.goto('https://chatgpt.com/c/cccccccc-cccc-4ccc-8ccc-cccccccccccc', { waitUntil: 'domcontentloaded' });
+  await page.addScriptTag({ path: path.join(root, 'performance-guard-v101.js') });
+
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.ng8Heavy), { timeout: 2500 }).toBe('1');
+  expect(await page.evaluate(() => document.documentElement.dataset.ng101AutoLight)).toBe('1');
+  expect(await page.evaluate(() => document.documentElement.dataset.ng90Matrix)).toBe('off');
+  expect(await page.evaluate(() => document.documentElement.dataset.ng90Safe)).toBe('0');
+
+  await page.evaluate(() => {
+    document.querySelector('main').replaceChildren(document.createElement('p'));
+    history.pushState({}, '', '/');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  });
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.ng8Heavy), { timeout: 2500 }).toBe('0');
+  expect(await page.evaluate(() => document.documentElement.dataset.ng90Matrix)).toBe('normal');
+  expect(await page.evaluate(() => document.documentElement.dataset.ng90Safe)).toBe('0');
+});

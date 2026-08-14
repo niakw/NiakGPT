@@ -15,6 +15,7 @@ test('long-thread surface stays fixed and conversation turns keep flat TOI/CHATG
       <article data-testid="conversation-turn-2" data-ng8-turn="1" data-ng8-role="assistant"><div data-message-author-role="assistant"><section class="rounded-2xl border-2" style="border:4px solid red">Réponse ChatGPT</section><figure class="rounded-xl" id="borderless">Bloc sans bordure</figure></div></article>
       <div style="height:6000px"></div>
     </main>
+    <form id="composer" style="border:3px solid red;border-radius:30px"><div class="rounded-3xl" style="border:2px solid red"><textarea id="prompt-textarea"></textarea></div></form>
   </body></html>`);
   await page.addStyleTag({ content: `body.ng8-ready main::before{content:"legacy";position:absolute;inset:0;background:red}body.ng8-ready main{box-shadow:inset 0 0 0 4px red}` });
   await page.addStyleTag({ content: css });
@@ -39,6 +40,9 @@ test('long-thread surface stays fixed and conversation turns keep flat TOI/CHATG
   expect(await page.locator('main').evaluate(el => getComputedStyle(el).boxShadow)).toBe('none');
   expect(await page.locator('main').evaluate(el => getComputedStyle(el, '::before').content)).toBe('none');
   expect(await user.evaluate(el => getComputedStyle(el).contentVisibility)).toBe('auto');
+  expect(await page.locator('#composer').evaluate(el => getComputedStyle(el).borderTopWidth)).toBe('0px');
+  expect(await page.locator('#composer').evaluate(el => getComputedStyle(el).borderRadius)).toBe('5px');
+  expect(await page.locator('#composer > .rounded-3xl').evaluate(el => getComputedStyle(el).borderRadius)).toBe('5px');
 
   const before = await page.evaluate(() => {
     const style = getComputedStyle(document.body, '::before');

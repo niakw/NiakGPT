@@ -1,22 +1,22 @@
 /* NiakGPT 0.9.11 — long-thread visual stability + flat conversation DA */
 
-/* Paint cost guard is active before the JS decorator reaches old turns. */
+/* Let Chromium skip paint/layout work for offscreen old turns. */
 main :is(article[data-testid^="conversation-turn-"],[data-testid^="conversation-turn-"]){
   content-visibility:auto!important;
   contain-intrinsic-size:auto 620px!important;
 }
-html[data-ng101-heavy-guard="1"] main :is(article[data-testid^="conversation-turn-"],[data-testid^="conversation-turn-"]){
+html[data-ng8-heavy="1"] main :is(article[data-testid^="conversation-turn-"],[data-testid^="conversation-turn-"]){
   contain-intrinsic-size:auto 720px!important;
 }
 
-/* Keep the dark/Matrix identity on a dedicated viewport layer, never on the giant conversation surface. */
+/* Keep the dark/Matrix identity on dedicated viewport layers, never on the giant conversation surface. */
 html{background:#05090d!important}
 body.ng8-ready{background:transparent!important;isolation:isolate!important}
 body.ng8-ready::before{
   content:"";
   position:fixed;
   inset:0;
-  z-index:-1;
+  z-index:-2;
   pointer-events:none;
   background:
     radial-gradient(circle at 72% 14%,rgba(48,168,92,.10),transparent 30%),
@@ -27,9 +27,8 @@ body.ng8-ready::before{
 }
 body.ng8-ready main{background:transparent!important;box-shadow:none!important}
 body.ng8-ready main::before{content:none!important;display:none!important;background:none!important}
-#ng8-matrix{position:fixed!important;inset:0!important;pointer-events:none!important;z-index:0!important;max-width:none!important;max-height:none!important}
-html[data-ng8-running="1"][data-ng8-heavy="1"] #ng8-matrix{opacity:.06!important;filter:none!important}
-html[data-ng101-heavy-guard="1"] #ng8-matrix{opacity:0!important;visibility:hidden!important}
+#ng8-matrix{position:fixed!important;inset:0!important;pointer-events:none!important;z-index:-1!important;max-width:none!important;max-height:none!important}
+html[data-ng8-running="1"][data-ng8-heavy="1"] #ng8-matrix{opacity:.07!important;filter:none!important}
 html[data-ng90-safe="1"] body.ng8-ready main{background:transparent!important}
 
 /* Conversation rows: Instagram-like feed readability without ChatGPT bubble chrome. */
@@ -87,7 +86,7 @@ html:lang(fr) [data-ng8-role="user"]::before{content:"TOI"}
   box-shadow:none!important;
 }
 
-/* Flatten ChatGPT cards inside messages. Do not destroy semantic controls, code or tables. */
+/* Flatten decorative ChatGPT cards inside messages. */
 [data-ng8-turn] :where(div,section,article,figure)[class*="rounded-3xl"],
 [data-ng8-turn] :where(div,section,article,figure)[class*="rounded-2xl"],
 [data-ng8-turn] :where(div,section,article,figure)[class*="rounded-xl"],
@@ -109,7 +108,7 @@ html:lang(fr) [data-ng8-role="user"]::before{content:"TOI"}
 [data-ng8-turn] table{border-radius:0!important}
 [data-ng8-turn] blockquote{border-radius:0!important;box-shadow:none!important}
 
-/* Composer: keep the DA, remove the ugly outer rectangle/oversized ChatGPT rounding. */
+/* Composer: keep the DA, remove the oversized ChatGPT rounded frame. */
 body.ng8-ready form:has(#prompt-textarea),
 body.ng8-ready form:has([data-testid="prompt-textarea"]),
 body.ng8-ready [data-type="unified-composer"]{

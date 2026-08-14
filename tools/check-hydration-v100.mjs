@@ -7,7 +7,7 @@ const need=(s,t,m)=>{if(!s.includes(t))fail(m||`missing ${t}`);};
 const forbid=(s,t,m)=>{if(s.includes(t))fail(m||`forbidden ${t}`);};
 
 const main=['page-bridge.js','manual-lock-main-v085.js','activity-main-v087.js','hotcache-main-v084.js'];
-const isolated=['onboarding-v101.js','profiles-v100.js','control-center-v090.js','cache-bus-v096.js','diagnostic-bus-v096.js','commands-v100.js','multitab-v090.js','performance-guard-v101.js','project-governance-v090.js','governance-queue-v101.js','reclassify-v101.js','locale-fr-v101.js','project-pins-v090.js','sidebar-host-v090.js','app-v090.js','visual-stability-v101.js','coach-v101.js','polish-v090.js','side-panels-v096.js','chronology-v090.js','pin-folders-v096.js','activity-ui-v097.js','retro-loader-v097.js'];
+const isolated=['onboarding-v101.js','profiles-v100.js','control-center-v090.js','cache-bus-v096.js','diagnostic-bus-v096.js','commands-v100.js','multitab-v090.js','project-governance-v090.js','governance-queue-v101.js','reclassify-v101.js','locale-fr-v101.js','project-pins-v090.js','sidebar-host-v090.js','app-v090.js','visual-stability-v101.js','coach-v101.js','polish-v090.js','side-panels-v096.js','chronology-v090.js','pin-folders-v096.js','activity-ui-v097.js','retro-loader-v097.js'];
 
 const manifest=JSON.parse(read('manifest.json'));
 same(manifest.permissions,['storage','scripting'],'permissions mismatch');
@@ -34,21 +34,15 @@ for(const file of isolated.filter(file=>file!=='retro-loader-v097.js'))forbid(re
 const loader=read('retro-loader-v097.js');need(loader,'function stopTicker()');need(loader,'clearInterval(timer)');need(loader,"root.dataset.ng8Heavy === '1'");
 
 const app=read('app-v090.js');need(app,'MutationObserver(queueMainNodes)');need(app,'function renderPins()');forbid(app,'function routeTick()');
-const control=read('control-center-v090.js');
-for(const token of ['CENTRE DE CONTRÔLE','MODE SÛR','railObserver.observe(document.body,{childList:true})','railWatchdog=setTimeout(stopRailWatch,15000)'])need(control,token);
-forbid(control,'setTimeout(ensureButton,700)','unbounded Control Center rail retry reintroduced');
-const commands=read('commands-v100.js');
-for(const token of ["title:'Ouverture rapide'","title:'Gouvernance des projets'",'placeholder="> Palette de commandes"'])need(commands,token);
-const perf=read('performance-guard-v101.js');
-for(const token of ['const HEAVY_TURNS=65','const HEAVY_CODE=35',"root.dataset.ng8Heavy=heavy?'1':'0'","root.dataset.ng101AutoLight='1'","root.dataset.ng90Matrix='off'",'if(heavyLatched){stopObserver();return;}','if(heavyLatched)return;'])need(perf,token);
-forbid(perf,"root.dataset.ng90Safe='1'",'automatic heavy mode must never force user Safe Mode');
-forbid(perf,'setInterval(','performance guard must stay event-driven');
+for(const token of ["const heavy=S.turns.length>=65||S.codeCount>=35","if(nodes.length>=65)document.documentElement.dataset.ng8Heavy='1'"])need(app,token,'app must remain the single heavy-thread state owner');
+const control=read('control-center-v090.js');for(const token of ['CENTRE DE CONTRÔLE','MODE SÛR','railObserver.observe(document.body,{childList:true})','railWatchdog=setTimeout(stopRailWatch,15000)'])need(control,token);forbid(control,'setTimeout(ensureButton,700)','unbounded Control Center rail retry reintroduced');
+const commands=read('commands-v100.js');for(const token of ["title:'Ouverture rapide'","title:'Gouvernance des projets'",'placeholder="> Palette de commandes"'])need(commands,token);
 const governance=read('project-governance-v090.js');need(governance,'verifyAndLockManualMove');need(governance,'executePlan');
 const govQueue=read('governance-queue-v101.js');for(const token of ['QUEUE_NAMES','coreProjectIds:after','input.disabled=true','À CLASSER · FILE D’ATTENTE','changes[CACHE_KEY].newValue'])need(govQueue,token);forbid(govQueue,'setInterval(','Governance queue guard must stay event-driven');
 const reclassify=read('reclassify-v101.js');for(const token of ['QUEUE_NAMES','coreProjectIds','governance:true','BATCH=8','CONFIDENCE=58','canAutomate()','autoResync===false','!p.domOnly','if(hasTerm(text,key))'])need(reclassify,token);
 const locale=read('locale-fr-v101.js');for(const token of ["['add to project','Ajouter au projet']",'MutationObserver','setTimeout(()=>arm(2200,document),900)','if(initialRoot)scan(initialRoot)','scanOpenSurfaces()'])need(locale,token);forbid(locale,'setInterval(','French locale adapter must stay event-driven');
 const visual=read('visual-stability-v101.js');for(const token of ['ng101-image-close','ng101-image-viewer-host','VIEWER_SEL','new MutationObserver(()=>scanViewer())','document.body.prepend(matrix)','scheduleMatrix(0)'])need(visual,token);forbid(visual,'setInterval(','visual stability runtime must stay event-driven');
-const visualCss=read('visual-stability-v101.css');for(const token of ['body.ng8-ready::before','position:fixed','transform:translateZ(0)','body.ng8-ready main::before{content:none','body.ng8-ready main{background:transparent!important;box-shadow:none!important}','content:"TOI"','content:"CHATGPT"','ng101-image-viewer-host','content-visibility:auto','data-ng101-heavy-guard'])need(visualCss,token);forbid(visualCss,'background-attachment:fixed','scroll-coupled fixed background reintroduced');
+const visualCss=read('visual-stability-v101.css');for(const token of ['content-visibility:auto','data-ng8-heavy="1"','body.ng8-ready::before','position:fixed','transform:translateZ(0)','body.ng8-ready main::before{content:none','body.ng8-ready main{background:transparent!important;box-shadow:none!important}','content:"TOI"','content:"CHATGPT"','ng101-image-viewer-host'])need(visualCss,token);forbid(visualCss,'data-ng101-heavy-guard','deleted heavy guard must not control visuals');forbid(visualCss,'background-attachment:fixed','scroll-coupled fixed background reintroduced');
 const coach=read('coach-v101.js');for(const token of ['recentCache','recentDirty','if(!recentDirty)return recentCache','invalidateRecent()'])need(coach,token);
 const panels=read('side-panels-v096.js');for(const token of ["const ready=()=>document.documentElement.dataset.ng86Activity==='ready'","if(!ready())return false"])need(panels,token);
 const folders=read('pin-folders-v096.js');need(folders,'ng96-pin-drawer');need(folders,'ng96-project-open');

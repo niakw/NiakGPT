@@ -8,6 +8,9 @@ const no=(s,t,m=`forbidden: ${t}`)=>{if(s.includes(t))fail(m);};
 const app=read('app-v090.js');
 const tabs=read('multitab-v090.js');
 const gov=read('project-governance-v090.js');
+const reclassify=read('reclassify-v101.js');
+const locale=read('locale-fr-v101.js');
+const sidebarHost=read('sidebar-host-v090.js');
 const chronology=read('chronology-v090.js');
 const pins=read('project-pins-v090.js');
 const panels=read('side-panels-v096.js');
@@ -52,6 +55,27 @@ has(app,"const nextCursor = data => data?.cursor ?? data?.next_cursor ?? data?.n
 has(app,"listFrom(r.data,'items','conversations')",'Conversation-list response compatibility missing');
 has(app,"listFrom(r.data,'items','projects','gizmos')",'Project-list response compatibility missing');
 
+// AUTO rebuild: moves are bounded, concurrent, resumable, and avoid redundant verification GETs.
+has(sidebarHost,'const MOVE_CONCURRENCY=4','AUTO rebuild move concurrency missing');
+has(sidebarHost,'Promise.all(batch.map','AUTO rebuild verified batching missing');
+has(sidebarHost,'if(ack===expected)return true','AUTO rebuild PATCH acknowledgement fast-path missing');
+has(sidebarHost,"'a classer','hors projet'",'Unclassified queue must stay excluded from recurring Projects');
+has(sidebarHost,'if(hasTerm(text,key))','AUTO rebuild must use boundary-safe category terms');
+no(sidebarHost,"keys:['famille','mariage','voiture','auto','santé','sante','fatigue','chat','chats'",'Chat/ChatGPT substring classifier regression reintroduced');
+
+// Automatic reclassification stays bounded and obeys Governance/Safe Mode.
+has(reclassify,'const BATCH=8','Reclassification batch bound missing');
+has(reclassify,'const CONFIDENCE=58','Reclassification confidence floor missing');
+has(reclassify,'gov.autoResync===false','Reclassification must honor auto-resync setting');
+has(reclassify,'!p.domOnly','Reclassification must never target DOM-only pseudo Projects');
+has(reclassify,'navigator.locks.request','Reclassification cross-tab lock missing');
+has(reclassify,'if(hasTerm(text,key))','Reclassification category matching must stay boundary-safe');
+
+// French action localization is event-driven and its body observer is strictly temporary.
+has(locale,"['add to project','Ajouter au projet']",'French Add to project translation missing');
+has(locale,'stopTimer=setTimeout(stop,duration)','Locale observer must self-disconnect');
+no(locale,'setInterval(','Locale adapter must not poll');
+
 // Hot cache bounds both staleness and RAM, and a tab waiting on the lock rechecks disk.
 has(hotcache,'const MAX_MEMORY_ENTRIES = 2','Hot-cache RAM entry bound missing');
 has(hotcache,'const MAX_MEMORY_BYTES = 48 * 1024 * 1024','Hot-cache RAM byte bound missing');
@@ -74,4 +98,4 @@ has(panels,'if(!relevant)return;arm();scheduleScan(80','Side-panel interaction s
 has(panels,'const closeHost=head instanceof HTMLElement?head:panel;','sticky side-panel close missing');
 no(polish,'MutationObserver','Duplicate panel observer reintroduced in polish');
 
-console.log('NiakGPT 0.9.6 hot-path invariants: OK');
+console.log('NiakGPT 0.9.11 hot-path invariants: OK');

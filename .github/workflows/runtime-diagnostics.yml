@@ -1,20 +1,7 @@
 name: NiakGPT Runtime Diagnostics
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/runtime-diagnostics.yml'
-      - 'activity-ui-v097.js'
-      - 'hotcache-main-v084.js'
-      - 'diagnostic-bus-v096.js'
-      - 'app-v090.js'
-      - 'manifest.json'
-      - 'visual-lab/tests/runtime-extension.spec.js'
-      - 'visual-lab/tests/hotcache-runtime.spec.js'
-      - 'visual-lab/tests/hotcache-concurrency-v096.spec.js'
-      - 'visual-lab/tests/multitab-failover-v097.spec.js'
-      - 'visual-lab/tests/audit-v096.spec.js'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -23,7 +10,7 @@ concurrency:
   group: niakgpt-runtime-diagnostics-${{ github.ref }}
   cancel-in-progress: true
 
-# Diagnostic-only workflow: each family runs independently on the exact current SHA.
+# Diagnostic-only workflow: run manually when one runtime family needs isolated troubleshooting.
 jobs:
   runtime-extension:
     runs-on: ubuntu-latest

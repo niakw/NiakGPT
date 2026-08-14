@@ -11,6 +11,7 @@ const gov=read('project-governance-v090.js');
 const reclassify=read('reclassify-v101.js');
 const locale=read('locale-fr-v101.js');
 const visual=read('visual-stability-v101.js');
+const activity=read('activity-ui-v097.js');
 const sidebarHost=read('sidebar-host-v090.js');
 const chronology=read('chronology-v090.js');
 const pins=read('project-pins-v090.js');
@@ -42,6 +43,12 @@ has(app,'scanTimer:0, scanToken:0','Chunked scan state missing');
 has(app,'const end=Math.min(index+20,nodes.length)','Chunked initial conversation scan missing');
 has(app,"if(activity()!=='ready'){S.scanTimer=setTimeout(chunk,700);return;}",'Initial scan must pause during activity');
 no(app,"main.querySelectorAll('pre').forEach(decorateCode)",'Duplicate synchronous full code scan reintroduced');
+
+// Activity tracking must not observe giant hydration as if it were model generation.
+has(activity,"const GENERATING=new Set(['waiting','thinking','executing'])",'Activity generating-state split missing');
+has(activity,"if(state==='loading')",'Loading-specific activity path missing');
+has(activity,'disarmActive();scheduleDeadline();scheduleSettle(650)','Loading must stay observer-free');
+has(activity,'if(!root||!GENERATING.has(localState))return','Deep activity observer must be generation-only');
 
 // Project indexing batches full storage writes and never self-rehydrates its own save.
 has(app,'function saveCacheSoon(delay=1600)','Batched Project cache writer missing');

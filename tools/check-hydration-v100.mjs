@@ -7,7 +7,7 @@ const need=(s,t,m)=>{if(!s.includes(t))fail(m||`missing ${t}`);};
 const forbid=(s,t,m)=>{if(s.includes(t))fail(m||`forbidden ${t}`);};
 
 const main=['page-bridge.js','manual-lock-main-v085.js','activity-main-v087.js','hotcache-main-v084.js'];
-const isolated=['onboarding-v101.js','profiles-v100.js','control-center-v090.js','cache-bus-v096.js','diagnostic-bus-v096.js','commands-v100.js','multitab-v090.js','project-governance-v090.js','governance-queue-v101.js','reclassify-v101.js','locale-fr-v101.js','project-pins-v090.js','sidebar-host-v090.js','app-v090.js','visual-stability-v101.js','coach-v101.js','polish-v090.js','side-panels-v096.js','chronology-v090.js','pin-folders-v096.js','activity-ui-v097.js','retro-loader-v097.js'];
+const isolated=['onboarding-v101.js','profiles-v100.js','control-center-v090.js','cache-bus-v096.js','diagnostic-bus-v096.js','commands-v100.js','multitab-v090.js','performance-guard-v101.js','project-governance-v090.js','governance-queue-v101.js','reclassify-v101.js','locale-fr-v101.js','project-pins-v090.js','sidebar-host-v090.js','app-v090.js','visual-stability-v101.js','coach-v101.js','polish-v090.js','side-panels-v096.js','chronology-v090.js','pin-folders-v096.js','activity-ui-v097.js','retro-loader-v097.js'];
 
 const manifest=JSON.parse(read('manifest.json'));
 same(manifest.permissions,['storage','scripting'],'permissions mismatch');
@@ -39,6 +39,10 @@ for(const token of ['CENTRE DE CONTRÔLE','MODE SÛR','railObserver.observe(docu
 forbid(control,'setTimeout(ensureButton,700)','unbounded Control Center rail retry reintroduced');
 const commands=read('commands-v100.js');
 for(const token of ["title:'Ouverture rapide'","title:'Gouvernance des projets'",'placeholder="> Palette de commandes"'])need(commands,token);
+const perf=read('performance-guard-v101.js');
+for(const token of ['const HEAVY_TURNS=65','const HEAVY_CODE=35',"root.dataset.ng8Heavy=heavy?'1':'0'","root.dataset.ng101AutoLight='1'",'if(heavyLatched){stopObserver();return;}','if(heavyLatched)return;'])need(perf,token);
+forbid(perf,"root.dataset.ng90Safe='1'",'automatic heavy mode must never force user Safe Mode');
+forbid(perf,'setInterval(','performance guard must stay event-driven');
 const governance=read('project-governance-v090.js');need(governance,'verifyAndLockManualMove');need(governance,'executePlan');
 const govQueue=read('governance-queue-v101.js');for(const token of ['QUEUE_NAMES','coreProjectIds:after','input.disabled=true','À CLASSER · FILE D’ATTENTE','changes[CACHE_KEY].newValue'])need(govQueue,token);forbid(govQueue,'setInterval(','Governance queue guard must stay event-driven');
 const reclassify=read('reclassify-v101.js');for(const token of ['QUEUE_NAMES','coreProjectIds','governance:true','BATCH=8','CONFIDENCE=58','canAutomate()','autoResync===false','!p.domOnly','if(hasTerm(text,key))'])need(reclassify,token);

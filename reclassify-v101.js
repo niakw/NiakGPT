@@ -8,7 +8,7 @@
   const STATE_KEY='niakgpt-reclassify-v101-state';
   const LOCK_NAME='niakgpt-reclassify-v101';
   const QUEUE_NAMES=new Set(['a classer','hors projet / a classer','hors projet/a classer','unclassified','to classify']);
-  const LEGACY=new Set(['design','ai','ia','coding','code','development','web development','technology','tech','social','social media','writing','general knowledge','general','e-commerce','ecommerce','seo','marketing','business','creative','research','productivity','other','misc','work','education','health','finance','home','cars','gaming','movies','food','personal development','studio','research lab']);
+  const LEGACY=new Set(['design','ai','ia','coding','code','development','web development','technology','tech','social','social media','writing','general knowledge','general','e-commerce','ecommerce','seo','marketing','business','creative','research','productivity','other','misc','work','education','health','finance','home','cars','gaming','movies','food','personal development']);
   const SUSPECT=/^(test|tests|demo|sandbox|temp|temporary|tmp|untitled|nouveau projet|new project)(\b|\s|[-_])/i;
   const STOP=new Set(('le la les un une des de du et ou en sur pour avec sans dans au aux ce cet cette ces mon ma mes ton ta tes son sa ses nos vos leur leurs je tu il elle on nous vous ils elles est sont a à the and or of to for in on with from chat conversation projet project faire fais moi peux peut comment pourquoi quoi cela cette ceci avoir etre être besoin voudrais veux faudrait faut problème probleme question réponse reponse nouveau nouvelle').split(/\s+/));
   const BASE=[
@@ -20,6 +20,8 @@
     {name:'Recherche & Références',keys:['recherche','comparatif','alternative','documentation','source','étude','etude','analyse','prix','tarif','avis','film','cinéma','cinema','anime','blu ray','bluray']}
   ];
   const BATCH=8;
+  const CONFIDENCE=58;
+  const MARGIN=16;
   const COOLDOWN=30*60*1000;
 
   let timer=0,busy=false,rpcSeq=0;
@@ -59,9 +61,10 @@
   }
   function candidateIds(raw,gov,queueIds){
     const projects=new Map((raw.projects||[]).map(p=>[p.id,p]));
-    const valid=id=>{const p=projects.get(id),name=norm(p?.name);return !!p&&!queueIds.has(id)&&!LEGACY.has(name)&&!SUSPECT.test(name);};
-    const configured=(gov.coreProjectIds||[]).filter(valid);
-    return configured.length?configured:[...projects.values()].filter(p=>valid(p.id)).map(p=>p.id);
+    const server=id=>{const p=projects.get(id);return !!p&&id.startsWith('g-p-')&&!p.domOnly&&!queueIds.has(id);};
+    const configured=(gov.coreProjectIds||[]).filter(server);
+    if(configured.length)return configured;
+    return[...projects.values()].filter(p=>server(p.id)&&!LEGACY.has(norm(p.name))&&!SUSPECT.test(norm(p.name))).map(p=>p.id);
   }
   function buildProfiles(raw,ids){
     const projects=new Map((raw.projects||[]).map(p=>[p.id,p])),profiles=new Map();
@@ -133,7 +136,7 @@
     try{
       const raw=await loadCache();if(!raw)return;
       const queueIds=new Set((raw.projects||[]).filter(isQueue).map(p=>p.id));if(!queueIds.size){diagnostic('OK · aucune file À classer');return;}
-      let gov=await loadGovernance();gov=await sanitizeGovernance(gov,queueIds);
+      let gov=await loadGovernance();if(gov.autoResync===false){diagnostic('OFF · reclassement automatique désactivé');return;}gov=await sanitizeGovernance(gov,queueIds);
       const ids=candidateIds(raw,gov,queueIds);if(!ids.length){diagnostic('ATTENTE · aucun Project cible');return;}
       const model=buildProfiles(raw,ids),locks=gov.locks||{},queue=uniqueChats(raw).filter(c=>queueIds.has(c.projectId)&&!locks[c.id]);
       if(!queue.length){diagnostic('OK · À classer vide ou protégé');return;}
@@ -149,7 +152,7 @@
         processed++;
 
         let candidate=bestTarget(chat,ids,model),working=chat;
-        if(!candidate||candidate.score<62||candidate.margin<18){
+        if(!candidate||candidate.score<CONFIDENCE||candidate.margin<MARGIN){
           working=await enrich(chat);
           if(working.snippet&&working.snippet!==chat.snippet){updateCachedChat(raw,chat.id,{snippet:working.snippet.slice(0,1200)});cacheChanged=true;}
           candidate=bestTarget(working,ids,model);
@@ -157,7 +160,7 @@
         const finalSig=hash(`${modelSig}|${working.id}|${working.title||''}|${String(working.snippet||'').slice(0,1200)}`);
         state.attempts[chat.id]={sig:finalSig,at:Date.now(),score:candidate?.score||0,margin:candidate?.margin||0};
 
-        if(candidate&&candidate.score>=62&&candidate.margin>=18&&canAutomate()){
+        if(candidate&&candidate.score>=CONFIDENCE&&candidate.margin>=MARGIN&&canAutomate()){
           if(await move(chat.id,candidate.project.id)){applyMove(raw,chat.id,candidate.project.id);delete state.attempts[chat.id];moved++;cacheChanged=true;}
         }
         await sleep(120);
@@ -169,7 +172,7 @@
       if(cacheChanged){raw.at=Date.now();await chrome.storage.local.set({[CACHE_KEY]:raw});}
       const remaining=uniqueChats(raw).filter(c=>queueIds.has(c.projectId)).length;
       diagnostic(`OK · ${moved} reclassé${moved===1?'':'s'} · ${remaining} restant${remaining===1?'':'s'}`);
-      if(processed>=BATCH&&remaining) schedule(2400);
+      if(processed>=BATCH&&remaining)schedule(2400);
     }catch(error){diagnostic(`ERREUR · ${String(error?.message||error).slice(0,100)}`,true);}
     finally{busy=false;}
   }

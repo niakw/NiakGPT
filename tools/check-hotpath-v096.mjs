@@ -13,6 +13,7 @@ const gov=read('project-governance-v090.js');
 const reclassify=read('reclassify-v101.js');
 const locale=read('locale-fr-v101.js');
 const visual=read('visual-stability-v101.js');
+const visualCss=read('visual-stability-v101.css');
 const activity=read('activity-ui-v097.js');
 const sidebarHost=read('sidebar-host-v090.js');
 const chronology=read('chronology-v090.js');
@@ -31,6 +32,8 @@ has(app,'mountObservers();ensureMatrix();wakeBackground();','Matrix must remount
 // Heavy state has one owner only: app-v090.js.
 has(app,"const heavy=S.turns.length>=65||S.codeCount>=35",'Core heavy-thread owner missing');
 has(app,"if(nodes.length>=65)document.documentElement.dataset.ng8Heavy='1'",'Initial heavy-thread guard missing');
+has(visualCss,'content-visibility:auto','Offscreen turn paint skipping missing');
+has(visualCss,'html[data-ng8-heavy="1"]','Heavy-thread visual guard missing');
 
 // UI animation must stay native; coordination is for idle/background work only.
 no(tabs,'niakgptCoordinatedRAF','Global NiakGPT RAF throttling reintroduced');
@@ -94,11 +97,12 @@ has(reclassify,'!p.domOnly','Reclassification must never target DOM-only pseudo 
 has(reclassify,'navigator.locks.request','Reclassification cross-tab lock missing');
 has(reclassify,'if(hasTerm(text,key))','Reclassification category matching must stay boundary-safe');
 
-// French localization: no repeated full-document scan on normal clicks.
+// French localization: only Project/UI interactions may arm the temporary body observer.
 has(locale,"['add to project','Ajouter au projet']",'French Add to project translation missing');
-has(locale,'if(initialRoot)scan(initialRoot)','Locale interaction scan must stay scoped');
-has(locale,'setTimeout(()=>arm(2200,document),900)','Locale full scan must remain startup-only');
+has(locale,'function schedule(delay=40,root=null){if(!root)return;','Locale wakeup must require a relevant UI root');
+has(locale,'setTimeout(scanOpenSurfaces,900)','Locale startup must scan open UI surfaces only');
 has(locale,'scanOpenSurfaces()','Open menu/dialog rescan missing');
+no(locale,"document.addEventListener('click'",'Normal conversation clicks must not arm localization');
 no(locale,'setInterval(','Locale adapter must not poll');
 
 // Viewer detection only wakes after an image intent and never polls; Matrix is detached from volatile main.
@@ -106,6 +110,7 @@ has(visual,'if(imageIntent(target))armDetector()','Image viewer detection must s
 has(visual,'activeObserver.observe(parent,{childList:true})','Viewer observer must stay locally scoped');
 has(visual,'document.body.prepend(matrix)','Matrix must be reparented out of giant main');
 no(visual,'setInterval(','Image viewer adapter must not poll');
+has(visualCss,'form:has(#prompt-textarea)','Composer border cleanup missing');
 
 // Hot cache bounds both staleness and RAM, and a tab waiting on the lock rechecks disk.
 has(hotcache,'const MAX_MEMORY_ENTRIES = 2','Hot-cache RAM entry bound missing');

@@ -109,6 +109,22 @@ html:lang(fr) [data-ng8-role="user"]::before{content:"TOI"}
 [data-ng8-turn] table{border-radius:0!important}
 [data-ng8-turn] blockquote{border-radius:0!important;box-shadow:none!important}
 
+/* Composer: keep the DA, remove the ugly outer rectangle/oversized ChatGPT rounding. */
+body.ng8-ready form:has(#prompt-textarea),
+body.ng8-ready form:has([data-testid="prompt-textarea"]),
+body.ng8-ready [data-type="unified-composer"]{
+  border:0!important;
+  border-radius:5px!important;
+  box-shadow:0 8px 24px rgba(0,0,0,.20)!important;
+  outline:0!important;
+}
+body.ng8-ready form:has(#prompt-textarea) :where(div,section)[class*="rounded-3xl"],
+body.ng8-ready form:has([data-testid="prompt-textarea"]) :where(div,section)[class*="rounded-3xl"],
+body.ng8-ready [data-type="unified-composer"] :where(div,section)[class*="rounded-3xl"]{
+  border-radius:5px!important;
+  border-color:rgba(113,130,152,.14)!important;
+}
+
 /* Native image lightbox always wins over every NiakGPT overlay. */
 .ng101-image-viewer-host{
   position:fixed!important;

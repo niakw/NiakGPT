@@ -6,7 +6,7 @@
   const TURN_SEL='article[data-testid^="conversation-turn-"],[data-testid^="conversation-turn-"]';
   const HEAVY_TURNS=65;
   const HEAVY_CODE=35;
-  let main=null,observer=null,timer=0,heavyLatched=false,lastPath=location.pathname;
+  let main=null,observer=null,timer=0,heavyLatched=false,lastPath=location.pathname,baseMatrix='subtle';
 
   const root=document.documentElement;
   const activity=()=>root.dataset.ng86Activity||'ready';
@@ -32,15 +32,18 @@
   }
   function count(selector){return main?main.querySelectorAll(selector).length:0;}
   function setHeavy(heavy,turns=0,codes=0){
-    heavyLatched=!!heavy;
+    const wasHeavy=heavyLatched;heavyLatched=!!heavy;
     root.dataset.ng8Heavy=heavy?'1':'0';
     root.dataset.ng101HeavyGuard=heavy?'1':'0';
     if(heavy){
+      if(!wasHeavy){baseMatrix=root.dataset.ng90Matrix||'subtle';root.dataset.ng101MatrixBefore=baseMatrix;}
       root.dataset.ng101AutoLight='1';
+      root.dataset.ng90Matrix='off';
       stopObserver();
-      window.__NIAKGPT_DIAGNOSTICS__?.set('performance',`AUTO-LÉGER · ${turns} tours · ${codes} blocs code`);
+      window.__NIAKGPT_DIAGNOSTICS__?.set('performance',`AUTO-LÉGER · ${turns} tours · ${codes} blocs code · Matrix suspendue`);
     }else{
       delete root.dataset.ng101AutoLight;
+      if(wasHeavy){root.dataset.ng90Matrix=root.dataset.ng101MatrixBefore||baseMatrix||'subtle';delete root.dataset.ng101MatrixBefore;}
       window.__NIAKGPT_DIAGNOSTICS__?.set('performance','PRÊT · garde fil lourd inactive');
     }
   }
@@ -56,10 +59,15 @@
   function onRoute(){
     const next=location.pathname;
     if(next!==lastPath){
-      lastPath=next;heavyLatched=false;setHeavy(false);main=null;bind();schedule(280);
+      lastPath=next;if(heavyLatched)setHeavy(false);heavyLatched=false;main=null;bind();schedule(280);
     }else if(!heavyLatched)schedule(650);
   }
 
+  document.addEventListener('niakgpt:settings-changed',event=>{
+    const matrix=event.detail?.effective?.matrix||event.detail?.settings?.matrix;
+    if(matrix&&matrix!=='off')baseMatrix=matrix;
+    if(heavyLatched)root.dataset.ng90Matrix='off';
+  });
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!heavyLatched)schedule(400);});
   window.addEventListener('popstate',onRoute);
   document.addEventListener('click',event=>{if(event.target instanceof Element&&event.target.closest('a[href]'))setTimeout(onRoute,0);},true);

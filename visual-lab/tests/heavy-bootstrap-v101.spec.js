@@ -3,24 +3,29 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..', '..');
 
+function installChromeMock() {
+  window.__injectAt = 0;
+  window.chrome = window.chrome || {};
+  window.chrome.runtime = {
+    ...(window.chrome.runtime || {}),
+    getManifest: () => ({ version: '0.9.11' }),
+    sendMessage: async message => {
+      if (message?.type === 'niakgpt:inject-runtime-v100') {
+        window.__injectAt = performance.now();
+        document.body.classList.add('ng8-ready');
+        return { ok: true, errors: [] };
+      }
+      return { ok: true };
+    }
+  };
+  window.chrome.storage = {
+    ...(window.chrome.storage || {}),
+    local: { get: async () => ({}), set: async () => {} }
+  };
+}
+
 test('continuous giant-thread mutations do not block NiakGPT bootstrap', async ({ page }) => {
-  await page.addInitScript(() => {
-    window.__injectAt = 0;
-    window.chrome = {
-      runtime: {
-        getManifest: () => ({ version: '0.9.11' }),
-        sendMessage: async message => {
-          if (message?.type === 'niakgpt:inject-runtime-v100') {
-            window.__injectAt = performance.now();
-            document.body.classList.add('ng8-ready');
-            return { ok: true, errors: [] };
-          }
-          return { ok: true };
-        }
-      },
-      storage: { local: { get: async () => ({}), set: async () => {} } }
-    };
-  });
+  await page.addInitScript(installChromeMock);
   await page.route('https://chatgpt.com/**', route => route.fulfill({
     status: 200,
     contentType: 'text/html; charset=utf-8',
@@ -53,7 +58,8 @@ test('activity tracker keeps deep main observer disabled during navigation loadi
       }
     };
     window.BroadcastChannel = class { addEventListener(){} postMessage(){} close(){} };
-    window.chrome = { runtime: { getManifest: () => ({ version:'0.9.11' }) } };
+    window.chrome = window.chrome || {};
+    window.chrome.runtime = { ...(window.chrome.runtime || {}), getManifest: () => ({ version:'0.9.11' }) };
   });
   await page.route('https://chatgpt.com/**', route => route.fulfill({
     status: 200,

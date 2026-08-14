@@ -13,7 +13,7 @@
   const STOP=new Set(('le la les un une des de du et ou en sur pour avec sans dans au aux ce cet cette ces mon ma mes ton ta tes son sa ses nos vos leur leurs je tu il elle on nous vous ils elles est sont a à the and or of to for in on with from chat conversation projet project faire fais moi peux peut comment pourquoi quoi cela cette ceci avoir etre être besoin voudrais veux faudrait faut problème probleme question réponse reponse nouveau nouvelle').split(/\s+/));
   const BASE=[
     {name:'Business & Projets',keys:['business','entreprise','société','societe','client','clients','ecommerce','e-commerce','shopify','vente','commercial','marketing','seo','sea','ads','publicité','publicite','marketplace','budget','marge','produit','marque']},
-    {name:'Tech & Développement',keys:['code','dev','développement','developpement','github','api','chrome','extension','javascript','typescript','python','php','sql','docker','tauri','provider','plugin','bug','runtime','serveur','hosting','hébergement','hebergement']},
+    {name:'Tech & Développement',keys:['code','dev','développement','developpement','github','api','chrome','extension','javascript','typescript','python','php','sql','docker','tauri','provider','plugin','bug','runtime','serveur','hosting','hébergement','hebergement','chatgpt']},
     {name:'Administratif & Juridique',keys:['juridique','justice','avocat','prudhom','prud’hom','plainte','contrat','droit','assurance','impôt','impot','france travail','chômage','chomage','licenciement','administratif','copropriété','copropriete','syndic']},
     {name:'Création & Contenu',keys:['image','visuel','design','logo','vidéo','video','youtube','vimeo','texte','rédaction','redaction','description','titre','affiche','photo','contenu']},
     {name:'Perso & Vie pratique',keys:['famille','mariage','voiture','auto','santé','sante','fatigue','maison','crédit','credit','mutuelle','voyage','relation','personnel','animal','animaux','félin','felin']},
@@ -27,6 +27,8 @@
   let timer=0,busy=false,rpcSeq=0;
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[’']/g,"'");
+  const regexEsc=v=>String(v||'').replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const hasTerm=(text,key)=>{const k=norm(key);return !!k&&new RegExp(`(^|[^\\p{L}\\p{N}])${regexEsc(k)}(?=$|[^\\p{L}\\p{N}])`,'u').test(text);};
   const words=v=>norm(v).replace(/[^a-z0-9à-ÿ_-]+/gi,' ').split(/\s+/).filter(x=>x.length>2&&!STOP.has(x));
   const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   const role=()=>document.documentElement.dataset.ng8TabRole||'unknown';
@@ -75,7 +77,7 @@
   }
   function baseBoost(text,project){
     const target=BASE.find(base=>norm(base.name)===norm(project.name));if(!target)return 0;
-    let hits=0;for(const key of target.keys)if(text.includes(norm(key)))hits++;
+    let hits=0;for(const key of target.keys)if(hasTerm(text,key))hits++;
     return hits?80+Math.min(160,(hits-1)*32):0;
   }
   function scoreChat(chat,project,profile){
@@ -106,7 +108,7 @@
     for(let i=0;i<3;i++){const r=await rpc(`/backend-api/conversation/${encodeURIComponent(chatId)}`,{timeout:12000});if(r.ok){const got=clean(r.data?.gizmo_id||r.data?.conversation_mode?.gizmo_id||'');if(got===targetId)return true;}await sleep(260*(i+1));}return false;
   }
   async function move(chatId,targetId){
-    const r=await rpc(`/backend-api/conversation/${encodeURIComponent(chatId)}`,{method:'PATCH',body:{gizmo_id:targetId},timeout:14000});return !!r.ok&&verifyDestination(chatId,targetId);
+    const r=await rpc(`/backend-api/conversation/${encodeURIComponent(chatId)}`,{method:'PATCH',body:{gizmo_id:targetId},timeout:14000});if(!r.ok)return false;const ack=clean(r.data?.gizmo_id||r.data?.conversation_mode?.gizmo_id||'');return ack===targetId||verifyDestination(chatId,targetId);
   }
   function updateCachedChat(raw,id,patch){
     const chat=(raw.chats||[]).find(c=>c.id===id);if(chat)Object.assign(chat,patch);
@@ -137,7 +139,7 @@
       const raw=await loadCache();if(!raw)return;
       const queueIds=new Set((raw.projects||[]).filter(isQueue).map(p=>p.id));if(!queueIds.size){diagnostic('OK · aucune file À classer');return;}
       let gov=await loadGovernance();if(gov.autoResync===false){diagnostic('OFF · reclassement automatique désactivé');return;}gov=await sanitizeGovernance(gov,queueIds);
-      const ids=candidateIds(raw,gov,queueIds);if(!ids.length){diagnostic('ATTENTE · aucun Project cible');return;}
+      const ids=candidateIds(raw,gov,queueIds);if(!ids.length){diagnostic('ATTENTE · aucun projet cible');return;}
       const model=buildProfiles(raw,ids),locks=gov.locks||{},queue=uniqueChats(raw).filter(c=>queueIds.has(c.projectId)&&!locks[c.id]);
       if(!queue.length){diagnostic('OK · À classer vide ou protégé');return;}
 

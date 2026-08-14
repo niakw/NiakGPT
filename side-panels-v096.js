@@ -9,6 +9,7 @@
   let observer=null,observerTimer=0,scanTimer=0;
 
   const visible=el=>{if(!(el instanceof HTMLElement))return false;const r=el.getBoundingClientRect();return r.width>0&&r.height>0&&r.bottom>0&&r.right>0;};
+  const ready=()=>document.documentElement.dataset.ng86Activity==='ready';
   function panelType(text){const s=String(text||'');if(/\b(activité|activite|activity)\b/i.test(s))return'activity';if(/\b(sources?)\b/i.test(s))return'sources';if(/\b(sorties?|outputs?)\b/i.test(s))return'outputs';return'';}
   function labelOf(el){if(!(el instanceof Element))return'';const heading=el.querySelector('h1,h2,h3,[role="heading"],header');return `${el.getAttribute('aria-label')||''} ${el.getAttribute('data-testid')||''} ${heading?.textContent||''}`.trim();}
   function looksLikePanel(el){
@@ -52,12 +53,13 @@
     }
   }
   function scan(root=document){
-    clearTimeout(scanTimer);decorateTriggers(root);const found=findPanel(root)||findPanel(document);if(found)decoratePanel(found.panel,found.type);decorateTriggers(document);return !!found;
+    clearTimeout(scanTimer);if(!ready())return false;
+    decorateTriggers(root);const found=findPanel(root)||findPanel(document);if(found)decoratePanel(found.panel,found.type);decorateTriggers(document);return !!found;
   }
   function scheduleScan(delay=100,root=document){clearTimeout(scanTimer);scanTimer=setTimeout(()=>scan(root),delay);}
   function disarm(){observer?.disconnect();observer=null;clearTimeout(observerTimer);observerTimer=0;}
   function arm(duration=5000){
-    disarm();if(!document.body)return;
+    disarm();if(!document.body||!ready())return;
     observer=new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes){if(!(node instanceof Element))continue;decorateTriggers(node);const found=findPanel(node);if(found)decoratePanel(found.panel,found.type);}});
     observer.observe(document.body,{childList:true,subtree:true});observerTimer=setTimeout(disarm,duration);
   }
@@ -71,10 +73,8 @@
   window.addEventListener('popstate',()=>scheduleScan(100));
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)scheduleScan(120);});
 
-  // Attribute-only observer: when generation settles, perform one cheap right-edge refresh.
-  const stateObserver=new MutationObserver(records=>{if(records.some(r=>r.attributeName==='data-ng86-activity')&&document.documentElement.dataset.ng86Activity==='ready')scheduleScan(120);});
+  const stateObserver=new MutationObserver(records=>{if(records.some(r=>r.attributeName==='data-ng86-activity')&&ready())scheduleScan(120);});
   stateObserver.observe(document.documentElement,{attributes:true,attributeFilter:['data-ng86-activity']});
 
-  // Short hydration probes only: no global body observer is left armed at rest.
   scheduleScan(180);setTimeout(()=>scheduleScan(600),600);setTimeout(()=>scheduleScan(1500),1500);
 })();

@@ -1,16 +1,21 @@
 /* NiakGPT 0.9.11 — long-thread visual stability + flat conversation DA */
 
-/* Keep the dark/Matrix identity pinned to the viewport instead of the giant conversation surface. */
-html{
-  background-color:#05090d!important;
-  background-image:
+/* Keep the dark/Matrix identity on a dedicated viewport layer, never on the giant conversation surface. */
+html{background:#05090d!important}
+body.ng8-ready{background:transparent!important;isolation:isolate!important}
+body.ng8-ready::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:-1;
+  pointer-events:none;
+  background:
     radial-gradient(circle at 72% 14%,rgba(48,168,92,.10),transparent 30%),
     radial-gradient(circle at 42% 72%,rgba(55,148,255,.055),transparent 38%),
-    linear-gradient(180deg,#05090d 0%,#03070a 100%)!important;
-  background-attachment:fixed!important;
-  background-size:cover!important;
+    linear-gradient(180deg,#05090d 0%,#03070a 100%);
+  transform:translateZ(0);
+  backface-visibility:hidden;
 }
-body.ng8-ready{background:transparent!important}
 body.ng8-ready main{background:transparent!important}
 #ng8-matrix{position:fixed!important;inset:0!important;pointer-events:none!important;z-index:0!important;max-width:none!important;max-height:none!important}
 html[data-ng8-running="1"][data-ng8-heavy="1"] #ng8-matrix{opacity:.11!important;filter:saturate(1.05)!important}
@@ -114,4 +119,3 @@ html[data-ng101-image-viewer="1"] :is(#ng8-pins,#ng8-rail,#ng8-panel,#ng8-status
 #ng101-image-close:hover{background:#17222d!important;border-color:rgba(255,255,255,.44)!important}
 
 @media(max-width:800px){[data-ng8-turn]::before{left:18px!important}}
-@media(prefers-reduced-motion:reduce){html{background-attachment:fixed!important}}

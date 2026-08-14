@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "NiakGPT",
   "version": "0.9.11",
-  "description": "Workspace power-user local pour ChatGPT : cœur event-driven, cache chaud, Projects instantanés, coach contextuel, panneaux natifs adaptés, multi-onglets et états temps réel.",
+  "description": "Espace de travail avancé local pour ChatGPT : cœur piloté par événements, cache chaud, projets instantanés, coach contextuel, panneaux adaptés, multi-onglets et états en temps réel.",
   "permissions": ["storage", "scripting"],
   "host_permissions": ["https://chatgpt.com/*"],
   "background": {"service_worker": "background-v100.js"},

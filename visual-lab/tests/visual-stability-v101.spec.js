@@ -11,8 +11,8 @@ test('long-thread surface stays fixed and conversation turns keep flat TOI/CHATG
   await page.setViewportSize({ width: 1365, height: 768 });
   await page.setContent(`<!doctype html><html lang="fr"><body class="ng8-ready">
     <main>
-      <article data-ng8-turn="0" data-ng8-role="user"><div data-message-author-role="user"><div class="bg-token-message-surface rounded-3xl" style="background:rgb(80,20,80);border:4px solid red">Question utilisateur</div></div></article>
-      <article data-ng8-turn="1" data-ng8-role="assistant"><div data-message-author-role="assistant"><section class="rounded-2xl border-2" style="border:4px solid red">Réponse ChatGPT</section><figure class="rounded-xl" id="borderless">Bloc sans bordure</figure></div></article>
+      <article data-testid="conversation-turn-1" data-ng8-turn="0" data-ng8-role="user"><div data-message-author-role="user"><div class="bg-token-message-surface rounded-3xl" style="background:rgb(80,20,80);border:4px solid red">Question utilisateur</div></div></article>
+      <article data-testid="conversation-turn-2" data-ng8-turn="1" data-ng8-role="assistant"><div data-message-author-role="assistant"><section class="rounded-2xl border-2" style="border:4px solid red">Réponse ChatGPT</section><figure class="rounded-xl" id="borderless">Bloc sans bordure</figure></div></article>
       <div style="height:6000px"></div>
     </main>
   </body></html>`);
@@ -33,11 +33,12 @@ test('long-thread surface stays fixed and conversation turns keep flat TOI/CHATG
   expect(await page.locator('.bg-token-message-surface').evaluate(el => getComputedStyle(el).borderRadius)).toBe('0px');
   expect(await page.locator('.bg-token-message-surface').evaluate(el => getComputedStyle(el).boxShadow)).toBe('none');
   const bordered = page.locator('section.rounded-2xl');
-  expect(await bordered.evaluate(el => getComputedStyle(el).borderRadius)).toBe('4px');
-  expect(await bordered.evaluate(el => getComputedStyle(el).borderTopWidth)).toBe('1px');
+  expect(await bordered.evaluate(el => getComputedStyle(el).borderRadius)).toBe('0px');
+  expect(await bordered.evaluate(el => getComputedStyle(el).borderTopWidth)).toBe('0px');
   expect(await page.locator('#borderless').evaluate(el => getComputedStyle(el).borderTopWidth)).toBe('0px');
   expect(await page.locator('main').evaluate(el => getComputedStyle(el).boxShadow)).toBe('none');
   expect(await page.locator('main').evaluate(el => getComputedStyle(el, '::before').content)).toBe('none');
+  expect(await user.evaluate(el => getComputedStyle(el).contentVisibility)).toBe('auto');
 
   const before = await page.evaluate(() => {
     const style = getComputedStyle(document.body, '::before');
@@ -89,4 +90,12 @@ test('image viewer gets top z-index, hides NiakGPT overlays and always exposes a
   await expect(page.locator('#native-viewer')).toHaveCount(0);
   await expect(page.locator('#ng101-image-close')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.hasAttribute('data-ng101-image-viewer'))).toBe(false);
+});
+
+test('Matrix canvas is rehomed to body so long main scrolling cannot own its compositor layer', async ({ page }) => {
+  await page.setContent('<!doctype html><html lang="fr"><body class="ng8-ready"><main><canvas id="ng8-matrix"></canvas><div style="height:9000px"></div></main></body></html>');
+  await page.addStyleTag({ content: css });
+  await page.addScriptTag({ path: path.join(root, 'visual-stability-v101.js') });
+  await expect.poll(() => page.evaluate(() => document.getElementById('ng8-matrix')?.parentElement?.tagName)).toBe('BODY');
+  expect(await page.locator('#ng8-matrix').evaluate(el => getComputedStyle(el).position)).toBe('fixed');
 });

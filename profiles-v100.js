@@ -6,7 +6,7 @@
   const KEY='niakgpt-profile-v100';
   const SETTINGS_KEY='niakgpt-settings-v090';
   const ALLOWED=new Set(['power','code','research','focus','analyst','contrast']);
-  const LABELS={power:'Power',code:'Code / IDE',research:'Research',focus:'Focus / Writing',analyst:'Analyst',contrast:'High Contrast'};
+  const LABELS={power:'Complet',code:'Code / IDE',research:'Recherche',focus:'Focus / Rédaction',analyst:'Analyse',contrast:'Contraste élevé'};
   let profile='power',decorateTimer=0;
 
   function apply(next,{persist=false}={}){
@@ -32,7 +32,7 @@
     const modal=document.getElementById('ng90-control'),card=modal?.querySelector('.ng90-card');if(!card)return false;
     let section=card.querySelector('.ng100-profile-section');
     if(!section){section=document.createElement('section');section.className='ng100-profile-section';const safe=card.querySelector('.ng90-safe');safe?.insertAdjacentElement('afterend',section);}
-    section.innerHTML=`<header><b>PROFIL DE WORKSPACE</b><span>${LABELS[profile]}</span></header><div>${cards()}</div>`;
+    section.innerHTML=`<header><b>PROFIL D’ESPACE DE TRAVAIL</b><span>${LABELS[profile]}</span></header><div>${cards()}</div>`;
     section.querySelectorAll('[data-ng100-profile]').forEach(button=>button.addEventListener('click',()=>apply(button.dataset.ng100Profile,{persist:true})));
     return true;
   }

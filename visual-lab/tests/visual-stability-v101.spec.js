@@ -36,11 +36,21 @@ test('long-thread surface stays fixed and conversation turns keep flat TOI/CHATG
   expect(await bordered.evaluate(el => getComputedStyle(el).borderTopWidth)).toBe('1px');
   expect(await page.locator('#borderless').evaluate(el => getComputedStyle(el).borderTopWidth)).toBe('0px');
 
-  const before = await page.evaluate(() => getComputedStyle(document.documentElement).backgroundAttachment);
+  const before = await page.evaluate(() => {
+    const style = getComputedStyle(document.body, '::before');
+    return { position: style.position, top: style.top, transform: style.transform, backgroundImage: style.backgroundImage };
+  });
   await page.evaluate(() => scrollTo(0, 5200));
-  const after = await page.evaluate(() => getComputedStyle(document.documentElement).backgroundAttachment);
-  expect(before).toBe('fixed');
-  expect(after).toBe('fixed');
+  const after = await page.evaluate(() => {
+    const style = getComputedStyle(document.body, '::before');
+    return { position: style.position, top: style.top, transform: style.transform, backgroundImage: style.backgroundImage };
+  });
+  expect(before.position).toBe('fixed');
+  expect(after.position).toBe('fixed');
+  expect(before.top).toBe('0px');
+  expect(after.top).toBe('0px');
+  expect(before.backgroundImage).toContain('radial-gradient');
+  expect(after.backgroundImage).toBe(before.backgroundImage);
 
   await page.screenshot({ path: path.join(artifacts, 'visual-stability-long-thread.png'), fullPage: false });
 });

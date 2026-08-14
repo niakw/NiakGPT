@@ -35,9 +35,11 @@ const app=read('app-v090.js');need(app,'MutationObserver(queueMainNodes)');need(
 const governance=read('project-governance-v090.js');need(governance,'verifyAndLockManualMove');need(governance,'executePlan');
 const govQueue=read('governance-queue-v101.js');for(const token of ['QUEUE_NAMES','coreProjectIds:after','input.disabled=true','À CLASSER · FILE D’ATTENTE'])need(govQueue,token);forbid(govQueue,'setInterval(','Governance queue guard must stay event-driven');
 const reclassify=read('reclassify-v101.js');for(const token of ['QUEUE_NAMES','coreProjectIds','governance:true','BATCH=8','CONFIDENCE=58','canAutomate()','autoResync===false','!p.domOnly','if(hasTerm(text,key))'])need(reclassify,token);
-const locale=read('locale-fr-v101.js');for(const token of ["['add to project','Ajouter au projet']",'MutationObserver','setTimeout(()=>arm(2200),900)'])need(locale,token);forbid(locale,'setInterval(','French locale adapter must stay event-driven');
+const locale=read('locale-fr-v101.js');for(const token of ["['add to project','Ajouter au projet']",'MutationObserver','setTimeout(()=>arm(2200,document),900)','if(initialRoot)scan(initialRoot)'])need(locale,token);forbid(locale,'setInterval(','French locale adapter must stay event-driven');
 const visual=read('visual-stability-v101.js');for(const token of ['ng101-image-close','ng101-image-viewer-host','MutationObserver(scanViewer)'])need(visual,token);forbid(visual,'setInterval(','visual stability runtime must stay event-driven');
 const visualCss=read('visual-stability-v101.css');for(const token of ['background-attachment:fixed','content:"TOI"','content:"CHATGPT"','ng101-image-viewer-host'])need(visualCss,token);
+const coach=read('coach-v101.js');for(const token of ['recentCache','recentDirty','if(!recentDirty)return recentCache','invalidateRecent()'])need(coach,token);
+const panels=read('side-panels-v096.js');for(const token of ["const ready=()=>document.documentElement.dataset.ng86Activity==='ready'","if(!ready())return false"])need(panels,token);
 const folders=read('pin-folders-v096.js');need(folders,'ng96-pin-drawer');need(folders,'ng96-project-open');
 const hot=read('hotcache-main-v084.js');need(hot,'MAX_ENTRIES = 5');need(hot,'MAX_TOTAL_BYTES = 96');
 

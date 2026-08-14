@@ -1,5 +1,14 @@
 /* NiakGPT 0.9.11 — long-thread visual stability + flat conversation DA */
 
+/* Paint cost guard is active before the JS decorator reaches old turns. */
+main :is(article[data-testid^="conversation-turn-"],[data-testid^="conversation-turn-"]){
+  content-visibility:auto!important;
+  contain-intrinsic-size:auto 620px!important;
+}
+html[data-ng101-heavy-guard="1"] main :is(article[data-testid^="conversation-turn-"],[data-testid^="conversation-turn-"]){
+  contain-intrinsic-size:auto 720px!important;
+}
+
 /* Keep the dark/Matrix identity on a dedicated viewport layer, never on the giant conversation surface. */
 html{background:#05090d!important}
 body.ng8-ready{background:transparent!important;isolation:isolate!important}
@@ -19,28 +28,29 @@ body.ng8-ready::before{
 body.ng8-ready main{background:transparent!important;box-shadow:none!important}
 body.ng8-ready main::before{content:none!important;display:none!important;background:none!important}
 #ng8-matrix{position:fixed!important;inset:0!important;pointer-events:none!important;z-index:0!important;max-width:none!important;max-height:none!important}
-html[data-ng8-running="1"][data-ng8-heavy="1"] #ng8-matrix{opacity:.11!important;filter:saturate(1.05)!important}
+html[data-ng8-running="1"][data-ng8-heavy="1"] #ng8-matrix{opacity:.06!important;filter:none!important}
+html[data-ng101-heavy-guard="1"] #ng8-matrix{opacity:0!important;visibility:hidden!important}
 html[data-ng90-safe="1"] body.ng8-ready main{background:transparent!important}
 
-/* Conversation rows: Instagram-inspired readability, but squared and technical. */
+/* Conversation rows: Instagram-like feed readability without ChatGPT bubble chrome. */
 [data-ng8-turn]{
   position:relative!important;
-  margin:8px 0!important;
-  padding-top:30px!important;
-  padding-bottom:14px!important;
+  margin:9px 0!important;
+  padding-top:31px!important;
+  padding-bottom:15px!important;
   border:0!important;
-  border-left:3px solid rgba(113,130,152,.28)!important;
+  border-left:2px solid rgba(113,130,152,.25)!important;
   border-radius:0!important;
   box-shadow:none!important;
   overflow:visible!important;
 }
 [data-ng8-role="user"]{
-  border-left-color:color-mix(in srgb,var(--ng8-current-project,#3794ff) 78%,#6dafff 22%)!important;
-  background:linear-gradient(90deg,color-mix(in srgb,var(--ng8-current-project,#3794ff) 12%,#0a1118 88%),rgba(5,9,13,.70) 68%,rgba(5,9,13,.38))!important;
+  border-left-color:color-mix(in srgb,var(--ng8-current-project,#3794ff) 72%,#6dafff 28%)!important;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--ng8-current-project,#3794ff) 10%,#0a1118 90%),rgba(5,9,13,.68) 66%,rgba(5,9,13,.28))!important;
 }
 [data-ng8-role="assistant"]{
-  border-left-color:rgba(78,201,176,.52)!important;
-  background:linear-gradient(90deg,rgba(78,201,176,.055),rgba(5,9,13,.68) 68%,rgba(5,9,13,.36))!important;
+  border-left-color:rgba(78,201,176,.48)!important;
+  background:linear-gradient(90deg,rgba(78,201,176,.05),rgba(5,9,13,.66) 66%,rgba(5,9,13,.26))!important;
 }
 [data-ng8-turn]::before{
   position:absolute!important;
@@ -60,9 +70,10 @@ html[data-ng90-safe="1"] body.ng8-ready main{background:transparent!important}
 html:lang(fr) [data-ng8-role="user"]::before{content:"TOI"}
 [data-ng8-role="assistant"]::before{content:"CHATGPT";color:#79d9c3!important}
 
-/* Remove ChatGPT's rounded message bubble without flattening buttons or controls. */
+/* Remove native user bubble completely; keep only the NiakGPT feed row. */
 [data-ng8-role="user"] [data-message-author-role="user"] .bg-token-message-surface,
 [data-ng8-role="user"] [data-message-author-role="user"] [class*="bg-token-message"],
+[data-ng8-role="user"] [data-message-author-role="user"] [class*="message-surface"],
 [data-ng8-role="user"] .bg-token-message-surface,
 [data-ng8-role="user"] [class*="bg-token-message"]{
   border:0!important;
@@ -70,21 +81,33 @@ html:lang(fr) [data-ng8-role="user"]::before{content:"TOI"}
   background:transparent!important;
   box-shadow:none!important;
 }
+[data-ng8-role="user"] [data-message-author-role="user"] > div,
+[data-ng8-role="user"] [data-message-author-role="user"] > div > div{
+  border-radius:0!important;
+  box-shadow:none!important;
+}
 
-/* Flatten content cards generated inside messages without inventing borders on borderless blocks. */
+/* Flatten ChatGPT cards inside messages. Do not destroy semantic controls, code or tables. */
 [data-ng8-turn] :where(div,section,article,figure)[class*="rounded-3xl"],
 [data-ng8-turn] :where(div,section,article,figure)[class*="rounded-2xl"],
 [data-ng8-turn] :where(div,section,article,figure)[class*="rounded-xl"],
 [data-ng8-turn] :where(div,section,article,figure)[class*="rounded-lg"]{
-  border-radius:4px!important;
+  border-radius:0!important;
   box-shadow:none!important;
 }
 [data-ng8-turn] :where(div,section,article,figure)[class*="rounded"][class*="border"]{
-  border-width:1px!important;
-  border-color:rgba(113,130,152,.18)!important;
+  border-width:0!important;
+  border-color:transparent!important;
 }
+[data-ng8-turn] figure,
+[data-ng8-turn] figure>div{
+  border-radius:0!important;
+  box-shadow:none!important;
+}
+[data-ng8-turn] img{border-radius:2px!important}
 [data-ng8-turn] pre[data-ng8-code="1"]{border-radius:3px!important}
 [data-ng8-turn] table{border-radius:0!important}
+[data-ng8-turn] blockquote{border-radius:0!important;box-shadow:none!important}
 
 /* Native image lightbox always wins over every NiakGPT overlay. */
 .ng101-image-viewer-host{
@@ -120,3 +143,4 @@ html[data-ng101-image-viewer="1"] :is(#ng8-pins,#ng8-rail,#ng8-panel,#ng8-status
 #ng101-image-close:hover{background:#17222d!important;border-color:rgba(255,255,255,.44)!important}
 
 @media(max-width:800px){[data-ng8-turn]::before{left:18px!important}}
+@media(prefers-reduced-motion:reduce){body.ng8-ready::before{transform:none!important}}

@@ -56,6 +56,7 @@
   const OWN='#ng90-control,#ng85-governance,#ng911-auto,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-pins,#ng100-command,#ng100-onboarding';
   const SURFACE=`${OWN},[role="menu"],[role="dialog"],[data-radix-menu-content],[data-radix-popper-content-wrapper]`;
   const ATTRS=['aria-label','title','placeholder'];
+  const INTERESTING=/\b(project|projet|options?|menu|archive|rename|renommer|delete|supprimer|share|partager|pin|éping|unpin|déséping|add to|move to|remove from)\b/i;
   let observer=null,stopTimer=0,scanTimer=0,total=0;
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim().toLowerCase();
@@ -111,23 +112,26 @@
     for(const surface of document.querySelectorAll(SURFACE))if(surface instanceof Element&&surface.getClientRects().length)scan(surface);
   }
   function stop(){clearTimeout(stopTimer);observer?.disconnect();observer=null;}
-  function arm(duration=1600,initialRoot=null){
+  function arm(duration=1200,initialRoot=null){
     if(!french()||!document.body)return;stop();if(initialRoot)scan(initialRoot);scanOpenSurfaces();
     observer=new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes)if(node instanceof Element||node instanceof DocumentFragment)scan(node);});
     observer.observe(document.body,{childList:true,subtree:true});stopTimer=setTimeout(stop,duration);
   }
   function relevantRoot(target){
     if(!(target instanceof Element))return null;
-    return target.closest(`${INTERACTIVE},${OWN}`)||target.closest('header,nav,aside')||target;
+    const own=target.closest(OWN);if(own)return own;
+    const surface=target.closest('[role="menu"],[role="dialog"],[data-radix-menu-content],[data-radix-popper-content-wrapper],nav,aside,header');if(surface)return surface;
+    const interactive=target.closest(INTERACTIVE);if(!interactive)return null;
+    const clue=`${interactive.getAttribute('aria-label')||''} ${interactive.getAttribute('title')||''} ${interactive.textContent||''}`;
+    return translated(clue)||INTERESTING.test(clue)?interactive:null;
   }
-  function schedule(delay=40,root=null){clearTimeout(scanTimer);scanTimer=setTimeout(()=>{scanTimer=0;arm(1600,root);},delay);}
+  function schedule(delay=40,root=null){if(!root)return;clearTimeout(scanTimer);scanTimer=setTimeout(()=>{scanTimer=0;arm(1200,root);},delay);}
 
-  document.addEventListener('pointerdown',event=>schedule(80,relevantRoot(event.target)),true);
-  document.addEventListener('contextmenu',event=>schedule(50,relevantRoot(event.target)),true);
-  document.addEventListener('keydown',event=>{if(['Enter',' ','ArrowDown','ArrowUp'].includes(event.key))schedule(90,relevantRoot(document.activeElement));},true);
-  document.addEventListener('click',event=>schedule(60,relevantRoot(event.target)),true);
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden)schedule(250,document.querySelector(OWN)||null);});
-  window.addEventListener('popstate',()=>schedule(180,document.querySelector(OWN)||null));
+  document.addEventListener('pointerdown',event=>schedule(55,relevantRoot(event.target)),true);
+  document.addEventListener('contextmenu',event=>schedule(45,relevantRoot(event.target)),true);
+  document.addEventListener('keydown',event=>{if(['Enter',' ','ArrowDown','ArrowUp'].includes(event.key))schedule(70,relevantRoot(document.activeElement));},true);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)scanOpenSurfaces();});
+  window.addEventListener('popstate',()=>setTimeout(scanOpenSurfaces,120));
   window.addEventListener('pagehide',()=>{clearTimeout(scanTimer);stop();},{once:true});
-  setTimeout(()=>arm(2200,document),900);
+  setTimeout(scanOpenSurfaces,900);
 })();

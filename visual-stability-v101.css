@@ -1,0 +1,111 @@
+/* NiakGPT 0.9.11 — long-thread visual stability + flat conversation DA */
+
+/* Keep the dark/Matrix identity pinned to the viewport instead of the giant conversation surface. */
+html{
+  background-color:#05090d!important;
+  background-image:
+    radial-gradient(circle at 72% 14%,rgba(48,168,92,.10),transparent 30%),
+    radial-gradient(circle at 42% 72%,rgba(55,148,255,.055),transparent 38%),
+    linear-gradient(180deg,#05090d 0%,#03070a 100%)!important;
+  background-attachment:fixed!important;
+  background-size:cover!important;
+}
+body.ng8-ready{background:transparent!important}
+body.ng8-ready main{background:transparent!important}
+#ng8-matrix{position:fixed!important;inset:0!important;pointer-events:none!important;z-index:0!important;max-width:none!important;max-height:none!important}
+html[data-ng8-running="1"][data-ng8-heavy="1"] #ng8-matrix{opacity:.11!important;filter:saturate(1.05)!important}
+html[data-ng90-safe="1"] body.ng8-ready main{background:transparent!important}
+
+/* Conversation rows: Instagram-inspired readability, but squared and technical. */
+[data-ng8-turn]{
+  position:relative!important;
+  margin:8px 0!important;
+  padding-top:30px!important;
+  padding-bottom:14px!important;
+  border:0!important;
+  border-left:3px solid rgba(113,130,152,.28)!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  overflow:visible!important;
+}
+[data-ng8-role="user"]{
+  border-left-color:color-mix(in srgb,var(--ng8-current-project,#3794ff) 78%,#6dafff 22%)!important;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--ng8-current-project,#3794ff) 12%,#0a1118 88%),rgba(5,9,13,.70) 68%,rgba(5,9,13,.38))!important;
+}
+[data-ng8-role="assistant"]{
+  border-left-color:rgba(78,201,176,.52)!important;
+  background:linear-gradient(90deg,rgba(78,201,176,.055),rgba(5,9,13,.68) 68%,rgba(5,9,13,.36))!important;
+}
+[data-ng8-turn]::before{
+  position:absolute!important;
+  top:8px!important;
+  left:max(18px,calc((100% - 760px)/2))!important;
+  z-index:3!important;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+  color:#8091a3!important;
+  font:800 9px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace!important;
+  letter-spacing:.12em!important;
+  text-transform:uppercase!important;
+  pointer-events:none!important;
+}
+[data-ng8-role="user"]::before{content:"YOU";color:color-mix(in srgb,var(--ng8-current-project,#4fc1ff) 78%,#fff 22%)!important}
+html:lang(fr) [data-ng8-role="user"]::before{content:"TOI"}
+[data-ng8-role="assistant"]::before{content:"CHATGPT";color:#79d9c3!important}
+
+/* Remove ChatGPT's rounded message bubble without flattening buttons or controls. */
+[data-ng8-role="user"] [data-message-author-role="user"] .bg-token-message-surface,
+[data-ng8-role="user"] [data-message-author-role="user"] [class*="bg-token-message"],
+[data-ng8-role="user"] .bg-token-message-surface,
+[data-ng8-role="user"] [class*="bg-token-message"]{
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+
+/* Flatten content cards/tables generated inside messages; controls keep their native geometry. */
+[data-ng8-turn] :where(div,section,article,figure)[class*="rounded-3xl"],
+[data-ng8-turn] :where(div,section,article,figure)[class*="rounded-2xl"],
+[data-ng8-turn] :where(div,section,article,figure)[class*="rounded-xl"],
+[data-ng8-turn] :where(div,section,article,figure)[class*="rounded-lg"]{border-radius:4px!important}
+[data-ng8-turn] pre[data-ng8-code="1"]{border-radius:3px!important}
+[data-ng8-turn] table{border-radius:0!important}
+
+/* Native image lightbox always wins over NiakGPT chrome. */
+.ng101-image-viewer-host{
+  position:fixed!important;
+  z-index:2147483646!important;
+  border:0!important;
+  border-radius:0!important;
+  background:rgba(0,0,0,.94)!important;
+  box-shadow:none!important;
+}
+html[data-ng101-image-viewer="1"] #ng8-pins,
+html[data-ng101-image-viewer="1"] #ng8-rail,
+html[data-ng101-image-viewer="1"] #ng8-panel,
+html[data-ng101-image-viewer="1"] #ng8-status,
+html[data-ng101-image-viewer="1"] #ng97-loader{visibility:hidden!important;pointer-events:none!important}
+#ng101-image-close{
+  position:fixed!important;
+  top:14px!important;
+  right:16px!important;
+  z-index:2147483647!important;
+  display:grid!important;
+  place-items:center!important;
+  width:40px!important;
+  height:40px!important;
+  padding:0!important;
+  border:1px solid rgba(255,255,255,.24)!important;
+  border-radius:4px!important;
+  background:rgba(8,13,18,.90)!important;
+  color:#fff!important;
+  box-shadow:0 8px 28px rgba(0,0,0,.42)!important;
+  font:400 25px/1 system-ui,sans-serif!important;
+  cursor:pointer!important;
+}
+#ng101-image-close:hover{background:#17222d!important;border-color:rgba(255,255,255,.44)!important}
+
+@media(max-width:800px){[data-ng8-turn]::before{left:18px!important}}
+@media(prefers-reduced-motion:reduce){html{background-attachment:fixed!important}}

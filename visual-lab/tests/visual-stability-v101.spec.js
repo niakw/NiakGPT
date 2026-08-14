@@ -16,6 +16,7 @@ test('long-thread surface stays fixed and conversation turns keep flat TOI/CHATG
       <div style="height:6000px"></div>
     </main>
   </body></html>`);
+  await page.addStyleTag({ content: `body.ng8-ready main::before{content:"legacy";position:absolute;inset:0;background:red}body.ng8-ready main{box-shadow:inset 0 0 0 4px red}` });
   await page.addStyleTag({ content: css });
 
   const user = page.locator('[data-ng8-role="user"]');
@@ -35,6 +36,8 @@ test('long-thread surface stays fixed and conversation turns keep flat TOI/CHATG
   expect(await bordered.evaluate(el => getComputedStyle(el).borderRadius)).toBe('4px');
   expect(await bordered.evaluate(el => getComputedStyle(el).borderTopWidth)).toBe('1px');
   expect(await page.locator('#borderless').evaluate(el => getComputedStyle(el).borderTopWidth)).toBe('0px');
+  expect(await page.locator('main').evaluate(el => getComputedStyle(el).boxShadow)).toBe('none');
+  expect(await page.locator('main').evaluate(el => getComputedStyle(el, '::before').content)).toBe('none');
 
   const before = await page.evaluate(() => {
     const style = getComputedStyle(document.body, '::before');

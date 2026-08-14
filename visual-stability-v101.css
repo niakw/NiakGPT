@@ -70,14 +70,16 @@ html:lang(fr) [data-ng8-role="user"]::before{content:"TOI"}
 [data-ng8-turn] :where(div,section,article,figure)[class*="rounded-2xl"],
 [data-ng8-turn] :where(div,section,article,figure)[class*="rounded-xl"],
 [data-ng8-turn] :where(div,section,article,figure)[class*="rounded-lg"]{
+  border-width:1px!important;
+  border-style:solid!important;
+  border-color:rgba(113,130,152,.18)!important;
   border-radius:4px!important;
-  border-color:rgba(113,130,152,.20)!important;
   box-shadow:none!important;
 }
 [data-ng8-turn] pre[data-ng8-code="1"]{border-radius:3px!important}
 [data-ng8-turn] table{border-radius:0!important}
 
-/* Native image lightbox always wins over NiakGPT chrome. */
+/* Native image lightbox always wins over every NiakGPT overlay. */
 .ng101-image-viewer-host{
   position:fixed!important;
   z-index:2147483646!important;
@@ -86,11 +88,10 @@ html:lang(fr) [data-ng8-role="user"]::before{content:"TOI"}
   background:rgba(0,0,0,.94)!important;
   box-shadow:none!important;
 }
-html[data-ng101-image-viewer="1"] #ng8-pins,
-html[data-ng101-image-viewer="1"] #ng8-rail,
-html[data-ng101-image-viewer="1"] #ng8-panel,
-html[data-ng101-image-viewer="1"] #ng8-status,
-html[data-ng101-image-viewer="1"] #ng97-loader{visibility:hidden!important;pointer-events:none!important}
+html[data-ng101-image-viewer="1"] :is(#ng8-pins,#ng8-rail,#ng8-panel,#ng8-status,#ng97-loader,#ng90-control,#ng85-governance,#ng911-auto,#ng8-quick,#ng100-onboarding,#ng100-command){
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
 #ng101-image-close{
   position:fixed!important;
   top:14px!important;

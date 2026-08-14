@@ -19,6 +19,7 @@ const ISOLATED_RUNTIME=[
   'multitab-v090.js',
   'project-governance-v090.js',
   'reclassify-v101.js',
+  'locale-fr-v101.js',
   'project-pins-v090.js',
   'sidebar-host-v090.js',
   'app-v090.js',

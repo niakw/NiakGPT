@@ -30,32 +30,30 @@
     }
   }
 
-  function waitForQuiet(quietMs=700,maxWait=3500){
-    return new Promise(resolve=>{
-      if(!document.documentElement){resolve();return;}
-      let done=false,last=performance.now();
-      const observer=new MutationObserver(()=>{last=performance.now();});
-      observer.observe(document.documentElement,{childList:true,subtree:true,characterData:true});
-      const start=performance.now();
-      const tick=()=>{
-        if(done)return;
-        const now=performance.now();
-        if(now-last>=quietMs||now-start>=maxWait){
-          done=true;observer.disconnect();resolve();return;
-        }
-        setTimeout(tick,100);
-      };
-      setTimeout(tick,100);
-    });
+  function shellSnapshot(){
+    return{
+      main:document.querySelector('main'),
+      composer:document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]'),
+      side:document.querySelector('[data-testid="conversation-sidebar"],[data-testid="sidebar"],nav,aside')
+    };
+  }
+  async function waitForStableShell({sampleMs=220,stableSamples=3,maxWait=2600}={}){
+    const start=performance.now();let stable=0,previous=shellSnapshot();
+    while(performance.now()-start<maxWait){
+      await sleep(sampleMs);
+      const next=shellSnapshot(),same=next.main===previous.main&&next.composer===previous.composer&&next.side===previous.side;
+      stable=same&&(next.main||next.composer)?stable+1:0;previous=next;
+      if(stable>=stableSamples)return;
+    }
   }
 
   function nextFrames(){
     return new Promise(resolve=>{
       requestAnimationFrame(()=>requestAnimationFrame(()=>{
         if('requestIdleCallback'in window){
-          try{requestIdleCallback(()=>resolve(),{timeout:1200});return;}catch{}
+          try{requestIdleCallback(()=>resolve(),{timeout:900});return;}catch{}
         }
-        setTimeout(resolve,80);
+        setTimeout(resolve,60);
       }));
     });
   }
@@ -86,13 +84,13 @@
       const explorer=make('button','▤');explorer.type='button';explorer.setAttribute('aria-label','Explorer');
       const toc=make('button','☷');toc.type='button';toc.setAttribute('aria-label','Sommaire');
       const diag=make('button','◉');diag.type='button';diag.setAttribute('aria-label','Diagnostic bootstrap');
-      const quick=make('button','⌘');quick.type='button';quick.setAttribute('aria-label','Quick Open');
+      const quick=make('button','⌘');quick.type='button';quick.setAttribute('aria-label','Ouverture rapide');
       rail.append(explorer,toc,diag,make('span'),quick);
       document.body.appendChild(rail);
       diag.addEventListener('click',()=>{
         let panel=document.getElementById('ng8-panel');
         if(!panel){panel=make('aside');panel.id='ng8-panel';document.body.appendChild(panel);}
-        panel.replaceChildren(make('h3','NIAKGPT · BOOT DIAGNOSTIC'),make('p','Le runtime principal n’a pas terminé son bootstrap après l’hydratation de ChatGPT.'));
+        panel.replaceChildren(make('h3','NIAKGPT · DIAGNOSTIC DE DÉMARRAGE'),make('p','Le runtime principal n’a pas terminé son démarrage après l’hydratation de ChatGPT.'));
         for(const err of errors.length?errors:['Aucune exception capturée.'])panel.append(make('pre',err));
         Object.assign(panel.style,{display:'block',position:'fixed',right:'46px',top:'70px',zIndex:'2147483646',width:'440px',maxWidth:'calc(100vw - 70px)',maxHeight:'70vh',overflow:'auto',padding:'14px',background:'#091018',color:'#d7e3ee',border:'1px solid #c84b4b',fontFamily:'Consolas,monospace'});
       });
@@ -100,7 +98,7 @@
 
     if(!document.getElementById('ng8-status')){
       const status=make('div');status.id='ng8-status';
-      status.append(make('span',`NiakGPT ${chrome.runtime.getManifest().version}`,'ng8-version'),make('span','BOOT SECOURS','ng8-status-project'),make('strong','BY SKYNET'),make('span','RUNTIME INCOMPLET','ng8-core-state'));
+      status.append(make('span',`NiakGPT ${chrome.runtime.getManifest().version}`,'ng8-version'),make('span','DÉMARRAGE SECOURS','ng8-status-project'),make('strong','BY SKYNET'),make('span','RUNTIME INCOMPLET','ng8-core-state'));
       document.body.appendChild(status);
     }
   }
@@ -108,8 +106,10 @@
   async function start(){
     await waitLoad();
     await waitForChatShell();
-    await sleep(2500);
-    await waitForQuiet();
+    // Leave ChatGPT a short post-load window, then wait only for shell identity stability.
+    // A giant conversation may keep mutating for seconds; that must not block NiakGPT.
+    await sleep(650);
+    await waitForStableShell();
     await nextFrames();
     safeToMutate=true;
     await guardUpdateOnboarding();

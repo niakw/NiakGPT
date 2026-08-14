@@ -52,6 +52,13 @@
     timer = 0;
   }
 
+  function tickerDelay() {
+    if (document.hidden) return 1400;
+    if (root.dataset.ng8Heavy === '1') return 700;
+    if (root.dataset.ng86Activity === 'loading') return 420;
+    return 260;
+  }
+
   function startTicker() {
     if (timer) return;
     timer = setInterval(() => {
@@ -60,7 +67,7 @@
       phase += 1;
       if (phase > 15) phase = 3;
       paintCells(phase);
-    }, 155);
+    }, tickerDelay());
   }
 
   function render() {
@@ -101,10 +108,11 @@
     const state = root.dataset.ng86Activity || 'ready';
     if (ACTIVE.has(state) || state === 'error') setSource('activity',state);
     else setSource('activity','');
+    if (current()) { stopTicker(); startTicker(); }
   }
 
   const activityObserver = new MutationObserver(syncActivity);
-  activityObserver.observe(root,{attributes:true,attributeFilter:['data-ng86-activity']});
+  activityObserver.observe(root,{attributes:true,attributeFilter:['data-ng86-activity','data-ng8-heavy']});
   syncActivity();
 
   document.addEventListener('niakgpt:hotcache-status', event => {
@@ -125,8 +133,8 @@
   },{passive:true});
 
   document.addEventListener('visibilitychange',() => {
-    if (document.hidden) stopTicker();
-    else if (current()) startTicker();
+    stopTicker();
+    if (!document.hidden && current()) startTicker();
   },{passive:true});
 
   window.addEventListener('pagehide',stopTicker,{once:true});

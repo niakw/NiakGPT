@@ -14,6 +14,7 @@
     ['project instructions','Instructions du projet'],
     ['manage projects','Gérer les projets'],
     ['project governance','Gouvernance des projets'],
+    ['projects','Projets'],
     ['quick open','Ouverture rapide'],
     ['command palette','Palette de commandes'],
     ['control center','Centre de contrôle'],
@@ -29,6 +30,10 @@
     ['focus / writing','Focus / Rédaction'],
     ['research','Recherche'],
     ['analyst','Analyse'],
+    ['explorer','Explorateur'],
+    ['outputs','Sorties'],
+    ['activity','Activité'],
+    ['sources','Sources'],
     ['pin','Épingler'],
     ['unpin','Désépingler'],
     ['rename','Renommer'],
@@ -48,7 +53,7 @@
     ['search conversations','Rechercher des conversations']
   ]);
   const INTERACTIVE='button,[role="button"],[role="menuitem"],[role="menuitemradio"],[role="option"],[role="dialog"],[data-radix-menu-content],[data-radix-popper-content-wrapper]';
-  const OWN='#ng90-control,#ng85-governance,#ng911-auto,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng100-onboarding';
+  const OWN='#ng90-control,#ng85-governance,#ng911-auto,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-pins,#ng100-command,#ng100-onboarding';
   const SURFACE=`${OWN},[role="menu"],[role="dialog"],[data-radix-menu-content],[data-radix-popper-content-wrapper]`;
   const ATTRS=['aria-label','title','placeholder'];
   let observer=null,stopTimer=0,scanTimer=0,total=0;
@@ -56,19 +61,40 @@
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim().toLowerCase();
   const french=()=>/^fr(?:-|$)/i.test(document.documentElement.lang||'')||/^fr(?:-|$)/i.test(navigator.language||'');
   const translated=v=>DICT.get(clean(v))||'';
+  function ownTranslated(value){
+    let text=String(value||'');
+    text=text.replace(/\bPROJECT GOVERNANCE\b/gi,'GOUVERNANCE DES PROJETS');
+    text=text.replace(/\bProjects principaux\b/gi,'Projets principaux');
+    text=text.replace(/\bProjects\b/g,'Projets');
+    text=text.replace(/\bQuick Open\b/gi,'Ouverture rapide');
+    text=text.replace(/\bControl Center\b/gi,'Centre de contrôle');
+    text=text.replace(/\bSafe Mode\b/gi,'Mode sûr');
+    text=text.replace(/\bCommand Palette\b/gi,'Palette de commandes');
+    text=text.replace(/\bHigh Contrast\b/gi,'Contraste élevé');
+    text=text.replace(/\bFocus \/ Writing\b/gi,'Focus / Rédaction');
+    text=text.replace(/\bResearch\b/g,'Recherche');
+    text=text.replace(/\bAnalyst\b/g,'Analyse');
+    return text;
+  }
+  function nodeTranslation(node){
+    const exact=translated(node?.nodeValue);if(exact)return exact;
+    const parent=node?.parentElement;if(!parent?.closest?.(OWN))return'';
+    const current=String(node.nodeValue||''),next=ownTranslated(current);return next!==current?next:'';
+  }
 
   function replaceTextNode(node){
-    const old=String(node.nodeValue||''),next=translated(old);if(!next)return false;
-    const lead=old.match(/^\s*/)?.[0]||'',trail=old.match(/\s*$/)?.[0]||'';node.nodeValue=`${lead}${next}${trail}`;return true;
+    const old=String(node.nodeValue||''),next=nodeTranslation(node);if(!next)return false;
+    if(translated(old)){const lead=old.match(/^\s*/)?.[0]||'',trail=old.match(/\s*$/)?.[0]||'';node.nodeValue=`${lead}${next}${trail}`;}else node.nodeValue=next;
+    return true;
   }
   function patchElement(el){
     if(!(el instanceof Element))return 0;let changed=0;
-    for(const attr of ATTRS){const old=el.getAttribute(attr),next=translated(old);if(next&&next!==old){el.setAttribute(attr,next);changed++;}}
+    for(const attr of ATTRS){const old=el.getAttribute(attr),exact=translated(old),next=exact||(el.closest(OWN)?ownTranslated(old):'');if(next&&next!==old){el.setAttribute(attr,next);changed++;}}
     const mayTranslateText=el.matches?.(INTERACTIVE)||!!el.closest?.(OWN);
     if(mayTranslateText){
       const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT,{acceptNode:node=>{
         const parent=node.parentElement;if(!parent||parent.closest('code,pre,[contenteditable="true"],textarea,input'))return NodeFilter.FILTER_REJECT;
-        return translated(node.nodeValue)?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT;
+        return nodeTranslation(node)?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT;
       }});const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);for(const node of nodes)if(replaceTextNode(node))changed++;
     }
     return changed;

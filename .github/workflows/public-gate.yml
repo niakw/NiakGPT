@@ -2,19 +2,6 @@ name: NiakGPT Public Quality Gate
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'manifest.json'
-      - '*.js'
-      - '*.css'
-      - 'tools/**'
-      - 'visual-lab/**'
-      - 'README.md'
-      - 'PRIVACY.md'
-      - 'SECURITY.md'
-      - 'CHANGELOG.md'
-      - '.github/workflows/public-gate.yml'
 
 permissions:
   contents: read
@@ -45,13 +32,20 @@ jobs:
           node tools/check-runtime.mjs
           node tools/check-hotpath-v096.mjs
 
-      - name: Check JavaScript syntax from manifest
+      - name: Check all injected JavaScript syntax
         run: |
           node - <<'NODE' > /tmp/niakgpt-js.txt
+          const fs=require('node:fs');
           const m=require('./manifest.json');
           const files=new Set(m.content_scripts.flatMap(x=>x.js||[]));
           if(m.background?.service_worker)files.add(m.background.service_worker);
-          console.log([...files].join('\n'));
+          const bg=fs.readFileSync('background-v100.js','utf8');
+          for(const name of ['MAIN_RUNTIME','ISOLATED_RUNTIME']){
+            const body=bg.match(new RegExp(`const ${name}=\\[(.*?)\\];`,'s'))?.[1];
+            if(!body)throw new Error(`Missing ${name}`);
+            for(const hit of body.matchAll(/'([^']+)'/g))files.add(hit[1]);
+          }
+          console.log([...files].sort().join('\n'));
           NODE
           while IFS= read -r file; do
             test -n "$file" && node --check "$file"

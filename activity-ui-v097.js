@@ -8,6 +8,7 @@
   const CHAT_SEL='a[href*="/c/"]';
   const PROJECT_SEL='a[href^="/g/g-p-"][href*="/project"]';
   const ACTIVE=new Set(['loading','waiting','thinking','executing']);
+  const GENERATING=new Set(['waiting','thinking','executing']);
   const PRIORITY={ready:0,loading:1,waiting:2,thinking:3,executing:4,error:5};
   const LABEL={ready:'PRÊT',loading:'CHARGEMENT',waiting:'ATTENTE',thinking:'RÉFLEXION / ANALYSE',executing:'EXÉCUTION',error:'ERREUR'};
   const bc=typeof BroadcastChannel==='function'?new BroadcastChannel(CHANNEL):null;
@@ -86,7 +87,7 @@
     mutationTimer=settleTimer=deadlineTimer=heartbeatTimer=0;pendingMutations=[];
   }
   function disarmActive(){activeObserver?.disconnect();activeObserver=null;activeRoot=null;clearActiveTimers();}
-  function scheduleHeartbeat(){clearTimeout(heartbeatTimer);if(!ACTIVE.has(localState))return;heartbeatTimer=setTimeout(()=>{const id=currentChatId();if(id)broadcast(id,localState,currentProjectId());scheduleHeartbeat();},15000);}
+  function scheduleHeartbeat(){clearTimeout(heartbeatTimer);if(!GENERATING.has(localState))return;heartbeatTimer=setTimeout(()=>{const id=currentChatId();if(id)broadcast(id,localState,currentProjectId());scheduleHeartbeat();},15000);}
   function scheduleDeadline(){
     clearTimeout(deadlineTimer);if(!ACTIVE.has(localState))return;
     const max=localState==='loading'?45000:localState==='waiting'?120000:20*60*1000;
@@ -98,7 +99,12 @@
     const root=document.documentElement;root.dataset.ng86Activity=state;root.dataset.ng8Running=ACTIVE.has(state)?'1':'0';
     const id=currentChatId(),pid=currentProjectId();if(id){remember(id,state,pid,localSince);broadcast(id,state,pid,localSince);decorateChat(id);decorateProject(pid);}
     renderStatus();
-    if(ACTIVE.has(state)){armActive();scheduleHeartbeat();scheduleDeadline();scheduleSettle(state==='loading'?700:1000);}else disarmActive();
+    if(state==='loading'){
+      // Navigation hydration can mutate thousands of nodes on a giant thread. Do not observe all of <main> here.
+      disarmActive();scheduleDeadline();scheduleSettle(650);
+    }else if(GENERATING.has(state)){
+      armActive();scheduleHeartbeat();scheduleDeadline();scheduleSettle(1000);
+    }else disarmActive();
   }
   function remoteState(id,state,pid='',at=Date.now()){if(!id)return;remember(id,state,pid,at);decorateChat(id);decorateProject(pid);}
 
@@ -117,7 +123,7 @@
     };
   }
   function processMutations(){
-    mutationTimer=0;if(!ACTIVE.has(localState))return;const records=pendingMutations.splice(0);let grew=false,sawThinking=false;
+    mutationTimer=0;if(!GENERATING.has(localState))return;const records=pendingMutations.splice(0);let grew=false,sawThinking=false;
     for(const record of records)for(const node of [record.target,...record.addedNodes]){
       const sig=nodeSignal(node);if(sig.error){setState('error',true);return;}if(sig.thinking)sawThinking=true;
       const assistant=assistantFrom(node);if(assistant){const len=(assistant.innerText||assistant.textContent||'').length;if(len>lastAssistantLen){lastAssistantLen=len;lastGrowthAt=lastSignalAt=Date.now();grew=true;}}
@@ -126,7 +132,7 @@
     scheduleSettle(grew?1400:850);
   }
   function armActive(){
-    const root=mainRoot();if(!root)return;if(activeObserver&&activeRoot===root)return;activeObserver?.disconnect();activeRoot=root;seedAssistant();
+    const root=mainRoot();if(!root||!GENERATING.has(localState))return;if(activeObserver&&activeRoot===root)return;activeObserver?.disconnect();activeRoot=root;seedAssistant();
     activeObserver=new MutationObserver(records=>{pendingMutations.push(...records);clearTimeout(mutationTimer);mutationTimer=setTimeout(processMutations,120);});
     activeObserver.observe(root,{childList:true,subtree:true,characterData:true});
   }

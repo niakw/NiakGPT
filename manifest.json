@@ -20,7 +20,7 @@
     },
     {
       "matches": ["https://chatgpt.com/*"],
-      "css": ["retro-loader-v097.css"],
+      "css": ["retro-loader-v097.css","visual-stability-v101.css"],
       "run_at": "document_start",
       "js": []
     }

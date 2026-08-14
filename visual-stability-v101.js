@@ -13,13 +13,15 @@
       const r=img.getBoundingClientRect();return r.width>=280&&r.height>=220;
     });
     for(const img of images){
-      let node=img.parentElement;
+      let node=img.parentElement,fallback=null;
       for(let depth=0;node&&node!==document.body&&depth<12;depth++,node=node.parentElement){
         const style=getComputedStyle(node),r=node.getBoundingClientRect();
         const broad=r.width>=innerWidth*.72&&r.height>=innerHeight*.68;
         const modal=node.getAttribute('role')==='dialog'||node.dataset.state==='open';
-        if((style.position==='fixed'&&broad)||modal)return node;
+        if(style.position==='fixed'&&broad)return node;
+        if(!fallback&&modal)fallback=node;
       }
+      if(fallback)return fallback;
     }
     return null;
   }

@@ -70,4 +70,4 @@ jobs:
       - name: Run production regression surfaces
         env:
           NIAKGPT_ROOT: /tmp/niakgpt-0949
-        run: python labs/browser_matrix.py --browser ${{ matrix.browser }}
+        run: python labs/browser_matrix_crossengine.py --browser ${{ matrix.browser }}

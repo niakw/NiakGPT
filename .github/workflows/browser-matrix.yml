@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  SNAPSHOT_SHA256: 343dc66f821199acbe919c77dbe92a68aa6452b840243b6bf50599016b00717d
+  SNAPSHOT_SHA256: cc285737e4968884f1dff92377f8eacdeeaafc9c6722f396ac97b0e51149e9d6
 
 jobs:
   snapshot:
@@ -31,9 +31,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Decode tested snapshot
+      - name: Rebuild exact tested snapshot
         run: |
-          base64 -d labs/release-0.9.49-critical.tgz.b64 > /tmp/niakgpt-0949.tgz
+          cat labs/snapshot/part-* > /tmp/niakgpt-0949.b64
+          base64 -d /tmp/niakgpt-0949.b64 > /tmp/niakgpt-0949.tgz
           echo "$SNAPSHOT_SHA256  /tmp/niakgpt-0949.tgz" | sha256sum -c -
           mkdir -p /tmp/niakgpt-0949
           tar -xzf /tmp/niakgpt-0949.tgz -C /tmp/niakgpt-0949
@@ -57,9 +58,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Decode exact tested 0.9.49 snapshot
+      - name: Rebuild exact tested 0.9.49 snapshot
         run: |
-          base64 -d labs/release-0.9.49-critical.tgz.b64 > /tmp/niakgpt-0949.tgz
+          cat labs/snapshot/part-* > /tmp/niakgpt-0949.b64
+          base64 -d /tmp/niakgpt-0949.b64 > /tmp/niakgpt-0949.tgz
           echo "$SNAPSHOT_SHA256  /tmp/niakgpt-0949.tgz" | sha256sum -c -
           mkdir -p /tmp/niakgpt-0949
           tar -xzf /tmp/niakgpt-0949.tgz -C /tmp/niakgpt-0949

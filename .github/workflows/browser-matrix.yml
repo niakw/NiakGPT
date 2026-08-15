@@ -1,0 +1,56 @@
+name: NiakGPT Browser Matrix
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - '*.js'
+      - '*.css'
+      - 'manifest.json'
+      - 'labs/**'
+      - '.github/workflows/browser-matrix.yml'
+  pull_request:
+    paths:
+      - '*.js'
+      - '*.css'
+      - 'manifest.json'
+      - 'labs/**'
+      - '.github/workflows/browser-matrix.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: niakgpt-browser-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    name: Static package gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python labs/static_validate.py .
+
+  browser:
+    name: Playwright · ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --upgrade pip playwright==1.57.0
+      - run: python -m playwright install --with-deps ${{ matrix.browser }}
+      - run: python labs/browser_matrix.py --browser ${{ matrix.browser }}

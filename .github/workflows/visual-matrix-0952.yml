@@ -3,9 +3,14 @@ name: NiakGPT 0.9.52 Visual Matrix
 on:
   push:
     branches:
-      - agent/niakgpt-0952-source-final-2
-      - agent/niakgpt-0952-source-sync
-      - agent/niakgpt-0952-stabilization
+      - main
+    paths:
+      - '*.js'
+      - '*.css'
+      - 'manifest.json'
+      - 'labs/**'
+      - '.github/workflows/visual-matrix-0952.yml'
+  pull_request:
     paths:
       - '*.js'
       - '*.css'

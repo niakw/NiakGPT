@@ -1,44 +1,39 @@
-/* NiakGPT 0.9.6 — native right side panels: Activity / Sources / Outputs */
+/* NiakGPT 0.9.52 — one stable native right-side surface for Activity / Reflection / Sources / Outputs. */
 .ng96-native-sidepanel{
-  right:var(--ng8-rail)!important;
-  max-width:min(760px,calc(100vw - var(--ng8-rail) - 24px))!important;
-  background:linear-gradient(180deg,#091019,#070d13)!important;
-  color:#dce7f1!important;
-  border-left:1px solid #2a3948!important;
-  box-shadow:-16px 0 40px rgba(0,0,0,.34)!important;
-  scrollbar-color:#425669 #091019!important;
-  scrollbar-width:thin!important;
+  --ng96-panel-accent:#4fc1ff;
+  position:fixed!important;
+  top:0!important;
+  right:var(--ng8-rail,46px)!important;
+  bottom:24px!important;
+  left:auto!important;
+  width:min(320px,calc(100vw - var(--ng8-rail,46px) - 12px))!important;
+  min-width:0!important;
+  max-width:min(320px,calc(100vw - var(--ng8-rail,46px) - 12px))!important;
+  height:auto!important;
+  max-height:calc(100dvh - 24px)!important;
+  margin:0!important;
+  flex:none!important;
+  grid-column:auto!important;
+  transform:none!important;
+  translate:none!important;
+  box-sizing:border-box!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  overscroll-behavior:contain!important;
+  isolation:isolate!important;
   z-index:2147483642!important;
+  border-left:1px solid color-mix(in srgb,var(--ng96-panel-accent) 34%,#263543 66%)!important;
+  box-shadow:-12px 0 30px rgba(0,0,0,.28)!important;
 }
-.ng96-native-sidepanel header,
-.ng96-native-sidepanel .ng96-sidepanel-head,
-.ng96-native-sidepanel [class*="sticky"]{background:#0d1620f4!important;border-color:#293846!important}
-.ng96-native-sidepanel header,
-.ng96-native-sidepanel .ng96-sidepanel-head{min-height:52px!important;padding:9px 48px 9px 12px!important;display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:8px!important;border-bottom:1px solid #293846!important}
-.ng96-native-sidepanel h1,.ng96-native-sidepanel h2,.ng96-native-sidepanel h3,.ng96-native-sidepanel [role="heading"]{color:#eef5fb!important}
-.ng96-native-sidepanel a{color:#72c7ff!important}
-.ng96-native-sidepanel pre{background:#05090d!important;border-color:#2d3d4d!important;box-shadow:inset 2px 0 #4fc1ff!important;border-radius:7px!important}
-.ng96-native-sidepanel code:not(pre code){background:#13202b!important;color:#dcdcaa!important}
-.ng96-native-sidepanel button:not(.ng96-side-close):not(.ng8-activity-close){border-color:#314353!important}
-.ng96-native-sidepanel [class*="border"],.ng96-native-sidepanel hr{border-color:#293846!important}
-.ng96-sidepanel-activity{--ng96-panel-accent:#c586c0}.ng96-sidepanel-sources{--ng96-panel-accent:#4fc1ff}.ng96-sidepanel-outputs{--ng96-panel-accent:#4ec9b0}
-.ng96-native-sidepanel{box-shadow:inset 3px 0 color-mix(in srgb,var(--ng96-panel-accent,#4fc1ff) 42%,transparent),-16px 0 40px rgba(0,0,0,.34)!important}
-.ng96-side-close{position:absolute!important;top:10px!important;right:10px!important;z-index:2147483647!important;width:32px!important;height:32px!important;display:grid!important;place-items:center!important;margin:0!important;padding:0!important;border:1px solid #3a4b5a!important;border-radius:8px!important;background:#111d28!important;color:#dce7f1!important;font:400 22px/1 system-ui,sans-serif!important;cursor:pointer!important;box-shadow:0 5px 16px rgba(0,0,0,.28)!important}
-.ng96-side-close:hover{background:#1b2b38!important;color:#fff!important;border-color:#587087!important}.ng96-side-close:focus-visible{outline:2px solid #4fc1ff!important;outline-offset:2px!important}
-
-/* Collapsed/closed native handles must never sit under the NiakGPT rail. */
-.ng96-native-side-trigger{right:calc(var(--ng8-rail) + 8px)!important;margin-right:0!important;z-index:2147483641!important;border-color:#314353!important;background:#0d1720!important;color:#bdcad6!important;box-shadow:0 4px 14px rgba(0,0,0,.24)!important}
-/* Static flex/grid children ignore right:. Reserve physical space instead. */
-.ng96-native-side-trigger.ng96-side-trigger-static{right:auto!important;margin-right:calc(var(--ng8-rail) + 8px)!important}
-.ng96-native-side-trigger:hover,.ng96-native-side-trigger:focus-visible{background:#172633!important;color:#fff!important;border-color:#506779!important;outline:none!important}
-.ng96-side-trigger-activity{box-shadow:inset 2px 0 rgba(197,134,192,.6),0 4px 14px rgba(0,0,0,.24)!important}.ng96-side-trigger-sources{box-shadow:inset 2px 0 rgba(79,193,255,.65),0 4px 14px rgba(0,0,0,.24)!important}.ng96-side-trigger-outputs{box-shadow:inset 2px 0 rgba(78,201,176,.65),0 4px 14px rgba(0,0,0,.24)!important}
-
-body.ng8-panel-open .ng96-native-sidepanel{right:calc(var(--ng8-rail) + var(--ng8-panel-w))!important;max-width:min(660px,calc(100vw - var(--ng8-rail) - var(--ng8-panel-w) - 24px))!important}
-body.ng8-panel-open .ng96-native-side-trigger{right:calc(var(--ng8-rail) + var(--ng8-panel-w) + 8px)!important}
-body.ng8-panel-open .ng96-native-side-trigger.ng96-side-trigger-static{right:auto!important;margin-right:calc(var(--ng8-rail) + var(--ng8-panel-w) + 8px)!important}
-html[data-ng8-running="1"] .ng96-native-sidepanel{backdrop-filter:none!important;box-shadow:inset 3px 0 color-mix(in srgb,var(--ng96-panel-accent,#4fc1ff) 34%,transparent),-10px 0 26px rgba(0,0,0,.26)!important}
-html[data-ng8-heavy="1"][data-ng8-running="1"] .ng96-native-sidepanel{box-shadow:inset 2px 0 color-mix(in srgb,var(--ng96-panel-accent,#4fc1ff) 25%,transparent)!important}
-
-@media(max-width:1100px){body.ng8-panel-open .ng96-native-sidepanel{right:var(--ng8-rail)!important;max-width:min(720px,calc(100vw - var(--ng8-rail) - 18px))!important}body.ng8-panel-open .ng96-native-side-trigger{right:calc(var(--ng8-rail) + 8px)!important}body.ng8-panel-open .ng96-native-side-trigger.ng96-side-trigger-static{right:auto!important;margin-right:calc(var(--ng8-rail) + 8px)!important}}
-@media(max-width:760px){.ng96-native-sidepanel{right:0!important;max-width:100vw!important}.ng96-native-side-trigger{right:8px!important}.ng96-native-side-trigger.ng96-side-trigger-static{right:auto!important;margin-right:8px!important}body.ng8-panel-open .ng96-native-sidepanel{right:0!important;max-width:100vw!important}body.ng8-panel-open .ng96-native-side-trigger{right:8px!important}body.ng8-panel-open .ng96-native-side-trigger.ng96-side-trigger-static{right:auto!important;margin-right:8px!important}}
-@media(prefers-reduced-motion:reduce){.ng96-native-sidepanel,.ng96-native-side-trigger{transition:none!important}}
+.ng96-sidepanel-activity{--ng96-panel-accent:#c586c0}.ng96-sidepanel-sources{--ng96-panel-accent:#4fc1ff}.ng96-sidepanel-outputs{--ng96-panel-accent:#4ec9b0}.ng96-sidepanel-reflection{--ng96-panel-accent:#dcdcaa}
+.ng96-native-sidepanel :where(header,section,article,main,div,ul,ol,li,p,blockquote,figure){min-width:0!important;max-width:100%!important;box-sizing:border-box!important}
+.ng96-native-sidepanel :where(p,li,blockquote){white-space:normal!important;overflow-wrap:anywhere!important;word-break:normal!important}
+.ng96-native-sidepanel :where(img,video,canvas,svg){max-width:100%!important;height:auto}
+.ng96-native-sidepanel pre,.ng96-native-sidepanel pre code{min-width:0!important;max-width:100%!important;overflow-x:auto!important;white-space:pre!important}
+[data-ng8-turn] :is([data-testid*="activity" i],[data-testid*="source" i],[data-testid*="output" i]){min-width:0!important;max-width:100%!important}
+[data-ng8-turn] :is([data-testid*="activity" i],[data-testid*="source" i],[data-testid*="output" i]) pre{max-width:100%!important;overflow-x:auto!important}
+html[data-ng96-native-panel="1"] #ng8-rail{opacity:1!important;visibility:visible!important;pointer-events:auto!important}
+html[data-ng96-native-panel="1"] body.ng8-panel-open main{margin-right:0!important}
+@media(max-width:900px){.ng96-native-sidepanel{width:min(320px,calc(100vw - var(--ng8-rail,46px)))!important;max-width:calc(100vw - var(--ng8-rail,46px))!important}}
+@media(max-width:760px){.ng96-native-sidepanel{right:0!important;bottom:0!important;width:min(320px,100vw)!important;max-width:100vw!important;max-height:100dvh!important}}
+@media(prefers-reduced-motion:reduce){.ng96-native-sidepanel{scroll-behavior:auto!important;transition:none!important}}

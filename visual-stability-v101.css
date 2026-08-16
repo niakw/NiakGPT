@@ -1,0 +1,226 @@
+/* NiakGPT 0.9.30 local hotfix — long-thread paint + flat feed + viewer priority */
+
+/* 0.9.49: native ChatGPT turns keep their own paint/layout policy. */
+
+/* Stable viewport background: never tie the visual identity to a 10k+ px main surface. */
+html{background:#05090d!important}
+body.ng8-ready{background:transparent!important;isolation:isolate!important}
+body.ng8-ready::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:-2;
+  pointer-events:none;
+  background:
+    radial-gradient(circle at 72% 14%,rgba(48,168,92,.10),transparent 30%),
+    radial-gradient(circle at 42% 72%,rgba(55,148,255,.055),transparent 38%),
+    linear-gradient(180deg,#05090d 0%,#03070a 100%);
+  transform:translateZ(0);
+  backface-visibility:hidden;
+}
+body.ng8-ready main{background:transparent!important;box-shadow:none!important}
+body.ng8-ready main::before{content:none!important;display:none!important;background:none!important}
+#ng8-matrix{
+  position:fixed!important;
+  inset:0!important;
+  pointer-events:none!important;
+  z-index:-1!important;
+  max-width:none!important;
+  max-height:none!important;
+  contain:strict!important;
+  transform:translateZ(0)!important;
+}
+html[data-ng8-running="1"][data-ng8-heavy="1"] #ng8-matrix{opacity:.09!important;filter:none!important}
+
+/* Instagram-like feed readability, squared NiakGPT DA. Works before and after JS decoration. */
+:is([data-ng8-turn],article[data-testid^="conversation-turn-"],[data-testid^="conversation-turn-"]){
+  position:relative!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+}
+[data-ng8-turn]{
+  margin:9px 0!important;
+  padding-top:31px!important;
+  padding-bottom:15px!important;
+  border:0!important;
+  border-left:2px solid rgba(113,130,152,.25)!important;
+  overflow:visible!important;
+}
+/* Keep native pre-decoration turns readable without relational :has() selectors on a huge thread. */
+:is(article[data-testid^="conversation-turn-"],[data-testid^="conversation-turn-"]):not([data-ng8-turn]){
+  background:rgba(5,9,13,.56)!important;
+}
+[data-ng8-role="user"]{
+  border-left-color:color-mix(in srgb,var(--ng8-current-project,#3794ff) 72%,#6dafff 28%)!important;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--ng8-current-project,#3794ff) 10%,#0a1118 90%),rgba(5,9,13,.78) 66%,rgba(5,9,13,.46))!important;
+}
+[data-ng8-role="assistant"]{
+  border-left-color:rgba(78,201,176,.48)!important;
+  background:linear-gradient(90deg,rgba(78,201,176,.055),rgba(5,9,13,.80) 66%,rgba(5,9,13,.48))!important;
+}
+[data-ng8-turn]::before{
+  position:absolute!important;
+  top:8px!important;
+  left:max(18px,calc((100% - 760px)/2))!important;
+  z-index:3!important;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+  font:800 9px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace!important;
+  letter-spacing:.12em!important;
+  text-transform:uppercase!important;
+  pointer-events:none!important;
+}
+[data-ng8-role="user"]::before{content:"TOI";color:color-mix(in srgb,var(--ng8-current-project,#4fc1ff) 78%,#fff 22%)!important}
+[data-ng8-role="user"][data-ng8-time]::before{content:"TOI · " attr(data-ng8-time)}
+[data-ng8-role="assistant"]::before{content:"CHATGPT";color:#79d9c3!important}
+[data-ng8-role="assistant"][data-ng8-time]::before{content:"CHATGPT · " attr(data-ng8-time)}
+
+/* Remove the native ChatGPT user bubble without flattening attachment/file cards inside it. */
+[data-message-author-role="user"] :is(.bg-token-message-surface,[class*="bg-token-message"],[class*="message-surface"]),
+[data-ng8-role="user"] :is(.bg-token-message-surface,[class*="bg-token-message"],[class*="message-surface"]){
+  background:transparent!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+}
+[data-message-author-role="user"] > div:first-child,
+[data-message-author-role="user"] > div:first-child > div:first-child,
+[data-message-author-role="user"] > div:first-child > div:first-child > div:first-child{
+  background:transparent!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+}
+/* Current ChatGPT can put the account-theme background one wrapper deeper. Flatten only
+   user text-like rounded surfaces; media/attachment cards keep their own presentation. */
+[data-message-author-role="user"] :where(div[class*="rounded"])[style*="background"]:not(:has(img)):not(:has(video)){
+  background:transparent!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+}
+
+/* Keep the feed itself flat, but preserve ChatGPT's internal tool cards.
+   Activity, Sources, files, citations and other interactive blocks rely on their own
+   borders/radii/overflow for layout; flattening generic rounded-* containers caused
+   clipped and overlapping native UI. */
+[data-ng8-turn] figure{box-shadow:none!important}
+[data-ng8-turn] img{border-radius:2px!important}
+[data-ng8-turn] pre[data-ng8-code="1"]{border-radius:3px!important}
+[data-ng8-turn] table,[data-ng8-turn] blockquote{box-shadow:none!important}
+
+/* Composer: flatten every frame that actually contains the prompt, not action buttons. */
+body.ng8-ready form:has(#prompt-textarea),
+body.ng8-ready form:has([data-testid="prompt-textarea"]),
+body.ng8-ready [data-type="unified-composer"]{
+  border:0!important;
+  border-radius:5px!important;
+  outline:0!important;
+  box-shadow:0 8px 24px rgba(0,0,0,.20)!important;
+}
+body.ng8-ready form:has(#prompt-textarea) :where(div,section):has(#prompt-textarea),
+body.ng8-ready form:has([data-testid="prompt-textarea"]) :where(div,section):has([data-testid="prompt-textarea"]),
+body.ng8-ready [data-type="unified-composer"] :where(div,section):has(#prompt-textarea),
+body.ng8-ready [data-type="unified-composer"] :where(div,section):has([data-testid="prompt-textarea"]){
+  border-width:0!important;
+  border-color:transparent!important;
+  border-radius:5px!important;
+  box-shadow:none!important;
+}
+
+/* Extra guard for the onboarding dialog on short windows. Base 0.9.28 already has the flex fix. */
+:is(#ng100-onboarding[role="dialog"],#ng100-onboarding [role="dialog"]){
+  box-sizing:border-box!important;
+  max-width:calc(100vw - 20px)!important;
+  max-height:calc(100dvh - 20px)!important;
+  display:flex!important;
+  flex-direction:column!important;
+  overflow:hidden!important;
+}
+:is(#ng100-onboarding[role="dialog"],#ng100-onboarding [role="dialog"]) main{min-height:0!important;overflow-y:auto!important;overscroll-behavior:contain!important}
+:is(#ng100-onboarding[role="dialog"],#ng100-onboarding [role="dialog"]) footer{flex:0 0 auto!important}
+
+/* Native image viewer must always win. */
+.ng103-image-viewer-host{
+  position:fixed!important;
+  z-index:2147483646!important;
+  border:0!important;
+  border-radius:0!important;
+  background:rgba(0,0,0,.94)!important;
+  box-shadow:none!important;
+}
+html[data-ng103-image-viewer="1"] :is(
+  #ng8-pins,#ng8-rail,#ng8-panel,#ng8-status,#ng97-loader,#ng90-control,#ng85-governance,
+  #ng911-auto,#ng8-quick,#ng100-onboarding,#ng100-command,#ng100-breadcrumb,.ng96-native-sidepanel,.ng96-native-side-trigger
+){visibility:hidden!important;pointer-events:none!important}
+#ng103-image-close{
+  position:fixed!important;
+  top:14px!important;
+  right:16px!important;
+  z-index:2147483647!important;
+  display:grid!important;
+  place-items:center!important;
+  width:42px!important;
+  height:42px!important;
+  padding:0!important;
+  border:1px solid rgba(255,255,255,.28)!important;
+  border-radius:4px!important;
+  background:rgba(8,13,18,.92)!important;
+  color:#fff!important;
+  box-shadow:0 8px 28px rgba(0,0,0,.42)!important;
+  font:400 26px/1 system-ui,sans-serif!important;
+  cursor:pointer!important;
+}
+#ng103-image-close:hover{background:#17222d!important;border-color:rgba(255,255,255,.48)!important}
+
+@media(max-width:800px){[data-ng8-turn]::before{left:18px!important}}
+@media(prefers-reduced-motion:reduce){body.ng8-ready::before,#ng8-matrix{transform:none!important}}
+
+
+/* 0.9.33 — fil d’Ariane NiakGPT, fixé au viewport et indépendant du fil. */
+#ng100-breadcrumb{
+  position:fixed!important;
+  top:8px!important;
+  left:50%!important;
+  transform:translateX(-50%) translateZ(0)!important;
+  z-index:92!important;
+  display:flex!important;
+  align-items:center!important;
+  gap:6px!important;
+  max-width:min(760px,calc(100vw - 690px))!important;
+  min-height:30px!important;
+  padding:4px 9px!important;
+  border:1px solid rgba(103,132,153,.26)!important;
+  border-radius:5px!important;
+  background:rgba(7,13,18,.88)!important;
+  box-shadow:0 6px 20px rgba(0,0,0,.22)!important;
+  backdrop-filter:blur(8px)!important;
+  color:#9db0bf!important;
+  font:600 11px/1.2 Inter,ui-sans-serif,system-ui,sans-serif!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  pointer-events:auto!important;
+}
+#ng100-breadcrumb a,#ng100-breadcrumb span{min-width:0!important}
+#ng100-breadcrumb a{color:#c8d5df!important;text-decoration:none!important;overflow:hidden!important;text-overflow:ellipsis!important}
+#ng100-breadcrumb a:hover{color:#fff!important;text-decoration:underline!important;text-underline-offset:3px!important}
+#ng100-breadcrumb .ng100-bc-project{color:color-mix(in srgb,var(--ng8-current-project,#4fc1ff) 74%,#dce8f2 26%)!important;font-weight:750!important}
+#ng100-breadcrumb .ng100-bc-current{overflow:hidden!important;text-overflow:ellipsis!important;color:#93a4b3!important}
+#ng100-breadcrumb .ng100-bc-sep{flex:0 0 auto!important;color:#4b5d6c!important;font-family:Consolas,"SFMono-Regular",monospace!important}
+@media(max-width:1180px){#ng100-breadcrumb{max-width:min(520px,calc(100vw - 420px))!important}}
+@media(max-width:820px){#ng100-breadcrumb{left:50%!important;max-width:calc(100vw - 110px)!important}.ng100-bc-home{display:none!important}}
+
+/* 0.9.50 — calmer background: keep the Matrix identity without washing the feed in green. */
+body.ng8-ready::before{
+  background:
+    radial-gradient(ellipse at 72% 12%,rgba(45,153,109,.075),transparent 34%),
+    radial-gradient(ellipse at 46% 58%,rgba(55,148,255,.070),transparent 42%),
+    radial-gradient(ellipse at 16% 86%,rgba(93,78,155,.035),transparent 34%),
+    linear-gradient(180deg,#071018 0%,#04090e 56%,#03070a 100%)!important;
+}
+#ng8-matrix{opacity:.10!important;filter:saturate(.82) brightness(.74)!important;mix-blend-mode:screen!important}
+html[data-ng90-matrix="normal"] #ng8-matrix{opacity:.17!important;filter:saturate(.92) brightness(.82)!important}
+html[data-ng90-matrix="subtle"] #ng8-matrix{opacity:.09!important;filter:saturate(.78) brightness(.72)!important}
+html[data-ng8-running="1"][data-ng90-matrix] #ng8-matrix{opacity:.028!important;filter:saturate(.65) brightness(.62)!important}
+html[data-ng8-running="1"][data-ng8-heavy="1"][data-ng90-matrix] #ng8-matrix{opacity:.014!important}

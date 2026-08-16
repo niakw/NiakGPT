@@ -21,3 +21,38 @@ html[data-ng90-safe="1"] #ng8-status::before{right:170px!important}
 @media(max-width:950px){#ng8-status .ng90-safe-badge{right:170px!important}}
 @media(max-width:850px){#ng8-status .ng90-safe-badge{right:132px!important}html[data-ng90-safe="1"] #ng8-status::before{display:none!important}}
 @media(max-width:760px){#ng8-pins{max-height:none!important}.ng90-project-extras{display:none!important}#ng8-status .ng90-safe-badge{display:none!important}}
+
+/* 0.9.37 — managed Projects must remain a real sidebar section even when
+   ChatGPT virtualizes/clips its Recents subtree. */
+#ng8-pins{
+  display:block!important;
+  position:relative!important;
+  flex:0 0 auto!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  height:auto!important;
+  min-height:38px!important;
+  margin:4px 0 8px!important;
+  padding:0!important;
+  visibility:visible!important;
+  opacity:1!important;
+  overflow:hidden!important;
+  contain:layout style!important;
+  z-index:3!important;
+}
+#ng8-pins>.ng8-pin-head{display:flex!important;min-height:28px!important;align-items:center!important;justify-content:space-between!important}
+#ng8-pins>.ng8-pin-list{display:block!important;visibility:visible!important;opacity:1!important;height:auto!important;min-height:0!important}
+
+/* 0.9.50 — one sidebar, one scroll owner. The managed Project block replaces the
+   duplicate native Project section and lets ChatGPT's sidebar own vertical scrolling. */
+.ng8-native-projects-suppressed{display:none!important}
+#ng8-pins{max-height:none!important;overflow:visible!important;contain:layout style!important}
+#ng8-pins>.ng8-pin-list{max-height:none!important;overflow:visible!important;overscroll-behavior:auto!important}
+#ng8-pins .ng90-project-extras>div{max-height:none!important;overflow:visible!important;overscroll-behavior:auto!important}
+a[data-ng8-chat="1"] [data-ng8-title-duplicate="1"]{display:none!important}
+
+/* 0.9.51 — native Projects are always secondary to the NiakGPT colored Project block.
+   Suppress both the native section when detectable and each native row/label as a DOM-drift fallback. */
+.ng8-native-projects-suppressed,a.ng8-native-project-link-suppressed,a.ng8-native-project-chat-suppressed,.ng8-native-project-label-suppressed,.ng8-native-project-more-suppressed{display:none!important}
+#ng8-pins{display:block!important;visibility:visible!important;opacity:1!important}

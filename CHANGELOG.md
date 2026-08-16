@@ -1,6 +1,179 @@
+# NiakGPT 0.9.52 — Sidebar, native panels & long-thread stabilization
+
+- Unifies the left sidebar around the NiakGPT coloured Projects block and suppresses native Project rows, open-project child conversations and their local “Show more” controls without hiding Recents.
+- Detects ChatGPT Activity / Reflection / Sources / Outputs panels by label + viewport geometry, including anonymous DIV wrappers, and converts them to a fixed overlay left of the NiakGPT rail so chat width is not stolen.
+- Long conversations use a cold-history model: initial decoration is capped to a 160-turn live tail and duplicate rescans coalesce instead of cancelling each other mid-scan.
+- Continuity no longer observes `characterData` across the whole conversation; OUT checks run on structural alerts and when ChatGPT becomes idle.
+- Adds screenshot-producing visual regression labs for sidebar, native panels and 500-turn conversations, designed to run on Chromium, Firefox and WebKit.
+- Historical labs remain in the repository; 0.9.52 adds new gates instead of cleaning prior suites.
+
+# NiakGPT 0.9.51 — Project UI + long-thread safety
+
+- Keeps the colored NiakGPT Projects block as the only visible Project system; native ChatGPT Project rows/labels are suppressed with DOM-drift fallbacks.
+- Confirms NiakGPT never calls `/backend-api/f/conversation/resume`; that route is not present in the extension.
+- Adds a bridge circuit breaker so queued NiakGPT backend requests do not execute while ChatGPT is loading, waiting, thinking, executing, or showing a native verification challenge.
+- Server Project refresh now waits for ChatGPT activity to return to ready; cached Projects remain available immediately.
+- Long-thread activity tracking no longer observes character-data mutations across the entire conversation DOM; streamed-token observation is scoped to the current assistant turn.
+- Existing labs are preserved; 0.9.51 adds regression coverage rather than replacing prior suites.
+
+# NiakGPT 0.9.50
+
+- Panneaux natifs Activité / Réflexion / Sources : overlay fixe 320 px à gauche du rail NiakGPT, sans réservation de largeur dans le chat.
+- Le rail NiakGPT reste visible quand un panneau natif est ouvert.
+- Sidebar : le bloc Projects NiakGPT remplace visuellement la section Projects native dupliquée ; un seul propriétaire de scroll vertical.
+- Conversations : garde anti-duplication des nœuds de titre identiques dans une même ligne.
+- Fond : Matrix nettement atténuée et gradient plus profond pour retrouver de la lisibilité.
+- Labs conservés et étendus ; aucun nettoyage des labs.
+
 # Changelog
 
 Les changements notables de NiakGPT sont regroupés ici. Le projet est encore en phase RC : les versions 0.x peuvent faire évoluer l’architecture interne rapidement.
+
+## 0.9.49 — Restauration 0.9.48, continuité OUT et labs multi-moteurs
+
+- restauration du delta 0.9.48 sur le build 0.9.44 vérifié, avec conservation de la clé d’identité Chrome ;
+- monde MAIN réduit à `page-bridge.js` uniquement ; les anciens intercepteurs `window.fetch` de hotcache/activity ne sont plus chargés ;
+- refus avant réseau de tout `GET /backend-api/conversation/{id}` initié par NiakGPT ; mutations `PATCH` conservées avec accusé de réception local ;
+- server-index piloté par événements : inventaire Projects léger immédiatement disponible, crawl détaillé suspendu pendant l’activité puis repris au retour à `PRÊT` ;
+- gros fils : aucun traitement chaud massif pendant le streaming, reprise différée après stabilisation ;
+- panneaux Activité / Réflexion / Sources / Outputs : géométrie native (`right`, `translate`, `max-width`) préservée et priorité temporaire sur le rail NiakGPT ;
+- nouveaux chats : fenêtre de maturation de 8 s, classement avec un seul PATCH et sans GET complet ;
+- conversations `OUT` : badge, tri en bas, bouton de continuation, capsule locale Project/URL/instructions/historique et rattachement du nouveau fil au même Project ;
+- timestamps **TOI · HH:mm / CHATGPT · HH:mm** sans GET complet de conversation ;
+- prompteur adaptatif local : contexte Project/fil, conservation des contraintes, profils dev/recherche/rédaction/comparaison/plan, actions COPIER/REMPLACER sans auto-send ;
+- ajout d’un lab Playwright commun Chromium / Firefox / WebKit et d’une matrice CI dédiée, sans inclure les fichiers de lab dans le ZIP de l’extension.
+
+## 0.9.44 — Bootstrap Projects anti-blocage et horodatage des messages
+
+- suppression du deadlock `recovery=pending` qui pouvait bloquer indéfiniment l’index serveur pendant un état Activité ;
+- inventaire Projects exécuté même pendant une génération/activité : les Projects et pins deviennent disponibles sans attendre le crawl des chats ;
+- gouvernance automatique évolutive : un seed partiel de 10 Projects est élargi quand l’inventaire serveur complet arrive ;
+- conservation des verrous manuels tant qu’un index serveur complet n’a pas validé les conversations ;
+- diagnostic cache mis à jour dès que l’inventaire Projects est disponible ;
+- ajout de `HH:mm` à côté de **TOI / CHATGPT** lorsque l’heure est disponible dans le DOM ou les métadonnées locales déjà disponibles ;
+- aucune nouvelle boucle réseau : la récupération de timeline respecte le circuit breaker 429 et ne relance pas pendant une activité.
+
+## 0.9.43 — Panneaux natifs bornés et démarrage frais plus réactif
+
+- Activité / Sources / Sorties : suivi actif du panneau ouvert avec `ResizeObserver` local, sans observer global permanent ;
+- clic sur une analyse/source/sortie déjà ouverte : détection des portails fixes secondaires créés par ChatGPT, même sans libellé « Activité » ;
+- bord droit mesuré contre le rail NiakGPT et, si le diagnostic NiakGPT est ouvert, contre son bord gauche réel ;
+- correction via la propriété CSS indépendante `translate` afin de ne pas écraser les transforms/animations natives de ChatGPT ;
+- clipping du contenu normal au panneau ; seul `pre/code` conserve un scroll horizontal local ;
+- même traitement pour Activité, Sources et Sorties ;
+- réinstallation / cache neuf : les Projects serveur sont publiés dès leur inventaire, avant la fin de l’indexation de tous les chats/dates, afin que gouvernance et pins apparaissent rapidement ;
+- diagnostic `cache-garde` : un cache `0 Projects / 28 chats / 0 dates` est désormais signalé `PARTIEL` au lieu de `OK`.
+
+## 0.9.42 — Garde anti-effondrement du cache / démarrage déterministe
+
+- nouveau `cache-guardian-v100.js`, injecté avant Recovery, index serveur et modules UI ;
+- détection d’un cache effondré (Projects/chats/dates fortement inférieurs au dernier état complet) ;
+- restauration locale depuis le high-water mark ou le snapshot pré-AUTO REBUILD avant tout rendu/indexation ;
+- reconstruction de la gouvernance à partir des Projects restaurés lorsque les `coreProjectIds` ont été vidés ;
+- `app`, sidebar, gouvernance, index serveur et reclassement attendent la fin du garde de cache ;
+- l’index serveur devient strictement non destructif lorsqu’une réponse ChatGPT paraît partielle : aucun Project/chat/date connu n’est supprimé ;
+- une réponse partielle déclenche une nouvelle tentative différée au lieu de publier un faux état complet ;
+- récupération AUTO : inventaire général prioritaire pour réduire fortement les requêtes par Project et limiter les 429 ;
+- conservation du broker 0.9.41 : déduplication, sérialisation et circuit breaker 429.
+
+## 0.9.41 — Récupération AUTO / gouvernance / verrouillage fiable
+
+- détection locale d’un état corrompu après AUTO REBUILD (Projects générés, gouvernance vide, accumulation anormale de verrous) et récupération **une seule fois** depuis le snapshot enregistré juste avant ce rebuild ;
+- restauration des Projects et affectations précédentes par nom, recréation seulement si nécessaire, puis suppression uniquement des Projects explicitement enregistrés comme créés par l’AUTO et vérifiés vides ;
+- conservation des vrais verrous manuels antérieurs et mise en quarantaine des verrous suspects générés après le snapshot, sans suppression silencieuse ;
+- le détecteur de déplacement manuel exige désormais un geste utilisateur fiable dans l’UI Project/menu avant d’enregistrer un verrou ;
+- AUTO REBUILD ne fabrique plus de Projects à partir de mots capitalisés récurrents comme `NiakGPT`, `Miorra` ou `Elias` : les cibles nommées doivent déjà exister côté serveur avec un historique réel ;
+- récupération prioritaire : index serveur, gouvernance, reclassement et resynchronisation attendent sa fin avant de modifier l’état ;
+- protection contre la réintroduction de Projects serveur supprimés via des ancres DOM obsolètes après récupération ;
+- fil d’Ariane basé en priorité sur l’affectation serveur/cache du chat courant et nettoyage des libellés `Ouvrir le projet …` ;
+- revalidation Chromium des pins, dates, Activité/Sources/Sorties, gros fils, viewer, onboarding, français/DA, cache stable et reclassement 54 chats.
+
+
+## 0.9.38 — QA navigateur renforcée / panneaux natifs / accueil
+
+- ne modifie plus la géométrie ni le positionnement des enfants directs de `main`, afin de préserver l’accueil ChatGPT et son titre au-dessus du composer ;
+- panneaux natifs Activité / Sources / Sorties bornés à leur largeur visible, avec scroll horizontal local uniquement dans les blocs de code ;
+- cartes Activité / Sources / Sorties intégrées aux réponses protégées contre les largeurs/min-width natives excessives ;
+- reclassement après enrichissement moins strict mais toujours conditionné à un score et une marge positifs ; cooldown ambigu réduit ;
+- validation dans Chromium avec l’extension MV3 réellement chargée sur une fixture `https://chatgpt.com/` interceptée localement.
+
+## 0.9.37 — Convergence cache / verrous / QA renforcée
+
+- sérialisation transactionnelle de toutes les écritures principales du cache afin d’éviter les pertes de chats, dates et affectations entre modules ;
+- un seul propriétaire pour l’index serveur ; l’ancien indexeur backend de `app-v090.js` reste dormant ;
+- verrou inter-onglets commun aux mutations Projects, AUTO REBUILD, gouvernance et reclassement, avec reprise bornée en cas de contention ;
+- priorité aux données serveur pour les compteurs et affectations, sans écrasement par un snapshot DOM partiel ;
+- nettoyage des conversations obsolètes uniquement après un inventaire serveur complet ; en cas de réponse partielle, le cache précédent est conservé ;
+- pins NiakGPT renforcés dans la sidebar, auto-réparation après rerender React ; synchronisation des pins natifs conservatrice et non destructive ;
+- Activité / Sources / Outputs protégés contre les règles visuelles génériques et contre les débordements du panneau latéral ;
+- QA Chromium 144 : sidebar/pins/dates, liens Projects, file À classer, 54 chats + verrou manuel, gros fil 321 messages, onboarding court, panneau Activité/Sources, concurrence cache et reprise de verrou.
+
+## 0.9.36 — QA navigateur réel et restauration UI
+
+- Projects NiakGPT montés comme enfants directs de la sidebar afin d'éviter le clipping du bloc de pins dans la zone virtualisée des Récents.
+- Synchronisation des pins natifs passée en best-effort : aucun spam de menus si ChatGPT ne rend pas la zone native correspondante.
+- Reclassement enrichi avec alias de Projects (Niakvio, Films, Analyse, Tech, Business, Juridique, Maison, Auto, Travail, etc.) et seuil post-enrichissement prudent pour réduire les faux « ambigus » ; `chat/chats` reste exclu des signaux Perso pour ne pas confondre ChatGPT avec les animaux.
+- Suppression du flattening CSS générique des cartes internes : Activité, Sources, fichiers et citations conservent leur structure native.
+- Panneaux Activité/Sources : NiakGPT ne transforme plus un wrapper arbitraire de titre en header flex.
+- Ajout d'une validation locale dans Chromium 144 réel : layout, gros fil + hydratation massive, pins auto-réparés, dates sans doublons, navigation Project, reclassement 11/54, Activité/Sources, panneau latéral et onboarding 1024×540.
+
+
+
+
+## 0.9.35 — Sidebar, pins et file À classer
+
+- un seul propriétaire DOM pour les pins NiakGPT ; montage juste avant la section Récents lorsque disponible ;
+- suppression de la pollution d’index où un badge de date `14/08` pouvait être interprété comme un Project ;
+- purge automatique des Projects DOM fantômes lors de la prochaine indexation serveur ;
+- synchronisation des pins natifs désormais additive et non destructive ; si l’UI native n’expose pas l’action, NiakGPT cesse de boucler en erreur ;
+- remise à zéro des tentatives de reclassement après indexation serveur et reprise planifiée des chats ambigus au lieu d’un blocage silencieux de 30 minutes.
+
+## 0.9.34 — Récupération d’index et restauration sidebar
+
+- réindexation serveur locale automatique lorsque le cache ne contient que les éléments visibles du DOM ;
+- restauration des Projects complets, compteurs et dates à partir des endpoints ChatGPT déjà utilisés par NiakGPT ;
+- le bouton « Réindexer maintenant » fonctionne même depuis un onglet CLIENT ;
+- la synchronisation des pins ne désépingle plus quoi que ce soit tant que la gouvernance n’est pas initialisée ;
+- reclassement « À classer » protégé par verrou inter-onglets mais non bloqué artificiellement par le rôle CLIENT ;
+- fil d’Ariane : récupération du vrai nom du Project et du vrai titre du chat depuis le titre natif lorsque le cache est incomplet ;
+- conservation du marqueur d’index serveur lors des mises à jour DOM du cache.
+
+
+## 0.9.33 — Correctif local consolidé / fil d’Ariane
+
+- correction conservée du crash `turnSel is not defined` sur les mutations des gros fils ;
+- réparation de la coordination `requestIdleCallback` : plus de boucle de réveil toutes les 20 ms sur un fil lourd, et les tâches avec `timeout` finissent réellement par s’exécuter ;
+- indexation Projects/dates capable de progresser même lorsqu’un seul onglet lourd est ouvert, sans polling permanent ;
+- reclassement `À classer` maintenu sur onglet lourd en petits lots de 3, avec cadence ralentie ;
+- récupération des verrous manuels depuis le miroir `localStorage` lors du changement d’identifiant d’une extension non empaquetée ;
+- clics des Projects du panneau Explorer forcés vers la page Project canonique, jamais vers un chat ;
+- dates de sidebar réappliquées après chaque publication du cache et diagnostic `dates` ajouté ;
+- bloc Projects NiakGPT recréé automatiquement si un rerender React de la sidebar le retire ;
+- les dossiers épinglés et leurs métadonnées se réhydratent explicitement après chaque recréation du bloc Projects ;
+- migration d’une ancienne installation locale détectée via les miroirs du domaine afin de ne pas relancer l’onboarding inutilement ;
+- ajout d’un fil d’Ariane fixe **NiakGPT › Project › Conversation** en haut, sans observer global ni polling ;
+- le fil d’Ariane est masqué automatiquement pendant le visualiseur d’image.
+
+## 0.9.32 — Correctif runtime / Projects / reclassement
+
+- correction du crash `turnSel is not defined` dans le traitement incrémental des messages ;
+- le worker multi-onglets ne reste plus bloqué dans un onglet masqué : le travail de fond passe à un onglet visible ;
+- réparation du seed Governance lorsqu'une nouvelle installation locale avait mémorisé `0` Project principal avant le chargement du cache ;
+- miroir de la gouvernance dans le stockage local du domaine pour mieux survivre aux changements de dossier d'une extension non empaquetée ;
+- exclusion des pseudo-Projects DOM des listes de Projects cliquables afin qu'un Project n'ouvre plus par erreur une conversation ;
+- liens de Projects serveur normalisés vers `/g/<id>/project` ;
+- file `À classer` traitée par lots successifs au lieu de rester bloquée après le premier lot sans déplacement ;
+- placement du bloc de Projects NiakGPT stabilisé dans la racine réelle de la sidebar ;
+- identifiant d’extension local désormais stabilisé par une clé publique de manifest, pour éviter de perdre le stockage NiakGPT à chaque changement de dossier décompressé.
+
+## 0.9.31 — Consolidation locale
+
+- gros fils : mutations bornées à 10 unités réelles par lot ;
+- fond/Matrix/viewer stabilisés ;
+- AUTO REBUILD : DELETE et POST Projects gouvernés via le bridge ;
+- reprise de phase après interruption ;
+- À classer traité comme file d’attente, jamais comme projet principal ;
+- onboarding français en 3 étapes, scrollable sur petite hauteur.
 
 ## 0.9.6 — Audit RC
 

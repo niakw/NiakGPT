@@ -4,7 +4,7 @@
 
 NiakGPT s’exécute uniquement sur `https://chatgpt.com/*` et s’appuie sur la session ChatGPT déjà ouverte dans le navigateur.
 
-L’extension ne demande pas de clé API OpenAI et ne stocke pas volontairement le jeton d’accès de session dans `chrome.storage` ou dans un serveur externe.
+L’extension ne demande pas de clé API OpenAI et ne stocke pas volontairement le jeton d’accès de session dans `chrome.storage` ou sur un serveur externe.
 
 ## Endpoints internes
 
@@ -13,32 +13,35 @@ Certaines fonctions utilisent des endpoints internes employés par l’interface
 Conséquences :
 
 - leur schéma peut changer ;
-- une réponse HTTP inhabituelle ne doit jamais être interprétée comme une réussite sans vérification ;
-- les opérations sensibles de Project Governance relisent l’état serveur après modification ;
-- les requêtes sont limitées à une liste de chemins autorisés dans le bridge.
+- une réponse HTTP inhabituelle ne doit jamais être interprétée comme une réussite sans garde ;
+- les requêtes passent par le bridge et une liste de chemins autorisés ;
+- le broker gère la sérialisation, la déduplication utile et le circuit breaker 429 ;
+- **tout GET complet `/backend-api/conversation/{id}` initié par NiakGPT est refusé avant réseau**.
 
 ## Project Governance
 
 Un déplacement automatisé de conversation :
 
 1. passe par le garde Governance ;
-2. effectue la modification ;
-3. relit la conversation ;
-4. considère la destination relue comme source de vérité.
+2. effectue un `PATCH` vers la destination ;
+3. utilise l’accusé de réception de la mutation et met à jour l’état local ;
+4. laisse l’inventaire serveur léger ultérieur confirmer la convergence globale, sans relire la conversation complète.
 
-Un déplacement manuel détecté est également vérifié avant la création du verrou local.
+Un déplacement manuel n’est verrouillé localement qu’après un geste utilisateur fiable et récent.
 
 NiakGPT n’essaie pas de supprimer automatiquement un Project serveur à partir d’un endpoint supposé ou non vérifié.
 
 ## Injection et contenu
 
-Les textes dynamiques insérés dans les interfaces NiakGPT doivent être échappés avant insertion HTML lorsqu’ils proviennent de titres, noms de Projects ou métadonnées externes.
+Les textes dynamiques insérés dans les interfaces NiakGPT sont échappés lorsqu’ils proviennent de titres, noms de Projects ou métadonnées externes. Les composants qui n’ont pas besoin de HTML privilégient `textContent`.
 
-Les composants qui n’ont pas besoin de HTML doivent privilégier `textContent`.
+Le prompteur et la continuité n’envoient jamais automatiquement le contenu du composer.
 
-## Cache
+## Données locales
 
-Le cache chaud contient potentiellement le JSON d’une conversation. Il est stocké localement dans IndexedDB et limité en durée/taille. Un utilisateur ayant accès au profil navigateur local peut potentiellement accéder à ces données de la même manière qu’aux autres données de site locales.
+La 0.9.52 ne maintient plus de cache complet JSON de conversations. Les versions historiques pouvaient laisser des données IndexedDB dans le profil navigateur ; ces reliquats doivent être considérés comme des données locales sensibles jusqu’à leur purge.
+
+Un utilisateur ayant accès au profil navigateur local peut potentiellement accéder aux préférences, index et capsules locales de la même manière qu’aux autres données de site locales.
 
 ## Permissions
 
@@ -46,15 +49,15 @@ Toute nouvelle permission Chrome ou tout nouveau domaine dans `host_permissions`
 
 ## Signalement d’un problème
 
-Pour un dépôt privé, utiliser de préférence les mécanismes privés disponibles sur la plateforme d’hébergement du dépôt. Éviter de publier publiquement un rapport contenant des données de conversation, des jetons, des identifiants de session ou d’autres secrets.
+Le dépôt étant public, un rapport de bug public ne doit jamais contenir de données de conversation, cookies, jetons ou identifiants de session. Pour une vulnérabilité ou un rapport sensible, utiliser un canal privé de sécurité lorsqu’il est disponible.
 
-Un rapport utile doit contenir :
+Un rapport technique non sensible peut contenir :
 
 - version NiakGPT ;
-- version Chrome/Chromium ;
+- navigateur et version ;
 - étapes minimales de reproduction ;
 - comportement attendu et observé ;
-- diagnostic NiakGPT lorsque possible, après vérification qu’il ne contient pas de donnée sensible.
+- diagnostic NiakGPT après vérification qu’il ne contient aucune donnée sensible.
 
 ## Secrets
 

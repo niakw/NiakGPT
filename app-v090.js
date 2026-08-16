@@ -7,7 +7,8 @@
   const CACHE_KEY = 'niakgpt-v08-cache';
   const GOV_KEY = 'niakgpt-governance-v085';
   const CHAT_SEL = 'a[href*="/c/"]';
-  const PROJECT_SEL = 'a[href^="/g/g-p-"][href*="/project"]';
+  const PROJECT_SEL = 'a[href^="/g/g-p-"]:not([href*="/c/"])';
+  const PROJECT_CHAT_SEL = 'a[href^="/g/g-p-"][href*="/c/"]';
   const OWN = '#ng8-rail,#ng8-panel,#ng8-status,#ng8-coach,#ng8-pins,#ng8-quick,#ng90-control,.ng8-bot';
   const LEGACY = new Set(['design','ai','ia','coding','code','development','web development','technology','tech','social','social media','writing','general knowledge','general','e-commerce','ecommerce','seo','marketing','business','creative','research','productivity','other','misc','work','education','health','finance','home','cars','gaming','movies','food','personal development']);
   const COLORS = ['#4FC1FF','#4EC9B0','#C586C0','#DCDCAA','#CE9178','#9CDCFE','#D7BA7D','#B5CEA8','#D16969','#E06CAA','#569CD6','#6A9955','#22D3EE','#A78BFA','#FB7185','#38BDF8','#34D399','#F59E0B'];
@@ -17,20 +18,21 @@
     projects:[], projectById:new Map(), chats:[], chatById:new Map(), projectChats:new Map(), counts:new Map(), duplicates:new Map(),
     health:{bridge:'PRÊT',data:'CACHE',projects:'CACHE',quick:'PRÊT',coach:'INACTIF',toc:'INACTIF',performance:'PRÊT',matrix:'INACTIF',ui:'PRÊT'},
     errors:[], panelOpen:false, tab:'explorer', queue:[], queueTimer:0, indexing:false, indexComplete:false, generalLoaded:false,
-    mainObserver:null, sidebarObserver:null, mainRoot:null, sidebarRoot:null, mainTimer:0, sidebarTimer:0, sidebarNeedsPins:false, scanTimer:0, scanToken:0, diagTimer:0,
+    mainObserver:null, sidebarObserver:null, mainRoot:null, sidebarRoot:null, mainTimer:0, sidebarTimer:0, sidebarNeedsPins:false, scanTimer:0, scanToken:0, scanRunning:false, scanRequested:false, diagTimer:0,
     cacheSaveTimer:0, lastCacheWriteAt:0, lastPath:location.pathname, projectsRefreshed:false, refreshingProjects:false,
-    pendingMain:new Set(), turns:[], turnSeen:new WeakSet(), codeSeen:new WeakSet(), codeCount:0,
+    pendingMain:new Set(), turns:[], turnSeen:new WeakSet(), codeSeen:new WeakSet(), codeCount:0, turnTimeline:[], turnTimeById:new Map(), timelineRequestedFor:'',
     matrix:null, matrixCtx:null, matrixTimer:0, matrixResize:null, matrixCols:[], matrixW:0, matrixH:0,
-    governance:{coreProjectIds:[],hiddenProjectIds:[]}, cacheLoaded:false
+    governance:{coreProjectIds:[],hiddenProjectIds:[]}, cacheLoaded:false, serverIndexedAt:0
   };
 
   const norm = v => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[’']/g,"'").replace(/\s+/g,' ').trim();
+  const cleanProjectLabel = v => String(v || '').replace(/\s+/g,' ').trim().replace(/^(?:ouvrir|open)\s+(?:le\s+)?projet\s+/i,'').replace(/^(?:projet|project)\s*[:·-]\s*/i,'');
   const esc = v => String(v ?? '').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt',"'":'&#39;','"':'&quot;'}[c]));
   const sleep = ms => new Promise(r=>setTimeout(r,ms));
   const words = v => norm(v).replace(/[^a-z0-9à-ÿ_-]+/gi,' ').split(/\s+/).filter(x=>x.length>2&&!STOP.has(x));
   const parseTime = v => { if(typeof v==='number'&&Number.isFinite(v))return v>1e12?v:v*1000;if(typeof v==='string'){const n=Number(v);if(Number.isFinite(n))return n>1e12?n:n*1000;const d=Date.parse(v);return Number.isFinite(d)?d:0;}return 0; };
   const normalizePid = v => { if(!v||typeof v!=='string')return'';const s=v.trim(),m=s.match(/^g-p-([a-z0-9]+)(?:-.+)?$/i);return m?`g-p-${m[1]}`:s; };
-  const pidFromHref = h => { const m=String(h||'').match(/\/g\/(g-p-[^/]+)\/(?:project|c\/)/i);return m?normalizePid(m[1]):''; };
+  const pidFromHref = h => { const m=String(h||'').match(/\/g\/(g-p-[^/?#]+)(?:\/(?:project|c\/)|[/?#]|$)/i);return m?normalizePid(m[1]):''; };
   const cidFromHref = h => String(h||'').match(/\/c\/([0-9a-f-]{20,})/i)?.[1] || '';
   const currentChatId = () => cidFromHref(location.pathname);
   const currentProjectIdFromPath = () => pidFromHref(location.pathname);
@@ -66,25 +68,48 @@
   }
   function chatFromRaw(raw,pid=''){
     const id=String(raw?.id||raw?.conversation_id||'');if(!id)return null;
-    return{id,title:String(raw?.title||raw?.conversation_title||'Conversation sans titre'),projectId:normalizePid(pid||raw?.gizmo_id||raw?.conversation_mode?.gizmo_id||''),snippet:String(raw?.snippet||''),updated:parseTime(raw?.update_time||raw?.create_time),href:''};
+    const direct=raw&&Object.prototype.hasOwnProperty.call(raw,'gizmo_id')?raw.gizmo_id:raw?.conversation_mode?.gizmo_id;return{id,title:String(raw?.title||raw?.conversation_title||'Conversation sans titre'),projectId:normalizePid(pid||direct||''),snippet:String(raw?.snippet||''),updated:parseTime(raw?.update_time||raw?.create_time),href:''};
+  }
+  const isServerProject=p=>!!p&&String(p.id||'').startsWith('g-p-')&&!p.domOnly;
+  const canonicalProjectHref=p=>{const id=normalizePid(p?.id||'');return id.startsWith('g-p-')?`/g/${id}/project`:'';};
+  function canonicalProjectId(id){
+    const p=S.projectById.get(id);if(!p?.domOnly)return id||'';const key=norm(p.name),server=S.projects.find(x=>isServerProject(x)&&norm(x.name)===key);return server?.id||id||'';
   }
   function upsertProject(p){
     if(!p?.id)return;
+    if(String(p.id).startsWith('g-p-'))p={...p,id:normalizePid(p.id),href:canonicalProjectHref(p),domOnly:false};
     const old=S.projectById.get(p.id),next={...old,...p,color:p.color||old?.color||colorFor(p.name),icon:p.icon||old?.icon||iconFor(p.name)};
     S.projectById.set(p.id,next);
     const i=S.projects.findIndex(x=>x.id===p.id);if(i<0)S.projects.push(next);else S.projects[i]=next;
+    if(isServerProject(next)){
+      const key=norm(next.name),twins=S.projects.filter(x=>x.id!==next.id&&x.domOnly&&norm(x.name)===key);
+      if(twins.length){const ids=new Set(twins.map(x=>x.id));for(const c of S.chats)if(ids.has(c.projectId))c.projectId=next.id;for(const twin of twins){S.projectById.delete(twin.id);const j=S.projects.findIndex(x=>x.id===twin.id);if(j>=0)S.projects.splice(j,1);}}
+    }
   }
   function upsertChat(c){
     if(!c?.id)return;
-    const old=S.chatById.get(c.id),next={...old,...c,projectId:c.projectId||old?.projectId||'',updated:Math.max(old?.updated||0,c.updated||0),href:c.href||old?.href||''};
+    const old=S.chatById.get(c.id),rawProjectId=c.projectId||old?.projectId||'',projectId=canonicalProjectId(rawProjectId),next={...old,...c,projectId,updated:Math.max(old?.updated||0,c.updated||0),href:c.href||old?.href||''};
     S.chatById.set(c.id,next);
     const i=S.chats.findIndex(x=>x.id===c.id);if(i<0)S.chats.push(next);else S.chats[i]=next;
   }
-  function serialize(){ return{schema:2,at:Date.now(),projects:S.projects,chats:S.chats,counts:Object.fromEntries(S.counts),indexedProjectIds:[...S.projectChats.keys()]}; }
+  function serialize(){ return{schema:2,at:Date.now(),serverIndexedAt:S.serverIndexedAt||0,projects:S.projects,chats:S.chats,counts:Object.fromEntries(S.counts),indexedProjectIds:[...S.projectChats.keys()]}; }
   async function saveCache(){
     clearTimeout(S.cacheSaveTimer);S.cacheSaveTimer=0;
-    const payload=serialize();S.lastCacheWriteAt=payload.at;
-    try{await chrome.storage.local.set({[CACHE_KEY]:payload});}catch{}
+    const payload=serialize(),bus=window.__NIAKGPT_CACHE_BUS__;
+    try{
+      if(bus?.update){
+        const written=await bus.update(latest=>{
+          latest=latest&&typeof latest==='object'?latest:{};
+          const staleAgainstServer=(Number(latest.serverIndexedAt)||0)>(Number(payload.serverIndexedAt)||0);
+          const projects=new Map((latest.projects||[]).map(p=>[p.id,{...p}]));
+          for(const incoming of payload.projects||[]){if(!incoming?.id||(staleAgainstServer&&!projects.has(incoming.id)))continue;const old=projects.get(incoming.id)||{};projects.set(incoming.id,{...old,...incoming,domOnly:old.domOnly===false?false:incoming.domOnly});}
+          const chats=new Map((latest.chats||[]).map(c=>[c.id,{...c}]));
+          for(const incoming of payload.chats||[]){if(!incoming?.id||(staleAgainstServer&&!chats.has(incoming.id)))continue;const old=chats.get(incoming.id)||{};chats.set(incoming.id,{...old,...incoming,projectId:old.projectId||incoming.projectId||'',updated:Math.max(Number(old.updated)||0,Number(incoming.updated)||0),snippet:incoming.snippet||old.snippet||''});}
+          return{...latest,...payload,projects:[...projects.values()],chats:[...chats.values()],counts:{...(payload.counts||{}),...(latest.counts||{})},indexedProjectIds:[...new Set([...(latest.indexedProjectIds||[]),...(payload.indexedProjectIds||[])])],serverIndexedAt:Math.max(Number(latest.serverIndexedAt)||0,Number(payload.serverIndexedAt)||0)};
+        });
+        S.lastCacheWriteAt=written?.at||0;
+      }else{await chrome.storage.local.set({[CACHE_KEY]:payload});S.lastCacheWriteAt=payload.at;}
+    }catch{}
   }
   function saveCacheSoon(delay=1600){
     clearTimeout(S.cacheSaveTimer);S.cacheSaveTimer=setTimeout(()=>{
@@ -103,7 +128,7 @@
         S.chats=[];S.chatById.clear();for(const c of raw.chats||[])upsertChat(c);
         const legacyProjectIds=Object.keys(raw.projectChats||{});
         for(const [pid,list] of Object.entries(raw.projectChats||{}))for(const c of list||[])upsertChat({...c,projectId:c.projectId||pid});
-        S.counts=new Map(Object.entries(raw.counts||{}));
+        S.counts=new Map(Object.entries(raw.counts||{}));S.serverIndexedAt=Number(raw.serverIndexedAt||0)||0;
         const indexed=new Set([...(Array.isArray(raw.indexedProjectIds)?raw.indexedProjectIds:[]),...legacyProjectIds]);
         S.projectChats.clear();for(const pid of indexed)S.projectChats.set(pid,new Map());
         for(const c of S.chats){const m=S.projectChats.get(c.projectId);if(m)m.set(c.id,c);}
@@ -121,12 +146,13 @@
     for(const p of S.projects){p.duplicateOf='';const k=norm(p.name);if(!S.duplicates.has(k))S.duplicates.set(k,[]);S.duplicates.get(k).push(p);}
     for(const group of S.duplicates.values()){
       if(group.length<2)continue;
-      group.sort((a,b)=>(Number(S.counts.get(b.id))||0)-(Number(S.counts.get(a.id))||0)||projectRecency(b.id)-projectRecency(a.id));
+      group.sort((a,b)=>(isServerProject(b)?1:0)-(isServerProject(a)?1:0)||(Number(S.counts.get(b.id))||0)-(Number(S.counts.get(a.id))||0)||projectRecency(b.id)-projectRecency(a.id));
       const keep=group[0];for(const p of group)if(p.id!==keep.id)p.duplicateOf=keep.id;
     }
   }
-  function isLegacy(p){ return !!p&&LEGACY.has(norm(p.name)); }
-  function visibleProjects(){ const hidden=new Set(S.governance.hiddenProjectIds||[]);return S.projects.filter(p=>!hidden.has(p.id)&&!p.duplicateOf); }
+  function isQueueProject(p){return !!p&&['a classer','hors projet / a classer','hors projet/a classer','unclassified','to classify'].includes(norm(p.name));}
+  function isLegacy(p){ return !!p&&(LEGACY.has(norm(p.name))||isQueueProject(p)); }
+  function visibleProjects(){ const hidden=new Set(S.governance.hiddenProjectIds||[]);return S.projects.filter(p=>isServerProject(p)&&!isQueueProject(p)&&!hidden.has(p.id)&&!p.duplicateOf); }
   function sortedProjects(){
     const core=new Set(S.governance.coreProjectIds||[]);
     return visibleProjects().sort((a,b)=>(core.has(b.id)?1:0)-(core.has(a.id)?1:0)||projectRecency(b.id)-projectRecency(a.id)||a.name.localeCompare(b.name,'fr'));
@@ -211,12 +237,15 @@
     const root=navRoot();if(!root)return;
     for(const a of root.querySelectorAll(PROJECT_SEL)){
       if(a.closest(OWN))continue;const id=pidFromHref(a.getAttribute('href'));if(!id)continue;
-      const known=S.projectById.get(id),name=known?.name||(a.getAttribute('aria-label')||a.querySelector('.truncate span')?.textContent||a.textContent||'').trim();
-      if(name)upsertProject({id,name,color:known?.color||colorFor(name),icon:known?.icon||iconFor(name),href:a.getAttribute('href')||`/g/${id}/project`,duplicateOf:known?.duplicateOf||''});
+      const known=S.projectById.get(id);if(!known&&S.serverIndexedAt>0)continue;
+      const domName=cleanProjectLabel(a.querySelector('.truncate span')?.textContent||a.textContent||a.getAttribute('aria-label')||''),name=cleanProjectLabel(known?.name)||domName;
+      if(name)upsertProject({id,name,color:known?.color||colorFor(name),icon:known?.icon||iconFor(name),href:`/g/${id}/project`,duplicateOf:known?.duplicateOf||'',domOnly:false});
     }
     for(const a of root.querySelectorAll(CHAT_SEL)){
       if(a.closest(OWN))continue;const id=cidFromHref(a.getAttribute('href'));if(!id)continue;const old=S.chatById.get(id),title=old?.title||(a.getAttribute('aria-label')||a.querySelector('.truncate span')?.textContent||a.textContent||id).trim();
-      upsertChat({id,title,projectId:pidFromHref(a.getAttribute('href'))||old?.projectId||'',snippet:old?.snippet||'',updated:old?.updated||0,href:a.getAttribute('href')||old?.href||''});
+      // A PATCH can move a chat before React refreshes the sidebar href. Never let a
+      // stale DOM route overwrite the verified cache/server assignment.
+      upsertChat({id,title,projectId:old?.projectId||pidFromHref(a.getAttribute('href'))||'',snippet:old?.snippet||'',updated:old?.updated||0,href:a.getAttribute('href')||old?.href||''});
     }
   }
   function decorateSidebar(renderManaged=true){
@@ -232,19 +261,129 @@
       a.dataset.ng8Chat='1';a.dataset.ng8Zebra=String(z++%2);if(p)a.style.setProperty('--ng-project',p.color);a.classList.toggle('ng8-current',id===currentCid);
       let badge=a.querySelector(':scope > .ng8-chat-project');
       if(p&&!badge){badge=document.createElement('span');badge.className='ng8-chat-project';a.appendChild(badge);}if(badge){if(p){badge.textContent=p.name;badge.style.setProperty('--ng-project',p.color);}else badge.remove();}
+      dedupeChatTitle(a);
     }
     if(renderManaged)renderPins();
   }
-  function currentProject(){
-    const path=currentProjectIdFromPath();if(path)return S.projectById.get(path)||null;
-    const c=S.chatById.get(currentChatId());return c?.projectId?S.projectById.get(c.projectId)||null:null;
+  function dedupeChatTitle(anchor){
+    if(!(anchor instanceof HTMLElement))return;
+    anchor.querySelectorAll('[data-ng8-title-duplicate="1"]').forEach(el=>delete el.dataset.ng8TitleDuplicate);
+    const own='.ng8-chat-date,.ng8-chat-project,.ng85-manual-lock,.ng8-project-meta,.ng100-out-badge,.ng100-continue';
+    const leaves=[...anchor.querySelectorAll('span,div')].filter(el=>{
+      if(el.matches(own)||el.closest(own))return false;
+      if(el.querySelector('span,div'))return false;
+      const text=String(el.textContent||'').replace(/\s+/g,' ').trim();return text.length>=3&&text.length<=180;
+    });
+    const groups=new Map();
+    for(const el of leaves){const key=norm(el.textContent);if(!key)continue;(groups.get(key)||groups.set(key,[]).get(key)).push(el);}
+    for(const group of groups.values()){
+      if(group.length<2)continue;
+      const visible=group.filter(el=>{const cs=getComputedStyle(el),r=el.getBoundingClientRect();return cs.display!=='none'&&cs.visibility!=='hidden'&&r.width>0&&r.height>0;});
+      const list=visible.length>1?visible:group;
+      const canonical=list.find(el=>el.closest('.truncate'))||list[0];
+      for(const el of list)if(el!==canonical)el.dataset.ng8TitleDuplicate='1';
+    }
   }
+  function nativeProjectSection(root,anchor){
+    let node=anchor,best=null;
+    while(node?.parentElement&&node.parentElement!==root){
+      const parent=node.parentElement;
+      const projectRows=parent.querySelectorAll(PROJECT_SEL).length;
+      const projectChats=parent.querySelectorAll(PROJECT_CHAT_SEL).length;
+      const genericChats=[...parent.querySelectorAll(CHAT_SEL)].filter(a=>!a.matches(PROJECT_CHAT_SEL)&&!a.closest('#ng8-pins')).length;
+      const headings=[...parent.querySelectorAll(':scope > h2,:scope > h3,:scope > [role="heading"],:scope > div > h2,:scope > div > h3')];
+      if(headings.some(h=>/^(projets?|projects?)$/i.test(String(h.textContent||'').replace(/\s+/g,' ').trim()))&&genericChats===0)return parent;
+      if(projectRows>=1&&(projectChats>=1||projectRows>=2)&&genericChats===0)best=parent;
+      node=parent;
+    }
+    return best;
+  }
+  function syncNativeProjectSection(root,box,active){
+    root.querySelectorAll('.ng8-native-projects-suppressed,.ng8-native-project-link-suppressed,.ng8-native-project-chat-suppressed,.ng8-native-project-label-suppressed,.ng8-native-project-more-suppressed').forEach(el=>el.classList.remove('ng8-native-projects-suppressed','ng8-native-project-link-suppressed','ng8-native-project-chat-suppressed','ng8-native-project-label-suppressed','ng8-native-project-more-suppressed'));
+    if(!active)return;
+    const groups=new Set();
+    const nativeLinks=[...root.querySelectorAll(PROJECT_SEL)].filter(a=>!a.closest('#ng8-pins')&&!a.closest(OWN));
+    const nativeProjectChats=[...root.querySelectorAll(PROJECT_CHAT_SEL)].filter(a=>!a.closest('#ng8-pins')&&!a.closest(OWN));
+    for(const a of nativeLinks){
+      a.classList.add('ng8-native-project-link-suppressed');
+      const host=nativeProjectSection(root,a);
+      if(host&&!host.contains(box))groups.add(host);
+    }
+    for(const a of nativeProjectChats)a.classList.add('ng8-native-project-chat-suppressed');
+    for(const label of root.querySelectorAll('h1,h2,h3,[role="heading"],div,span')){
+      if(label.closest('#ng8-pins')||label.closest(OWN))continue;
+      const text=String(label.textContent||'').replace(/\s+/g,' ').trim();
+      if(!/^(projets?|projects?)$/i.test(text))continue;
+      label.classList.add('ng8-native-project-label-suppressed');
+    }
+    for(const more of root.querySelectorAll('button,a,[role="button"]')){
+      if(more.closest('#ng8-pins')||more.closest(OWN))continue;
+      const text=String(more.textContent||more.getAttribute?.('aria-label')||'').replace(/\s+/g,' ').trim();
+      if(!/^(afficher plus|show more|voir plus)$/i.test(text))continue;
+      const parent=more.parentElement;if(!parent)continue;
+      if(parent.querySelector(PROJECT_CHAT_SEL)||parent.querySelector(PROJECT_SEL))more.classList.add('ng8-native-project-more-suppressed');
+    }
+    for(const host of groups){
+      const genericChats=[...host.querySelectorAll(CHAT_SEL)].filter(a=>!a.matches(PROJECT_CHAT_SEL)&&!a.closest('#ng8-pins')).length;
+      if(!genericChats)host.classList.add('ng8-native-projects-suppressed');
+    }
+  }
+
+  function currentProject(){
+    // A background reclassification/recovery can move the current chat before ChatGPT
+    // rewrites the SPA URL. Prefer the verified cache assignment for a conversation and
+    // use the route Project only as a fallback.
+    const c=S.chatById.get(currentChatId());
+    if(c?.projectId&&S.projectById.has(c.projectId))return S.projectById.get(c.projectId)||null;
+    const path=currentProjectIdFromPath();return path?S.projectById.get(path)||null:null;
+  }
+  function topLevelChild(root,node){if(!root||!node)return null;let current=node;while(current.parentElement&&current.parentElement!==root)current=current.parentElement;return current.parentElement===root?current:null;}
+  function recentsSection(root){
+    if(!root)return null;
+    const labels=[...root.querySelectorAll('h2,h3,[role="heading"],div,span')].filter(el=>{const t=(el.textContent||'').replace(/\s+/g,' ').trim();return t.length<=20&&/^(récents|recents|recent)$/i.test(t);});
+    for(const label of labels){let node=label;while(node.parentElement&&node.parentElement!==root){const parent=node.parentElement;if(parent.querySelector(CHAT_SEL))return parent;node=parent;}}
+    return null;
+  }
+  function placePins(root,box){
+    if(!root||!box)return;
+    // Always mount the NiakGPT Project block as a DIRECT child of the sidebar host.
+    // ChatGPT's Recents subtree can be virtualized/clipped; inserting inside it made
+    // a fully rendered #ng8-pins collapse to a thin empty-looking line.
+    const recent=recentsSection(root),recentTop=topLevelChild(root,recent);
+    const firstProject=[...root.querySelectorAll(PROJECT_SEL)].find(a=>!a.closest('#ng8-pins')&&!a.closest(OWN));
+    const firstProjectTop=topLevelChild(root,firstProject);
+    const firstChat=[...root.querySelectorAll(CHAT_SEL)].find(a=>!a.matches(PROJECT_CHAT_SEL)&&!a.closest('#ng8-pins')&&!a.closest(OWN));
+    const fallback=topLevelChild(root,firstChat);
+    // Occupy the exact native Projects slot when it exists; Recents is only the fallback.
+    const anchor=firstProjectTop||recentTop||fallback||null;
+    if(box.parentElement!==root||box.nextElementSibling!==anchor){
+      root.insertBefore(box,anchor||root.firstElementChild||null);
+    }
+    box.hidden=false;
+    box.removeAttribute('aria-hidden');
+  }
+  function pinDate(ms){if(!ms)return'—';const d=new Date(ms),now=new Date();if(Number.isNaN(d.getTime()))return'—';const dd=String(d.getDate()).padStart(2,'0'),mm=String(d.getMonth()+1).padStart(2,'0');return d.getFullYear()===now.getFullYear()?`${dd}/${mm}`:`${dd}/${mm}/${String(d.getFullYear()).slice(-2)}`;}
+  function pinMeta(project){const latest=projectRecency(project.id),count=S.counts.has(project.id)?S.counts.get(project.id):null;return{latest,count,text:`${pinDate(latest)}  [${count==null?'…':count}]`};}
   function renderPins(){
     const root=navRoot();if(!root)return;
-    let box=root.querySelector('#ng8-pins');if(!box){box=document.createElement('section');box.id='ng8-pins';const firstProject=root.querySelector(PROJECT_SEL);if(firstProject?.parentElement)firstProject.parentElement.insertAdjacentElement('beforebegin',box);else root.prepend(box);}
+    let box=document.getElementById('ng8-pins');if(!box){box=document.createElement('section');box.id='ng8-pins';}placePins(root,box);
     const all=sortedProjects(),coreSet=new Set(S.governance.coreProjectIds||[]),primary=all.filter(p=>coreSet.has(p.id)),extras=all.filter(p=>!coreSet.has(p.id));
-    const row=p=>`<a data-ng8-pin="1" href="${esc(p.href)}" style="--ng-project:${p.color}" class="${currentProject()?.id===p.id?'ng8-active-project':''}"><i>${esc(p.icon)}</i><span>${esc(p.name)}</span><small>${S.counts.has(p.id)?(S.counts.get(p.id)==null?'?':S.counts.get(p.id)):'…'}</small></a>`;
-    box.innerHTML=`<div class="ng8-pin-head"><span>PROJECTS</span><b>${all.length}</b></div><div class="ng8-pin-list">${(primary.length?primary:all.slice(0,8)).map(row).join('')}</div>${primary.length&&extras.length?`<details class="ng90-project-extras"><summary>AUTRES · ${extras.length}</summary><div>${extras.map(row).join('')}</div></details>`:''}`;
+    const shown=primary.length?primary:all.slice(0,8),active=currentProject()?.id||'';
+    const metaFor=p=>pinMeta(p);
+    const signature=JSON.stringify([all.map(p=>[p.id,p.name,p.color,p.icon,metaFor(p).latest,metaFor(p).count]),primary.map(p=>p.id),shown.map(p=>p.id),active]);
+    // Do not tear down/rebuild the whole Project block for benign sidebar/cache mutations.
+    // The previous two-stage render (count first, then chronology date) was visible as a
+    // 100-300 ms flicker between `41` and `15/08 [41]`. Render the final metadata atomically.
+    if(box.dataset.ng8Signature===signature){
+      box.hidden=false;box.removeAttribute('aria-hidden');syncNativeProjectSection(root,box,shown.length>0);
+      window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',shown.length?`OK · ${shown.length} Projects NiakGPT · stable`:'ATTENTE · aucun Project à afficher');
+      return;
+    }
+    const row=p=>{const meta=metaFor(p),title=meta.latest?`Dernier échange du Project : ${new Date(meta.latest).toLocaleString('fr-FR')}`:'Aucune date disponible';return`<a data-ng8-pin="1" href="${esc(p.href)}" style="--ng-project:${p.color}" class="${active===p.id?'ng8-active-project':''}"><i>${esc(p.icon)}</i><span>${esc(p.name)}</span><small class="ng8-project-meta" title="${esc(title)}">${esc(meta.text)}</small></a>`;};
+    box.innerHTML=`<div class="ng8-pin-head"><span>PROJECTS</span><b>${all.length}</b></div><div class="ng8-pin-list">${shown.map(row).join('')}</div>${primary.length&&extras.length?`<details class="ng90-project-extras"><summary>AUTRES · ${extras.length}</summary><div>${extras.map(row).join('')}</div></details>`:''}`;
+    box.dataset.ng8Rendered=String(shown.length);box.dataset.ng8Signature=signature;syncNativeProjectSection(root,box,shown.length>0);
+    window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',shown.length?`OK · ${shown.length} Projects NiakGPT · stable`:'ATTENTE · aucun Project à afficher');
+    document.dispatchEvent(new CustomEvent('niakgpt:pins-rendered',{detail:{count:all.length,shown:shown.length}}));
   }
 
   function ensureShell(){
@@ -283,10 +422,11 @@
       const turns=liveTurns();health('toc',turns.length?`OK · ${turns.length} blocs`:'VIDE · 0 bloc');
       panel.innerHTML=`<header><div><small>SOMMAIRE</small><b>${turns.length} blocs</b></div><button aria-label="Fermer">×</button></header><input id="ng8-toc-search" placeholder="Filtrer le fil…"><div class="ng8-toc">${turns.map((t,i)=>`<button data-turn="${i}"><i>${String(i+1).padStart(2,'0')}</i><span>${esc((t.innerText||t.textContent||'').replace(/\s+/g,' ').slice(0,135))}</span></button>`).join('')}</div>`;
     }else{
-      panel.innerHTML=`<header><div><small>EXPLORER</small><b>${S.projects.length} Projects · ${S.chats.length} chats</b></div><button aria-label="Fermer">×</button></header><div class="ng8-actions"><button data-repair>Nettoyer & reconstruire</button><button data-refresh>Réindexer en idle</button></div><input id="ng8-project-search" placeholder="Filtrer les Projects…"><div class="ng8-project-table"><div class="head"><span>Projet</span><span>Chats</span></div>${sortedProjects().map(p=>`<a href="${esc(p.href)}" data-project-name="${esc(norm(p.name))}" style="--ng-project:${p.color}" class="${isLegacy(p)?'legacy ':''}${p.duplicateOf?'duplicate':''}"><i>${esc(p.icon)}</i><span>${esc(p.name)}</span><b>${S.counts.has(p.id)?(S.counts.get(p.id)==null?'?':S.counts.get(p.id)):'…'}</b></a>`).join('')}</div>`;
+      panel.innerHTML=`<header><div><small>EXPLORER</small><b>${S.projects.length} Projects · ${S.chats.length} chats</b></div><button aria-label="Fermer">×</button></header><div class="ng8-actions"><button data-repair>Nettoyer & reconstruire</button><button data-refresh>Réindexer maintenant</button></div><input id="ng8-project-search" placeholder="Filtrer les Projects…"><div class="ng8-project-table"><div class="head"><span>Projet</span><span>Chats</span></div>${sortedProjects().map(p=>`<a href="${esc(p.href)}" data-project-name="${esc(norm(p.name))}" style="--ng-project:${p.color}" class="${isLegacy(p)?'legacy ':''}${p.duplicateOf?'duplicate':''}"><i>${esc(p.icon)}</i><span>${esc(p.name)}</span><b>${S.counts.has(p.id)?(S.counts.get(p.id)==null?'?':S.counts.get(p.id)):'…'}</b></a>`).join('')}</div>`;
     }
     panel.querySelector('header button')?.addEventListener('click',()=>{S.panelOpen=false;renderPanel();});
-    panel.querySelector('[data-refresh]')?.addEventListener('click',()=>{if(!confirm('Reconstruire l’index Projects/chats en tâche de fond ?'))return;S.projectChats.clear();S.counts.clear();S.indexComplete=false;S.queue=[];saveCache().then(()=>refreshProjects());});
+    panel.querySelector('[data-refresh]')?.addEventListener('click',()=>{if(!confirm('Réindexer maintenant tous les Projects et conversations depuis ChatGPT ?'))return;document.dispatchEvent(new CustomEvent('niakgpt:force-server-index'));health('projects','RÉINDEXATION · demandée');});
+    panel.querySelectorAll('.ng8-project-table a').forEach(a=>a.addEventListener('click',event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();event.stopPropagation();const id=pidFromHref(a.getAttribute('href')||'');routeTo(id?`/g/${id}/project`:(a.getAttribute('href')||''));}));
     panel.querySelectorAll('[data-turn]').forEach(b=>b.addEventListener('click',()=>{const t=liveTurns()[Number(b.dataset.turn)];t?.scrollIntoView({behavior:enabled('ng90Motion')?'smooth':'auto',block:'center'});}));
     const ts=panel.querySelector('#ng8-toc-search');if(ts)ts.addEventListener('input',()=>{const q=norm(ts.value);panel.querySelectorAll('[data-turn]').forEach(b=>b.hidden=!!q&&!norm(b.textContent).includes(q));});
     const ps=panel.querySelector('#ng8-project-search');if(ps)ps.addEventListener('input',()=>{const q=norm(ps.value);panel.querySelectorAll('.ng8-project-table a').forEach(a=>a.hidden=!!q&&!String(a.dataset.projectName||'').includes(q));});
@@ -307,6 +447,44 @@
     input.addEventListener('input',()=>{sel=0;paint();});input.addEventListener('keydown',e=>{if(e.key==='ArrowDown'){e.preventDefault();sel=Math.min(sel+1,items.length-1);paint();}else if(e.key==='ArrowUp'){e.preventDefault();sel=Math.max(0,sel-1);paint();}else if(e.key==='Enter'&&items[sel]){e.preventDefault();routeTo(items[sel].href);}else if(e.key==='Escape')modal.remove();});modal.addEventListener('mousedown',e=>{if(e.target===modal)modal.remove();});paint();setTimeout(()=>input.focus(),0);health('quick',`OK · ${S.projects.length+S.chats.length} entrées`);
   }
 
+  function formatClock(ms){
+    if(!ms)return'';const d=new Date(ms);if(!Number.isFinite(d.getTime()))return'';
+    return`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  }
+  function turnMessageId(turn){
+    return String(turn?.getAttribute?.('data-message-id')||turn?.querySelector?.('[data-message-id]')?.getAttribute('data-message-id')||'');
+  }
+  function nativeTurnTime(turn){
+    const el=turn?.querySelector?.('time[datetime],[data-message-timestamp],[data-timestamp],[data-create-time],[datetime]');if(!el)return 0;
+    for(const key of['datetime','data-message-timestamp','data-timestamp','data-create-time']){const raw=el.getAttribute?.(key);const at=parseTime(raw);if(at)return at;}
+    return 0;
+  }
+  function timelineTimeForTurn(turn){
+    const direct=nativeTurnTime(turn);if(direct)return direct;
+    const id=turnMessageId(turn),byId=id?S.turnTimeById.get(id):0;if(byId)return byId;
+    const role=turn?.dataset?.ng8Role||turn?.querySelector?.('[data-message-author-role]')?.getAttribute('data-message-author-role')||'';
+    if(role!=='user'&&role!=='assistant')return 0;
+    let ordinal=0;for(const old of S.turns){if(old===turn)break;if(old?.dataset?.ng8Role===role)ordinal++;}
+    return S.turnTimeline.filter(x=>x.role===role)[ordinal]?.at||0;
+  }
+  function stampTurn(turn){
+    const at=timelineTimeForTurn(turn),clock=formatClock(at);if(clock)turn.dataset.ng8Time=clock;else delete turn.dataset.ng8Time;
+  }
+  function applyTurnTimeline(){for(const turn of S.turns)if(turn?.isConnected)stampTurn(turn);}
+
+  function timelineFromConversation(data){
+    const mapping=data?.mapping;if(!mapping||typeof mapping!=='object')return[];
+    const chain=[];let nodeId=String(data.current_node||'');let guard=0;
+    while(nodeId&&mapping[nodeId]&&guard++<5000){const node=mapping[nodeId],m=node?.message,role=m?.author?.role,at=parseTime(m?.create_time||m?.update_time||0);if(m?.id&&(role==='user'||role==='assistant')&&at)chain.push({id:String(m.id),role,at});nodeId=String(node?.parent||'');}
+    return chain.reverse();
+  }
+  async function requestTurnTimeline(){
+    // 0.9.49: timestamps are derived from native DOM/local cache only. Full conversation GETs are forbidden.
+    if(document.documentElement.dataset.ng86Activity!=='ready')return;
+    try{applyTurnTimeline?.();}catch{}
+  }
+  function scheduleTurnTimeline(delay=900){setTimeout(()=>requestTurnTimeline().catch(()=>{}),delay);}
+
   function decorateCode(pre){
     if(!(pre instanceof HTMLElement)||S.codeSeen.has(pre)||pre.closest(OWN))return;S.codeSeen.add(pre);S.codeCount++;
     pre.dataset.ng8Code='1';const code=pre.querySelector('code'),lang=(code?.className?.match(/language-([\w+-]+)/)?.[1]||'code').toUpperCase(),lines=(code?.innerText||pre.innerText||'').split('\n').length;
@@ -314,40 +492,66 @@
   }
   function decorateTurn(turn){
     if(!(turn instanceof HTMLElement)||S.turnSeen.has(turn)||turn.closest(OWN))return;S.turnSeen.add(turn);S.turns.push(turn);
-    const i=S.turns.length-1;turn.dataset.ng8Turn=String(i);turn.dataset.ng8Role=turn.querySelector('[data-message-author-role]')?.getAttribute('data-message-author-role')||'unknown';turn.dataset.ng8Zebra=String(i%2);turn.querySelectorAll('pre').forEach(decorateCode);
+    const i=S.turns.length-1;turn.dataset.ng8Turn=String(i);turn.dataset.ng8Role=turn.querySelector('[data-message-author-role]')?.getAttribute('data-message-author-role')||'unknown';turn.dataset.ng8Zebra=String(i%2);stampTurn(turn);turn.querySelectorAll('pre').forEach(decorateCode);
     if(S.turns.length>8){const old=S.turns[S.turns.length-9];if(old?.isConnected)old.classList.add('ng8-offscreen');}
     const heavy=S.turns.length>=65||S.codeCount>=35;document.documentElement.dataset.ng8Heavy=heavy?'1':'0';health('performance',`OK · ${S.turns.length}${heavy?' · LOURD':''}`);health('toc',`PRÊT · ${S.turns.length} blocs`);
   }
+  function finishMainScan(token){
+    if(token!==S.scanToken)return;
+    clearTimeout(S.scanTimer);S.scanTimer=0;S.scanRunning=false;
+    if(S.scanRequested){S.scanRequested=false;S.scanTimer=setTimeout(()=>{S.scanTimer=0;scanExistingMain();},240);}
+  }
   function scanExistingMain(){
-    clearTimeout(S.scanTimer);const token=++S.scanToken,main=document.querySelector('main');if(!main)return;
-    S.scanTimer=setTimeout(()=>{
-      S.scanTimer=0;if(token!==S.scanToken||!main.isConnected)return;
-      const nodes=[...main.querySelectorAll('article[data-testid^="conversation-turn-"],[data-testid^="conversation-turn-"]')];
-      if(nodes.length>=65)document.documentElement.dataset.ng8Heavy='1';
-      let index=0;
-      const chunk=()=>{
-        if(token!==S.scanToken||!main.isConnected)return;
-        if(activity()!=='ready'){S.scanTimer=setTimeout(chunk,700);return;}
-        const end=Math.min(index+20,nodes.length);for(;index<end;index++)decorateTurn(nodes[index]);
-        if(index<nodes.length)S.scanTimer=setTimeout(chunk,24);
-        else{S.scanTimer=0;health('performance',`OK · ${S.turns.length}${nodes.length>=65?' · LOURD':''}`);}
-      };
-      chunk();
-    },180);
+    const main=document.querySelector('main');if(!main)return;
+    if(activity()!=='ready'){S.scanRequested=true;return;}
+    if(S.scanRunning){S.scanRequested=true;return;}
+    clearTimeout(S.scanTimer);S.scanTimer=0;S.scanRunning=true;S.scanRequested=false;
+    const token=++S.scanToken;
+    const nodes=main.querySelectorAll('article[data-testid^="conversation-turn-"],[data-testid^="conversation-turn-"]');
+    const total=nodes.length,heavy=total>=65;
+    if(heavy)document.documentElement.dataset.ng8Heavy='1';
+    // Historical turns are cold data. Decorating every old turn on a 300+ message thread
+    // causes large style/layout bursts for no user benefit. Keep a generous live tail only.
+    let index=heavy?Math.max(0,total-160):0;
+    const chunk=()=>{
+      if(token!==S.scanToken||!main.isConnected){finishMainScan(token);return;}
+      if(activity()!=='ready'){S.scanRequested=true;finishMainScan(token);return;}
+      const size=heavy?6:12,end=Math.min(index+size,total);
+      for(;index<end;index++)decorateTurn(nodes[index]);
+      if(index<total)S.scanTimer=setTimeout(chunk,heavy?72:34);
+      else{health('performance',`OK · ${total}${heavy?' · LOURD · tail 160':''}`);finishMainScan(token);}
+    };
+    S.scanTimer=setTimeout(chunk,heavy?120:60);
+  }
+  function deferMainSnapshot(delay=700){
+    clearTimeout(S.mainTimer);S.mainTimer=0;S.pendingMain.clear();S.scanRequested=true;
+    S.mainTimer=setTimeout(function waitMainReady(){
+      S.mainTimer=0;if(activity()!=='ready'){deferMainSnapshot(1000);return;}scanExistingMain();
+    },delay);
   }
   function queueMainNodes(records){
-    for(const r of records)for(const n of r.addedNodes)if(n instanceof Element)S.pendingMain.add(n);if(S.mainTimer)return;S.mainTimer=setTimeout(processPendingMain,activity()==='ready'?120:420);
+    let added=0;for(const r of records){added+=r.addedNodes?.length||0;if(added>120)break;}
+    if(activity()!=='ready'||added>120){deferMainSnapshot(activity()==='ready'?320:700);return;}
+    for(const r of records){for(const n of r.addedNodes){if(!(n instanceof Element))continue;S.pendingMain.add(n);if(S.pendingMain.size>80){deferMainSnapshot(320);return;}}}
+    if(S.mainTimer)return;S.mainTimer=setTimeout(processPendingMain,140);
   }
   function processPendingMain(){
-    S.mainTimer=0;const nodes=[...S.pendingMain];S.pendingMain.clear();
-    for(const node of nodes){if(node.matches?.('article[data-testid^="conversation-turn-"],[data-testid^="conversation-turn-"]'))decorateTurn(node);node.querySelectorAll?.('article[data-testid^="conversation-turn-"],[data-testid^="conversation-turn-"]').forEach(decorateTurn);if(node.matches?.('pre'))decorateCode(node);node.querySelectorAll?.('pre').forEach(decorateCode);}
+    S.mainTimer=0;if(activity()!=='ready'){deferMainSnapshot(700);return;}
+    const roots=[...S.pendingMain];
+    S.pendingMain.clear();
+    const turnSel='article[data-testid^="conversation-turn-"],[data-testid^="conversation-turn-"]';
+    const work=[];
+    const seen=new Set();
+    const add=(kind,el)=>{if(!el||seen.has(el))return true;if(work.length>=40)return false;seen.add(el);work.push([kind,el]);return true;};
+    for(const node of roots){if(!node?.isConnected)continue;if(node.matches?.(turnSel)){if(!add('turn',node)){deferMainSnapshot(260);return;}}else if(node.matches?.('pre')){if(!add('code',node)){deferMainSnapshot(260);return;}}else{const nested=node.querySelectorAll?.(`${turnSel},pre`)||[];if(nested.length>40||work.length+nested.length>40){deferMainSnapshot(260);return;}for(const el of nested)if(!add(el.matches?.(turnSel)?'turn':'code',el)){deferMainSnapshot(260);return;}}}
+    let index=0;const chunk=()=>{if(activity()!=='ready'){deferMainSnapshot(700);return;}const end=Math.min(index+10,work.length);for(;index<end;index++){const [kind,el]=work[index];if(!el?.isConnected)continue;if(kind==='turn')decorateTurn(el);else decorateCode(el);}if(index<work.length)S.mainTimer=setTimeout(()=>{S.mainTimer=0;chunk();},36);};chunk();
   }
 
   function stopMatrix(){ clearTimeout(S.matrixTimer);S.matrixTimer=0;S.matrix?.remove();S.matrix=null;S.matrixCtx=null;health('matrix','OFF'); }
   function resizeMatrix(){ if(!S.matrix)return;const host=document.querySelector('main')||document.body,r=host.getBoundingClientRect(),scale=.38;S.matrixW=S.matrix.width=Math.max(1,Math.floor(r.width*scale));S.matrixH=S.matrix.height=Math.max(1,Math.floor(innerHeight*scale));S.matrix.style.width=`${Math.max(1,r.width)}px`;S.matrix.style.height=`${innerHeight}px`;S.matrixCols=Array(Math.ceil(S.matrixW/11)).fill(0).map(()=>Math.random()*S.matrixH); }
   function matrixLoop(){
     clearTimeout(S.matrixTimer);if(!S.matrix||document.documentElement.dataset.ng90Matrix==='off'||safeMode())return stopMatrix();
-    const mode=document.documentElement.dataset.ng90Matrix||'subtle',active=activity()!=='ready',heavy=document.documentElement.dataset.ng8Heavy==='1',client=role()==='client';const gap=document.hidden?5000:active?(heavy?1400:800):client?(mode==='normal'?360:700):(mode==='normal'?130:240);
+    const mode=document.documentElement.dataset.ng90Matrix||'subtle',active=activity()!=='ready',heavy=document.documentElement.dataset.ng8Heavy==='1',client=role()==='client';const gap=document.hidden?5000:heavy?(active?1800:(mode==='normal'?900:1400)):active?800:client?(mode==='normal'?360:700):(mode==='normal'?130:240);
     if(!document.hidden&&!(active&&heavy)){
       const x=S.matrixCtx,w=S.matrixW,h=S.matrixH,chars='01アイウエオカキクケコ<>[]{}▓░λΣ∞';x.fillStyle='rgba(2,8,5,.14)';x.fillRect(0,0,w,h);x.font='9px Consolas,monospace';for(let i=0;i<S.matrixCols.length;i++){x.fillStyle=Math.random()>.982?'rgba(215,255,222,.82)':'rgba(28,255,88,.52)';x.fillText(chars[(Math.random()*chars.length)|0],i*11,S.matrixCols[i]);S.matrixCols[i]+=7.2;if(S.matrixCols[i]>h&&Math.random()>.97)S.matrixCols[i]=0;}
     }
@@ -372,15 +576,16 @@
     const main=document.querySelector('main');
     if(main&&main!==S.mainRoot){S.mainObserver?.disconnect();S.mainRoot=main;S.mainObserver=new MutationObserver(queueMainNodes);S.mainObserver.observe(main,{childList:true,subtree:true});scanExistingMain();}
     const side=navRoot();
-    if(side&&side!==S.sidebarRoot){S.sidebarObserver?.disconnect();S.sidebarRoot=side;S.sidebarObserver=new MutationObserver(records=>{let relevant=false,projectTouched=false;for(const record of records)for(const node of record.addedNodes){if(!(node instanceof Element))continue;const hasProject=node.matches?.(PROJECT_SEL)||node.querySelector?.(PROJECT_SEL);const hasChat=node.matches?.(CHAT_SEL)||node.querySelector?.(CHAT_SEL);if(hasProject){relevant=true;projectTouched=true;}else if(hasChat)relevant=true;}if(!relevant)return;S.sidebarNeedsPins=S.sidebarNeedsPins||projectTouched;if(S.sidebarTimer)return;S.sidebarTimer=setTimeout(()=>{S.sidebarTimer=0;const pins=S.sidebarNeedsPins;S.sidebarNeedsPins=false;decorateSidebar(pins);},activity()==='ready'?260:1300);});S.sidebarObserver.observe(side,{childList:true,subtree:true});}
+    if(side&&side!==S.sidebarRoot){S.sidebarObserver?.disconnect();S.sidebarRoot=side;S.sidebarObserver=new MutationObserver(records=>{let relevant=false,projectTouched=false,pinsLost=false;for(const record of records){for(const node of record.removedNodes){if(!(node instanceof Element))continue;if(node.id==='ng8-pins'||node.querySelector?.('#ng8-pins')){pinsLost=true;relevant=true;}}for(const node of record.addedNodes){if(!(node instanceof Element))continue;const hasProject=node.matches?.(PROJECT_SEL)||node.querySelector?.(PROJECT_SEL);const hasChat=node.matches?.(CHAT_SEL)||node.querySelector?.(CHAT_SEL);if(hasProject){relevant=true;projectTouched=true;}else if(hasChat)relevant=true;}}if(!relevant)return;S.sidebarNeedsPins=S.sidebarNeedsPins||projectTouched||pinsLost;if(S.sidebarTimer)return;S.sidebarTimer=setTimeout(()=>{S.sidebarTimer=0;const pins=S.sidebarNeedsPins||!document.getElementById('ng8-pins');S.sidebarNeedsPins=false;decorateSidebar(pins);},activity()==='ready'?260:1300);});S.sidebarObserver.observe(side,{childList:true,subtree:true});}
   }
   function resetRouteVisuals(){
-    clearTimeout(S.scanTimer);S.scanTimer=0;S.scanToken++;
-    S.turns=[];S.turnSeen=new WeakSet();S.codeSeen=new WeakSet();S.codeCount=0;document.documentElement.dataset.ng8Heavy='0';renderStatusBase();decorateSidebar();setTimeout(scanExistingMain,500);
+    clearTimeout(S.scanTimer);S.scanTimer=0;S.scanToken++;S.scanRunning=false;S.scanRequested=false;
+    S.turns=[];S.turnSeen=new WeakSet();S.codeSeen=new WeakSet();S.codeCount=0;S.turnTimeline=[];S.turnTimeById=new Map();S.timelineRequestedFor='';document.documentElement.dataset.ng8Heavy='0';renderStatusBase();decorateSidebar();setTimeout(scanExistingMain,500);scheduleTurnTimeline(1300);
   }
   function wakeBackground(){
+    // server-index-v100.js is the sole backend index owner in 0.9.37.
+    // Keeping the legacy app indexer dormant prevents duplicate requests and stale cache overwrites.
     if(!canBackground())return;
-    if(!S.projectsRefreshed&&!S.refreshingProjects)refreshProjects();else scheduleIndex(40);
   }
   function handleRouteChange(){
     mountObservers();const next=location.pathname;if(next===S.lastPath)return;
@@ -400,6 +605,9 @@
     document.addEventListener('keydown',e=>{if(e.altKey&&!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&String(e.key).toLowerCase()==='k'){e.preventDefault();openQuick();}},true);
     document.addEventListener('niakgpt:settings-changed',()=>{ensureMatrix();ensureBots();renderPins();});
     document.addEventListener('niakgpt:diagnostic-changed',()=>renderPanelIfDiag());
+    document.addEventListener('niakgpt:turn-timeline',event=>{const d=event.detail||{};if(d.conversationId&&currentChatId()&&d.conversationId!==currentChatId())return;const turns=Array.isArray(d.turns)?d.turns.filter(x=>x&&(x.role==='user'||x.role==='assistant')&&parseTime(x.at)):[];S.turnTimeline=turns.map(x=>({...x,at:parseTime(x.at)}));S.turnTimeById=new Map(S.turnTimeline.filter(x=>x.id).map(x=>[String(x.id),x.at]));applyTurnTimeline();});
+    document.addEventListener('niakgpt:activity-changed',()=>{if(activity()==='ready'){if(S.scanRequested||!S.turns.length)scanExistingMain();scheduleTurnTimeline(500);}});
+    document.addEventListener('niakgpt:rate-limit-cleared',()=>scheduleTurnTimeline(700));
     window.addEventListener('resize',()=>{resizeMatrix();},{passive:true});
     chrome.storage.onChanged.addListener((changes,area)=>{
       if(area!=='local')return;
@@ -411,10 +619,13 @@
     });
   }
 
+  async function waitCacheGuard(timeout=3000){
+    if(document.documentElement.dataset.ng100CacheGuard!=='pending')return;
+    await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;clearTimeout(t);document.removeEventListener('niakgpt:cache-guard-ready',finish);resolve();};const t=setTimeout(finish,timeout);document.addEventListener('niakgpt:cache-guard-ready',finish,{once:true});});
+  }
   async function boot(){
-    ensureShell();await Promise.all([loadGovernance(),loadCache()]);brand();mergeDOM();buildDuplicates();decorateSidebar();mountObservers();ensureMatrix();ensureBots();bindEvents();bindNavigation();
-    if(role()==='client')health('bridge','DÉLÉGUÉ · WORKER');
-    setTimeout(()=>{if(canBackground())refreshProjects();},900);
+    ensureShell();await waitCacheGuard();await Promise.all([loadGovernance(),loadCache()]);brand();mergeDOM();buildDuplicates();decorateSidebar();mountObservers();ensureMatrix();ensureBots();bindEvents();bindNavigation();
+    if(role()==='client')health('bridge','DÉLÉGUÉ · WORKER');scheduleTurnTimeline(900);
   }
 
   if(document.body)boot();else{const mo=new MutationObserver(()=>{if(document.body){mo.disconnect();boot();}});mo.observe(document.documentElement,{childList:true,subtree:true});}

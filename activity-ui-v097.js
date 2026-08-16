@@ -14,7 +14,7 @@
   const states=new Map(),remoteExpiry=new Map();
 
   let started=false,localState='ready',localSince=Date.now(),lastSignalAt=Date.now(),lastGrowthAt=0,lastAssistantLen=0;
-  let activeObserver=null,activeRoot=null,sidebarObserver=null,sidebarNode=null;
+  let activeObserver=null,activeRoot=null,activeAssistantObserver=null,activeAssistant=null,sidebarObserver=null,sidebarNode=null;
   let mutationTimer=0,settleTimer=0,deadlineTimer=0,heartbeatTimer=0,retryTimer=0;
   let pendingMutations=[];
 
@@ -85,7 +85,7 @@
     clearTimeout(mutationTimer);clearTimeout(settleTimer);clearTimeout(deadlineTimer);clearTimeout(heartbeatTimer);
     mutationTimer=settleTimer=deadlineTimer=heartbeatTimer=0;pendingMutations=[];
   }
-  function disarmActive(){activeObserver?.disconnect();activeObserver=null;activeRoot=null;clearActiveTimers();}
+  function disarmActive(){activeObserver?.disconnect();activeAssistantObserver?.disconnect();activeObserver=activeAssistantObserver=null;activeRoot=activeAssistant=null;document.documentElement.removeAttribute('data-ng105-verification');clearActiveTimers();}
   function scheduleHeartbeat(){clearTimeout(heartbeatTimer);if(!ACTIVE.has(localState))return;heartbeatTimer=setTimeout(()=>{const id=currentChatId();if(id)broadcast(id,localState,currentProjectId());scheduleHeartbeat();},15000);}
   function scheduleDeadline(){
     clearTimeout(deadlineTimer);if(!ACTIVE.has(localState))return;
@@ -94,11 +94,12 @@
   }
 
   function setState(state,force=false){
-    if(localState===state&&!force)return;localState=state;localSince=Date.now();lastSignalAt=Date.now();
+    if(localState===state&&!force)return;const previous=localState;localState=state;localSince=Date.now();lastSignalAt=Date.now();
     const root=document.documentElement;root.dataset.ng86Activity=state;root.dataset.ng8Running=ACTIVE.has(state)?'1':'0';
     const id=currentChatId(),pid=currentProjectId();if(id){remember(id,state,pid,localSince);broadcast(id,state,pid,localSince);decorateChat(id);decorateProject(pid);}
     renderStatus();
-    if(ACTIVE.has(state)){armActive();scheduleHeartbeat();scheduleDeadline();scheduleSettle(state==='loading'?700:1000);}else disarmActive();
+    document.dispatchEvent(new CustomEvent('niakgpt:activity-changed',{detail:{state,previous,active:ACTIVE.has(state),at:localSince}}));
+    if(ACTIVE.has(state)){if(state==='loading')disarmActive();else armActive();scheduleHeartbeat();scheduleDeadline();scheduleSettle(state==='loading'?700:1000);}else disarmActive();
   }
   function remoteState(id,state,pid='',at=Date.now()){if(!id)return;remember(id,state,pid,at);decorateChat(id);decorateProject(pid);}
 
@@ -107,7 +108,21 @@
     if(el.matches?.('[data-message-author-role="assistant"]'))return el;
     return el.closest?.('[data-message-author-role="assistant"]')||el.querySelector?.('[data-message-author-role="assistant"]')||null;
   }
-  function seedAssistant(){const nodes=mainRoot()?.querySelectorAll?.('[data-message-author-role="assistant"]')||[];const last=nodes.item?.(nodes.length-1);lastAssistantLen=(last?.innerText||last?.textContent||'').length;}
+  function latestAssistant(){const root=mainRoot();return root?.querySelector?.('article[data-testid^="conversation-turn-"]:last-of-type [data-message-author-role="assistant"]')||[...(root?.querySelectorAll?.('[data-message-author-role="assistant"]')||[])].at(-1)||null;}
+  function seedAssistant(){const last=latestAssistant();lastAssistantLen=(last?.innerText||last?.textContent||'').length;}
+  function armAssistant(){
+    const assistant=latestAssistant();if(!assistant||assistant===activeAssistant)return;
+    activeAssistantObserver?.disconnect();activeAssistant=assistant;lastAssistantLen=(assistant.innerText||assistant.textContent||'').length;
+    activeAssistantObserver=new MutationObserver(()=>{
+      clearTimeout(mutationTimer);mutationTimer=setTimeout(()=>{
+        mutationTimer=0;if(!ACTIVE.has(localState)||!activeAssistant?.isConnected)return;
+        const len=(activeAssistant.innerText||activeAssistant.textContent||'').length;
+        if(len>lastAssistantLen){lastAssistantLen=len;lastGrowthAt=lastSignalAt=Date.now();if(localState!=='executing')setState('executing',true);}
+        scheduleSettle(document.documentElement.dataset.ng8Heavy==='1'?1700:1200);
+      },document.documentElement.dataset.ng8Heavy==='1'?360:160);
+    });
+    activeAssistantObserver.observe(assistant,{childList:true,subtree:true,characterData:true});
+  }
   function nodeSignal(node){
     const el=node instanceof Element?node:node?.parentElement;if(!el)return{error:false,thinking:false};
     const text=(el.textContent||el.getAttribute?.('aria-label')||'').slice(0,500);
@@ -122,26 +137,37 @@
       const sig=nodeSignal(node);if(sig.error){setState('error',true);return;}if(sig.thinking)sawThinking=true;
       const assistant=assistantFrom(node);if(assistant){const len=(assistant.innerText||assistant.textContent||'').length;if(len>lastAssistantLen){lastAssistantLen=len;lastGrowthAt=lastSignalAt=Date.now();grew=true;}}
     }
+    armAssistant();
     if(grew&&localState!=='executing')setState('executing',true);else if(sawThinking&&localState!=='thinking'&&localState!=='executing')setState('thinking',true);
-    scheduleSettle(grew?1400:850);
+    scheduleSettle(document.documentElement.dataset.ng8Heavy==='1'?(grew?1800:1400):(grew?1400:850));
   }
   function armActive(){
-    const root=mainRoot();if(!root)return;if(activeObserver&&activeRoot===root)return;activeObserver?.disconnect();activeRoot=root;seedAssistant();
-    activeObserver=new MutationObserver(records=>{pendingMutations.push(...records);clearTimeout(mutationTimer);mutationTimer=setTimeout(processMutations,120);});
-    activeObserver.observe(root,{childList:true,subtree:true,characterData:true});
+    const root=mainRoot();if(!root)return;if(activeObserver&&activeRoot===root){armAssistant();return;}
+    activeObserver?.disconnect();activeAssistantObserver?.disconnect();activeRoot=root;activeAssistant=null;seedAssistant();armAssistant();
+    // Never watch characterData across the whole conversation. On very long threads every
+    // streamed token used to wake a subtree-wide observer. Root observer now only discovers
+    // structural additions; token mutations are confined to the current assistant message.
+    activeObserver=new MutationObserver(records=>{pendingMutations.push(...records);clearTimeout(mutationTimer);mutationTimer=setTimeout(processMutations,document.documentElement.dataset.ng8Heavy==='1'?300:140);});
+    activeObserver.observe(root,{childList:true,subtree:true});
   }
 
   function hasStop(){for(const selector of ['button[data-testid*="stop" i]','button[aria-label*="Stop" i]','button[aria-label*="Arrêter" i]','button[aria-label*="Arreter" i]']){const el=document.querySelector(selector);if(visible(el))return true;}return false;}
   function hasThinking(){const root=mainRoot(),el=root?.querySelector?.('[data-testid*="thinking" i],[data-state="thinking"],[data-state="loading"],[aria-busy="true"]');if(!visible(el))return false;const text=(el.getAttribute('aria-label')||el.textContent||'').toLowerCase();return!text||/thinking|réflexion|reflexion|analyse|analyzing|reasoning|raisonnement|working|travail/i.test(text);}
+  function hasVerification(){
+    const nodes=document.querySelectorAll('[role="alert"],[role="dialog"],[aria-live="assertive"],[aria-live="polite"],[data-testid*="verification" i],[data-testid*="verify" i]');
+    for(const el of nodes){if(!visible(el))continue;const text=String(el.textContent||el.getAttribute?.('aria-label')||'').replace(/\s+/g,' ').toLowerCase();if(/checking your browser|verify you are human|verification required|security check|unusual activity|vérification (?:du|de votre) navigateur|vérifiez que vous êtes humain|verification de votre navigateur/.test(text))return true;}
+    return false;
+  }
   function hasError(){const root=mainRoot();for(const el of root?.querySelectorAll?.('[role="alert"],[data-testid*="error" i]')||[]){if(visible(el)&&/something went wrong|une erreur|erreur réseau|network error|failed|échec/i.test(el.textContent||el.getAttribute('aria-label')||''))return true;}return false;}
   function conversationMounted(){const composer=document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]');if(!composer)return false;return !!mainRoot()?.querySelector?.('[data-message-author-role],article[data-testid^="conversation-turn-"]')||Date.now()-localSince>1300;}
   function settle(){
     settleTimer=0;if(!ACTIVE.has(localState))return;if(hasError()){setState('error',true);return;}
+    const verification=hasVerification();document.documentElement.toggleAttribute('data-ng105-verification',verification);if(verification){if(localState!=='thinking')setState('thinking',true);scheduleSettle(1800);return;}
     if(localState==='loading'){if(conversationMounted()&&Date.now()-lastSignalAt>500){setState('ready',true);return;}scheduleSettle(500);return;}
     const stop=hasStop(),thinking=hasThinking(),quiet=Date.now()-Math.max(lastGrowthAt,lastSignalAt,localSince);
     if(stop||thinking){if(localState==='waiting'&&quiet>1000)setState('thinking',true);else if(thinking&&localState!=='thinking'&&localState!=='executing')setState('thinking',true);scheduleSettle(localState==='executing'?1200:850);return;}
     if((localState==='thinking'||localState==='executing')&&quiet>1800){setState('ready',true);return;}
-    scheduleSettle(localState==='waiting'?850:700);
+    const heavy=document.documentElement.dataset.ng8Heavy==='1';scheduleSettle(heavy?(localState==='waiting'?1500:1300):(localState==='waiting'?850:700));
   }
   function scheduleSettle(delay=850){clearTimeout(settleTimer);if(ACTIVE.has(localState))settleTimer=setTimeout(settle,delay);}
 

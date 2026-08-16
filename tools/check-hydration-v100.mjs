@@ -6,7 +6,7 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 const need=(s,t,m)=>{if(!s.includes(t))fail(m||`missing ${t}`);};
 const forbid=(s,t,m)=>{if(s.includes(t))fail(m||`forbidden ${t}`);};
 
-// 0.9.52 canonical isolation: page-bridge is the only MAIN-world runtime.
+// 0.9.53 canonical isolation: page-bridge remains the only MAIN-world runtime.
 const main=['page-bridge.js'];
 const isolated=[
   'onboarding-v101.js',
@@ -27,6 +27,7 @@ const isolated=[
   'project-pins-v090.js',
   'sidebar-host-v090.js',
   'app-v090.js',
+  'project-state-selfheal-v102.js',
   'breadcrumb-v100.js',
   'continuity-v100.js',
   'visual-stability-v101.js',
@@ -43,7 +44,7 @@ const manifest=JSON.parse(read('manifest.json'));
 same(manifest.permissions,['storage','scripting'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*'],'host scope mismatch');
 same(manifest.content_scripts.flatMap(x=>x.js||[]),['boot-gate-v100.js'],'unexpected static runtime');
-if(manifest.version!=='0.9.52')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.53')fail(`unexpected release ${manifest.version}`);
 
 const background=read('background-v100.js');
 const runtimeList=name=>[...(background.match(new RegExp(`const ${name}=\\[(.*?)\\];`,'s'))?.[1]||'').matchAll(/'([^']+)'/g)].map(x=>x[1]);
@@ -80,6 +81,15 @@ need(app,'PROJECT_CHAT_SEL');
 need(app,'scanRunning:false');
 need(app,'scanRequested:false');
 forbid(app,'function routeTick()');
+
+const selfheal=read('project-state-selfheal-v102.js');
+for(const token of ['repairGovernance','mergeNativeCanonical','renderFallback','niakgpt:force-server-index'])need(selfheal,token,`Project self-heal missing ${token}`);
+forbid(selfheal,'characterData:true','Project self-heal must remain structural-only');
+forbid(selfheal,'setInterval(','Project self-heal polling reintroduced');
+
+const pins=read('project-pins-v090.js');
+need(pins,'cacheProjectIds','Project pin cache fallback missing');
+need(pins,'ATTENTE · inventaire/gouvernance Projects','Project pin zero-state diagnostic missing');
 
 const governance=read('project-governance-v090.js');need(governance,'verifyAndLockManualMove');need(governance,'executePlan');
 const folders=read('pin-folders-v096.js');need(folders,'ng96-pin-drawer');need(folders,'ng96-project-open');

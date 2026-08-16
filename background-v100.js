@@ -12,6 +12,7 @@ const ISOLATED_RUNTIME=[
   'control-center-v090.js',
   'cache-bus-v096.js',
   'diagnostic-bus-v096.js',
+  'runtime-integrity-v101.js',
   'cache-guardian-v100.js',
   'recovery-v100.js',
   'server-index-v100.js',
@@ -73,7 +74,7 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
       const failure=await injectOne(tabId,frameId,file,'ISOLATED');
       if(failure)errors.push(failure);
     }
-    const coreFailed=errors.some(item=>item.includes(':app-v090.js:'));
+    const coreFailed=errors.some(item=>item.includes(':app-v090.js:')||item.includes(':runtime-integrity-v101.js:'));
     sendResponse({ok:!coreFailed,errors});
   })().catch(error=>sendResponse({ok:false,errors:[`bootstrap:${String(error?.message||error)}`]}));
   return true;

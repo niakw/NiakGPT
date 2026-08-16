@@ -40,8 +40,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Run visual and unpacked-extension assertions
-        run: npm test
+      - name: Run current visual and unpacked-extension assertions
+        run: npm run test:current
       - name: Upload visual screenshots and report
         if: always()
         uses: actions/upload-artifact@v4

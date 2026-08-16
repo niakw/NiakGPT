@@ -1,4 +1,4 @@
-name: NiakGPT 0.9.52 Visual Matrix
+name: NiakGPT Visual Matrix · historical 0.9.52+
 
 on:
   push:
@@ -28,7 +28,7 @@ concurrency:
 
 jobs:
   visual:
-    name: Visual · ${{ matrix.browser }}
+    name: Visual 0.9.52 regressions · ${{ matrix.browser }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -39,12 +39,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify canonical 0.9.52 source
+      - name: Verify compatible canonical source
         run: |
           python - <<'PY'
           import json
           m=json.load(open('manifest.json'))
-          assert m['version']=='0.9.52', f"visual matrix refuses stale source: {m['version']}"
+          assert m['version'] in {'0.9.52','0.9.53'}, f"historical 0.9.52 visual matrix refuses incompatible source: {m['version']}"
           PY
           grep -q 'PROJECT_CHAT_SEL' app-v090.js
           grep -q 'scanRunning' app-v090.js
@@ -54,7 +54,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install playwright==1.57.0
           python -m playwright install --with-deps ${{ matrix.browser }}
-      - name: Run 0.9.52 visual regressions
+      - name: Run historical 0.9.52 visual regressions
         env:
           NIAKGPT_ROOT: ${{ github.workspace }}
           NIAKGPT_ARTIFACTS: ${{ runner.temp }}/niakgpt-0952-visual/${{ matrix.browser }}

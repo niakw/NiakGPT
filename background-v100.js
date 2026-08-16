@@ -3,10 +3,7 @@
 const INSTALL_META='niakgpt-install-meta-v100';
 
 const MAIN_RUNTIME=[
-  'page-bridge.js',
-  'manual-lock-main-v085.js',
-  'activity-main-v087.js',
-  'hotcache-main-v084.js'
+  'page-bridge.js'
 ];
 
 const ISOLATED_RUNTIME=[
@@ -15,12 +12,22 @@ const ISOLATED_RUNTIME=[
   'control-center-v090.js',
   'cache-bus-v096.js',
   'diagnostic-bus-v096.js',
+  'cache-guardian-v100.js',
+  'recovery-v100.js',
+  'server-index-v100.js',
   'commands-v100.js',
   'multitab-v090.js',
   'project-governance-v090.js',
+  'governance-queue-v101.js',
+  'reclassify-v101.js',
+  'manual-lock-main-v085.js',
+  'locale-fr-v101.js',
   'project-pins-v090.js',
   'sidebar-host-v090.js',
   'app-v090.js',
+  'breadcrumb-v100.js',
+  'continuity-v100.js',
+  'visual-stability-v101.js',
   'coach-v101.js',
   'polish-v090.js',
   'side-panels-v096.js',

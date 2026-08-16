@@ -1,0 +1,23 @@
+/* NiakGPT 0.9.49 — conversations OUT / continuité locale. */
+a[data-ng8-chat="1"][data-ng100-out="1"],a[href*="/c/"][data-ng100-out="1"]{
+  order:9999!important;
+  opacity:.68!important;
+  filter:saturate(.42)!important;
+  padding-right:112px!important;
+  border-color:rgba(241,76,76,.38)!important;
+  box-shadow:inset 2px 0 rgba(241,76,76,.82)!important;
+  background:linear-gradient(90deg,rgba(241,76,76,.12),rgba(30,12,14,.38))!important;
+}
+.ng100-out-badge{
+  position:absolute!important;right:35px!important;top:50%!important;transform:translateY(-50%)!important;
+  z-index:4!important;padding:2px 4px!important;border:1px solid rgba(241,76,76,.55)!important;border-radius:3px!important;
+  background:#2b1114!important;color:#ff8d8d!important;font:800 8px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace!important;letter-spacing:.08em!important;
+}
+.ng100-continue{
+  position:absolute!important;right:7px!important;top:50%!important;transform:translateY(-50%)!important;z-index:5!important;
+  display:grid!important;place-items:center!important;width:23px!important;height:23px!important;padding:0!important;
+  border:1px solid rgba(241,76,76,.5)!important;border-radius:4px!important;background:#39171b!important;color:#ffd2d2!important;
+  font:800 12px/1 system-ui,sans-serif!important;cursor:pointer!important;
+}
+.ng100-continue:hover{background:#562027!important;color:#fff!important;border-color:#ff8d8d!important}
+html[data-ng100-out="1"] #ng8-status .ng8-status-project::after{content:" · OUT";color:#ff7777;font-weight:800}

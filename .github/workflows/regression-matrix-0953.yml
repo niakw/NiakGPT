@@ -57,6 +57,12 @@ jobs:
           python -m pip install playwright==1.57.0
           python -m playwright install --with-deps ${{ matrix.browser }}
       - name: Run Project-state + lifecycle regressions
+        id: regression
         env:
           NIAKGPT_ROOT: ${{ github.workspace }}
         run: python labs/regression_0953.py --browser ${{ matrix.browser }}
+      - name: Dump lifecycle diagnostics on failure
+        if: failure() && steps.regression.outcome == 'failure'
+        env:
+          NIAKGPT_ROOT: ${{ github.workspace }}
+        run: python labs/lifecycle_debug_0953.py --browser ${{ matrix.browser }}

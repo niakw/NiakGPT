@@ -4,11 +4,19 @@ on:
   push:
     branches: ['**']
     paths:
+      - 'manifest.json'
+      - '*.js'
+      - '*.css'
       - 'labs/**'
+      - 'visual-lab/**'
       - '.github/workflows/browser-matrix.yml'
   pull_request:
     paths:
+      - 'manifest.json'
+      - '*.js'
+      - '*.css'
       - 'labs/**'
+      - 'visual-lab/**'
       - '.github/workflows/browser-matrix.yml'
   workflow_dispatch:
 
@@ -23,31 +31,48 @@ env:
   SNAPSHOT_SHA256: cc285737e4968884f1dff92377f8eacdeeaafc9c6722f396ac97b0e51149e9d6
 
 jobs:
-  snapshot:
-    name: Exact 0.9.49 snapshot gate
+  runtime-integrity:
+    name: Current production runtime integrity
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Rebuild exact tested snapshot
+      - name: JavaScript syntax gate on current runtime
+        run: find . -maxdepth 1 -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Manifest and bootstrap references exist
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const manifest=JSON.parse(fs.readFileSync('manifest.json','utf8'));
+          if(manifest.version!=='0.9.52') throw new Error(`unexpected version ${manifest.version}`);
+          for(const entry of manifest.content_scripts||[]) for(const file of [...(entry.js||[]),...(entry.css||[])]) if(!fs.existsSync(file)) throw new Error(`missing manifest file ${file}`);
+          const background=fs.readFileSync('background-v100.js','utf8');
+          const main=(background.match(/const\s+MAIN_RUNTIME\s*=\s*\[(.*?)\];/s)||[])[1]||'';
+          const mainFiles=[...main.matchAll(/["']([^"']+\.js)["']/g)].map(x=>x[1]);
+          if(JSON.stringify(mainFiles)!==JSON.stringify(['page-bridge.js'])) throw new Error(`unsafe MAIN runtime: ${mainFiles.join(', ')}`);
+          if(background.includes("'hotcache-main-v084.js'")||background.includes("'activity-main-v087.js'")) throw new Error('retired MAIN-world interceptor returned');
+          if(!background.includes("'runtime-integrity-v101.js'")) throw new Error('runtime integrity module missing');
+          const isolated=(background.match(/const\s+ISOLATED_RUNTIME\s*=\s*\[(.*?)\];/s)||[])[1]||'';
+          for(const file of [...isolated.matchAll(/["']([^"']+\.js)["']/g)].map(x=>x[1])) if(!fs.existsSync(file)) throw new Error(`missing injected runtime ${file}`);
+          if(JSON.stringify(manifest).includes('style.css')) throw new Error('unexpected style.css reference');
+          console.log('CURRENT_RUNTIME_INTEGRITY_PASS');
+          NODE
+
+  historical-snapshot:
+    name: Historical 0.9.49 snapshot integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rebuild preserved historical snapshot
         run: |
           cat labs/snapshot/part-* > /tmp/niakgpt-0949.b64
           base64 -d /tmp/niakgpt-0949.b64 > /tmp/niakgpt-0949.tgz
           echo "$SNAPSHOT_SHA256  /tmp/niakgpt-0949.tgz" | sha256sum -c -
-          mkdir -p /tmp/niakgpt-0949
-          tar -xzf /tmp/niakgpt-0949.tgz -C /tmp/niakgpt-0949
-      - name: JavaScript syntax gate
-        run: find /tmp/niakgpt-0949 -maxdepth 1 -name '*.js' -print0 | xargs -0 -n1 node --check
-      - name: Required critical files
-        run: |
-          for f in page-bridge.js app-v090.js side-panels-v096.js side-panels-v096.css server-index-v100.js reclassify-v101.js continuity-v100.js continuity-v100.css coach-v101.js visual-stability-v101.css; do
-            test -s "/tmp/niakgpt-0949/$f"
-          done
 
   browser:
-    name: Playwright · ${{ matrix.browser }}
+    name: Current runtime · Playwright · ${{ matrix.browser }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -58,16 +83,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Rebuild exact tested 0.9.49 snapshot
-        run: |
-          cat labs/snapshot/part-* > /tmp/niakgpt-0949.b64
-          base64 -d /tmp/niakgpt-0949.b64 > /tmp/niakgpt-0949.tgz
-          echo "$SNAPSHOT_SHA256  /tmp/niakgpt-0949.tgz" | sha256sum -c -
-          mkdir -p /tmp/niakgpt-0949
-          tar -xzf /tmp/niakgpt-0949.tgz -C /tmp/niakgpt-0949
       - run: python -m pip install --upgrade pip playwright==1.57.0
       - run: python -m playwright install --with-deps ${{ matrix.browser }}
-      - name: Run production regression surfaces
+      - name: Run regression surfaces against CURRENT checkout
         env:
-          NIAKGPT_ROOT: /tmp/niakgpt-0949
+          NIAKGPT_ROOT: ${{ github.workspace }}
         run: python labs/browser_matrix_crossengine.py --browser ${{ matrix.browser }}

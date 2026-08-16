@@ -37,7 +37,7 @@
     let fromDom='';if(native){const clone=native.cloneNode(true);clone.querySelectorAll('.ng8-chat-date,.ng8-chat-project,.ng85-manual-lock').forEach(x=>x.remove());fromDom=clean(clone.querySelector('.truncate span')?.textContent||clone.textContent||native.getAttribute('aria-label')||'');}
     if(fromDom)return fromDom;
     let title=clean(titleContext().chat);
-    if(pName){const prefix=new RegExp(`^${pName.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\s*[-–—|·:]\s*`,'i');title=title.replace(prefix,'');}
+    if(pName){const prefix=new RegExp(`^${pName.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\s*[-–—|·:]\\s*`,'i');title=title.replace(prefix,'');}
     return title||'Conversation';
   }
   function routeProject(event,id){

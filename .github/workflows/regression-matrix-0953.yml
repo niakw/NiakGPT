@@ -46,6 +46,7 @@ jobs:
           m=json.load(open('manifest.json'))
           assert m['version']=='0.9.53', f"0.9.53 matrix refuses source {m['version']}"
           PY
+          grep -q "browser-compat-v102.js" background-v100.js
           grep -q 'project-state-selfheal-v102.js' background-v100.js
           grep -q 'cacheProjectIds' project-pins-v090.js
           grep -q 'repairGovernance' project-state-selfheal-v102.js
@@ -56,13 +57,13 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install playwright==1.57.0
           python -m playwright install --with-deps ${{ matrix.browser }}
-      - name: Run Project-state + lifecycle regressions
+      - name: Run Project-state + lifecycle regressions in production load order
         id: regression
         env:
           NIAKGPT_ROOT: ${{ github.workspace }}
-        run: python labs/regression_0953.py --browser ${{ matrix.browser }}
+        run: python labs/regression_0953_v2.py --browser ${{ matrix.browser }}
       - name: Dump lifecycle diagnostics on failure
         if: failure() && steps.regression.outcome == 'failure'
         env:
           NIAKGPT_ROOT: ${{ github.workspace }}
-        run: python labs/lifecycle_debug_0953.py --browser ${{ matrix.browser }}
+        run: python labs/lifecycle_debug_0953_v2.py --browser ${{ matrix.browser }}

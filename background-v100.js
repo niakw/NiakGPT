@@ -25,6 +25,7 @@ const ISOLATED_RUNTIME=[
   'project-pins-v090.js',
   'sidebar-host-v090.js',
   'app-v090.js',
+  'project-state-selfheal-v102.js',
   'breadcrumb-v100.js',
   'continuity-v100.js',
   'visual-stability-v101.js',
@@ -73,7 +74,7 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
       const failure=await injectOne(tabId,frameId,file,'ISOLATED');
       if(failure)errors.push(failure);
     }
-    const coreFailed=errors.some(item=>item.includes(':app-v090.js:'));
+    const coreFailed=errors.some(item=>item.includes(':app-v090.js:')||item.includes(':project-state-selfheal-v102.js:'));
     sendResponse({ok:!coreFailed,errors});
   })().catch(error=>sendResponse({ok:false,errors:[`bootstrap:${String(error?.message||error)}`]}));
   return true;

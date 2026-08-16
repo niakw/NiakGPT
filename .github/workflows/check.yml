@@ -33,17 +33,33 @@ jobs:
             test -n "$file" && node --check "$file"
           done < /tmp/niakgpt-js.txt
 
-      - name: Build and verify clean package
+      - name: Build clean package
+        run: node tools/package-extension.mjs
+
+      - name: Verify package contents
         run: |
-          node tools/package-extension.mjs
           ZIP=$(find dist -maxdepth 1 -name 'niakgpt-*.zip' -print -quit)
           test -n "$ZIP"
-          unzip -l "$ZIP" | grep -q 'manifest.json'
-          unzip -l "$ZIP" | grep -q 'background-v100.js'
-          if unzip -l "$ZIP" | grep -E 'visual-lab|tools/|app-v08-safe|project-governance-v085.js|project-pins-v085.js|multitab-v083.js|chronology-v081.js|polish-v081.js|onboarding-v100.js'; then
-            echo 'Development or legacy files leaked into installable ZIP'
+          unzip -Z1 "$ZIP" > /tmp/niakgpt-package-files.txt
+          grep -qx 'manifest.json' /tmp/niakgpt-package-files.txt
+          grep -qx 'background-v100.js' /tmp/niakgpt-package-files.txt
+          for forbidden in \
+            'app-v08-safe.js' \
+            'project-governance-v085.js' \
+            'project-pins-v085.js' \
+            'multitab-v083.js' \
+            'chronology-v081.js' \
+            'polish-v081.js' \
+            'onboarding-v100.js'; do
+            if grep -Fxq "$forbidden" /tmp/niakgpt-package-files.txt; then
+              echo "Legacy runtime leaked into ZIP: $forbidden"
+              exit 1
+            fi
+          done
+          if grep -E '(^|/)visual-lab(/|$)|(^|/)tools(/|$)' /tmp/niakgpt-package-files.txt; then
+            echo 'Development files leaked into installable ZIP'
             exit 1
           fi
 
       - name: Summary
-        run: node -e "const m=require('./manifest.json'); console.log('NiakGPT '+m.version+' static + hot-path checks OK')"
+        run: node -e "const m=require('./manifest.json'); console.log('NiakGPT '+m.version+' static + hot-path + package checks OK')"

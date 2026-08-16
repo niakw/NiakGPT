@@ -5,12 +5,25 @@ const fail=m=>{throw new Error(m);};
 const has=(s,t,m=`missing: ${t}`)=>{if(!s.includes(t))fail(m);};
 const no=(s,t,m=`forbidden: ${t}`)=>{if(s.includes(t))fail(m);};
 
+const background=read('background-v100.js');
+const integrity=read('runtime-integrity-v101.js');
 const app=read('app-v090.js');
 const tabs=read('multitab-v090.js');
 const panels=read('side-panels-v096.js');
 const coach=read('coach-v101.js');
 const activity=read('activity-ui-v097.js');
-const hotcache=read('hotcache-main-v084.js');
+
+// Production MAIN world is deliberately tiny. The retired fetch/activity interceptors
+// must never return: they were a freeze/crash risk on large ChatGPT conversations.
+const mainBody=(background.match(/const\s+MAIN_RUNTIME\s*=\s*\[(.*?)\];/s)||[])[1]||'';
+const mainFiles=[...mainBody.matchAll(/["']([^"']+\.js)["']/g)].map(x=>x[1]);
+if(JSON.stringify(mainFiles)!==JSON.stringify(['page-bridge.js']))fail(`unsafe MAIN runtime: ${mainFiles.join(', ')}`);
+no(background,"'hotcache-main-v084.js'",'Retired fetch hotcache reintroduced into bootstrap');
+no(background,"'activity-main-v087.js'",'Retired MAIN activity interceptor reintroduced into bootstrap');
+has(background,"'runtime-integrity-v101.js'",'Runtime integrity repair missing from bootstrap');
+has(integrity,"reason='reseed-empty-core'",'Persisted empty Project core repair missing');
+has(integrity,'domOnly:false','Real Project canonicalization missing');
+has(integrity,"OFF · retiré du runtime",'Retired hotcache diagnostic suppression missing');
 
 // Native animation remains untouched; only idle/background coordination is allowed.
 no(tabs,'niakgptCoordinatedRAF','Global NiakGPT RAF throttling reintroduced');
@@ -43,21 +56,13 @@ has(app,"const nextCursor = data => data?.cursor ?? data?.next_cursor ?? data?.n
 has(app,"listFrom(r.data,'items','conversations')",'Conversation-list response compatibility missing');
 has(app,"listFrom(r.data,'items','projects','gizmos')",'Project-list response compatibility missing');
 
-// Hot cache stays bounded and cross-tab safe.
-has(hotcache,'MAX_ENTRIES = 5','Hot-cache entry bound missing');
-has(hotcache,'MAX_TOTAL_BYTES = 96','Hot-cache total-byte bound missing');
-has(hotcache,"m.type === 'invalidate' || m.type === 'updated'",'Cross-tab RAM invalidation missing');
-
-// Coach has a single owner outside the core and exposes status through the current
-// dataset API used by the 0.9.52 runtime.
+// Coach has a single owner outside the core and exposes status through the current dataset API.
 no(app,'function ensureCoach()','Legacy core coach renderer reintroduced');
 no(app,'function suggestionSet(prompt)','Legacy core coach classifier reintroduced');
 has(coach,'root.dataset.ng100CoachStatus=text','Coach status dataset marker missing');
 has(coach,"window.__NIAKGPT_DIAGNOSTICS__?.set('coach',text)",'Coach diagnostics bridge missing');
 
-// Side panels stay native-looking overlays. The 0.9.52 adapter watches only structural
-// child additions plus user/navigation/resize signals; it never observes characterData
-// or wakes from generation-network traffic.
+// Side panels stay native-looking overlays and do not wake from generation-network traffic.
 no(panels,'niakgpt:activity-network','Side-panel adapter must not wake from generation traffic');
 has(panels,'ng96-native-sidepanel','Native side-panel ownership marker missing');
 has(panels,'observer.observe(document.documentElement,{childList:true,subtree:true})','Side-panel structural observer missing');
@@ -65,4 +70,4 @@ no(panels,'characterData:true','Side-panel text mutation observer reintroduced')
 has(panels,"document.addEventListener('click',()=>schedule(document,100),true)",'Side-panel interaction wakeup missing');
 no(panels,'arm(7000)','Long startup body observer reintroduced');
 
-console.log('NiakGPT 0.9.52 hot-path invariants: OK');
+console.log('NiakGPT 0.9.52 current hot-path/runtime invariants: OK');

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="220" viewBox="0 0 920 220" role="img" aria-labelledby="title desc">
+  <title id="title">NiakGPT</title>
+  <desc id="desc">NiakGPT — power workspace for ChatGPT</desc>
+  <rect width="920" height="220" rx="28" fill="#070b0f"/>
+  <rect x="24" y="24" width="872" height="172" rx="20" fill="#0c131a" stroke="#263746" stroke-width="2"/>
+  <g transform="translate(58 56)">
+    <rect width="108" height="108" rx="24" fill="#101c24" stroke="#4fc1ff" stroke-width="3"/>
+    <path d="M27 79V29h13l28 30V29h13v50H69L40 48v31H27Z" fill="#d9f4ff"/>
+    <circle cx="84" cy="26" r="7" fill="#4ec9b0"/>
+  </g>
+  <text x="196" y="112" fill="#f1f7fb" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="64" font-weight="800" letter-spacing="-2">NiakGPT</text>
+  <text x="199" y="151" fill="#8fa8bb" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="22" font-weight="500" letter-spacing="1.2">POWER WORKSPACE FOR CHATGPT</text>
+  <rect x="199" y="169" width="285" height="4" rx="2" fill="#4fc1ff"/>
+  <rect x="490" y="169" width="98" height="4" rx="2" fill="#c586c0"/>
+  <rect x="594" y="169" width="62" height="4" rx="2" fill="#4ec9b0"/>
+</svg>

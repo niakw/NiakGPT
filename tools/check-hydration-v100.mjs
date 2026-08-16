@@ -18,6 +18,7 @@ const isolated=[
   'recovery-v100.js',
   'server-index-v100.js',
   'commands-v100.js',
+  'browser-compat-v102.js',
   'multitab-v090.js',
   'project-governance-v090.js',
   'governance-queue-v101.js',
@@ -74,6 +75,7 @@ for(const file of [...main,...isolated,'boot-gate-v100.js','background-v100.js']
 for(const file of isolated.filter(file=>file!=='retro-loader-v097.js'))forbid(read(file),'setInterval(',`permanent polling in ${file}`);
 const loader=read('retro-loader-v097.js');need(loader,'function stopTicker()');need(loader,'clearInterval(timer)');
 
+const compat=read('browser-compat-v102.js');need(compat,'crypto.randomUUID','randomUUID compatibility guard missing');need(compat,'getRandomValues','randomUUID secure fallback missing');
 const app=read('app-v090.js');
 need(app,'MutationObserver(queueMainNodes)');
 need(app,'function renderPins()');

@@ -6,8 +6,38 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 const need=(s,t,m)=>{if(!s.includes(t))fail(m||`missing ${t}`);};
 const forbid=(s,t,m)=>{if(s.includes(t))fail(m||`forbidden ${t}`);};
 
-const main=['page-bridge.js','manual-lock-main-v085.js','activity-main-v087.js','hotcache-main-v084.js'];
-const isolated=['onboarding-v101.js','profiles-v100.js','control-center-v090.js','cache-bus-v096.js','diagnostic-bus-v096.js','commands-v100.js','multitab-v090.js','project-governance-v090.js','project-pins-v090.js','sidebar-host-v090.js','app-v090.js','coach-v101.js','polish-v090.js','side-panels-v096.js','chronology-v090.js','pin-folders-v096.js','activity-ui-v097.js','retro-loader-v097.js'];
+// 0.9.52 canonical isolation: page-bridge is the only MAIN-world runtime.
+const main=['page-bridge.js'];
+const isolated=[
+  'onboarding-v101.js',
+  'profiles-v100.js',
+  'control-center-v090.js',
+  'cache-bus-v096.js',
+  'diagnostic-bus-v096.js',
+  'cache-guardian-v100.js',
+  'recovery-v100.js',
+  'server-index-v100.js',
+  'commands-v100.js',
+  'multitab-v090.js',
+  'project-governance-v090.js',
+  'governance-queue-v101.js',
+  'reclassify-v101.js',
+  'manual-lock-main-v085.js',
+  'locale-fr-v101.js',
+  'project-pins-v090.js',
+  'sidebar-host-v090.js',
+  'app-v090.js',
+  'breadcrumb-v100.js',
+  'continuity-v100.js',
+  'visual-stability-v101.js',
+  'coach-v101.js',
+  'polish-v090.js',
+  'side-panels-v096.js',
+  'chronology-v090.js',
+  'pin-folders-v096.js',
+  'activity-ui-v097.js',
+  'retro-loader-v097.js'
+];
 
 const manifest=JSON.parse(read('manifest.json'));
 same(manifest.permissions,['storage','scripting'],'permissions mismatch');
@@ -21,6 +51,18 @@ same(runtimeList('MAIN_RUNTIME'),main,'MAIN runtime mismatch');
 same(runtimeList('ISOLATED_RUNTIME'),isolated,'isolated runtime mismatch');
 need(background,'chrome.scripting.executeScript');
 need(background,'niakgpt:inject-runtime-v100');
+
+for(const legacy of ['hotcache-main-v084.js','activity-main-v087.js']){
+  if(fs.existsSync(legacy))fail(`obsolete MAIN runtime still present: ${legacy}`);
+}
+
+const bridge=read('page-bridge.js');
+need(bridge,'const nativeFetch = window.fetch.bind(window);','native fetch capture missing');
+need(bridge,'conversation_detail_get_disabled','full conversation GET guard missing');
+need(bridge,'project_move_requires_governance','project governance guard missing');
+need(bridge,"error:'native_busy'",'native activity circuit breaker missing');
+forbid(bridge,'window.fetch =','global fetch replacement reintroduced');
+forbid(bridge,'globalThis.fetch =','global fetch replacement reintroduced');
 
 const gate=read('boot-gate-v100.js');
 for(const token of ['await waitLoad()','await waitForChatShell()','await sleep(2500)','await waitForQuiet()','await nextFrames()','safeToMutate=true'])need(gate,token);
@@ -41,7 +83,6 @@ forbid(app,'function routeTick()');
 
 const governance=read('project-governance-v090.js');need(governance,'verifyAndLockManualMove');need(governance,'executePlan');
 const folders=read('pin-folders-v096.js');need(folders,'ng96-pin-drawer');need(folders,'ng96-project-open');
-const hot=read('hotcache-main-v084.js');need(hot,'MAX_ENTRIES = 5');need(hot,'MAX_TOTAL_BYTES = 96');
 const activity=read('activity-ui-v097.js');need(activity,'Never watch characterData across the whole conversation');
 const panels=read('side-panels-v096.js');need(panels,'ng96-native-sidepanel');
 

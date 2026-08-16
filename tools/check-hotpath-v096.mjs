@@ -55,10 +55,14 @@ no(app,'function suggestionSet(prompt)','Legacy core coach classifier reintroduc
 has(coach,'root.dataset.ng100CoachStatus=text','Coach status dataset marker missing');
 has(coach,"window.__NIAKGPT_DIAGNOSTICS__?.set('coach',text)",'Coach diagnostics bridge missing');
 
-// Side panels stay native-looking overlays and do not wake from generation traffic.
+// Side panels stay native-looking overlays. The 0.9.52 adapter watches only structural
+// child additions plus user/navigation/resize signals; it never observes characterData
+// or wakes from generation-network traffic.
 no(panels,'niakgpt:activity-network','Side-panel adapter must not wake from generation traffic');
 has(panels,'ng96-native-sidepanel','Native side-panel ownership marker missing');
-has(panels,"attributeFilter:['data-ng86-activity']",'Side-panel READY refresh observer missing');
+has(panels,'observer.observe(document.documentElement,{childList:true,subtree:true})','Side-panel structural observer missing');
+no(panels,'characterData:true','Side-panel text mutation observer reintroduced');
+has(panels,"document.addEventListener('click',()=>schedule(document,100),true)",'Side-panel interaction wakeup missing');
 no(panels,'arm(7000)','Long startup body observer reintroduced');
 
 console.log('NiakGPT 0.9.52 hot-path invariants: OK');

@@ -1,80 +1,78 @@
 (() => {
   'use strict';
-  if (location.hostname !== 'chatgpt.com' || window.__NIAKGPT_SIDE_PANELS_096__) return;
-  window.__NIAKGPT_SIDE_PANELS_096__ = true;
+  if(location.hostname!=='chatgpt.com'||window.__NIAKGPT_SIDE_PANELS_096__)return;
+  window.__NIAKGPT_SIDE_PANELS_096__=true;
 
-  const OWN='#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng8-pins,#ng90-control,#ng100-command,#ng100-onboarding';
-  const PANEL_SEL='aside,[role="dialog"],[data-testid*="activity" i],[data-testid*="source" i],[data-testid*="output" i],[class*="fixed"]';
-  const LABEL_RX=/\b(activité|activite|activity|sources?|sorties?|outputs?)\b/i;
-  let observer=null,observerTimer=0,scanTimer=0;
+  const OWN='#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng8-pins,#ng90-control,#ng100-command,#ng100-onboarding,#ng97-loader';
+  const FAST_SEL='aside,[role="dialog"],[aria-modal="true"],[data-testid*="activity" i],[data-testid*="source" i],[data-testid*="output" i],[data-testid*="reason" i],[data-testid*="analysis" i]';
+  const LABEL_RX=/activit[eé]|activity|source|sources|sortie|sorties|output|outputs|r[eé]flexion|reflection|reasoning|raisonnement|analyse|analysis/i;
+  const tracked=new Set();
+  let timer=0;
 
-  const visible=el=>{if(!(el instanceof HTMLElement))return false;const r=el.getBoundingClientRect();return r.width>0&&r.height>0&&r.bottom>0&&r.right>0;};
-  function panelType(text){const s=String(text||'');if(/\b(activité|activite|activity)\b/i.test(s))return'activity';if(/\b(sources?)\b/i.test(s))return'sources';if(/\b(sorties?|outputs?)\b/i.test(s))return'outputs';return'';}
-  function labelOf(el){if(!(el instanceof Element))return'';const heading=el.querySelector('h1,h2,h3,[role="heading"],header');return `${el.getAttribute('aria-label')||''} ${el.getAttribute('data-testid')||''} ${heading?.textContent||''}`.trim();}
-  function looksLikePanel(el){
-    if(!(el instanceof HTMLElement)||el.closest(OWN)||!visible(el))return'';
-    const r=el.getBoundingClientRect();if(r.width<250||r.width>820||r.right<innerWidth-150)return'';
-    return panelType(labelOf(el));
+  const visible=el=>{if(!(el instanceof HTMLElement)||!el.isConnected)return false;const r=el.getBoundingClientRect();return r.width>0&&r.height>0&&r.bottom>0&&r.right>0&&r.left<innerWidth&&r.top<innerHeight;};
+  const textOf=el=>`${el.getAttribute?.('aria-label')||''} ${el.getAttribute?.('data-testid')||''} ${el.querySelector?.('h1,h2,h3,[role="heading"]')?.textContent||''} ${(el.textContent||'').slice(0,320)}`;
+  function kind(el){const t=textOf(el);if(/source/i.test(t))return'sources';if(/sortie|output/i.test(t))return'outputs';if(/r[eé]flexion|reflection|reasoning|raisonnement|analyse|analysis/i.test(t))return'reflection';return'activity';}
+  function geometryOK(el){
+    if(!(el instanceof HTMLElement)||el.closest(OWN)||!visible(el))return false;
+    if(el===document.body||el===document.documentElement||el.matches('main,[data-testid="conversation-sidebar"],[data-testid="sidebar"]'))return false;
+    const r=el.getBoundingClientRect();
+    if(r.width<260||r.width>760||r.height<220)return false;
+    if(r.right<innerWidth-90||r.left<Math.max(360,innerWidth*.48))return false;
+    if(el.querySelector('main,[data-testid="conversation-sidebar"],[data-testid="sidebar"]'))return false;
+    return LABEL_RX.test(textOf(el));
   }
-  function findPanel(root=document){
-    if(root instanceof Element){const type=looksLikePanel(root);if(type)return{panel:root,type};}
-    const list=[...(root.querySelectorAll?.(PANEL_SEL)||[])];
-    for(let i=Math.max(0,list.length-40);i<list.length;i++){const type=looksLikePanel(list[i]);if(type)return{panel:list[i],type};}
+  function climbFromHeading(heading){
+    let el=heading;
+    for(let i=0;i<7&&el?.parentElement;i++,el=el.parentElement){
+      if(geometryOK(el))return el;
+      if(el.parentElement===document.body)break;
+    }
     return null;
   }
-  function nativeClose(panel){return[...panel.querySelectorAll('button')].find(b=>/fermer|close|masquer|hide|réduire|reduire/i.test(`${b.getAttribute('aria-label')||''} ${b.title||''}`));}
-  function closePanel(panel){
-    const close=nativeClose(panel);if(close){close.click();return;}
-    const id=panel.id;if(id){const trigger=[...document.querySelectorAll('button[aria-expanded="true"],button[aria-controls]')].find(b=>b.getAttribute('aria-controls')===id);if(trigger){trigger.click();return;}}
-    document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',code:'Escape',bubbles:true}));
+  function mark(el){
+    if(!geometryOK(el))return false;
+    const type=kind(el);
+    for(const cls of ['ng96-sidepanel-activity','ng96-sidepanel-sources','ng96-sidepanel-outputs','ng96-sidepanel-reflection'])el.classList.remove(cls);
+    el.classList.add('ng96-native-sidepanel',`ng96-sidepanel-${type}`);
+    el.dataset.ng96Sidepanel=type;tracked.add(el);return true;
   }
-  function decoratePanel(panel,type){
-    if(!(panel instanceof HTMLElement))return;
-    panel.classList.add('ng96-native-sidepanel',`ng96-sidepanel-${type}`);panel.dataset.ng96Sidepanel=type;
-    if(getComputedStyle(panel).position==='static')panel.style.position='relative';
-    const head=panel.querySelector('header,[role="heading"]')?.closest('header,div')||panel.querySelector('header');if(head instanceof HTMLElement){head.classList.add('ng96-sidepanel-head');if(getComputedStyle(head).position==='static')head.style.position='relative';}
-    if(type==='activity')panel.classList.add('ng8-native-activity');
-    const closeHost=head instanceof HTMLElement?head:panel;
-    let close=closeHost.querySelector(':scope > .ng96-side-close,:scope > .ng8-activity-close')||panel.querySelector(':scope > .ng96-side-close,:scope > .ng8-activity-close');
-    if(close&&close.parentElement!==closeHost)closeHost.appendChild(close);
-    if(!close){close=document.createElement('button');close.type='button';close.className='ng96-side-close';close.setAttribute('aria-label',`Fermer ${type==='activity'?'Activité':type==='sources'?'Sources':'Sorties'}`);close.textContent='×';close.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();closePanel(panel);});closeHost.appendChild(close);}
-  }
-  function decorateTriggers(root=document){
-    const candidates=[...(root.querySelectorAll?.('button,[role="button"],a')||[])];
-    for(const el of candidates){
-      if(!(el instanceof HTMLElement)||el.closest(OWN)||!visible(el))continue;
-      const text=`${el.getAttribute('aria-label')||''} ${el.getAttribute('data-testid')||''} ${el.title||''} ${(el.textContent||'').trim().slice(0,60)}`;
-      if(!LABEL_RX.test(text))continue;
-      const r=el.getBoundingClientRect();if(r.right<innerWidth-115||r.width>160||r.height>90)continue;
-      const type=panelType(text);if(!type)continue;
-      el.classList.add('ng96-native-side-trigger',`ng96-side-trigger-${type}`);el.dataset.ng96SideTrigger=type;
-      const position=getComputedStyle(el).position;el.classList.toggle('ng96-side-trigger-static',position==='static');
+  function discover(root=document){
+    const candidates=new Set();
+    if(root instanceof HTMLElement){if(root.matches?.(FAST_SEL))candidates.add(root);for(const el of root.querySelectorAll?.(FAST_SEL)||[])candidates.add(el);}
+    else for(const el of document.querySelectorAll(FAST_SEL))candidates.add(el);
+    // OpenAI sometimes wraps Activity/Reflection/Sources in anonymous divs. Headings +
+    // geometry are more stable than tag names, so climb from matching visible headings.
+    const scope=root instanceof HTMLElement?root:document;
+    for(const h of [...scope.querySelectorAll?.('h1,h2,h3,[role="heading"]')||[]].slice(-120)){
+      if(!visible(h)||!LABEL_RX.test(String(h.textContent||'')))continue;
+      const panel=climbFromHeading(h);if(panel)candidates.add(panel);
     }
+    for(const el of candidates)mark(el);
+  }
+  function cleanTracked(){
+    let active=false;
+    for(const el of [...tracked]){
+      if(!visible(el)||!geometryOK(el)){
+        el.classList.remove('ng96-native-sidepanel','ng96-sidepanel-activity','ng96-sidepanel-sources','ng96-sidepanel-outputs','ng96-sidepanel-reflection');
+        delete el.dataset.ng96Sidepanel;tracked.delete(el);
+      }else active=true;
+    }
+    return active;
   }
   function scan(root=document){
-    clearTimeout(scanTimer);decorateTriggers(root);const found=findPanel(root)||findPanel(document);if(found)decoratePanel(found.panel,found.type);decorateTriggers(document);return !!found;
+    discover(root);const active=cleanTracked();
+    if(active)document.documentElement.dataset.ng96NativePanel='1';else delete document.documentElement.dataset.ng96NativePanel;
+    window.__NIAKGPT_DIAGNOSTICS__?.set('panneau-natif',active?`OK · ${tracked.size} panneau(x) · overlay stable`:'PRÊT · panneau natif fermé');
   }
-  function scheduleScan(delay=100,root=document){clearTimeout(scanTimer);scanTimer=setTimeout(()=>scan(root),delay);}
-  function disarm(){observer?.disconnect();observer=null;clearTimeout(observerTimer);observerTimer=0;}
-  function arm(duration=5000){
-    disarm();if(!document.body)return;
-    observer=new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes){if(!(node instanceof Element))continue;decorateTriggers(node);const found=findPanel(node);if(found)decoratePanel(found.panel,found.type);}});
-    observer.observe(document.body,{childList:true,subtree:true});observerTimer=setTimeout(disarm,duration);
-  }
-
-  document.addEventListener('click',event=>{
-    const target=event.target instanceof Element?event.target:null,control=target?.closest('button,[role="button"],a');if(!(control instanceof HTMLElement)||control.closest(OWN))return;
-    const text=`${control.getAttribute('aria-label')||''} ${control.getAttribute('data-testid')||''} ${control.title||''} ${(control.textContent||'').trim().slice(0,60)}`,r=control.getBoundingClientRect();
-    const relevant=LABEL_RX.test(text)||(r.right>innerWidth-125&&r.width<=150&&r.height<=90);
-    if(!relevant)return;arm();scheduleScan(80,control.closest('header,main,aside')||document);
-  },true);
-  window.addEventListener('popstate',()=>scheduleScan(100));
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden)scheduleScan(120);});
-
-  // Attribute-only observer: when generation settles, perform one cheap right-edge refresh.
-  const stateObserver=new MutationObserver(records=>{if(records.some(r=>r.attributeName==='data-ng86-activity')&&document.documentElement.dataset.ng86Activity==='ready')scheduleScan(120);});
-  stateObserver.observe(document.documentElement,{attributes:true,attributeFilter:['data-ng86-activity']});
-
-  // Short hydration probes only: no global body observer is left armed at rest.
-  scheduleScan(180);setTimeout(()=>scheduleScan(600),600);setTimeout(()=>scheduleScan(1500),1500);
+  function schedule(root=document,delay=70){clearTimeout(timer);timer=setTimeout(()=>scan(root),delay);}
+  const observer=new MutationObserver(records=>{
+    let root=null;for(const r of records)for(const n of r.addedNodes)if(n instanceof HTMLElement){root=n;break;}
+    schedule(root||document,root?40:100);
+  });
+  observer.observe(document.documentElement,{childList:true,subtree:true});
+  window.addEventListener('resize',()=>schedule(document,80),{passive:true});
+  document.addEventListener('click',()=>schedule(document,100),true);
+  window.addEventListener('popstate',()=>schedule(document,100));
+  window.addEventListener('pagehide',()=>observer.disconnect(),{once:true});
+  schedule(document,0);
 })();

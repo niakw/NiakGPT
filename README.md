@@ -1,8 +1,8 @@
 # NiakGPT
 
-NiakGPT transforme l’interface web de ChatGPT en workspace power-user local : Projects gouvernés, navigation rapide, cache chaud, états temps réel, sommaire, coach contextuel, outils code, organisation assistée et DA dense inspirée des IDE.
+NiakGPT transforme l’interface web de ChatGPT en workspace power-user local : Projects gouvernés, navigation rapide, états temps réel, sommaire, prompteur adaptatif, continuité des fils, outils code, organisation assistée et DA dense inspirée des IDE.
 
-> **État actuel : 0.9.8 RC** — architecture en validation intensive. L’extension utilise des endpoints internes de ChatGPT qui ne sont pas documentés publiquement par OpenAI et peuvent changer sans préavis.
+> **État actuel : 0.9.52 RC** — stabilisation structurelle de la sidebar Projects, des panneaux natifs Activité/Réflexion/Sources et des conversations très longues, avec labs visuels multi-moteurs.
 
 ## Principes
 
@@ -85,19 +85,20 @@ Avec plusieurs onglets ChatGPT :
 - les onglets CLIENT n’indexent pas les Projects en doublon ;
 - `navigator.locks` est utilisé quand disponible, avec fallback local.
 
-### Cache chaud des conversations
+### Métadonnées locales et gros fils
 
-NiakGPT intercepte `GET /backend-api/conversation/{id}` avant le rendu de l’application :
+Depuis 0.9.48, NiakGPT **ne charge plus et ne met plus en cache le JSON complet des conversations**. Le bridge refuse tout `GET /backend-api/conversation/{id}` initié par NiakGPT avant réseau.
 
-- maximum : **5 conversations chaudes** ;
-- stockage : **IndexedDB local** ;
-- plafond approximatif : **96 Mo** ;
-- expiration : **6 h** ;
-- conversation inchangée : réponse servie depuis le cache ;
-- nouvelle activité : fil marqué `DIRTY` ;
-- requêtes concurrentes entre onglets dédupliquées.
+Les fonctions qui ont besoin de contexte utilisent en priorité :
 
-Il n’existe pas de véritable endpoint delta public connu pour récupérer uniquement les nouveaux nœuds d’un fil ; NiakGPT ne prétend donc pas en inventer un.
+- le DOM déjà rendu par ChatGPT ;
+- l’index local Projects/chats et ses métadonnées ;
+- les inventaires légers de Projects et listes de conversations ;
+- les accusés de réception des mutations `PATCH`.
+
+Pour les gros fils, le traitement DOM est différé pendant la génération puis repris au retour à l’état prêt. Cela évite de rescanner en continu des centaines de tours pendant le streaming.
+
+Les anciennes données de cache complet créées par des versions antérieures peuvent rester dans le profil navigateur jusqu’à leur purge, mais 0.9.52 ne les alimente plus et n’en dépend plus.
 
 ## Safe Mode
 
@@ -205,7 +206,7 @@ Il permet aussi :
 
 - export/import de configuration ;
 - copie d’un diagnostic sans contenu de conversation ;
-- purge du cache chaud ;
+- purge des données locales/anciens caches ;
 - reconstruction de l’index ;
 - réinitialisation des préférences seulement ;
 - effacement complet des données locales avec double confirmation.

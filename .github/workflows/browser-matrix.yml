@@ -1,0 +1,73 @@
+name: NiakGPT Browser Matrix
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'labs/**'
+      - '.github/workflows/browser-matrix.yml'
+  pull_request:
+    paths:
+      - 'labs/**'
+      - '.github/workflows/browser-matrix.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: niakgpt-browser-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SNAPSHOT_SHA256: cc285737e4968884f1dff92377f8eacdeeaafc9c6722f396ac97b0e51149e9d6
+
+jobs:
+  snapshot:
+    name: Exact 0.9.49 snapshot gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Rebuild exact tested snapshot
+        run: |
+          cat labs/snapshot/part-* > /tmp/niakgpt-0949.b64
+          base64 -d /tmp/niakgpt-0949.b64 > /tmp/niakgpt-0949.tgz
+          echo "$SNAPSHOT_SHA256  /tmp/niakgpt-0949.tgz" | sha256sum -c -
+          mkdir -p /tmp/niakgpt-0949
+          tar -xzf /tmp/niakgpt-0949.tgz -C /tmp/niakgpt-0949
+      - name: JavaScript syntax gate
+        run: find /tmp/niakgpt-0949 -maxdepth 1 -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Required critical files
+        run: |
+          for f in page-bridge.js app-v090.js side-panels-v096.js side-panels-v096.css server-index-v100.js reclassify-v101.js continuity-v100.js continuity-v100.css coach-v101.js visual-stability-v101.css; do
+            test -s "/tmp/niakgpt-0949/$f"
+          done
+
+  browser:
+    name: Playwright · ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Rebuild exact tested 0.9.49 snapshot
+        run: |
+          cat labs/snapshot/part-* > /tmp/niakgpt-0949.b64
+          base64 -d /tmp/niakgpt-0949.b64 > /tmp/niakgpt-0949.tgz
+          echo "$SNAPSHOT_SHA256  /tmp/niakgpt-0949.tgz" | sha256sum -c -
+          mkdir -p /tmp/niakgpt-0949
+          tar -xzf /tmp/niakgpt-0949.tgz -C /tmp/niakgpt-0949
+      - run: python -m pip install --upgrade pip playwright==1.57.0
+      - run: python -m playwright install --with-deps ${{ matrix.browser }}
+      - name: Run production regression surfaces
+        env:
+          NIAKGPT_ROOT: /tmp/niakgpt-0949
+        run: python labs/browser_matrix_crossengine.py --browser ${{ matrix.browser }}

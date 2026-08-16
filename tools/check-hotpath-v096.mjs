@@ -48,10 +48,12 @@ has(hotcache,'MAX_ENTRIES = 5','Hot-cache entry bound missing');
 has(hotcache,'MAX_TOTAL_BYTES = 96','Hot-cache total-byte bound missing');
 has(hotcache,"m.type === 'invalidate' || m.type === 'updated'",'Cross-tab RAM invalidation missing');
 
-// Coach has a single owner outside the core.
+// Coach has a single owner outside the core and exposes status through the current
+// dataset API used by the 0.9.52 runtime.
 no(app,'function ensureCoach()','Legacy core coach renderer reintroduced');
 no(app,'function suggestionSet(prompt)','Legacy core coach classifier reintroduced');
-has(coach,"setAttribute('data-ng100-coach-status',text)",'Coach status DOM attribute missing');
+has(coach,'root.dataset.ng100CoachStatus=text','Coach status dataset marker missing');
+has(coach,"window.__NIAKGPT_DIAGNOSTICS__?.set('coach',text)",'Coach diagnostics bridge missing');
 
 // Side panels stay native-looking overlays and do not wake from generation traffic.
 no(panels,'niakgpt:activity-network','Side-panel adapter must not wake from generation traffic');

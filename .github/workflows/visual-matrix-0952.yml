@@ -1,0 +1,60 @@
+name: NiakGPT 0.9.52 Visual Matrix
+
+on:
+  push:
+    branches:
+      - agent/niakgpt-0952-source-sync
+      - agent/niakgpt-0952-stabilization
+    paths:
+      - '*.js'
+      - '*.css'
+      - 'manifest.json'
+      - 'labs/**'
+      - '.github/workflows/visual-matrix-0952.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: niakgpt-0952-visual-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  visual:
+    name: Visual · ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify branch is the 0.9.52 test target
+        run: |
+          python - <<'PY'
+          import json
+          m=json.load(open('manifest.json'))
+          assert m['version']=='0.9.52', f"visual matrix refuses stale source: {m['version']}"
+          PY
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install playwright==1.57.0
+          python -m playwright install --with-deps ${{ matrix.browser }}
+      - name: Run 0.9.52 visual regressions
+        env:
+          NIAKGPT_ROOT: ${{ github.workspace }}
+          NIAKGPT_ARTIFACTS: ${{ runner.temp }}/niakgpt-0952-visual/${{ matrix.browser }}
+        run: python labs/visual_regression_0952.py --browser ${{ matrix.browser }}
+      - name: Upload visual evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: niakgpt-0952-visual-${{ matrix.browser }}
+          path: ${{ runner.temp }}/niakgpt-0952-visual/${{ matrix.browser }}
+          if-no-files-found: warn
+          retention-days: 30

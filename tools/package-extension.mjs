@@ -24,7 +24,12 @@ for(const file of files){
 for(const required of [
   'boot-gate-v100.js',
   'page-bridge.js',
+  'browser-compat-v102.js',
+  'multitab-v090.js',
   'app-v090.js',
+  'project-state-selfheal-v102.js',
+  'project-pins-v090.js',
+  'cache-bus-v096.js',
   'activity-ui-v097.js',
   'side-panels-v096.js',
   'continuity-v100.js'

@@ -16,6 +16,19 @@ on:
       - 'SECURITY.md'
       - 'CHANGELOG.md'
       - '.github/workflows/public-gate.yml'
+  pull_request:
+    paths:
+      - 'manifest.json'
+      - '*.js'
+      - '*.css'
+      - 'tools/**'
+      - 'visual-lab/**'
+      - 'labs/**'
+      - 'README.md'
+      - 'PRIVACY.md'
+      - 'SECURITY.md'
+      - 'CHANGELOG.md'
+      - '.github/workflows/public-gate.yml'
 
 permissions:
   contents: read
@@ -41,22 +54,31 @@ jobs:
       - name: Capture tested commit
         run: echo "NIAKGPT_TESTED_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
-      - name: Validate runtime and hot-path invariants
+      - name: Validate current runtime and hot-path invariants
         run: |
           node tools/check-runtime.mjs
           node tools/check-hotpath-v096.mjs
 
-      - name: Check JavaScript syntax from manifest
+      - name: Check all current root JavaScript syntax
+        run: find . -maxdepth 1 -name '*.js' -print0 | xargs -0 -n1 node --check
+
+      - name: Verify current manifest/bootstrap references
         run: |
-          node - <<'NODE' > /tmp/niakgpt-js.txt
-          const m=require('./manifest.json');
-          const files=new Set(m.content_scripts.flatMap(x=>x.js||[]));
-          if(m.background?.service_worker)files.add(m.background.service_worker);
-          console.log([...files].join('\n'));
+          node <<'NODE'
+          const fs=require('fs');
+          const manifest=JSON.parse(fs.readFileSync('manifest.json','utf8'));
+          for(const entry of manifest.content_scripts||[]) for(const file of [...(entry.js||[]),...(entry.css||[])]) if(!fs.existsSync(file)) throw new Error(`missing manifest file ${file}`);
+          const background=fs.readFileSync('background-v100.js','utf8');
+          const main=(background.match(/const\s+MAIN_RUNTIME\s*=\s*\[(.*?)\];/s)||[])[1]||'';
+          const mainFiles=[...main.matchAll(/["']([^"']+\.js)["']/g)].map(x=>x[1]);
+          if(JSON.stringify(mainFiles)!==JSON.stringify(['page-bridge.js'])) throw new Error(`unsafe MAIN runtime: ${mainFiles.join(', ')}`);
+          if(background.includes("'hotcache-main-v084.js'")||background.includes("'activity-main-v087.js'")) throw new Error('retired MAIN interceptor returned');
+          if(!background.includes("'runtime-integrity-v101.js'")) throw new Error('runtime integrity module missing');
+          const isolated=(background.match(/const\s+ISOLATED_RUNTIME\s*=\s*\[(.*?)\];/s)||[])[1]||'';
+          for(const file of [...isolated.matchAll(/["']([^"']+\.js)["']/g)].map(x=>x[1])) if(!fs.existsSync(file)) throw new Error(`missing injected file ${file}`);
+          if(JSON.stringify(manifest).includes('style.css')) throw new Error('unexpected style.css reference');
+          console.log('CURRENT_BOOTSTRAP_REFERENCES_PASS');
           NODE
-          while IFS= read -r file; do
-            test -n "$file" && node --check "$file"
-          done < /tmp/niakgpt-js.txt
 
       - name: Install Visual Lab
         working-directory: visual-lab
@@ -66,7 +88,7 @@ jobs:
         working-directory: visual-lab
         run: npx playwright install --with-deps chromium
 
-      - name: Run current visual and real unpacked-extension tests
+      - name: Run full current visual and real unpacked-extension tests
         working-directory: visual-lab
         run: npm run test:current
 
@@ -80,10 +102,11 @@ jobs:
           unzip -Z1 "$ZIP" > /tmp/niakgpt-public-package-files.txt
           grep -qx 'manifest.json' /tmp/niakgpt-public-package-files.txt
           grep -qx 'background-v100.js' /tmp/niakgpt-public-package-files.txt
+          grep -qx 'runtime-integrity-v101.js' /tmp/niakgpt-public-package-files.txt
           unzip -p "$ZIP" manifest.json | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const m=JSON.parse(s);if(m.background?.service_worker!=='background-v100.js')process.exit(1);})"
-          for forbidden in 'app-v08-safe.js' 'project-governance-v085.js' 'project-pins-v085.js' 'multitab-v083.js' 'chronology-v081.js' 'polish-v081.js' 'onboarding-v100.js'; do
+          for forbidden in 'hotcache-main-v084.js' 'hotcache-ui-v097.js' 'hotcache-v084.js' 'activity-main-v087.js' 'app-v08-safe.js' 'project-governance-v085.js' 'project-pins-v085.js' 'multitab-v083.js' 'chronology-v081.js' 'polish-v081.js' 'onboarding-v100.js'; do
             if grep -Fxq "$forbidden" /tmp/niakgpt-public-package-files.txt; then
-              echo "Legacy runtime leaked into ZIP: $forbidden"
+              echo "Retired runtime leaked into ZIP: $forbidden"
               exit 1
             fi
           done
@@ -105,9 +128,11 @@ jobs:
               "runtime-invariants",
               "hot-path-invariants",
               "javascript-syntax",
-              "current-visual-lab",
+              "bootstrap-reference-integrity",
+              "current-visual-lab-full-suite",
               "real-unpacked-extension",
-              "hot-conversation-cache",
+              "runtime-integrity-repair",
+              "retired-hotcache-absent",
               "clean-installable-package"
             ],
             "legacy_specs_retained": true

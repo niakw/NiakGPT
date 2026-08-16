@@ -12,9 +12,8 @@ const isolated=['onboarding-v101.js','profiles-v100.js','control-center-v090.js'
 const manifest=JSON.parse(read('manifest.json'));
 same(manifest.permissions,['storage','scripting'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*'],'host scope mismatch');
-same(manifest.content_scripts.flatMap(x=>x.js||[]),['boot-gate-v100.js','dom-project-boundary-v0912.js'],'unexpected static runtime');
-const boundaryEntry=manifest.content_scripts.find(x=>(x.js||[]).includes('dom-project-boundary-v0912.js'));
-if(boundaryEntry?.run_at!=='document_idle')fail('DOM project boundary must run at document_idle');
+same(manifest.content_scripts.flatMap(x=>x.js||[]),['boot-gate-v100.js'],'unexpected static runtime');
+if(manifest.version!=='0.9.52')fail(`unexpected release ${manifest.version}`);
 
 const background=read('background-v100.js');
 const runtimeList=name=>[...(background.match(new RegExp(`const ${name}=\\[(.*?)\\];`,'s'))?.[1]||'').matchAll(/'([^']+)'/g)].map(x=>x[1]);
@@ -28,17 +27,22 @@ for(const token of ['await waitLoad()','await waitForChatShell()','await sleep(2
 forbid(gate,'document.documentElement.dataset','pre-hydration html mutation');
 forbid(gate,'ng99Sentinel','legacy watchdog mutation');
 
-const boundary=read('dom-project-boundary-v0912.js');
-for(const token of ['dom-p-','g-p-','metaLabel','stopImmediatePropagation','transport:\'dom-cache\'','chrome.storage.onChanged'])need(boundary,token);
-forbid(boundary,'setInterval(','permanent polling in DOM project boundary');
-
-for(const file of [...main,...isolated,'boot-gate-v100.js','dom-project-boundary-v0912.js','background-v100.js'])if(!fs.existsSync(file))fail(`missing runtime ${file}`);
+for(const file of [...main,...isolated,'boot-gate-v100.js','background-v100.js'])if(!fs.existsSync(file))fail(`missing runtime ${file}`);
 for(const file of isolated.filter(file=>file!=='retro-loader-v097.js'))forbid(read(file),'setInterval(',`permanent polling in ${file}`);
 const loader=read('retro-loader-v097.js');need(loader,'function stopTicker()');need(loader,'clearInterval(timer)');
 
-const app=read('app-v090.js');need(app,'MutationObserver(queueMainNodes)');need(app,'function renderPins()');forbid(app,'function routeTick()');
+const app=read('app-v090.js');
+need(app,'MutationObserver(queueMainNodes)');
+need(app,'function renderPins()');
+need(app,'PROJECT_CHAT_SEL');
+need(app,'scanRunning:false');
+need(app,'scanRequested:false');
+forbid(app,'function routeTick()');
+
 const governance=read('project-governance-v090.js');need(governance,'verifyAndLockManualMove');need(governance,'executePlan');
 const folders=read('pin-folders-v096.js');need(folders,'ng96-pin-drawer');need(folders,'ng96-project-open');
 const hot=read('hotcache-main-v084.js');need(hot,'MAX_ENTRIES = 5');need(hot,'MAX_TOTAL_BYTES = 96');
+const activity=read('activity-ui-v097.js');need(activity,'Never watch characterData across the whole conversation');
+const panels=read('side-panels-v096.js');need(panels,'ng96-native-sidepanel');
 
 console.log(`NiakGPT ${manifest.version} hydration-safe release invariants: OK`);

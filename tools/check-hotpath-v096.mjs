@@ -10,7 +10,7 @@ const tabs=read('multitab-v090.js');
 const panels=read('side-panels-v096.js');
 const coach=read('coach-v101.js');
 const activity=read('activity-ui-v097.js');
-const hotcache=read('hotcache-main-v084.js');
+const bridge=read('page-bridge.js');
 
 // Native animation remains untouched; only idle/background coordination is allowed.
 no(tabs,'niakgptCoordinatedRAF','Global NiakGPT RAF throttling reintroduced');
@@ -43,10 +43,17 @@ has(app,"const nextCursor = data => data?.cursor ?? data?.next_cursor ?? data?.n
 has(app,"listFrom(r.data,'items','conversations')",'Conversation-list response compatibility missing');
 has(app,"listFrom(r.data,'items','projects','gizmos')",'Project-list response compatibility missing');
 
-// Hot cache stays bounded and cross-tab safe.
-has(hotcache,'MAX_ENTRIES = 5','Hot-cache entry bound missing');
-has(hotcache,'MAX_TOTAL_BYTES = 96','Hot-cache total-byte bound missing');
-has(hotcache,"m.type === 'invalidate' || m.type === 'updated'",'Cross-tab RAM invalidation missing');
+// The single MAIN-world bridge owns backend coordination. It captures native fetch but
+// never replaces it globally, deduplicates GETs, bounds its short-lived response cache,
+// blocks full conversation payloads and pauses while ChatGPT itself is busy.
+has(bridge,'const nativeFetch = window.fetch.bind(window);','Native fetch capture missing');
+no(bridge,'window.fetch =','Global fetch replacement reintroduced');
+no(bridge,'globalThis.fetch =','Global fetch replacement reintroduced');
+has(bridge,'const inflightGets = new Map();','GET de-duplication missing');
+has(bridge,'if(responseCache.size>80)','Bridge cache bound missing');
+has(bridge,'conversation_detail_get_disabled','Full conversation GET guard missing');
+has(bridge,"error:'native_busy'",'Native activity circuit breaker missing');
+has(bridge,'requestChain=run.catch(()=>{});','Serialized network broker missing');
 
 // Coach has a single owner outside the core and exposes status through the current
 // dataset API used by the 0.9.52 runtime.

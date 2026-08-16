@@ -16,6 +16,7 @@ const ISOLATED_RUNTIME=[
   'recovery-v100.js',
   'server-index-v100.js',
   'commands-v100.js',
+  'browser-compat-v102.js',
   'multitab-v090.js',
   'project-governance-v090.js',
   'governance-queue-v101.js',

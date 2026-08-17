@@ -13,9 +13,14 @@
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const visible=el=>{if(!(el instanceof HTMLElement)||!el.isConnected)return false;const cs=getComputedStyle(el),r=el.getBoundingClientRect();return cs.display!=='none'&&cs.visibility!=='hidden'&&r.width>0&&r.height>0&&r.bottom>0&&r.right>0&&r.left<innerWidth&&r.top<innerHeight;};
   const sidebarRoot=()=>document.querySelector('[data-testid="conversation-sidebar"],[data-testid="sidebar"]')||document.querySelector('nav');
+  const managedProjectsReady=()=>{const pins=document.getElementById('ng8-pins');return !!(pins&&pins.isConnected&&!pins.hidden&&pins.querySelector('[data-ng8-pin],a[href*="/g/g-p-"]'));};
+  function releaseNativeProjects(nav){
+    nav.querySelectorAll('.ng8-native-projects-suppressed,.ng8-native-project-link-suppressed,.ng8-native-project-chat-suppressed,.ng8-native-project-label-suppressed,.ng8-native-project-more-suppressed').forEach(el=>el.classList.remove('ng8-native-projects-suppressed','ng8-native-project-link-suppressed','ng8-native-project-chat-suppressed','ng8-native-project-label-suppressed','ng8-native-project-more-suppressed'));
+  }
 
   function suppressNativeProjects(){
     const nav=sidebarRoot();if(!nav)return;
+    if(!managedProjectsReady()){releaseNativeProjects(nav);return;}
     for(const a of nav.querySelectorAll(PROJECT_SEL))if(!a.closest('#ng8-pins'))a.classList.add('ng8-native-project-link-suppressed');
     for(const a of nav.querySelectorAll(PROJECT_CHAT_SEL))if(!a.closest('#ng8-pins'))a.classList.add('ng8-native-project-chat-suppressed');
     for(const el of nav.querySelectorAll('h1,h2,h3,[role="heading"],div,span')){
@@ -76,7 +81,7 @@
     sidebarObserver=new MutationObserver(()=>schedule(30));sidebarObserver.observe(nav,{childList:true,subtree:true});
   }
   function startObservers(){
-    bindSidebar();globalObserver?.disconnect();globalObserver=new MutationObserver(records=>{if(records.some(r=>[...r.addedNodes].some(n=>n instanceof HTMLElement))){bindSidebar();schedule(35);}});globalObserver.observe(document.documentElement,{childList:true,subtree:true});schedule(0);
+    bindSidebar();globalObserver?.disconnect();globalObserver=new MutationObserver(records=>{if(records.some(r=>[...r.addedNodes,...r.removedNodes].some(n=>n instanceof HTMLElement))){bindSidebar();schedule(35);}});globalObserver.observe(document.documentElement,{childList:true,subtree:true});schedule(0);
   }
   function stopObservers(){sidebarObserver?.disconnect();globalObserver?.disconnect();sidebarObserver=globalObserver=null;clearTimeout(timer);timer=0;}
 

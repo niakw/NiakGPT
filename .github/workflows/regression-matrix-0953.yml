@@ -68,6 +68,10 @@ jobs:
         env:
           NIAKGPT_ROOT: ${{ github.workspace }}
         run: python labs/project_assignment_0953.py --browser ${{ matrix.browser }}
+      - name: Verify native activity UI signals
+        env:
+          NIAKGPT_ROOT: ${{ github.workspace }}
+        run: python labs/activity_regression_0953.py --browser ${{ matrix.browser }}
       - name: Visual proof of Project recovery
         env:
           NIAKGPT_ROOT: ${{ github.workspace }}

@@ -14,7 +14,7 @@
     /^\/backend-api\/gizmos\/g-p-[A-Za-z0-9_-]+$/,
     /^\/backend-api\/projects$/
   ];
-  const conversationRx = /^\/backend-api\/conversation\/[A-Za-z0-9_-]+$/;
+  const conversationRx = /^\/backend-api\/conversation\/([A-Za-z0-9_-]+)$/;
   const projectConversationsRx = /^\/backend-api\/gizmos\/g-p-[A-Za-z0-9_-]+\/conversations(?:\?|$)/;
   const projectRx = /^\/backend-api\/gizmos\/g-p-[A-Za-z0-9_-]+$/;
   const projectCreatePath = '/backend-api/projects';
@@ -27,6 +27,9 @@
   // undocumented ChatGPT endpoints at once.
   const inflightGets = new Map();
   const responseCache = new Map();
+  // Project PATCH acknowledgements are enough to verify a move. Keep a tiny ephemeral
+  // assignment cache so Governance never needs a full GET /conversation/{id} payload.
+  const assignmentAcks = new Map();
   let requestChain = Promise.resolve();
   let lastNetworkAt = 0;
   let rateLimitedUntil = 0;
@@ -37,6 +40,10 @@
   const cacheTTL = () => 1200;
   const gapFor = (_path, method) => method === 'GET' ? 180 : 450;
   const cacheKey = (path, method) => `${method}:${path}`;
+  const normalizePid = value => {
+    if (value == null || value === '') return '';
+    const s=String(value).trim(),m=s.match(/^g-p-([A-Za-z0-9]+)(?:-.+)?$/);return m?`g-p-${m[1]}`:s;
+  };
   const nativeBusy = () => document.documentElement.dataset.ng8Running === '1' ||
     ['loading','waiting','thinking','executing'].includes(document.documentElement.dataset.ng86Activity || '') ||
     document.documentElement.dataset.ng105Verification === '1';
@@ -81,6 +88,15 @@
     const hit=responseCache.get(key);if(!hit)return null;
     if(now()-hit.at>hit.ttl){responseCache.delete(key);return null;}
     return {...hit.result};
+  }
+  function rememberAssignment(path, projectId, source='patch') {
+    const match=String(path||'').match(conversationRx);if(!match)return;
+    assignmentAcks.set(path,{id:match[1],projectId:normalizePid(projectId),at:now(),source});
+    if(assignmentAcks.size>40){for(const [key,value] of assignmentAcks)if(now()-value.at>30000)assignmentAcks.delete(key);}
+  }
+  function assignmentAck(path) {
+    const hit=assignmentAcks.get(path);if(!hit)return null;
+    if(now()-hit.at>30000){assignmentAcks.delete(path);return null;}return hit;
   }
   function invalidateAfterMutation(path) {
     if(conversationRx.test(path))responseCache.delete(cacheKey(path,'GET'));
@@ -298,10 +314,24 @@
       inflightGets.set(key,promise);return promise;
     }
     return enqueueNetwork(()=>backendFetchCore(path,method,body)).then(result=>{
-      if(result?.ok)invalidateAfterMutation(path);
+      if(result?.ok){
+        invalidateAfterMutation(path);
+        if(method==='PATCH'&&conversationRx.test(path)){
+          const expected=normalizePid(body?.gizmo_id||'');
+          const returned=normalizePid(result.data?.gizmo_id||result.data?.conversation_mode?.gizmo_id||'');
+          if(!returned||returned===expected)rememberAssignment(path,returned||expected,'patch-ack');
+        }
+      }
       return result;
     });
   }
+
+  // The isolated DOM gesture detector confirms native/manual Project moves without
+  // monkey-patching ChatGPT fetch. Seed only a minimal assignment acknowledgement.
+  document.addEventListener('niakgpt:manual-project-move-confirmed',event=>{
+    const d=event.detail||{},id=String(d.id||'');if(!id)return;
+    rememberAssignment(`/backend-api/conversation/${encodeURIComponent(id)}`,d.detached?'':d.projectId||'','native-dom');
+  });
 
   document.addEventListener(REQ, async event => {
     const d = event.detail || {};
@@ -316,10 +346,15 @@
       return;
     }
 
-    // Full conversation payloads are intentionally forbidden: they are expensive on long threads
-    // and all NiakGPT features now rely on list/project metadata + local DOM/cache state.
+    // Full conversation payloads stay forbidden. Governance may only read the tiny
+    // ephemeral acknowledgement of a Project move that we already observed/issued.
     if (method === 'GET' && conversationRx.test(path)) {
-      document.dispatchEvent(new CustomEvent(RES,{detail:{id,ok:false,status:0,data:null,error:'conversation_detail_get_disabled',transport:'guard'}}));
+      const ack=d.governance===true?assignmentAck(path):null;
+      if(ack){
+        document.dispatchEvent(new CustomEvent(RES,{detail:{id,ok:true,status:200,data:{id:ack.id,gizmo_id:ack.projectId||null},error:'',transport:'assignment-ack'}}));
+      }else{
+        document.dispatchEvent(new CustomEvent(RES,{detail:{id,ok:false,status:0,data:null,error:'conversation_detail_get_disabled',transport:'guard'}}));
+      }
       return;
     }
 

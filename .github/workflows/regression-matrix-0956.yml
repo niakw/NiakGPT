@@ -1,4 +1,4 @@
-name: NiakGPT 0.9.56 Live Matrix
+name: NiakGPT 0.9.56+ Live Matrix
 
 on:
   push:
@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   live:
-    name: 0.9.56 live · ${{ matrix.browser }}
+    name: 0.9.56+ live · ${{ matrix.browser }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -38,12 +38,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify 0.9.56 wiring
+      - name: Verify compatible 0.9.56+ wiring
         run: |
           python - <<'PY'
           import json
           m=json.load(open('manifest.json'))
-          assert m['version']=='0.9.56', m['version']
+          v=tuple(int(x) for x in m['version'].split('.'))
+          assert v >= (0,9,56), f"0.9.56 historical matrix refuses older source {m['version']}"
           PY
           grep -q "live-fixes-v106.js" background-v100.js
           grep -q "project-links-v106.js" background-v100.js

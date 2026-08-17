@@ -6,7 +6,7 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 const need=(s,t,m)=>{if(!s.includes(t))fail(m||`missing ${t}`);};
 const forbid=(s,t,m)=>{if(s.includes(t))fail(m||`forbidden ${t}`);};
 
-// 0.9.53 canonical isolation: page-bridge remains the only MAIN-world runtime.
+// 0.9.54 canonical isolation: page-bridge remains the only MAIN-world runtime.
 const main=['page-bridge.js'];
 const isolated=[
   'onboarding-v101.js',
@@ -19,6 +19,7 @@ const isolated=[
   'server-index-v100.js',
   'commands-v100.js',
   'browser-compat-v102.js',
+  'lifecycle-guard-v104.js',
   'multitab-v090.js',
   'project-governance-v090.js',
   'governance-queue-v101.js',
@@ -36,6 +37,7 @@ const isolated=[
   'coach-v101.js',
   'polish-v090.js',
   'side-panels-v096.js',
+  'live-fixes-v104.js',
   'chronology-v090.js',
   'pin-folders-v096.js',
   'activity-ui-v097.js',
@@ -46,7 +48,8 @@ const manifest=JSON.parse(read('manifest.json'));
 same(manifest.permissions,['storage','scripting'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*'],'host scope mismatch');
 same(manifest.content_scripts.flatMap(x=>x.js||[]),['boot-gate-v100.js'],'unexpected static runtime');
-if(manifest.version!=='0.9.53')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.54')fail(`unexpected release ${manifest.version}`);
+need(JSON.stringify(manifest.content_scripts),'live-fixes-v104.css','0.9.54 live CSS missing from manifest');
 
 const background=read('background-v100.js');
 const runtimeList=name=>[...(background.match(new RegExp(`const ${name}=\\[(.*?)\\];`,'s'))?.[1]||'').matchAll(/'([^']+)'/g)].map(x=>x[1]);
@@ -77,6 +80,7 @@ for(const file of isolated.filter(file=>file!=='retro-loader-v097.js'))forbid(re
 const loader=read('retro-loader-v097.js');need(loader,'function stopTicker()');need(loader,'clearInterval(timer)');
 
 const compat=read('browser-compat-v102.js');need(compat,'crypto.randomUUID','randomUUID compatibility guard missing');need(compat,'getRandomValues','randomUUID secure fallback missing');
+const lifecycle=read('lifecycle-guard-v104.js');need(lifecycle,'SafeBroadcastChannel','BroadcastChannel lifecycle guard missing');need(lifecycle,'InvalidStateError','closed channel protection missing');
 const app=read('app-v090.js');
 need(app,'MutationObserver(queueMainNodes)');
 need(app,'function renderPins()');
@@ -103,5 +107,7 @@ const governance=read('project-governance-v090.js');need(governance,'verifyAndLo
 const folders=read('pin-folders-v096.js');need(folders,'ng96-pin-drawer');need(folders,'ng96-project-open');
 const activity=read('activity-ui-v097.js');need(activity,'Never watch characterData across the whole conversation');
 const panels=read('side-panels-v096.js');need(panels,'ng96-native-sidepanel');
+const live=read('live-fixes-v104.js');for(const token of ['suppressNativeProjects','elementsFromPoint','--ng96-rail-offset'])need(live,token,`live UI repair missing ${token}`);
+const cacheBus=read('cache-bus-v096.js');need(cacheBus,'suspended','cache bus lifecycle suspension missing');need(cacheBus,"addEventListener('pageshow'",'cache bus BFCache resume missing');
 
 console.log(`NiakGPT ${manifest.version} hydration-safe release invariants: OK`);

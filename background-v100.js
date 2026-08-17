@@ -39,6 +39,7 @@ const ISOLATED_RUNTIME=[
   'live-fixes-v106.js',
   'chronology-v090.js',
   'pin-folders-v096.js',
+  'project-links-v106.js',
   'activity-ui-v097.js',
   'retro-loader-v097.js'
 ];

@@ -28,6 +28,7 @@ for(const required of [
   'multitab-v090.js',
   'app-v090.js',
   'project-state-selfheal-v102.js',
+  'project-assignment-selfheal-v103.js',
   'project-pins-v090.js',
   'cache-bus-v096.js',
   'activity-ui-v097.js',

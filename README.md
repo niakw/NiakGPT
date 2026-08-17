@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.9.53-4fc1ff">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.9.56-4fc1ff">
   <img alt="Chrome Extension" src="https://img.shields.io/badge/Chrome-Extension-4ec9b0">
   <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
   <img alt="No analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -20,7 +20,7 @@ NiakGPT est une extension navigateur qui ajoute à ChatGPT une couche de **produ
 
 Elle travaille directement au-dessus de l’interface officielle de ChatGPT : pas de service parallèle, pas de compte supplémentaire, pas de serveur NiakGPT.
 
-> **Version actuelle : 0.9.53** — Projects auto-réparés, cycle de vie extension/multi-onglet durci, longues conversations optimisées et labs visuels multi-navigateurs.
+> **Version actuelle : 0.9.56** — sidebar Projects stabilisée contre les rerenders ChatGPT, contexte Project fiable, navigation Projects native, clic droit/nouvel onglet sur les conversations, cycle de vie extension durci et labs visuels multi-navigateurs.
 
 ## Ce que NiakGPT apporte
 
@@ -30,17 +30,21 @@ Elle travaille directement au-dessus de l’interface officielle de ChatGPT : pa
 - sous-listes de conversations directement accessibles ;
 - couleurs, badges et dates ;
 - recherche locale dans les gros Projects ;
+- lien **PROJECTS** vers la page Projects de ChatGPT ;
+- conversations des dossiers rendues comme de vrais liens : clic droit, clic molette et Ctrl/Cmd+clic restent natifs ;
 - conservation prioritaire des déplacements manuels ;
-- réduction des doublons entre l’interface native et NiakGPT ;
+- suppression du doublon entre l’interface Projects native et NiakGPT lorsque le bloc NiakGPT est disponible ;
+- retour automatique de la navigation Projects native si le bloc géré NiakGPT est momentanément indisponible ;
 - auto-réparation si le cache Projects et la gouvernance deviennent temporairement incohérents.
 
 ### Navigation power-user
 
 - `Alt+K` : ouverture rapide des Projects et conversations ;
+- fil d’Ariane Project → conversation ;
 - sommaire du fil courant ;
 - dates compactes dans la sidebar ;
 - code enrichi avec langage, nombre de lignes et copie ;
-- barre d’état compacte ;
+- barre d’état compacte synchronisée avec le Project courant ;
 - raccourcis et Centre de contrôle.
 
 ### État des conversations en temps réel
@@ -160,12 +164,24 @@ Quand plusieurs onglets ChatGPT sont ouverts :
 
 ## Auto-réparation Projects
 
-La 0.9.53 ajoute un garde permanent mais événementiel autour de l’inventaire Projects :
+Les garde-fous Projects restent événementiels :
 
 - un cache local temporaire peut être promu vers les IDs Projects canoniques dès qu’ils réapparaissent dans le DOM ;
 - une gouvernance persistée avec `0` Project principal est reconstruite si des Projects canoniques valides existent ;
 - un fallback coloré local reste visible pendant la récupération au lieu d’afficher une sidebar NiakGPT vide ;
-- les verrous manuels et masquages encore valides sont conservés.
+- les associations conversations → Projects sont remappées avec les IDs canoniques ;
+- les verrous manuels et masquages encore valides sont conservés ;
+- en 0.9.56, les classes de suppression du bloc Projects natif sont réaffirmées après les rerenders concurrents ;
+- si le bloc NiakGPT n’est plus exploitable, la navigation native n’est jamais laissée masquée.
+
+## Navigation et liens natifs
+
+La navigation du tiroir Project conserve les primitives du navigateur :
+
+- le titre `PROJECTS` est un lien réel vers `/projects` ;
+- chaque conversation développée est un véritable élément `<a href="…">` ;
+- le clic gauche simple peut suivre le routage SPA existant ;
+- clic droit, clic molette, Ctrl/Cmd+clic et autres clics modifiés ne sont pas interceptés.
 
 ## Tests et labs
 
@@ -194,7 +210,7 @@ Les cas critiques sont exécutés sur :
 - Firefox ;
 - WebKit.
 
-La couverture conserve les scènes visuelles 0.9.52 et ajoute en 0.9.53 :
+La couverture historique est conservée. Les régressions récentes ajoutent notamment :
 
 - cache `5 Projects / 8 chats` avec gouvernance cassée à `0 principaux` ;
 - fallback Projects local ;
@@ -205,7 +221,12 @@ La couverture conserve les scènes visuelles 0.9.52 et ajoute en 0.9.53 :
 - sidebar Projects ;
 - Activity / Sources ;
 - longues conversations ;
-- stabilité géométrique du chat et du rail.
+- stabilité géométrique du chat et du rail ;
+- course de rerender entre le renderer principal et le masque des Projects natifs ;
+- contexte Project breadcrumb → barre d’état ;
+- lien `/projects` ;
+- clic droit / nouvel onglet sur les conversations des tiroirs Project ;
+- fallback vers les Projects natifs si le bloc NiakGPT disparaît.
 
 Les captures visuelles sont conservées comme artifacts GitHub Actions. Les anciens labs restent dans le dépôt.
 

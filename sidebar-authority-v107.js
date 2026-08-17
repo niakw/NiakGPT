@@ -14,7 +14,10 @@
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const pidFromHref=h=>String(h||'').match(/\/g\/(g-p-[^/?#]+)(?:\/(?:project|c\/)|[/?#]|$)/i)?.[1]||'';
   const isChatHref=h=>/\/c\//i.test(String(h||''));
-  const isProjectHref=h=>/\/g\/[^/?#]+(?:\/project)?(?:[/?#]|$)/i.test(String(h||''))&&!isChatHref(h);
+  // Direct href semantics are deliberately restricted to Project IDs. Generic /g/... links
+  // can be custom GPTs and must never be hidden merely because they share the /g/ prefix.
+  const isProjectHref=h=>/\/g\/g-p-[^/?#]+(?:\/project)?(?:[/?#]|$)/i.test(String(h||''))&&!isChatHref(h);
+  const isProjectChildHref=h=>/\/g\/g-p-[^/?#]+\/c\//i.test(String(h||''));
   const isDateLike=v=>{
     const s=norm(v).replace(/^dernier(?:e)?\s+(?:echange|activité|activite)\s*:?\s*/,'');
     return /^(?:aujourd'hui|aujourdhui|hier|today|yesterday|\d{1,2}:\d{2}|\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?(?:\s+[·-]?\s*\d{1,2}:\d{2})?)$/.test(s);
@@ -54,6 +57,15 @@
   function genericChatCount(host){
     return [...(host?.querySelectorAll?.(CHAT_HREF)||[])].filter(a=>outsideOwn(a)&&!/\/g\//i.test(String(a.getAttribute('href')||''))).length;
   }
+  function projectChildCount(host){
+    return [...(host?.querySelectorAll?.(CHAT_HREF)||[])].filter(a=>outsideOwn(a)&&isProjectChildHref(a.getAttribute('href'))).length;
+  }
+  function hasProjectHeading(host){
+    return [...(host?.querySelectorAll?.('h1,h2,h3,[role="heading"],div,span')||[])].some(el=>outsideOwn(el)&&/^(projets?|projects?)$/.test(norm(el.textContent)));
+  }
+  function hasLocalMore(host){
+    return [...(host?.querySelectorAll?.('button,a,[role="button"]')||[])].some(el=>outsideOwn(el)&&/^(afficher plus|show more|voir plus)$/.test(norm(el.textContent||el.getAttribute('aria-label'))));
+  }
   function rowHost(el,names){
     if(!(el instanceof Element))return null;
     let host=el.closest('li,[role="listitem"],[data-sidebar-item="true"]')||el;
@@ -61,10 +73,15 @@
     for(let i=0;i<3;i++){
       const parent=host.parentElement;if(!parent||parent===sidebarRoot()||parent.contains(managedPins()))break;
       const interactive=parent.querySelectorAll('a,button,[role="link"],[role="button"]').length;
-      const matches=[...parent.querySelectorAll('a,button,[role="link"],[role="button"]')].filter(x=>matchesManaged(x,names)).length;
+      const matches=[...parent.querySelectorAll('a,button,[role="link"],[role="button"]')].filter(x=>matchesManaged(x,names)||isProjectHref(x.getAttribute?.('href'))).length;
       if(matches===1&&genericChatCount(parent)===0&&interactive<=4)host=parent;else break;
     }
     return host;
+  }
+  function plainRowHost(el){
+    if(!(el instanceof Element))return null;
+    const host=el.closest('li,[role="listitem"],[data-sidebar-item="true"]');
+    return host&&!host.contains(managedPins())?host:el;
   }
 
   function release(nav){
@@ -75,28 +92,37 @@
   function suppressNativeProjects(){
     const nav=sidebarRoot();if(!nav)return false;
     if(!managedReady()){release(nav);return false;}
-    const names=managedNames(),candidates=new Set();
+    const names=managedNames(),projectCandidates=new Set(),childCandidates=new Set();
 
     for(const a of nav.querySelectorAll(PROJECT_HREF)){
       if(!outsideOwn(a))continue;
       const href=String(a.getAttribute('href')||'');
-      if(isProjectHref(href))candidates.add(a);
+      if(isProjectHref(href))projectCandidates.add(a);
+      else if(isProjectChildHref(href))childCandidates.add(a);
     }
-    for(const el of nav.querySelectorAll('a,button,[role="link"],[role="button"]'))if(matchesManaged(el,names))candidates.add(el);
+    // New ChatGPT markup may use opaque Project links. In that case only exact names that
+    // already exist in the managed NiakGPT list are accepted as Project rows.
+    for(const el of nav.querySelectorAll('a,button,[role="link"],[role="button"]'))if(matchesManaged(el,names))projectCandidates.add(el);
 
-    const rows=[...new Set([...candidates].map(el=>rowHost(el,names)).filter(Boolean))];
+    const projectRows=[...new Set([...projectCandidates].map(el=>rowHost(el,names)).filter(Boolean))];
+    const childRows=[...new Set([...childCandidates].map(plainRowHost).filter(Boolean))];
+    const rows=[...new Set([...projectRows,...childRows])];
     for(const row of rows)row.classList.add('ng107-native-project-row');
 
     const clusters=new Set();
-    for(const row of rows){
+    for(const row of projectRows){
       let node=row.parentElement;
       for(let depth=0;depth<7&&node&&node!==nav;depth++,node=node.parentElement){
         if(node.contains(managedPins()))continue;
-        const contained=rows.filter(r=>node.contains(r)).length;
-        if(contained>=2&&genericChatCount(node)===0)clusters.add(node);
+        const contained=projectRows.filter(r=>node.contains(r)).length;
+        if(!contained||genericChatCount(node)!==0)continue;
+        // One Project is enough when the container also exposes its child chats, heading or
+        // local “Afficher plus”. Two+ Project rows are intrinsically a native Project cluster.
+        if(contained>=2||projectChildCount(node)>0||hasProjectHeading(node)||hasLocalMore(node))clusters.add(node);
       }
     }
-    // Keep only the outermost safe cluster(s); this also removes their local “Afficher plus”.
+    // Keep the outermost safe cluster(s); child chat rows and local “Afficher plus” vanish
+    // with the Project area rather than being hidden by unrelated generic sidebar rules.
     const clusterList=[...clusters].filter(node=>![...clusters].some(other=>other!==node&&other.contains(node)&&genericChatCount(other)===0));
     for(const cluster of clusterList)cluster.classList.add('ng107-native-project-cluster');
 
@@ -110,14 +136,14 @@
       let host=more.parentElement,projectContext=false;
       for(let depth=0;depth<5&&host&&host!==nav;depth++,host=host.parentElement){
         if(host.contains(managedPins()))break;
-        const hasRow=rows.some(r=>host.contains(r));
-        const hasManaged=[...host.querySelectorAll('a,button,[role="link"],[role="button"]')].some(x=>matchesManaged(x,names));
+        const hasRow=projectRows.some(r=>host.contains(r));
+        const hasManaged=[...host.querySelectorAll('a,button,[role="link"],[role="button"]')].some(x=>matchesManaged(x,names)||isProjectHref(x.getAttribute?.('href')));
         if((hasRow||hasManaged)&&genericChatCount(host)===0){projectContext=true;break;}
       }
       if(projectContext)more.classList.add('ng107-native-project-more');
     }
 
-    window.__NIAKGPT_DIAGNOSTICS__?.set('projects-natifs',`OK · ${rows.length} lignes · ${clusterList.length} bloc(s) masqué(s)`);
+    window.__NIAKGPT_DIAGNOSTICS__?.set('projects-natifs',`OK · ${projectRows.length} Projects · ${childRows.length} chats enfants · ${clusterList.length} bloc(s) masqué(s)`);
     return rows.length>0||clusterList.length>0;
   }
 
@@ -154,10 +180,24 @@
     const indexed=(Array.isArray(raw.indexedProjectIds)?raw.indexedProjectIds:[]).filter(id=>!badIds.has(String(id)));
     return{...raw,at:Date.now(),projects:cleanedProjects,chats:cleanedChats,counts,projectChats,indexedProjectIds:indexed};
   }
+  const cleanRead=raw=>cleanCache(raw)||raw;
+  function wrapCacheBus(){
+    const bus=window.__NIAKGPT_CACHE_BUS__;if(!bus||bus.__ng107Sanitized)return bus;
+    const originalGet=typeof bus.get==='function'?bus.get.bind(bus):null;
+    const originalPeek=typeof bus.peek==='function'?bus.peek.bind(bus):null;
+    const originalSubscribe=typeof bus.subscribe==='function'?bus.subscribe.bind(bus):null;
+    try{
+      if(originalGet)bus.get=async()=>cleanRead(await originalGet());
+      if(originalPeek)bus.peek=()=>cleanRead(originalPeek());
+      if(originalSubscribe)bus.subscribe=fn=>originalSubscribe(raw=>fn(cleanRead(raw)));
+      Object.defineProperty(bus,'__ng107Sanitized',{value:true,configurable:true});
+    }catch{}
+    return bus;
+  }
   async function sanitizeCache(rawOverride){
     if(stopped||sanitizing)return;
     try{
-      const bus=window.__NIAKGPT_CACHE_BUS__;
+      const bus=wrapCacheBus()||window.__NIAKGPT_CACHE_BUS__;
       const raw=rawOverride!==undefined?rawOverride:(bus?.get?await bus.get():(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]);
       const cleaned=cleanCache(raw);if(!cleaned)return;
       sanitizing=true;
@@ -177,11 +217,11 @@
     sidebarObserver?.disconnect();sidebarNode=nav;
     sidebarObserver=new MutationObserver(()=>schedule(18));
     sidebarObserver.observe(nav,{childList:true,subtree:true,attributes:true,attributeFilter:['class','href','aria-label']});
-    schedule(0);return true;
+    return true;
   }
   function bootstrap(){
     if(bindSidebar())return;
-    bootstrapObserver?.disconnect();bootstrapObserver=new MutationObserver(()=>{if(bindSidebar()){bootstrapObserver?.disconnect();bootstrapObserver=null;}});
+    bootstrapObserver?.disconnect();bootstrapObserver=new MutationObserver(()=>{if(bindSidebar()){bootstrapObserver?.disconnect();bootstrapObserver=null;schedule(0);}});
     bootstrapObserver.observe(document.documentElement,{childList:true,subtree:true});
     setTimeout(()=>{bootstrapObserver?.disconnect();bootstrapObserver=null;},15000);
   }
@@ -190,7 +230,10 @@
     try{cacheUnsub?.();}catch{}cacheUnsub=null;
   }
   function start(){
-    stopped=false;bootstrap();
+    stopped=false;wrapCacheBus();bootstrap();
+    // Normalise any DOM left by the previous unpacked-extension context synchronously,
+    // before sidebar-host/app are injected next in the production sequence.
+    normalizeChatMetadata();suppressNativeProjects();
     const bus=window.__NIAKGPT_CACHE_BUS__;
     if(bus?.subscribe&&!cacheUnsub)cacheUnsub=bus.subscribe(raw=>{sanitizeCache(raw);schedule(8);});
     sanitizeCache();schedule(0);

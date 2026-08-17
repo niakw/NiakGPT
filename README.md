@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.9.52-4fc1ff">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.9.53-4fc1ff">
   <img alt="Chrome Extension" src="https://img.shields.io/badge/Chrome-Extension-4ec9b0">
   <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
   <img alt="No analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -20,7 +20,7 @@ NiakGPT est une extension navigateur qui ajoute à ChatGPT une couche de **produ
 
 Elle travaille directement au-dessus de l’interface officielle de ChatGPT : pas de service parallèle, pas de compte supplémentaire, pas de serveur NiakGPT.
 
-> **Version actuelle : 0.9.52** — sidebar Projects stabilisée, panneaux Activité / Réflexion / Sources harmonisés, longues conversations optimisées et labs visuels multi-navigateurs.
+> **Version actuelle : 0.9.53** — Projects auto-réparés, cycle de vie extension/multi-onglet durci, longues conversations optimisées et labs visuels multi-navigateurs.
 
 ## Ce que NiakGPT apporte
 
@@ -31,7 +31,8 @@ Elle travaille directement au-dessus de l’interface officielle de ChatGPT : pa
 - couleurs, badges et dates ;
 - recherche locale dans les gros Projects ;
 - conservation prioritaire des déplacements manuels ;
-- réduction des doublons entre l’interface native et NiakGPT.
+- réduction des doublons entre l’interface native et NiakGPT ;
+- auto-réparation si le cache Projects et la gouvernance deviennent temporairement incohérents.
 
 ### Navigation power-user
 
@@ -52,7 +53,7 @@ NiakGPT identifie les principales phases de travail :
 - exécution ;
 - erreur.
 
-L’état peut être partagé entre plusieurs onglets ChatGPT afin de savoir immédiatement quelle conversation travaille.
+L’état peut être partagé entre plusieurs onglets ChatGPT afin de savoir immédiatement quelle conversation travaille. Depuis 0.9.53, la coordination multi-onglet se désactive proprement lors d’un reload/update de l’extension et ne réutilise pas un `BroadcastChannel` ou un contexte Chrome devenu invalide.
 
 ### Longues conversations
 
@@ -138,10 +139,11 @@ NiakGPT est une extension Manifest V3.
 
 Le runtime sépare :
 
-- les hooks réseau légers injectés tôt ;
+- un bridge MAIN minimal (`page-bridge.js`) ;
 - le runtime DOM injecté après disponibilité du shell ChatGPT ;
 - les fonctions de cache, Projects, activité, navigation et panneaux ;
-- la coordination WORKER / CLIENT entre onglets.
+- la coordination WORKER / CLIENT entre onglets ;
+- les garde-fous de compatibilité et d’auto-réparation.
 
 Le bridge refuse les `GET /backend-api/conversation/{id}` initiés par NiakGPT afin d’éviter de télécharger des conversations complètes uniquement pour enrichir l’interface.
 
@@ -153,7 +155,17 @@ Quand plusieurs onglets ChatGPT sont ouverts :
 - les autres restent **CLIENT** ;
 - les CLIENT lisent le cache partagé ;
 - un WORKER surchargé peut céder son rôle ;
-- `BroadcastChannel` et `navigator.locks` sont utilisés lorsque disponibles.
+- `BroadcastChannel` et `navigator.locks` sont utilisés lorsque disponibles ;
+- les callbacks et canaux sont neutralisés lors d’un `pagehide` ou d’un contexte extension invalidé.
+
+## Auto-réparation Projects
+
+La 0.9.53 ajoute un garde permanent mais événementiel autour de l’inventaire Projects :
+
+- un cache local temporaire peut être promu vers les IDs Projects canoniques dès qu’ils réapparaissent dans le DOM ;
+- une gouvernance persistée avec `0` Project principal est reconstruite si des Projects canoniques valides existent ;
+- un fallback coloré local reste visible pendant la récupération au lieu d’afficher une sidebar NiakGPT vide ;
+- les verrous manuels et masquages encore valides sont conservés.
 
 ## Tests et labs
 
@@ -174,23 +186,28 @@ Contrôles statiques et hot-path :
 
 Playwright teste l’extension et les principales surfaces UI.
 
-### Visual Matrix 0.9.52
+### Matrices multi-navigateurs
 
-Les cas critiques 0.9.52 sont exécutés sur :
+Les cas critiques sont exécutés sur :
 
 - Chromium ;
 - Firefox ;
 - WebKit.
 
-Les scénarios comprennent notamment :
+La couverture conserve les scènes visuelles 0.9.52 et ajoute en 0.9.53 :
 
+- cache `5 Projects / 8 chats` avec gouvernance cassée à `0 principaux` ;
+- fallback Projects local ;
+- `BroadcastChannel` fermé ;
+- `navigator.locks` levant une `DOMException` ;
+- contexte Chrome invalidé pendant une écriture de cache ;
+- ordre de chargement runtime réel ;
 - sidebar Projects ;
-- Activity ;
-- Sources ;
+- Activity / Sources ;
 - longues conversations ;
 - stabilité géométrique du chat et du rail.
 
-Les captures sont conservées comme artifacts GitHub Actions.
+Les captures visuelles sont conservées comme artifacts GitHub Actions. Les anciens labs restent dans le dépôt.
 
 ## Confidentialité et sécurité
 

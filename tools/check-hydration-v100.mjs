@@ -114,9 +114,10 @@ need(pins,'cacheProjectIds','Project pin cache fallback missing');
 need(pins,'ATTENTE · inventaire/gouvernance Projects','Project pin zero-state diagnostic missing');
 
 const sidebarAuthority=read('sidebar-authority-v107.js');
-for(const token of ['ng107-native-project-cluster','isDateLike','cleanCache','date-shaped','FALLBACK · liste NiakGPT indisponible'])need(sidebarAuthority,token,`0.9.57 sidebar authority missing ${token}`);
+for(const token of ['ng107-native-project-cluster','isDateLike','isProjectChildHref','cleanCache','wrapCacheBus','FALLBACK · liste NiakGPT indisponible'])need(sidebarAuthority,token,`0.9.57 sidebar authority missing ${token}`);
 forbid(sidebarAuthority,'setInterval(','0.9.57 sidebar authority polling reintroduced');
 forbid(sidebarAuthority,'window.fetch =','0.9.57 sidebar authority must not hook fetch');
+need(read('chronology-v090.js'),"document.createElement('time')",'chronology must emit semantic time nodes');
 
 const governance=read('project-governance-v090.js');need(governance,'verifyAndLockManualMove');need(governance,'executePlan');
 const folders=read('pin-folders-v096.js');

@@ -26,11 +26,16 @@ function baseChromeShim({ invalidateOnSet = false } = {}) {
   })();`;
 }
 
+async function stableOrigin(page){
+  await page.goto('http://127.0.0.1:4173/visual-lab/index.html',{waitUntil:'domcontentloaded'});
+  await page.evaluate(()=>{document.head.innerHTML='';document.body.innerHTML='<main></main>';document.documentElement.removeAttribute('class');});
+}
+
 test('multitab pagehide cannot post to a closed BroadcastChannel or retry a released lock', async ({ page }) => {
   const errors=[];const warnings=[];
   page.on('pageerror', error => errors.push(String(error?.message || error)));
   page.on('console', msg => { if (msg.type()==='warning') warnings.push(msg.text()); });
-  await page.setContent('<main></main>');
+  await stableOrigin(page);
   await page.addScriptTag({ content: baseChromeShim() });
   await page.evaluate(() => {
     class LabChannel {
@@ -41,9 +46,7 @@ test('multitab pagehide cannot post to a closed BroadcastChannel or retry a rele
     }
     window.BroadcastChannel=LabChannel;
     Object.defineProperty(navigator,'locks',{configurable:true,value:{request:async(_name,_opts,cb)=>cb({name:'niakgpt-worker-v090'})}});
-    document.documentElement.dataset.ng86Activity='ready';
-    document.documentElement.dataset.ng8Heavy='0';
-    document.documentElement.dataset.ng90Safe='0';
+    document.documentElement.dataset.ng86Activity='ready';document.documentElement.dataset.ng8Heavy='0';document.documentElement.dataset.ng90Safe='0';
   });
   await page.addScriptTag({ content: patchGuard(read('multitab-v090.js')) });
   await page.waitForTimeout(220);
@@ -59,7 +62,7 @@ test('cache bus converts extension-context invalidation into a detached no-op st
   const errors=[];const warnings=[];
   page.on('pageerror', error => errors.push(String(error?.message || error)));
   page.on('console', msg => { if (msg.type()==='warning') warnings.push(msg.text()); });
-  await page.setContent('<main></main>');
+  await stableOrigin(page);
   await page.addScriptTag({ content: baseChromeShim() });
   await page.addScriptTag({ content: patchGuard(read('cache-bus-v096.js')) });
   await page.evaluate(() => window.__NIAKGPT_CACHE_BUS__.ready);
@@ -68,20 +71,16 @@ test('cache bus converts extension-context invalidation into a detached no-op st
     const value = await window.__NIAKGPT_CACHE_BUS__.update(latest => ({...latest, probe:true}));
     return { alive:window.__NIAKGPT_CACHE_BUS__.alive(), state:document.documentElement.dataset.ng96CacheBus, value };
   });
-  expect(result.alive).toBeFalsy();
-  expect(result.state).toBe('detached');
-  expect(errors).toEqual([]);
+  expect(result.alive).toBeFalsy();expect(result.state).toBe('detached');expect(errors).toEqual([]);
   expect(warnings.filter(x => /Extension context invalidated|cache bus write/i.test(x))).toEqual([]);
 });
 
 test('diagnostics never advertise the retired hotcache as READY', async ({ page }) => {
-  await page.setContent('<main></main>');
+  await stableOrigin(page);
   await page.addScriptTag({ content: baseChromeShim() });
   await page.addScriptTag({ content: patchGuard(read('cache-bus-v096.js')) });
   await page.addScriptTag({ content: patchGuard(read('diagnostic-bus-v096.js')) });
   await page.waitForTimeout(150);
   const snapshot=await page.evaluate(() => window.__NIAKGPT_DIAGNOSTICS__.snapshot());
-  expect(snapshot.hotcache).toContain('OFF');
-  expect(snapshot.hotcache).not.toContain('READY');
-  expect(snapshot.hotcache).not.toContain('/5');
+  expect(snapshot.hotcache).toContain('OFF');expect(snapshot.hotcache).not.toContain('READY');expect(snapshot.hotcache).not.toContain('/5');
 });

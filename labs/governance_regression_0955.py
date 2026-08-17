@@ -7,12 +7,12 @@ ap=argparse.ArgumentParser()
 ap.add_argument('--browser',choices=['chromium','firefox','webkit'],default='chromium')
 ap.add_argument('--root',default=str(Path(__file__).resolve().parents[1]))
 a=ap.parse_args();root=Path(a.root)
-source=(root/'governance-adapter-v105.js').read_text(encoding='utf-8').replace("if (location.hostname !== 'chatgpt.com' ||", "if (false ||")
 CHAT='11111111-1111-4111-8111-111111111111';P1='g-p-aaaaaaaaaaaaaaaa';P2='g-p-bbbbbbbbbbbbbbbb'
+source=(root/'governance-adapter-v105.js').read_text(encoding='utf-8').replace("if (location.hostname !== 'chatgpt.com' ||", "if (false ||")
+source=source.replace("const currentChatId=()=>location.pathname.match(/\\/c\\/([0-9a-f-]{20,})/i)?.[1]||'';",f"const currentChatId=()=>'{CHAT}';")
 html=f'''<!doctype html><html><body>
 <div id="move" role="menu" aria-label="Déplacer vers un projet"><button id="target" role="menuitem">Research Lab</button></div>
 <script>
-history.replaceState({{}},'', '/c/{CHAT}');
 window.__project='{P1}';window.__fullDetail=0;window.__lightLists=0;window.__manual=[];window.__responses={{}};
 window.__NIAKGPT_CACHE_BUS__={{peek:()=>({{projects:[{{id:'{P1}',name:'Studio'}},{{id:'{P2}',name:'Research Lab'}}]}})}};
 const CHAT='{CHAT}',P2='{P2}';

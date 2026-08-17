@@ -47,9 +47,19 @@
     return [...rows];
   }
 
+  function releaseNativeProjects(nav){
+    for(const el of nav.querySelectorAll('.ng8-native-project-link-suppressed,.ng8-native-project-chat-suppressed,.ng8-native-project-label-suppressed,.ng8-native-project-more-suppressed')){
+      el.classList.remove('ng8-native-project-link-suppressed','ng8-native-project-chat-suppressed','ng8-native-project-label-suppressed','ng8-native-project-more-suppressed');
+    }
+    window.__NIAKGPT_DIAGNOSTICS__?.set('projects-natifs','FALLBACK · navigation native visible');
+  }
+
   function suppressNativeProjects(){
     const nav=sidebarRoot();
-    if(!nav||!managedReady())return false;
+    if(!nav)return false;
+    const pins=managedPins();
+    if(!pins){releaseNativeProjects(nav);return false;}
+    if(!managedReady())return false;
     const rows=nativeProjectRows(nav);
     let touched=0;
     for(const row of rows){

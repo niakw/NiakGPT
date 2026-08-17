@@ -13,8 +13,9 @@
   const visible=el=>{if(!(el instanceof HTMLElement)||!el.isConnected)return false;const r=el.getBoundingClientRect();return r.width>0&&r.height>0&&r.bottom>0&&r.right>0&&r.left<innerWidth&&r.top<innerHeight;};
   const textOf=el=>`${el.getAttribute?.('aria-label')||''} ${el.getAttribute?.('title')||''} ${el.getAttribute?.('data-testid')||''} ${el.querySelector?.('h1,h2,h3,[role="heading"]')?.textContent||''} ${(el.textContent||'').slice(0,320)}`;
   function kind(el){const t=textOf(el);if(/source/i.test(t))return'sources';if(/sortie|output/i.test(t))return'outputs';if(/r[eé]flexion|reflection|reasoning|raisonnement|analyse|analysis/i.test(t))return'reflection';return'activity';}
+  function insideManagedPanel(el){return !!el.parentElement?.closest?.('.ng96-native-sidepanel');}
   function geometryOK(el){
-    if(!(el instanceof HTMLElement)||el.closest(OWN)||el.closest('.ng96-native-sidepanel')||!visible(el))return false;
+    if(!(el instanceof HTMLElement)||el.closest(OWN)||insideManagedPanel(el)||!visible(el))return false;
     if(el===document.body||el===document.documentElement||el.matches('main,[data-testid="conversation-sidebar"],[data-testid="sidebar"]'))return false;
     const r=el.getBoundingClientRect();
     if(r.width<260||r.width>760||r.height<220)return false;

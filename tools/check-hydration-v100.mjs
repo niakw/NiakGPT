@@ -6,7 +6,7 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 const need=(s,t,m)=>{if(!s.includes(t))fail(m||`missing ${t}`);};
 const forbid=(s,t,m)=>{if(s.includes(t))fail(m||`forbidden ${t}`);};
 
-// 0.9.54 canonical isolation: page-bridge remains the only MAIN-world runtime.
+// 0.9.55 canonical isolation: page-bridge remains the only MAIN-world runtime.
 const main=['page-bridge.js'];
 const isolated=[
   'onboarding-v101.js',
@@ -21,10 +21,10 @@ const isolated=[
   'browser-compat-v102.js',
   'lifecycle-guard-v104.js',
   'multitab-v090.js',
+  'governance-adapter-v105.js',
   'project-governance-v090.js',
   'governance-queue-v101.js',
   'reclassify-v101.js',
-  'manual-lock-main-v085.js',
   'locale-fr-v101.js',
   'project-pins-v090.js',
   'sidebar-host-v090.js',
@@ -48,8 +48,8 @@ const manifest=JSON.parse(read('manifest.json'));
 same(manifest.permissions,['storage','scripting'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*'],'host scope mismatch');
 same(manifest.content_scripts.flatMap(x=>x.js||[]),['boot-gate-v100.js'],'unexpected static runtime');
-if(manifest.version!=='0.9.54')fail(`unexpected release ${manifest.version}`);
-need(JSON.stringify(manifest.content_scripts),'live-fixes-v104.css','0.9.54 live CSS missing from manifest');
+if(manifest.version!=='0.9.55')fail(`unexpected release ${manifest.version}`);
+need(JSON.stringify(manifest.content_scripts),'live-fixes-v104.css','live UI CSS missing from manifest');
 
 const background=read('background-v100.js');
 const runtimeList=name=>[...(background.match(new RegExp(`const ${name}=\\[(.*?)\\];`,'s'))?.[1]||'').matchAll(/'([^']+)'/g)].map(x=>x[1]);
@@ -57,6 +57,7 @@ same(runtimeList('MAIN_RUNTIME'),main,'MAIN runtime mismatch');
 same(runtimeList('ISOLATED_RUNTIME'),isolated,'isolated runtime mismatch');
 need(background,'chrome.scripting.executeScript');
 need(background,'niakgpt:inject-runtime-v100');
+forbid(background,"'manual-lock-main-v085.js'",'obsolete isolated fetch hook loaded');
 
 for(const legacy of ['hotcache-main-v084.js','activity-main-v087.js']){
   if(fs.existsSync(legacy))fail(`obsolete MAIN runtime still present: ${legacy}`);
@@ -69,6 +70,11 @@ need(bridge,'project_move_requires_governance','project governance guard missing
 need(bridge,"error:'native_busy'",'native activity circuit breaker missing');
 forbid(bridge,'window.fetch =','global fetch replacement reintroduced');
 forbid(bridge,'globalThis.fetch =','global fetch replacement reintroduced');
+
+const adapter=read('governance-adapter-v105.js');
+for(const token of ['governance-light-inventory','trusted-project-menu','event.stopImmediatePropagation()','/backend-api/conversations?offset=0&limit=100'])need(adapter,token,`governance adapter missing ${token}`);
+forbid(adapter,'window.fetch =','governance adapter must not hook global fetch');
+forbid(adapter,'setInterval(','governance adapter polling reintroduced');
 
 const gate=read('boot-gate-v100.js');
 for(const token of ['await waitLoad()','await waitForChatShell()','await sleep(2500)','await waitForQuiet()','await nextFrames()','safeToMutate=true'])need(gate,token);

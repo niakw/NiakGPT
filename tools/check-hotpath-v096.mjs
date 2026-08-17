@@ -11,6 +11,7 @@ const panels=read('side-panels-v096.js');
 const coach=read('coach-v101.js');
 const activity=read('activity-ui-v097.js');
 const bridge=read('page-bridge.js');
+const adapter=read('governance-adapter-v105.js');
 
 // Native animation remains untouched; only idle/background coordination is allowed.
 no(tabs,'niakgptCoordinatedRAF','Global NiakGPT RAF throttling reintroduced');
@@ -55,14 +56,24 @@ has(bridge,'conversation_detail_get_disabled','Full conversation GET guard missi
 has(bridge,"error:'native_busy'",'Native activity circuit breaker missing');
 has(bridge,'requestChain=run.catch(()=>{});','Serialized network broker missing');
 
+// Governance verification uses only lightweight list/project inventories. The adapter
+// may intercept governance detail RPC DOM events, but must never replace global fetch,
+// poll, or permit the full conversation endpoint to reach the network.
+has(adapter,"event.stopImmediatePropagation()",'Governance detail adapter missing');
+has(adapter,"/backend-api/conversations?offset=0&limit=100",'Light conversation inventory missing');
+has(adapter,"/backend-api/gizmos/${encodeURIComponent(pid)}/conversations?limit=20",'Expected Project inventory missing');
+has(adapter,"trusted-project-menu",'Trusted manual Project move signal missing');
+no(adapter,'window.fetch =','Governance adapter global fetch hook reintroduced');
+no(adapter,'setInterval(','Governance adapter polling reintroduced');
+
 // Coach has a single owner outside the core and exposes status through the current
-// dataset API used by the 0.9.52 runtime.
+// adaptive prompt dataset API.
 no(app,'function ensureCoach()','Legacy core coach renderer reintroduced');
 no(app,'function suggestionSet(prompt)','Legacy core coach classifier reintroduced');
 has(coach,'root.dataset.ng100CoachStatus=text','Coach status dataset marker missing');
 has(coach,"window.__NIAKGPT_DIAGNOSTICS__?.set('coach',text)",'Coach diagnostics bridge missing');
 
-// Side panels stay native-looking overlays. The 0.9.52 adapter watches only structural
+// Side panels stay native-looking overlays. The adapter watches only structural
 // child additions plus user/navigation/resize signals; it never observes characterData
 // or wakes from generation-network traffic.
 no(panels,'niakgpt:activity-network','Side-panel adapter must not wake from generation traffic');
@@ -72,4 +83,4 @@ no(panels,'characterData:true','Side-panel text mutation observer reintroduced')
 has(panels,"document.addEventListener('click',()=>schedule(document,100),true)",'Side-panel interaction wakeup missing');
 no(panels,'arm(7000)','Long startup body observer reintroduced');
 
-console.log('NiakGPT 0.9.52 hot-path invariants: OK');
+console.log('NiakGPT current hot-path invariants: OK');

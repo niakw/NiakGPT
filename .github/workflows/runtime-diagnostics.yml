@@ -6,15 +6,41 @@ on:
     paths:
       - '.github/workflows/runtime-diagnostics.yml'
       - 'activity-ui-v097.js'
-      - 'hotcache-main-v084.js'
+      - 'governance-adapter-v105.js'
+      - 'project-governance-v090.js'
+      - 'lifecycle-guard-v104.js'
+      - 'cache-bus-v096.js'
+      - 'multitab-v090.js'
       - 'diagnostic-bus-v096.js'
       - 'app-v090.js'
+      - 'page-bridge.js'
+      - 'background-v100.js'
       - 'manifest.json'
-      - 'visual-lab/tests/runtime-extension.spec.js'
-      - 'visual-lab/tests/hotcache-runtime.spec.js'
-      - 'visual-lab/tests/hotcache-concurrency-v096.spec.js'
+      - 'tools/check-hydration-v100.mjs'
+      - 'tools/check-hotpath-v096.mjs'
+      - 'tools/package-extension.mjs'
+      - 'visual-lab/tests/runtime-current-v105.spec.js'
       - 'visual-lab/tests/multitab-failover-v097.spec.js'
-      - 'visual-lab/tests/audit-v096.spec.js'
+  pull_request:
+    paths:
+      - '.github/workflows/runtime-diagnostics.yml'
+      - 'activity-ui-v097.js'
+      - 'governance-adapter-v105.js'
+      - 'project-governance-v090.js'
+      - 'lifecycle-guard-v104.js'
+      - 'cache-bus-v096.js'
+      - 'multitab-v090.js'
+      - 'diagnostic-bus-v096.js'
+      - 'app-v090.js'
+      - 'page-bridge.js'
+      - 'background-v100.js'
+      - 'manifest.json'
+      - 'tools/check-hydration-v100.mjs'
+      - 'tools/check-hotpath-v096.mjs'
+      - 'tools/package-extension.mjs'
+      - 'visual-lab/tests/runtime-current-v105.spec.js'
+      - 'visual-lab/tests/multitab-failover-v097.spec.js'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -23,9 +49,11 @@ concurrency:
   group: niakgpt-runtime-diagnostics-${{ github.ref }}
   cancel-in-progress: true
 
-# Diagnostic-only workflow: each family runs independently on the exact current SHA.
+# Current runtime diagnostics. Historical hotcache/audit files remain in the repository,
+# but are not release gates because the full-conversation hotcache and old coach UI were
+# intentionally removed from the production architecture.
 jobs:
-  runtime-extension:
+  runtime-current:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -40,24 +68,7 @@ jobs:
       - working-directory: visual-lab
         run: npx playwright install --with-deps chromium
       - working-directory: visual-lab
-        run: npx playwright test tests/runtime-extension.spec.js --workers=1 --reporter=line
-
-  hotcache:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: visual-lab/package-lock.json
-      - working-directory: visual-lab
-        run: npm ci --no-audit --no-fund
-      - working-directory: visual-lab
-        run: npx playwright install --with-deps chromium
-      - working-directory: visual-lab
-        run: npx playwright test tests/hotcache-runtime.spec.js tests/hotcache-concurrency-v096.spec.js --workers=1 --reporter=line
+        run: npx playwright test tests/runtime-current-v105.spec.js --workers=1 --reporter=line
 
   multitab:
     runs-on: ubuntu-latest
@@ -76,19 +87,22 @@ jobs:
       - working-directory: visual-lab
         run: npx playwright test tests/multitab-failover-v097.spec.js --workers=1 --reporter=line
 
-  audit:
+  static-runtime:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: visual-lab/package-lock.json
-      - working-directory: visual-lab
-        run: npm ci --no-audit --no-fund
-      - working-directory: visual-lab
-        run: npx playwright install --with-deps chromium
-      - working-directory: visual-lab
-        run: npx playwright test tests/audit-v096.spec.js --workers=1 --reporter=line
+      - name: Syntax-check runtime JavaScript
+        run: |
+          find . -maxdepth 1 -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Verify hydration, hot path and governance architecture
+        run: |
+          node tools/check-hydration-v100.mjs
+          node tools/check-hotpath-v096.mjs
+      - name: Verify installable package
+        run: |
+          node tools/package-extension.mjs
+          unzip -t "dist/niakgpt-$(node -p "require('./manifest.json').version").zip"

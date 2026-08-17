@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.53",
-  "description": "Workspace power-user local pour ChatGPT : Projects unifiés et auto-réparés, panneaux natifs stables, gros fils allégés, continuité et prompteur local.",
+  "version": "0.9.54",
+  "description": "Workspace power-user local pour ChatGPT : Projects unifiés, panneaux natifs en overlay, gros fils allégés, continuité et prompteur local stable.",
   "permissions": [
     "storage",
     "scripting"
@@ -34,7 +34,8 @@
         "pin-folders-v096.css",
         "side-panels-v096.css",
         "continuity-v100.css",
-        "visual-stability-v101.css"
+        "visual-stability-v101.css",
+        "live-fixes-v104.css"
       ],
       "run_at": "document_start",
       "js": []

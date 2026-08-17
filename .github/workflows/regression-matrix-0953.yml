@@ -28,7 +28,7 @@ concurrency:
 
 jobs:
   regression:
-    name: 0.9.53 · ${{ matrix.browser }}
+    name: 0.9.53+ historical · ${{ matrix.browser }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -39,12 +39,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify 0.9.53 runtime
+      - name: Verify compatible 0.9.53+ runtime
         run: |
           python - <<'PY'
           import json
           m=json.load(open('manifest.json'))
-          assert m['version']=='0.9.53', f"0.9.53 matrix refuses source {m['version']}"
+          v=tuple(int(x) for x in m['version'].split('.'))
+          assert v >= (0,9,53), f"0.9.53 historical matrix refuses older source {m['version']}"
           PY
           grep -q "browser-compat-v102.js" background-v100.js
           grep -q 'project-state-selfheal-v102.js' background-v100.js

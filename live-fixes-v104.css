@@ -1,0 +1,52 @@
+/* NiakGPT 0.9.54 — live ChatGPT regression fixes from authenticated UI. */
+.ng8-native-projects-suppressed,
+a.ng8-native-project-link-suppressed,
+a.ng8-native-project-chat-suppressed,
+.ng8-native-project-label-suppressed,
+.ng8-native-project-more-suppressed{display:none!important}
+
+.ng96-native-sidepanel{
+  right:var(--ng96-rail-offset,var(--ng8-rail,46px))!important;
+  width:min(320px,calc(100vw - var(--ng96-rail-offset,var(--ng8-rail,46px)) - 12px))!important;
+  max-width:min(320px,calc(100vw - var(--ng96-rail-offset,var(--ng8-rail,46px)) - 12px))!important;
+  min-width:0!important;
+  flex:0 0 320px!important;
+  contain:layout paint!important;
+}
+html[data-ng96-native-panel="1"] body.ng8-panel-open main,
+html[data-ng96-native-panel="1"] main{margin-right:0!important;max-width:none!important}
+
+#ng8-coach[data-ng100-coach="1"] .ng100-prompt-head{
+  display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;
+  min-width:0!important;padding:7px 10px!important;border-bottom:1px solid #293643!important;background:#0d1620!important;
+}
+#ng8-coach[data-ng100-coach="1"] .ng100-prompt-head>b{
+  min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;
+  color:#dbe7f2!important;font:800 10px/1.25 Consolas,monospace!important;letter-spacing:.035em!important;
+}
+#ng8-coach[data-ng100-coach="1"] .ng100-prompt-head>span{
+  flex:0 0 auto!important;padding:2px 6px!important;border:1px solid #38546a!important;border-radius:999px!important;
+  color:#8fbad7!important;font:800 8.5px/1.2 Consolas,monospace!important;letter-spacing:.06em!important;
+}
+#ng8-coach[data-ng100-coach="1"] .ng100-prompt-preview{
+  display:block!important;width:100%!important;max-width:100%!important;max-height:148px!important;margin:0!important;padding:9px 10px!important;
+  box-sizing:border-box!important;overflow:auto!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important;word-break:normal!important;
+  color:#d1d9e1!important;background:#101821!important;font:500 11px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace!important;
+}
+#ng8-coach[data-ng100-coach="1"] .ng100-prompt-actions{
+  display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:8px!important;padding:7px 9px!important;
+  border-top:1px solid #293643!important;background:#0d1620!important;
+}
+#ng8-coach[data-ng100-coach="1"] .ng100-prompt-actions>button{
+  display:inline-flex!important;align-items:center!important;justify-content:center!important;min-width:82px!important;min-height:28px!important;
+  margin:0!important;padding:5px 10px!important;border:1px solid #3b5368!important;border-radius:6px!important;background:#152331!important;
+  color:#d8e4ee!important;font:800 9px/1 Consolas,monospace!important;letter-spacing:.04em!important;cursor:pointer!important;
+}
+#ng8-coach[data-ng100-coach="1"] .ng100-prompt-actions>button:hover{background:#1c3142!important;border-color:#4fc1ff!important}
+#ng8-coach[data-ng100-coach="1"] .ng100-prompt-actions>button:focus-visible{outline:2px solid #4fc1ff!important;outline-offset:1px!important}
+@media(max-width:760px){
+  .ng96-native-sidepanel{right:0!important;width:min(320px,100vw)!important;max-width:100vw!important}
+  #ng8-coach[data-ng100-coach="1"] .ng100-prompt-head{gap:6px!important}
+  #ng8-coach[data-ng100-coach="1"] .ng100-prompt-actions{justify-content:stretch!important}
+  #ng8-coach[data-ng100-coach="1"] .ng100-prompt-actions>button{flex:1 1 0!important}
+}

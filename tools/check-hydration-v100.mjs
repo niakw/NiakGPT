@@ -29,6 +29,7 @@ const isolated=[
   'sidebar-host-v090.js',
   'app-v090.js',
   'project-state-selfheal-v102.js',
+  'project-assignment-selfheal-v103.js',
   'breadcrumb-v100.js',
   'continuity-v100.js',
   'visual-stability-v101.js',
@@ -88,6 +89,11 @@ const selfheal=read('project-state-selfheal-v102.js');
 for(const token of ['repairGovernance','mergeNativeCanonical','renderFallback','niakgpt:force-server-index'])need(selfheal,token,`Project self-heal missing ${token}`);
 forbid(selfheal,'characterData:true','Project self-heal must remain structural-only');
 forbid(selfheal,'setInterval(','Project self-heal polling reintroduced');
+
+const assignment=read('project-assignment-selfheal-v103.js');
+for(const token of ['localToCanonical','projectId:target','AUTO-RÉPARÉ'])need(assignment,token,`Project assignment self-heal missing ${token}`);
+forbid(assignment,'characterData:true','Project assignment self-heal must remain event-driven');
+forbid(assignment,'setInterval(','Project assignment self-heal polling reintroduced');
 
 const pins=read('project-pins-v090.js');
 need(pins,'cacheProjectIds','Project pin cache fallback missing');

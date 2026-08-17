@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.57",
-  "description": "Workspace power-user local pour ChatGPT : Projects NiakGPT autoritaires, métadonnées sidebar fiabilisées, contexte Project stable, panneaux natifs en overlay, gros fils allégés et continuité locale.",
+  "version": "0.9.58",
+  "description": "Workspace power-user local pour ChatGPT : Projects NiakGPT autoritaires, bloc Projects natif supprimé structurellement, métadonnées sidebar fiabilisées, contexte Project stable, panneaux natifs en overlay, gros fils allégés et continuité locale.",
   "permissions": [
     "storage",
     "scripting"
@@ -36,7 +36,8 @@
         "continuity-v100.css",
         "visual-stability-v101.css",
         "live-fixes-v104.css",
-        "sidebar-authority-v107.css"
+        "sidebar-authority-v107.css",
+        "sidebar-expando-guard-v108.css"
       ],
       "run_at": "document_start",
       "js": []

@@ -1,0 +1,4 @@
+/* NiakGPT 0.9.58 — hide the current ChatGPT native Projects expando as one unit. */
+.ng108-native-project-expando{
+  display:none!important;
+}

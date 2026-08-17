@@ -6,7 +6,7 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 const need=(s,t,m)=>{if(!s.includes(t))fail(m||`missing ${t}`);};
 const forbid=(s,t,m)=>{if(s.includes(t))fail(m||`forbidden ${t}`);};
 
-// 0.9.57 canonical isolation: page-bridge remains the only MAIN-world runtime.
+// 0.9.58 canonical isolation: page-bridge remains the only MAIN-world runtime.
 const main=['page-bridge.js'];
 const isolated=[
   'onboarding-v101.js',
@@ -28,6 +28,7 @@ const isolated=[
   'locale-fr-v101.js',
   'project-pins-v090.js',
   'sidebar-authority-v107.js',
+  'sidebar-expando-guard-v108.js',
   'sidebar-host-v090.js',
   'app-v090.js',
   'project-state-selfheal-v102.js',
@@ -51,9 +52,10 @@ const manifest=JSON.parse(read('manifest.json'));
 same(manifest.permissions,['storage','scripting'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*'],'host scope mismatch');
 same(manifest.content_scripts.flatMap(x=>x.js||[]),['boot-gate-v100.js'],'unexpected static runtime');
-if(manifest.version!=='0.9.57')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.58')fail(`unexpected release ${manifest.version}`);
 need(JSON.stringify(manifest.content_scripts),'live-fixes-v104.css','live UI CSS missing from manifest');
 need(JSON.stringify(manifest.content_scripts),'sidebar-authority-v107.css','0.9.57 sidebar authority CSS missing from manifest');
+need(JSON.stringify(manifest.content_scripts),'sidebar-expando-guard-v108.css','0.9.58 Projects expando CSS missing from manifest');
 
 const background=read('background-v100.js');
 const runtimeList=name=>[...(background.match(new RegExp(`const ${name}=\\[(.*?)\\];`,'s'))?.[1]||'').matchAll(/'([^']+)'/g)].map(x=>x[1]);
@@ -117,6 +119,11 @@ const sidebarAuthority=read('sidebar-authority-v107.js');
 for(const token of ['ng107-native-project-cluster','isDateLike','isProjectChildHref','cleanCache','wrapCacheBus','FALLBACK · liste NiakGPT indisponible'])need(sidebarAuthority,token,`0.9.57 sidebar authority missing ${token}`);
 forbid(sidebarAuthority,'setInterval(','0.9.57 sidebar authority polling reintroduced');
 forbid(sidebarAuthority,'window.fetch =','0.9.57 sidebar authority must not hook fetch');
+
+const expandoGuard=read('sidebar-expando-guard-v108.js');
+for(const token of ['group/sidebar-expando-section','expandoHost','ng108-native-project-expando','FALLBACK · bloc natif disponible'])need(expandoGuard,token,`0.9.58 expando guard missing ${token}`);
+forbid(expandoGuard,'setInterval(','0.9.58 expando guard polling reintroduced');
+forbid(expandoGuard,'window.fetch =','0.9.58 expando guard must not hook fetch');
 need(read('chronology-v090.js'),"document.createElement('time')",'chronology must emit semantic time nodes');
 
 const governance=read('project-governance-v090.js');need(governance,'verifyAndLockManualMove');need(governance,'executePlan');

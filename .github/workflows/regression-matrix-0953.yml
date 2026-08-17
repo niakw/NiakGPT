@@ -68,6 +68,19 @@ jobs:
         env:
           NIAKGPT_ROOT: ${{ github.workspace }}
         run: python labs/project_assignment_0953.py --browser ${{ matrix.browser }}
+      - name: Visual proof of Project recovery
+        env:
+          NIAKGPT_ROOT: ${{ github.workspace }}
+          NIAKGPT_ARTIFACTS: ${{ runner.temp }}/niakgpt-0953-project-recovery/${{ matrix.browser }}
+        run: python labs/visual_project_recovery_0953.py --browser ${{ matrix.browser }}
+      - name: Upload 0.9.53 Project recovery screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: niakgpt-0953-project-recovery-${{ matrix.browser }}
+          path: ${{ runner.temp }}/niakgpt-0953-project-recovery/${{ matrix.browser }}
+          if-no-files-found: warn
+          retention-days: 30
       - name: Dump lifecycle diagnostics on failure
         if: failure() && steps.regression.outcome == 'failure'
         env:

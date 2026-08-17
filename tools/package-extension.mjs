@@ -33,6 +33,8 @@ for(const required of [
   'project-state-selfheal-v102.js',
   'project-assignment-selfheal-v103.js',
   'project-pins-v090.js',
+  'sidebar-authority-v107.js',
+  'sidebar-authority-v107.css',
   'cache-bus-v096.js',
   'activity-ui-v097.js',
   'side-panels-v096.js',

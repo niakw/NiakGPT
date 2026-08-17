@@ -4,7 +4,8 @@
   "version": "0.2.1",
   "scripts": {
     "test": "playwright test",
-    "test:current": "playwright test",
+    "test:current": "playwright test tests/audit-v096.spec.js tests/lifecycle-errors-0952.spec.js tests/multitab-failover-v097.spec.js tests/navigation-baseline-v096.spec.js tests/onboarding-race.spec.js tests/profiles.spec.js tests/public-rc.spec.js tests/runtime-extension.spec.js tests/runtime-integrity-0952.spec.js tests/side-trigger-static-v096.spec.js tests/visual.spec.js",
+    "test:legacy-hotcache": "playwright test tests/hotcache-concurrency-v096.spec.js tests/hotcache-runtime.spec.js",
     "test:headed": "playwright test --headed",
     "serve": "python3 -m http.server 4173 --directory .."
   },

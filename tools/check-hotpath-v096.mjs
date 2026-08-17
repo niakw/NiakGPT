@@ -6,7 +6,9 @@ const has=(s,t,m=`missing: ${t}`)=>{if(!s.includes(t))fail(m);};
 const no=(s,t,m=`forbidden: ${t}`)=>{if(s.includes(t))fail(m);};
 
 const background=read('background-v100.js');
+const bridge=read('page-bridge.js');
 const integrity=read('runtime-integrity-v101.js');
+const manual=read('manual-lock-main-v085.js');
 const app=read('app-v090.js');
 const tabs=read('multitab-v090.js');
 const panels=read('side-panels-v096.js');
@@ -25,12 +27,24 @@ has(integrity,"reason='reseed-empty-core'",'Persisted empty Project core repair 
 has(integrity,'domOnly:false','Real Project canonicalization missing');
 has(integrity,"OFF · retiré du runtime",'Retired hotcache diagnostic suppression missing');
 
+// Project-move verification never fetches a full conversation. Native/manual moves are
+// confirmed from the DOM/cache, while bridge-issued PATCHes use a minimal assignment ACK.
+has(bridge,'assignmentAcks','Project assignment acknowledgement cache missing');
+has(bridge,"transport:'assignment-ack'",'Synthetic Project assignment ACK missing');
+has(bridge,'conversation_detail_get_disabled','Full conversation GET guard missing');
+no(manual,'window.fetch =','Manual Project lock must not wrap ChatGPT fetch');
+no(manual,'window.fetch=','Manual Project lock must not wrap ChatGPT fetch');
+has(manual,'niakgpt:manual-project-move-confirmed','DOM-confirmed manual Project move signal missing');
+has(manual,'verifiedBy:\'native-dom\'','Manual Project move DOM verification marker missing');
+
 // Native animation remains untouched; only idle/background coordination is allowed.
 no(tabs,'niakgptCoordinatedRAF','Global NiakGPT RAF throttling reintroduced');
 no(tabs,'rafTasks','RAF task registry reintroduced');
 no(tabs,'virtualRafSeq','Virtual RAF sequence reintroduced');
 no(tabs,'nativeRAF=','RAF wrapper reintroduced');
 has(tabs,'niakgptCoordinatedIdle','Idle coordination must remain active');
+has(tabs,'safeBroadcast','Closed BroadcastChannel guard missing');
+has(tabs,'disposed','Multitab lifecycle disposal guard missing');
 
 // Sidebar ownership must include native Project conversations so ChatGPT cannot render
 // a second Project tree underneath NiakGPT's managed Project list.
@@ -65,6 +79,7 @@ has(coach,"window.__NIAKGPT_DIAGNOSTICS__?.set('coach',text)",'Coach diagnostics
 // Side panels stay native-looking overlays and do not wake from generation-network traffic.
 no(panels,'niakgpt:activity-network','Side-panel adapter must not wake from generation traffic');
 has(panels,'ng96-native-sidepanel','Native side-panel ownership marker missing');
+has(panels,'ng96-native-side-trigger','Collapsed native side-panel handle support missing');
 has(panels,'observer.observe(document.documentElement,{childList:true,subtree:true})','Side-panel structural observer missing');
 no(panels,'characterData:true','Side-panel text mutation observer reintroduced');
 has(panels,"document.addEventListener('click',()=>schedule(document,100),true)",'Side-panel interaction wakeup missing');

@@ -25,6 +25,7 @@ for(const required of [
   'boot-gate-v100.js',
   'page-bridge.js',
   'browser-compat-v102.js',
+  'lifecycle-guard-v104.js',
   'multitab-v090.js',
   'app-v090.js',
   'project-state-selfheal-v102.js',
@@ -33,6 +34,8 @@ for(const required of [
   'cache-bus-v096.js',
   'activity-ui-v097.js',
   'side-panels-v096.js',
+  'live-fixes-v104.js',
+  'live-fixes-v104.css',
   'continuity-v100.js'
 ])if(!fs.existsSync(path.join(build,required)))throw new Error(`Runtime omitted from ZIP: ${required}`);
 for(const dead of [

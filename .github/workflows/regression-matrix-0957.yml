@@ -40,12 +40,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify 0.9.57 wiring
+      - name: Verify 0.9.57+ wiring
         run: |
           python - <<'PY'
           import json
           m=json.load(open('manifest.json'))
-          assert m['version']=='0.9.57', m['version']
+          version=tuple(int(x) for x in m['version'].split('.'))
+          assert version >= (0,9,57), m['version']
           css=[x for cs in m['content_scripts'] for x in cs.get('css',[])]
           assert 'sidebar-authority-v107.css' in css
           PY

@@ -66,10 +66,11 @@
     }
     for(const el of candidates)mark(el);
 
-    const triggerCandidates=[];
-    if(root instanceof HTMLElement){if(root.matches?.(TRIGGER_SEL))triggerCandidates.push(root);triggerCandidates.push(...(root.querySelectorAll?.(TRIGGER_SEL)||[]));}
-    else triggerCandidates.push(...document.querySelectorAll(TRIGGER_SEL));
-    for(const el of triggerCandidates.slice(-260))markTrigger(el);
+    // Handles can exist outside the subtree that just mutated (typical: click a handle,
+    // then ChatGPT mounts a panel elsewhere). Always rescan a bounded tail of global
+    // controls so the panel mount cannot cancel/loss the handle classification.
+    const triggerCandidates=[...document.querySelectorAll(TRIGGER_SEL)].slice(-260);
+    for(const el of triggerCandidates)markTrigger(el);
   }
   function cleanTracked(){
     let active=false;

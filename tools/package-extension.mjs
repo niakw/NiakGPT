@@ -27,6 +27,8 @@ for(const required of [
   'browser-compat-v102.js',
   'lifecycle-guard-v104.js',
   'multitab-v090.js',
+  'governance-adapter-v105.js',
+  'project-governance-v090.js',
   'app-v090.js',
   'project-state-selfheal-v102.js',
   'project-assignment-selfheal-v103.js',
@@ -44,7 +46,8 @@ for(const dead of [
   'project-pins-v085.js',
   'boot-watchdog-v099.js',
   'hotcache-main-v084.js',
-  'activity-main-v087.js'
+  'activity-main-v087.js',
+  'manual-lock-main-v085.js'
 ])if(fs.existsSync(path.join(build,dead)))throw new Error(`Legacy runtime in ZIP: ${dead}`);
 
 execFileSync('zip',['-qr',zip,'.'],{cwd:build,stdio:'inherit'});

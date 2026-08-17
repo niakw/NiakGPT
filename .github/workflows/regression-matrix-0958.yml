@@ -1,0 +1,63 @@
+name: NiakGPT 0.9.58 Projects Expando Matrix
+
+on:
+  push:
+    branches: [main, fix/sidebar-0958-expando-section]
+    paths:
+      - 'sidebar-expando-guard-v108.js'
+      - 'sidebar-expando-guard-v108.css'
+      - 'background-v100.js'
+      - 'manifest.json'
+      - 'labs/sidebar_expando_0958.py'
+      - '.github/workflows/regression-matrix-0958.yml'
+  pull_request:
+    paths:
+      - 'sidebar-expando-guard-v108.js'
+      - 'sidebar-expando-guard-v108.css'
+      - 'background-v100.js'
+      - 'manifest.json'
+      - 'labs/sidebar_expando_0958.py'
+      - '.github/workflows/regression-matrix-0958.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: niakgpt-0958-expando-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  expando:
+    name: 0.9.58 expando · ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify 0.9.58 wiring
+        run: |
+          python - <<'PY'
+          import json
+          m=json.load(open('manifest.json'))
+          assert m['version']=='0.9.58', m['version']
+          css=[x for cs in m['content_scripts'] for x in cs.get('css',[])]
+          assert 'sidebar-expando-guard-v108.css' in css
+          PY
+          grep -q "sidebar-expando-guard-v108.js" background-v100.js
+          grep -q "sidebar-expando-guard-v108.css" manifest.json
+          grep -q "sidebar-expando-section" sidebar-expando-guard-v108.js
+          grep -q "group/project-unfurl-row" labs/sidebar_expando_0958.py
+          grep -q "nativeFallbackMissing" labs/sidebar_expando_0958.py
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install playwright==1.57.0
+          python -m playwright install --with-deps ${{ matrix.browser }}
+      - name: Reproduce current ChatGPT Projects expando markup
+        run: python labs/sidebar_expando_0958.py --browser ${{ matrix.browser }}

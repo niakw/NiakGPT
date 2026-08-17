@@ -1,4 +1,4 @@
-name: NiakGPT 0.9.55 Governance Matrix
+name: NiakGPT 0.9.55+ Governance Matrix
 
 on:
   push:
@@ -29,7 +29,7 @@ concurrency:
 
 jobs:
   governance:
-    name: 0.9.55 governance · ${{ matrix.browser }}
+    name: 0.9.55+ governance · ${{ matrix.browser }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -40,12 +40,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify 0.9.55 wiring
+      - name: Verify compatible 0.9.55+ wiring
         run: |
           python - <<'PY'
           import json
           m=json.load(open('manifest.json'))
-          assert m['version']=='0.9.55', m['version']
+          v=tuple(int(x) for x in m['version'].split('.'))
+          assert v >= (0,9,55), f"0.9.55 governance matrix refuses older source {m['version']}"
           PY
           grep -q "governance-adapter-v105.js" background-v100.js
           ! grep -q "'manual-lock-main-v085.js'" background-v100.js

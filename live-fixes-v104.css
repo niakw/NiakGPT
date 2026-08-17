@@ -1,9 +1,16 @@
-/* NiakGPT 0.9.54 — live ChatGPT regression fixes from authenticated UI. */
+/* NiakGPT 0.9.54+ — live ChatGPT regression fixes from authenticated UI. */
 .ng8-native-projects-suppressed,
 a.ng8-native-project-link-suppressed,
 a.ng8-native-project-chat-suppressed,
 .ng8-native-project-label-suppressed,
 .ng8-native-project-more-suppressed{display:none!important}
+
+#ng8-pins>.ng8-pin-head>a.ng106-projects-home{
+  display:inline-flex!important;align-items:center!important;min-width:0!important;padding:0!important;margin:0!important;
+  color:inherit!important;text-decoration:none!important;font:inherit!important;letter-spacing:inherit!important;cursor:pointer!important;
+}
+#ng8-pins>.ng8-pin-head>a.ng106-projects-home:hover{color:#dcecf8!important;text-decoration:underline!important;text-underline-offset:3px!important}
+#ng8-pins>.ng8-pin-head>a.ng106-projects-home:focus-visible{outline:2px solid #4fc1ff!important;outline-offset:2px!important;border-radius:3px!important}
 
 .ng96-native-sidepanel{
   right:var(--ng96-rail-offset,var(--ng8-rail,46px))!important;

@@ -6,7 +6,7 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 const need=(s,t,m)=>{if(!s.includes(t))fail(m||`missing ${t}`);};
 const forbid=(s,t,m)=>{if(s.includes(t))fail(m||`forbidden ${t}`);};
 
-// 0.9.55 canonical isolation: page-bridge remains the only MAIN-world runtime.
+// 0.9.56 canonical isolation: page-bridge remains the only MAIN-world runtime.
 const main=['page-bridge.js'];
 const isolated=[
   'onboarding-v101.js',
@@ -38,8 +38,10 @@ const isolated=[
   'polish-v090.js',
   'side-panels-v096.js',
   'live-fixes-v104.js',
+  'live-fixes-v106.js',
   'chronology-v090.js',
   'pin-folders-v096.js',
+  'project-links-v106.js',
   'activity-ui-v097.js',
   'retro-loader-v097.js'
 ];
@@ -48,7 +50,7 @@ const manifest=JSON.parse(read('manifest.json'));
 same(manifest.permissions,['storage','scripting'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*'],'host scope mismatch');
 same(manifest.content_scripts.flatMap(x=>x.js||[]),['boot-gate-v100.js'],'unexpected static runtime');
-if(manifest.version!=='0.9.55')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.56')fail(`unexpected release ${manifest.version}`);
 need(JSON.stringify(manifest.content_scripts),'live-fixes-v104.css','live UI CSS missing from manifest');
 
 const background=read('background-v100.js');
@@ -110,10 +112,21 @@ need(pins,'cacheProjectIds','Project pin cache fallback missing');
 need(pins,'ATTENTE · inventaire/gouvernance Projects','Project pin zero-state diagnostic missing');
 
 const governance=read('project-governance-v090.js');need(governance,'verifyAndLockManualMove');need(governance,'executePlan');
-const folders=read('pin-folders-v096.js');need(folders,'ng96-pin-drawer');need(folders,'ng96-project-open');
+const folders=read('pin-folders-v096.js');
+need(folders,'ng96-pin-drawer');need(folders,'ng96-project-open');
+need(folders,'<a data-chat=','Project drawer chats must be native anchors');
+need(folders,"event.metaKey||event.ctrlKey||event.shiftKey||event.altKey",'modified clicks must remain native');
+forbid(folders,'<button type="button" data-chat=','Project drawer chat buttons reintroduced');
+const projectLinks=read('project-links-v106.js');
+for(const token of ["link.href='/projects'",'ng106-projects-home','verifyDrawerLinks','MutationObserver'])need(projectLinks,token,`Project link UX missing ${token}`);
+forbid(projectLinks,'setInterval(','Project link UX polling reintroduced');
 const activity=read('activity-ui-v097.js');need(activity,'Never watch characterData across the whole conversation');
 const panels=read('side-panels-v096.js');need(panels,'ng96-native-sidepanel');
 const live=read('live-fixes-v104.js');for(const token of ['suppressNativeProjects','elementsFromPoint','--ng96-rail-offset'])need(live,token,`live UI repair missing ${token}`);
+const live106=read('live-fixes-v106.js');
+for(const token of ['anti-race','breadcrumbContext','syncStatusProject','attributeFilter:[\'class\',\'href\',\'aria-label\']','projects-natifs','releaseNativeProjects'])need(live106,token,`0.9.56 live repair missing ${token}`);
+forbid(live106,'setInterval(','0.9.56 live repair polling reintroduced');
+forbid(live106,'window.fetch =','0.9.56 live repair must not hook fetch');
 const cacheBus=read('cache-bus-v096.js');need(cacheBus,'suspended','cache bus lifecycle suspension missing');need(cacheBus,"addEventListener('pageshow'",'cache bus BFCache resume missing');
 
 console.log(`NiakGPT ${manifest.version} hydration-safe release invariants: OK`);

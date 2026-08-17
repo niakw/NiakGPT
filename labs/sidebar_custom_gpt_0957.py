@@ -30,11 +30,15 @@ with sync_playwright() as p:
     browser=getattr(p,a.browser).launch(headless=True);page=browser.new_page();errors=[]
     page.on('pageerror',lambda e: errors.append(str(e)))
     page.set_content(html);page.add_script_tag(content=source('sidebar-authority-v107.js'));page.wait_for_timeout(220)
-    state=page.evaluate('''() => ({project:getComputedStyle(document.getElementById('project')).display,custom:getComputedStyle(document.getElementById('custom')).display,customClass:document.getElementById('custom').className})''')
+    state=page.evaluate('''() => {
+      const visible=el=>!!(el&&el.getClientRects().length&&getComputedStyle(el).visibility!=='hidden');
+      const project=document.getElementById('project'),custom=document.getElementById('custom');
+      return {projectVisible:visible(project),customVisible:visible(custom),projectClass:project.className,projectParentClass:project.parentElement?.className||'',customClass:custom.className};
+    }''')
     browser.close()
 bad=[]
-if state['project']!='none':bad.append('projectNotHidden')
-if state['custom']=='none':bad.append('customGptHidden')
+if state['projectVisible']:bad.append('projectNotHidden')
+if not state['customVisible']:bad.append('customGptHidden')
 if 'ng107-native-project' in state['customClass']:bad.append('customGptClassifiedAsProject')
 if errors:bad.append('pageErrors')
 print(json.dumps({'browser':a.browser,'state':state,'errors':errors,'bad':bad}))

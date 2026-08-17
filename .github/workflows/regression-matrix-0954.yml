@@ -1,0 +1,74 @@
+name: NiakGPT 0.9.54 Live Regression Matrix
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '*.js'
+      - '*.css'
+      - 'manifest.json'
+      - 'labs/**'
+      - '.github/workflows/regression-matrix-0954.yml'
+  pull_request:
+    paths:
+      - '*.js'
+      - '*.css'
+      - 'manifest.json'
+      - 'labs/**'
+      - '.github/workflows/regression-matrix-0954.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: niakgpt-0954-live-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    name: 0.9.54 live · ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify 0.9.54 runtime wiring
+        run: |
+          python - <<'PY'
+          import json
+          m=json.load(open('manifest.json'))
+          assert m['version']=='0.9.54', f"0.9.54 matrix refuses source {m['version']}"
+          assert m['content_scripts'][0]['css'][-1]=='live-fixes-v104.css'
+          PY
+          grep -q "lifecycle-guard-v104.js" background-v100.js
+          grep -q "live-fixes-v104.js" background-v100.js
+          grep -q "lifecycle-guard-v104.js" tools/package-extension.mjs
+          grep -q "live-fixes-v104.css" tools/package-extension.mjs
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install playwright==1.57.0
+          python -m playwright install --with-deps ${{ matrix.browser }}
+      - name: Reproduce authenticated screenshot geometry
+        env:
+          NIAKGPT_ROOT: ${{ github.workspace }}
+        run: python labs/live_ui_regression_0954.py --browser ${{ matrix.browser }} --screenshot "${{ runner.temp }}/live-0954/${{ matrix.browser }}/live-0954-${{ matrix.browser }}.png"
+      - name: Reproduce extension lifecycle failures
+        env:
+          NIAKGPT_ROOT: ${{ github.workspace }}
+        run: python labs/lifecycle_regression_0954.py --browser ${{ matrix.browser }}
+      - name: Upload 0.9.54 live screenshot proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: niakgpt-0954-live-${{ matrix.browser }}
+          path: ${{ runner.temp }}/live-0954/${{ matrix.browser }}
+          if-no-files-found: warn
+          retention-days: 30

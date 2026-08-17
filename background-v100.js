@@ -27,6 +27,7 @@ const ISOLATED_RUNTIME=[
   'project-pins-v090.js',
   'sidebar-authority-v107.js',
   'sidebar-expando-guard-v108.js',
+  'sidebar-projects-authority-v109.js',
   'sidebar-host-v090.js',
   'app-v090.js',
   'project-state-selfheal-v102.js',
@@ -41,6 +42,7 @@ const ISOLATED_RUNTIME=[
   'live-fixes-v106.js',
   'chronology-v090.js',
   'pin-folders-v096.js',
+  'project-chat-ux-v109.js',
   'project-links-v106.js',
   'activity-ui-v097.js',
   'retro-loader-v097.js'

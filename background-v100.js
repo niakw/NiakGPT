@@ -36,6 +36,7 @@ const ISOLATED_RUNTIME=[
   'polish-v090.js',
   'side-panels-v096.js',
   'live-fixes-v104.js',
+  'live-fixes-v106.js',
   'chronology-v090.js',
   'pin-folders-v096.js',
   'activity-ui-v097.js',

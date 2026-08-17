@@ -12,7 +12,7 @@
     ['Perso & Vie pratique',['famille','mariage','voiture','auto','santé','fatigue','maison','crédit','mutuelle','voyage','relation','personnel','animal','animaux','félin']],
     ['Recherche & Références',['recherche','comparatif','alternative','documentation','source','étude','analyse','prix','tarif','avis','film','cinéma','anime','blu ray','bluray']]
   ];
-  const BATCH=8,CONFIDENCE=58,MARGIN=16,ENRICH_CONFIDENCE=24,ENRICH_MARGIN=5,AMBIG_COOLDOWN=60*1000,FAIL_COOLDOWN=45*1000,MATURITY_MS=8000,STATE_SCHEMA=6;let busy=false,timer=0,rpcSeq=0;
+  const BATCH=8,CONFIDENCE=58,MARGIN=16,ENRICH_CONFIDENCE=24,ENRICH_MARGIN=5,AMBIG_COOLDOWN=60*1000,FAIL_COOLDOWN=45*1000,MATURITY_MS=8000,RECENT_CATCHUP_MS=72*60*60*1000,STATE_SCHEMA=7;let busy=false,timer=0,rpcSeq=0;
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim(),norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[’']/g,"'");
   const rxesc=v=>String(v).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),hasTerm=(text,key)=>{const k=norm(key);return !!k&&new RegExp(`(^|[^\\p{L}\\p{N}])${rxesc(k)}(?=$|[^\\p{L}\\p{N}])`,'u').test(text);};
   const LEARN_STOP=new Set('avec sans dans pour sur sous entre vers chez mais donc car que qui quoi dont comme cette cette ceci cela les des une un du de la le et ou au aux mon ma mes ton ta tes son sa ses nos vos leur leurs est sont ete être etre avoir faire fait plus moins tres très chat chats conversation conversations projet projects project nouveau nouvelle question reponse réponse aide besoin probleme problemes problème problèmes'.split(/\s+/).map(norm));
@@ -47,30 +47,34 @@
   const isQueue=p=>QUEUE_NAMES.has(norm(p?.name));const sleep=ms=>new Promise(r=>setTimeout(r,ms));const hash=v=>{let h=2166136261;for(const c of String(v||'')){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}return(h>>>0).toString(36);};
   function rpc(path,{method='GET',body=null,timeout=15000}={}){const id=`ng101r-${Date.now()}-${++rpcSeq}`;return new Promise(resolve=>{const t=setTimeout(()=>{off();resolve({ok:false,status:0,error:'rpc_timeout'});},timeout),h=e=>{if(e.detail?.id!==id)return;off();resolve(e.detail);},off=()=>{clearTimeout(t);document.removeEventListener('niakgpt:rpc-response',h);};document.addEventListener('niakgpt:rpc-response',h);document.dispatchEvent(new CustomEvent('niakgpt:rpc-request',{detail:{id,path,method,body,governance:true}}));});}
   function allChats(raw){const map=new Map();const add=(c,p='')=>{if(!c?.id)return;const old=map.get(c.id)||{};map.set(c.id,{...old,...c,projectId:p||c.projectId||old.projectId||''});};for(const c of raw.chats||[])add(c);for(const [p,list] of Object.entries(raw.projectChats||{}))for(const c of list||[])add(c,p);return[...map.values()];}
+  const projectIdFromHref=h=>String(h||'').match(/\/g\/(g-p-[^/?#]+)\/c\//i)?.[1]||'';
+  const chatUpdatedMs=c=>{const raw=Number(c?.updated||c?.update_time||c?.create_time||0);return raw>1e12?raw:(raw>1e9?raw*1000:0);};
+  const recentUnassigned=c=>{if(clean(c?.projectId)||projectIdFromHref(c?.href))return false;const at=chatUpdatedMs(c);return !!at&&Date.now()-at>=0&&Date.now()-at<=RECENT_CATCHUP_MS;};
+  const needsClassification=(c,queueIds)=>queueIds.has(c?.projectId)||recentUnassigned(c);
   function score(chat,project,profile){const text=norm(`${chat.title||''} ${chat.snippet||''}`),pn=norm(project.name);let s=0;if(pn.length>3&&text.includes(pn))s+=320;const base=BASE.find(([n])=>norm(n)===pn);let h=0;if(base)for(const k of base[1])if(hasTerm(text,k))h++;for(const k of aliasKeys(project))if(hasTerm(text,k))h++;if(h)s+=92+Math.min(210,(h-1)*34);const titleTokens=learnTokens(chat.title||''),tokens=learnTokens(`${chat.title||''} ${chat.snippet||''}`);for(const t of learnTokens(project.name||''))if(tokens.has(t))s+=64;let learned=0;for(const t of tokens){const w=profile?.get(t)||0;if(w)learned+=w*(titleTokens.has(t)?1.35:1);}s+=Math.min(190,Math.round(learned));return s;}
   function pick(chat,targets,profiles){const ranked=targets.map(p=>({p,s:score(chat,p,profiles.get(p.id))})).sort((a,b)=>b.s-a.s),a=ranked[0],b=ranked[1];return a?{project:a.p,score:a.s,margin:a.s-(b?.s||0)}:null;}
   const placeholder=chat=>/^(nouveau chat|new chat|chargement|loading|untitled|sans titre|conversation)$/i.test(clean(chat?.title||''))||!String(`${chat?.title||''} ${chat?.snippet||''}`).trim();
   function ackProject(data){if(data&&Object.prototype.hasOwnProperty.call(data,'gizmo_id'))return clean(data.gizmo_id);return clean(data?.conversation_mode?.gizmo_id||'');}
   async function move(id,target){const r=await rpc(`/backend-api/conversation/${encodeURIComponent(id)}`,{method:'PATCH',body:{gizmo_id:target}});if(!r.ok)return false;const got=ackProject(r.data);return !got||got===target;}
-  function apply(raw,id,target){const c=(raw.chats||[]).find(x=>x.id===id);if(c)c.projectId=target;for(const [pid,list] of Object.entries(raw.projectChats||{})){const idx=(list||[]).findIndex(x=>x.id===id);if(idx<0)continue;const item={...list[idx],projectId:target};list.splice(idx,1);raw.projectChats[target]??=[];if(!raw.projectChats[target].some(x=>x.id===id))raw.projectChats[target].push(item);raw.counts??={};raw.counts[pid]=list.length;raw.counts[target]=raw.projectChats[target].length;}}
+  function apply(raw,id,target){const c=(raw.chats||[]).find(x=>x.id===id);if(c)c.projectId=target;let found=false;raw.projectChats??={};for(const [pid,list] of Object.entries(raw.projectChats||{})){const idx=(list||[]).findIndex(x=>x.id===id);if(idx<0)continue;found=true;const item={...list[idx],projectId:target};list.splice(idx,1);raw.projectChats[target]??=[];if(!raw.projectChats[target].some(x=>x.id===id))raw.projectChats[target].push(item);raw.counts??={};raw.counts[pid]=list.length;raw.counts[target]=raw.projectChats[target].length;}if(!found&&c){raw.projectChats[target]??=[];if(!raw.projectChats[target].some(x=>x.id===id))raw.projectChats[target].push({...c,projectId:target});raw.counts??={};raw.counts[target]=raw.projectChats[target].length;}}
   async function run(){
     if(busy||!can())return;busy=true;
     try{
       const got=await chrome.storage.local.get([CACHE_KEY,GOV_KEY,STATE_KEY]),raw=got[CACHE_KEY];if(!raw)return;
       let gov=got[GOV_KEY]||{};if(gov.autoResync===false)return;
-      const queueIds=new Set((raw.projects||[]).filter(isQueue).map(p=>p.id));if(!queueIds.size){window.__NIAKGPT_DIAGNOSTICS__?.set('reclassement','OK · aucune file À classer');return;}
+      const queueIds=new Set((raw.projects||[]).filter(isQueue).map(p=>p.id));
       const filtered=(gov.coreProjectIds||[]).filter(id=>!queueIds.has(id));if(filtered.length!==(gov.coreProjectIds||[]).length){gov={...gov,coreProjectIds:filtered};await chrome.storage.local.set({[GOV_KEY]:gov});}
       const projects=new Map((raw.projects||[]).map(p=>[p.id,p]));
       const targets=(filtered.length?filtered:[...projects.keys()]).map(id=>projects.get(id)).filter(p=>p&&p.id.startsWith('g-p-')&&!p.domOnly&&!isQueue(p));
-      const locks=gov.locks||{},chats=allChats(raw),queue=chats.filter(c=>queueIds.has(c.projectId)&&!locks[c.id]);
+      const locks=gov.locks||{},chats=allChats(raw),queue=chats.filter(c=>needsClassification(c,queueIds)&&!locks[c.id]);
       if(!targets.length){window.__NIAKGPT_DIAGNOSTICS__?.set('reclassement','ATTENTE · aucun Project cible');return;}
-      if(!queue.length){window.__NIAKGPT_DIAGNOSTICS__?.set('reclassement','OK · À classer vide ou protégé');return;}
+      if(!queue.length){window.__NIAKGPT_DIAGNOSTICS__?.set('reclassement','OK · file + rattrapage récent vides ou protégés');return;}
       const targetSig=hash(targets.map(p=>`${p.id}:${p.name}:${raw.counts?.[p.id]??''}`).sort().join('|')),profiles=buildLearnedProfiles(targets,chats);
       let state=got[STATE_KEY];if(!state||state.schema!==STATE_SCHEMA)state={schema:STATE_SCHEMA,attempts:{},firstSeen:{}};state.attempts=state.attempts||{};state.firstSeen=state.firstSeen||{};
       let done=0,moved=0,changed=false,eligibleRemaining=0,coolingCount=0,ambiguousCount=0,nextWake=Infinity;const movedIds=new Set(),snippetIds=new Set(),batchLimit=heavy()?3:BATCH;
       for(const chat of queue){
         if(placeholder(chat))continue;
-        const updated=Number(chat.updated||chat.update_time||chat.create_time||0),updatedMs=updated>1e12?updated:(updated>1e9?updated*1000:0);
+        const updatedMs=chatUpdatedMs(chat);
         const seenAt=state.firstSeen[chat.id]||(state.firstSeen[chat.id]=updatedMs&&Date.now()-updatedMs<MATURITY_MS?updatedMs:Date.now()-MATURITY_MS);
         if(Date.now()-seenAt<MATURITY_MS){nextWake=Math.min(nextWake,seenAt+MATURITY_MS);continue;}
         const sig=hash(`${targetSig}|${chat.id}|${chat.title||''}|${String(chat.snippet||'').slice(0,1200)}`),prev=state.attempts[chat.id];
@@ -89,7 +93,7 @@
         else{const status=eligible?'move-failed':'ambiguous';state.attempts[chat.id]={sig:finalSig,at:Date.now(),score:candidate?.score||0,margin:candidate?.margin||0,status};if(status==='ambiguous')ambiguousCount++;nextWake=Math.min(nextWake,Date.now()+(status==='move-failed'?FAIL_COOLDOWN:AMBIG_COOLDOWN));}
         await sleep(heavy()?260:120);
       }
-      const stillQueued=new Set(allChats(raw).filter(c=>queueIds.has(c.projectId)).map(c=>c.id));for(const id of Object.keys(state.attempts))if(!stillQueued.has(id))delete state.attempts[id];for(const id of Object.keys(state.firstSeen))if(!stillQueued.has(id))delete state.firstSeen[id];
+      const stillQueued=new Set(allChats(raw).filter(c=>needsClassification(c,queueIds)).map(c=>c.id));for(const id of Object.keys(state.attempts))if(!stillQueued.has(id))delete state.attempts[id];for(const id of Object.keys(state.firstSeen))if(!stillQueued.has(id))delete state.firstSeen[id];
       await chrome.storage.local.set({[STATE_KEY]:state});
       if(changed){
         const bus=window.__NIAKGPT_CACHE_BUS__;
@@ -102,11 +106,11 @@
         });
         else await chrome.storage.local.set({[CACHE_KEY]:{...raw,at:Date.now()}});
       }
-      const remaining=allChats(raw).filter(c=>queueIds.has(c.projectId)&&!locks[c.id]).length;
+      const remaining=allChats(raw).filter(c=>needsClassification(c,queueIds)&&!locks[c.id]).length;
       const waiting=ambiguousCount+coolingCount;
       const unresolved=Object.values(state.attempts).filter(x=>x?.status==='ambiguous').sort((a,b)=>(b.score||0)-(a.score||0))[0];
       const evidence=unresolved?` · max ${unresolved.score||0}/${unresolved.margin||0}`:'';
-      window.__NIAKGPT_DIAGNOSTICS__?.set('reclassement',moved?`OK · ${moved} reclassé${moved>1?'s':''} · ${remaining} restant${remaining>1?'s':''}`:waiting?`ATTENTE · ${remaining} dans À classer · ${waiting} ambigu${waiting>1?'s':''}${evidence}`:`ATTENTE · ${remaining} dans À classer`);
+      window.__NIAKGPT_DIAGNOSTICS__?.set('reclassement',moved?`OK · ${moved} reclassé${moved>1?'s':''} · ${remaining} restant${remaining>1?'s':''}`:waiting?`ATTENTE · ${remaining} à classer/rattraper · ${waiting} ambigu${waiting>1?'s':''}${evidence}`:`ATTENTE · ${remaining} à classer/rattraper`);
       if(eligibleRemaining>0&&can())schedule(heavy()?3200:1400);else if(Number.isFinite(nextWake)&&remaining>0&&can())schedule(Math.max(800,Math.min(AMBIG_COOLDOWN+250,nextWake-Date.now()+250)));
     }catch(e){window.__NIAKGPT_DIAGNOSTICS__?.set('reclassement',`ERREUR · ${String(e?.message||e).slice(0,80)}`);}finally{busy=false;}
   }

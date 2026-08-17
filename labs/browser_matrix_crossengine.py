@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
-"""Cross-engine runner for NiakGPT regression labs.
+"""Cross-engine runner for the current NiakGPT checkout.
 
-Chromium keeps the strict computed pseudo-content assertion from browser_matrix.py.
-Firefox/WebKit additionally validate the timestamp pseudo-elements through CSSOM,
-because getComputedStyle(..., '::before').content is not serialized consistently
-across engines even when the rule is parsed and rendered.
+The base matrix carries broad regression coverage. This adapter adds engine-neutral
+checks for CSS pseudo-content, current side-panel geometry, and continuity OUT state.
 """
 import importlib.util
 import sys
@@ -39,10 +37,38 @@ def timestamp_cssom(browser):
     finally:
         page.close()
 
+def current_panel(browser):
+    page=browser.new_page(viewport={'width':1440,'height':900})
+    try:
+        page.set_content("""<main style='position:fixed;left:300px;right:46px;top:0;bottom:0'>chat</main><aside id='ng8-rail' style='position:fixed;right:0;top:0;bottom:0;width:46px'></aside>""")
+        page.add_style_tag(content=bm.read('side-panels-v096.css'))
+        page.add_script_tag(content=bm.patch_guard(bm.read('side-panels-v096.js')))
+        page.evaluate("""()=>{const p=document.createElement('aside');p.id='panel';p.setAttribute('role','dialog');p.style.cssText='position:fixed;right:0;top:40px;width:420px;height:500px';p.innerHTML='<h2>Réflexion</h2><pre style="width:800px">oversized code</pre>';document.body.appendChild(p)}""")
+        page.wait_for_timeout(300)
+        return page.evaluate("""()=>{const p=document.getElementById('panel'),r=p.getBoundingClientRect(),rail=document.getElementById('ng8-rail').getBoundingClientRect(),pre=p.querySelector('pre');return p.classList.contains('ng96-native-sidepanel')&&getComputedStyle(p).position==='fixed'&&r.width>=300&&r.width<=330&&Math.abs(r.right-rail.left)<2&&!!p.querySelector('.ng96-side-close')&&pre.clientWidth<=p.clientWidth+2;}""")
+    finally:
+        page.close()
+
+def current_continuity(browser):
+    page=browser.new_page(viewport={'width':1100,'height':700})
+    store={'niakgpt-v08-cache':{'schema':2,'projects':[{'id':bm.PROJECT_ID,'name':'Tech & Développement','description':'Projet technique NiakGPT','instructions':'Préserver les contraintes.'}],'chats':[{'id':bm.CHAT_ID,'title':'Conseils prompts OpenAI','projectId':bm.PROJECT_ID}]},'niakgpt-continuity-v100':{'schema':1,'out':{}}}
+    try:
+        page.set_content(f"""<nav data-testid='conversation-sidebar'><a href='/c/{bm.CHAT_ID}'>Conseils prompts OpenAI</a></nav><main><article data-message-author-role='user'>Travaille localement et conserve les locks.</article><article data-message-author-role='assistant'>Compris.</article><div role='alert'>You've reached the maximum conversation length. Start a new chat.</div></main><div id='prompt-textarea' contenteditable='true'></div>""")
+        page.add_script_tag(content=bm.chrome_shim(store))
+        page.evaluate("window.__netCalls=0;window.fetch=(...a)=>{window.__netCalls++;return Promise.resolve(new Response('{}',{status:200}))}")
+        src=bm.patch_guard(bm.read('continuity-v100.js')).replace("const currentCid=()=>cid(location.pathname);",f"const currentCid=()=>'{bm.CHAT_ID}';").replace("const currentPid=()=>pid(location.pathname)||cache.chats?.find?.(c=>c.id===currentCid())?.projectId||'';",f"const currentPid=()=>'{bm.PROJECT_ID}';")
+        page.add_script_tag(content=src);page.wait_for_timeout(500)
+        return page.evaluate("""()=>{const a=document.querySelector('a[href*="/c/"]'),capsule=window.__NIAKGPT_CONTINUITY__.buildCapsule();return a.dataset.ng100Out==='1'&&!!a.querySelector('.ng100-out-badge')&&capsule.includes('Tech & Développement')&&capsule.includes('HISTORIQUE DU FIL PRÉCÉDENT')&&capsule.includes('Travaille localement')&&window.__netCalls===0;}""")
+    finally:
+        page.close()
+
 def cross_core(browser):
     result=_original_core(browser)
     if engine in ('firefox','webkit') and not result.get('timestamps'):
         result['timestamps']=bool(timestamp_cssom(browser))
+    # Replace two stale base-fixture assertions with explicit current-behaviour checks.
+    result['native_panel']=bool(current_panel(browser))
+    result['continuity']=bool(current_continuity(browser))
     return result
 
 bm.core_surfaces=cross_core

@@ -25,9 +25,19 @@
     }catch(e){console.warn('[NiakGPT chronology]',e);}
   }
 
+  function ensureDateNode(link){
+    let date=link.querySelector(':scope > .ng8-chat-date');
+    if(date&&date.tagName!=='TIME'){
+      const time=document.createElement('time');
+      for(const attr of [...date.attributes])time.setAttribute(attr.name,attr.value);
+      time.textContent=date.textContent||'';date.replaceWith(time);date=time;
+    }
+    if(!date){date=document.createElement('time');date.className='ng8-chat-date';link.appendChild(date);}
+    return date;
+  }
   function decorateChat(link){
     if(!(link instanceof HTMLElement)||link.closest(OWN))return;const id=cid(link.getAttribute('href')),chat=chats.get(id);if(!id||!chat?.updated)return;
-    link.dataset.ng8Updated=String(chat.updated);let date=link.querySelector(':scope > .ng8-chat-date');if(!date){date=document.createElement('span');date.className='ng8-chat-date';link.appendChild(date);}date.textContent=formatDate(chat.updated);date.title=`Dernier échange : ${new Date(chat.updated).toLocaleString('fr-FR')}`;
+    link.dataset.ng8Updated=String(chat.updated);const date=ensureDateNode(link);date.textContent=formatDate(chat.updated);date.title=`Dernier échange : ${new Date(chat.updated).toLocaleString('fr-FR')}`;
   }
   function decorateProjectMeta(root=document){
     for(const link of root.querySelectorAll?.('#ng8-pins a[data-ng8-pin="1"],.ng8-project-table a')||[]){const projectId=pid(link.getAttribute('href'));if(!projectId)continue;const count=counts.has(projectId)?counts.get(projectId):null,latest=latestByProject.get(projectId)||0,meta=link.querySelector('small,b:last-child');if(!meta)continue;meta.classList.add('ng8-project-meta');meta.textContent=`${formatDate(latest)}  [${count==null?'…':count}]`;meta.title=latest?`Dernier échange du Project : ${new Date(latest).toLocaleString('fr-FR')}`:'Aucune date disponible';}

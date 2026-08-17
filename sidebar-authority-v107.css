@@ -1,0 +1,23 @@
+/* NiakGPT 0.9.57 — authoritative Projects sidebar + metadata hygiene. */
+
+/* When the NiakGPT Project block is healthy, native ChatGPT Project surfaces are hidden.
+   Separate v107 classes are intentional: older live-fix modules may release their own
+   suppression classes during React rerenders, but must not resurrect the duplicate UI. */
+.ng107-native-project-row,
+.ng107-native-project-cluster,
+.ng107-native-project-label,
+.ng107-native-project-more{
+  display:none!important;
+}
+
+/* Date metadata remains a date even when v107 normalises a span/small into <time> so
+   sidebar indexing cannot accidentally treat 17/08 as a Project name. */
+time.ng8-chat-date{
+  display:inline-block;
+}
+
+/* A stale, date-shaped Project badge is never allowed to remain visible while the cache
+   self-heal propagates. */
+.ng8-chat-project[data-ng107-invalid-project="1"]{
+  display:none!important;
+}

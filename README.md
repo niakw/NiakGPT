@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.9.56-4fc1ff">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.9.57-4fc1ff">
   <img alt="Chrome Extension" src="https://img.shields.io/badge/Chrome-Extension-4ec9b0">
   <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
   <img alt="No analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -20,7 +20,7 @@ NiakGPT est une extension navigateur qui ajoute à ChatGPT une couche de **produ
 
 Elle travaille directement au-dessus de l’interface officielle de ChatGPT : pas de service parallèle, pas de compte supplémentaire, pas de serveur NiakGPT.
 
-> **Version actuelle : 0.9.56** — sidebar Projects stabilisée contre les rerenders ChatGPT, contexte Project fiable, navigation Projects native, clic droit/nouvel onglet sur les conversations, cycle de vie extension durci et labs visuels multi-navigateurs.
+> **Version actuelle : 0.9.57** — liste Projects NiakGPT autoritaire, suppression complète du doublon Projects natif, métadonnées de dates fiabilisées, navigation Projects/nouvel onglet native, contexte Project stable et labs visuels multi-navigateurs.
 
 ## Ce que NiakGPT apporte
 
@@ -33,9 +33,10 @@ Elle travaille directement au-dessus de l’interface officielle de ChatGPT : pa
 - lien **PROJECTS** vers la page Projects de ChatGPT ;
 - conversations des dossiers rendues comme de vrais liens : clic droit, clic molette et Ctrl/Cmd+clic restent natifs ;
 - conservation prioritaire des déplacements manuels ;
-- suppression du doublon entre l’interface Projects native et NiakGPT lorsque le bloc NiakGPT est disponible ;
-- retour automatique de la navigation Projects native si le bloc géré NiakGPT est momentanément indisponible ;
-- auto-réparation si le cache Projects et la gouvernance deviennent temporairement incohérents.
+- **la liste Projects NiakGPT est l’unique liste Projects visible lorsqu’elle est disponible** : les lignes, chats enfants et « Afficher plus » du système Projects natif sont masqués ;
+- retour automatique de la navigation Projects native uniquement si le bloc NiakGPT disparaît réellement ;
+- les dates de sidebar restent des métadonnées de date et ne peuvent plus devenir de faux Projects colorés ;
+- auto-réparation du cache si une ancienne session a déjà créé un faux Project à partir d’une date.
 
 ### Navigation power-user
 
@@ -162,7 +163,19 @@ Quand plusieurs onglets ChatGPT sont ouverts :
 - `BroadcastChannel` et `navigator.locks` sont utilisés lorsque disponibles ;
 - les callbacks et canaux sont neutralisés lors d’un `pagehide` ou d’un contexte extension invalidé.
 
-## Auto-réparation Projects
+## Autorité de la sidebar Projects
+
+Depuis 0.9.57, la responsabilité visuelle de la zone Projects est explicite :
+
+- si `#ng8-pins` est présent et exploitable, NiakGPT masque les surfaces Projects natives correspondantes ;
+- les marqueurs de masquage 0.9.57 sont indépendants des anciens correctifs afin qu’un rerender React ou un autre module ne puisse pas réintroduire le doublon ;
+- les URLs Project `g-p-*` sont reconnues directement ; les URLs opaques ne sont reconnues qu’après correspondance exacte avec un nom déjà connu dans la liste NiakGPT ;
+- les liens `/g/...` qui correspondent à des GPT personnalisés ne sont pas assimilés à des Projects ;
+- les chats enfants d’un Project natif et ses contrôles locaux « Afficher plus » disparaissent avec la zone native ;
+- le « Afficher plus » de l’historique de chats reste intact ;
+- si le bloc NiakGPT disparaît, tous les masques sont retirés et ChatGPT redevient immédiatement le filet de sécurité.
+
+## Auto-réparation Projects et dates
 
 Les garde-fous Projects restent événementiels :
 
@@ -171,8 +184,9 @@ Les garde-fous Projects restent événementiels :
 - un fallback coloré local reste visible pendant la récupération au lieu d’afficher une sidebar NiakGPT vide ;
 - les associations conversations → Projects sont remappées avec les IDs canoniques ;
 - les verrous manuels et masquages encore valides sont conservés ;
-- en 0.9.56, les classes de suppression du bloc Projects natif sont réaffirmées après les rerenders concurrents ;
-- si le bloc NiakGPT n’est plus exploitable, la navigation native n’est jamais laissée masquée.
+- les dates de chronologie sont rendues comme de vrais éléments `<time>` et ne sont plus candidates au détecteur de noms de Projects ;
+- un ancien Project DOM local dont le nom est uniquement une date (`17/08`, par exemple) est supprimé du cache, de ses compteurs et de l’index ;
+- lorsque l’URL du chat contient encore son vrai Project, l’affectation est restaurée automatiquement.
 
 ## Navigation et liens natifs
 
@@ -226,6 +240,9 @@ La couverture historique est conservée. Les régressions récentes ajoutent not
 - contexte Project breadcrumb → barre d’état ;
 - lien `/projects` ;
 - clic droit / nouvel onglet sur les conversations des tiroirs Project ;
+- deux blocs Projects natifs et leurs contrôles « Afficher plus » face à la liste NiakGPT ;
+- faux Project créé à partir d’une date de chat et réparation de son affectation ;
+- garantie qu’un GPT personnalisé `/g/...` n’est jamais masqué comme Project ;
 - fallback vers les Projects natifs si le bloc NiakGPT disparaît.
 
 Les captures visuelles sont conservées comme artifacts GitHub Actions. Les anciens labs restent dans le dépôt.

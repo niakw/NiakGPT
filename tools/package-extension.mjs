@@ -37,6 +37,7 @@ for(const required of [
   'activity-ui-v097.js',
   'side-panels-v096.js',
   'live-fixes-v104.js',
+  'live-fixes-v106.js',
   'live-fixes-v104.css',
   'continuity-v100.js'
 ])if(!fs.existsSync(path.join(build,required)))throw new Error(`Runtime omitted from ZIP: ${required}`);

@@ -18,11 +18,20 @@
   const outsideOwn=el=>!!el&&!el.closest(OWN);
   const isProjectHeading=el=>!!el&&outsideOwn(el)&&/^(projets?|projects?)$/.test(norm(el.textContent));
 
+  function expandoHost(heading,nav){
+    let node=heading?.parentElement||null;
+    for(let depth=0;depth<8&&node&&node!==nav;depth++,node=node.parentElement){
+      const tokens=[...(node.classList||[])];
+      if(tokens.some(token=>token==='group/sidebar-expando-section'||token==='sidebar-expando-section'||token.endsWith('/sidebar-expando-section')))return node;
+    }
+    return null;
+  }
+
   function nativeExpandoSections(nav){
     const found=new Set();
     for(const heading of nav.querySelectorAll('h1,h2,h3,[role="heading"]')){
       if(!isProjectHeading(heading))continue;
-      const section=heading.closest('[class*="sidebar-expando-section"]');
+      const section=expandoHost(heading,nav);
       if(!section||section===nav||section.contains(managedPins())||!outsideOwn(section))continue;
       found.add(section);
     }

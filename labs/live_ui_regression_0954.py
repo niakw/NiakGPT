@@ -36,7 +36,7 @@ main{flex:1 1 auto;min-width:0;padding:90px 80px 160px;background:linear-gradien
 <nav data-testid="conversation-sidebar">
   <div class="native-group"><a href="/g/g-p-films/project">Films</a><a href="/g/g-p-niakvio/project">NiakVIO</a><button>Afficher plus</button></div>
   <div class="native-group"><a href="/g/g-p-niakgpt/project">NiakGPT</a><a href="/g/g-p-tech/project">Tech & Développement</a><a href="/g/g-p-content/project">Création & Contenu</a><div class="native-more-wrap"><button>Afficher plus</button></div></div>
-  <section id="ng8-pins"><div>PROJECTS <b>5</b></div><a href="#">NiakVIO</a><a href="#">NiakGPT</a><a href="#">Tech & Développement</a></section>
+  <section id="ng8-pins"><div>PROJECTS <b>5</b></div><a data-ng8-pin="1" href="/g/g-p-niakvio/project">NiakVIO</a><a data-ng8-pin="1" href="/g/g-p-niakgpt/project">NiakGPT</a><a data-ng8-pin="1" href="/g/g-p-tech/project">Tech & Développement</a></section>
 </nav>
 <main><div id="chat"><p>Conversation de test longue.</p><p>Le panneau Activité ne doit pas voler la largeur du chat.</p></div>
 <section id="ng8-coach" data-ng100-coach="1"><div class="ng100-prompt-head"><b>PROMPTEUR ADAPTATIF · LOCAL</b><span>GENERAL</span></div><pre class="ng100-prompt-preview">Réponds directement à l’objectif, utilise le contexte utile, conserve toutes les contraintes explicites et rends une réponse complète. Cette ligne doit revenir à la ligne sans déborder horizontalement.</pre><div class="ng100-prompt-actions"><button type="button">COPIER</button><button type="button">REMPLACER</button></div></section>
@@ -59,7 +59,7 @@ with sync_playwright() as p:
     page.add_script_tag(content=source('live-fixes-v104.js'))
     page.wait_for_timeout(450)
     data=page.evaluate('''() => {
-      const native=[...document.querySelectorAll('nav a[href^="/g/g-p-"]')];
+      const native=[...document.querySelectorAll('nav a[href^="/g/g-p-"]')].filter(a=>!a.closest('#ng8-pins'));
       const mores=[...document.querySelectorAll('nav button')];
       const panel=document.getElementById('native-panel'),main=document.querySelector('main'),rail=document.getElementById('ng8-rail');
       const pr=document.querySelector('.ng100-prompt-preview'),head=document.querySelector('.ng100-prompt-head'),actions=document.querySelector('.ng100-prompt-actions');

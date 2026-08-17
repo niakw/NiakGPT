@@ -48,8 +48,10 @@ jobs:
           PY
           grep -q "browser-compat-v102.js" background-v100.js
           grep -q 'project-state-selfheal-v102.js' background-v100.js
+          grep -q 'project-assignment-selfheal-v103.js' background-v100.js
           grep -q 'cacheProjectIds' project-pins-v090.js
           grep -q 'repairGovernance' project-state-selfheal-v102.js
+          grep -q 'localToCanonical' project-assignment-selfheal-v103.js
           grep -q 'contextDead' multitab-v090.js
           grep -qi 'extension context invalidated' cache-bus-v096.js
       - name: Install Playwright
@@ -62,6 +64,10 @@ jobs:
         env:
           NIAKGPT_ROOT: ${{ github.workspace }}
         run: python labs/regression_0953_v2.py --browser ${{ matrix.browser }}
+      - name: Verify chat assignments survive Project ID self-heal
+        env:
+          NIAKGPT_ROOT: ${{ github.workspace }}
+        run: python labs/project_assignment_0953.py --browser ${{ matrix.browser }}
       - name: Dump lifecycle diagnostics on failure
         if: failure() && steps.regression.outcome == 'failure'
         env:

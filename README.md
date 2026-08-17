@@ -4,11 +4,11 @@
 
 <p align="center">
   <strong>Transforme ChatGPT en véritable espace de travail power-user.</strong><br>
-  Projects plus lisibles, navigation rapide, état temps réel, continuité des longs fils et contrôle local.
+  Projects organisés, navigation rapide, longues conversations plus légères, continuité locale et outils pensés pour un usage intensif.
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.9.57-4fc1ff">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.9.59-4fc1ff">
   <img alt="Chrome Extension" src="https://img.shields.io/badge/Chrome-Extension-4ec9b0">
   <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
   <img alt="No analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -16,60 +16,60 @@
 
 # NiakGPT
 
-NiakGPT est une extension navigateur qui ajoute à ChatGPT une couche de **productivité, d’organisation et de contrôle** pensée pour les utilisateurs intensifs.
+NiakGPT est une extension navigateur qui ajoute à ChatGPT une couche de **productivité, d’organisation et de contrôle** pour les utilisateurs intensifs.
 
-Elle travaille directement au-dessus de l’interface officielle de ChatGPT : pas de service parallèle, pas de compte supplémentaire, pas de serveur NiakGPT.
+Elle fonctionne directement au-dessus de l’interface officielle de ChatGPT : **pas de service parallèle, pas de compte NiakGPT supplémentaire et pas de serveur NiakGPT pour les fonctions principales**.
 
-> **Version actuelle : 0.9.57** — liste Projects NiakGPT autoritaire, suppression complète du doublon Projects natif, métadonnées de dates fiabilisées, navigation Projects/nouvel onglet native, contexte Project stable et labs visuels multi-navigateurs.
+> **Version actuelle : 0.9.59** — Projects NiakGPT autoritaires, focus/renommage/état OUT dans les discussions Project, rattrapage automatique des chats récents non classés, navigation native et labs multi-navigateurs permanents.
 
 ## Ce que NiakGPT apporte
 
-### Projects plus rapides
+### Projects comme espace de travail
 
-- Projects présentés comme de vrais dossiers de travail ;
-- sous-listes de conversations directement accessibles ;
-- couleurs, badges et dates ;
+- Projects colorés et immédiatement identifiables ;
+- conversations accessibles directement en dépliant un Project ;
 - recherche locale dans les gros Projects ;
+- dates et compteurs visibles ;
 - lien **PROJECTS** vers la page Projects de ChatGPT ;
-- conversations des dossiers rendues comme de vrais liens : clic droit, clic molette et Ctrl/Cmd+clic restent natifs ;
-- conservation prioritaire des déplacements manuels ;
-- **la liste Projects NiakGPT est l’unique liste Projects visible lorsqu’elle est disponible** : les lignes, chats enfants et « Afficher plus » du système Projects natif sont masqués ;
-- retour automatique de la navigation Projects native uniquement si le bloc NiakGPT disparaît réellement ;
-- les dates de sidebar restent des métadonnées de date et ne peuvent plus devenir de faux Projects colorés ;
-- auto-réparation du cache si une ancienne session a déjà créé un faux Project à partir d’une date.
+- conversations rendues comme de vrais liens : clic droit, clic molette et Ctrl/Cmd+clic restent natifs ;
+- **conversation courante mise en évidence** dans le Project ouvert ;
+- **renommage d’une conversation directement depuis le tiroir Project** ;
+- conversations arrivées à leur limite signalées par **OUT** et reléguées après les conversations actives ;
+- déplacements manuels protégés contre le reclassement automatique.
+
+### Une seule liste Projects
+
+Lorsque le bloc Projects NiakGPT est présent, **il devient l’unique système Projects visible dans la sidebar**.
+
+NiakGPT masque le bloc Projects natif de ChatGPT dans son ensemble — titre, lignes, conversations enfants et contrôles associés — au lieu d’essayer de reconnaître chaque Project séparément. Cette règle couvre également la structure récente de ChatGPT basée sur `group/sidebar-expando-section` et les lignes `group/project-unfurl-row` sans lien.
+
+Si le bloc NiakGPT disparaît réellement, le bloc Projects natif est restauré comme filet de sécurité. Les GPT personnalisés et la liste générale des discussions ne sont pas masqués.
+
+### Classement automatique avec rattrapage
+
+NiakGPT peut classer les nouveaux chats vers le Project le plus pertinent tout en respectant les verrous manuels.
+
+Depuis 0.9.59, le classement ne dépend plus uniquement d’un chat observé en direct ou d’un Project « À classer » : un **rattrapage léger des conversations récentes non affectées** est effectué au démarrage et à la reprise. Il utilise les métadonnées locales déjà disponibles et des mutations `PATCH` ciblées, **sans télécharger la conversation complète**.
 
 ### Navigation power-user
 
 - `Alt+K` : ouverture rapide des Projects et conversations ;
 - fil d’Ariane Project → conversation ;
 - sommaire du fil courant ;
-- dates compactes dans la sidebar ;
+- barre d’état synchronisée avec le Project courant ;
 - code enrichi avec langage, nombre de lignes et copie ;
-- barre d’état compacte synchronisée avec le Project courant ;
-- raccourcis et Centre de contrôle.
-
-### État des conversations en temps réel
-
-NiakGPT identifie les principales phases de travail :
-
-- chargement ;
-- attente ;
-- réflexion / analyse ;
-- exécution ;
-- erreur.
-
-L’état peut être partagé entre plusieurs onglets ChatGPT afin de savoir immédiatement quelle conversation travaille. Depuis 0.9.53, la coordination multi-onglet se désactive proprement lors d’un reload/update de l’extension et ne réutilise pas un `BroadcastChannel` ou un contexte Chrome devenu invalide.
+- Centre de contrôle et Safe Mode pour les fils extrêmes.
 
 ### Longues conversations
 
-Les gros fils sont traités de façon plus conservatrice :
+Les gros fils sont traités de façon conservatrice :
 
-- pas de chargement complet du JSON des conversations par NiakGPT ;
+- aucun chargement complet du JSON d’une conversation par NiakGPT ;
 - pas d’observation caractère par caractère de tout l’historique ;
-- traitement incrémental du DOM ;
 - historique ancien laissé au repos pendant le streaming ;
-- reprise différée lorsque ChatGPT revient à l’état prêt ;
-- Safe Mode disponible pour les cas extrêmes.
+- traitements incrémentaux et reprise différée au retour à l’état prêt ;
+- réduction du travail de fond pendant Activité / Réflexion / génération ;
+- Safe Mode disponible pour réduire encore les fonctions décoratives.
 
 ### Activité, Réflexion, Sources et Outputs
 
@@ -78,61 +78,56 @@ Les panneaux natifs de droite sont traités comme une même famille d’interfac
 - largeur contenue ;
 - rail NiakGPT conservé ;
 - chat non écrasé ;
-- contenu long contenu dans le panneau ;
-- accents visuels distincts selon le type de panneau.
+- contenu long borné au panneau ;
+- code conservant son scroll local.
 
-### Local-first
+### Continuité des fils
+
+Lorsqu’une conversation atteint sa limite, NiakGPT peut :
+
+- la marquer **OUT** ;
+- la déplacer visuellement après les fils encore actifs ;
+- préparer une nouvelle conversation dans le même Project ;
+- injecter localement une capsule de continuité avec le contexte utile disponible.
+
+Aucun envoi automatique n’est effectué.
+
+## Local-first
 
 NiakGPT est conçu pour rester local :
 
 - aucune analytics NiakGPT ;
-- aucun serveur NiakGPT ;
+- aucun serveur NiakGPT nécessaire au fonctionnement principal ;
 - aucun compte NiakGPT ;
 - permissions limitées à ChatGPT et au stockage de l’extension ;
-- caches et préférences conservés dans le navigateur.
+- cache, préférences, gouvernance et états conservés dans le navigateur.
 
 ## Installation
-
-### Depuis le dépôt
 
 1. Télécharger ou cloner le dépôt.
 2. Ouvrir `chrome://extensions`.
 3. Activer **Mode développeur**.
 4. Cliquer sur **Charger l’extension non empaquetée**.
-5. Sélectionner la racine du dépôt contenant `manifest.json`.
+5. Sélectionner la racine contenant `manifest.json`.
 6. Recharger les onglets ChatGPT déjà ouverts.
 
-Pour les versions empaquetées, le workflow GitHub de qualité construit également un ZIP propre de l’extension.
+Les workflows GitHub produisent également un ZIP installable à partir du runtime validé.
 
-## Principaux raccourcis
+## Raccourcis
 
 | Action | Raccourci |
 |---|---|
 | Quick Open | `Alt+K` |
 | Centre de contrôle | `Alt+,` |
 
-## Safe Mode
-
-Safe Mode réduit volontairement les fonctionnalités décoratives ou non essentielles sur les fils très lourds :
-
-- Matrix coupé ;
-- coach coupé ;
-- animations coupées ;
-- synchronisations secondaires suspendues ;
-- cession du rôle WORKER si nécessaire.
-
-Le composer, la navigation et les fonctions essentielles restent disponibles.
-
-## Philosophie du projet
-
-NiakGPT suit quelques règles simples :
+## Philosophie
 
 - **utilisateur > automatisation** ;
 - **performance avant décoration** ;
 - **local-first** ;
 - **un seul propriétaire par zone d’interface** ;
 - **pas de polling global permanent** ;
-- **les anciens labs de régression sont conservés** au lieu d’être supprimés.
+- **les anciens labs de régression sont conservés** : une nouvelle version ajoute de la couverture au lieu de nettoyer l’historique.
 
 ---
 
@@ -140,121 +135,111 @@ NiakGPT suit quelques règles simples :
 
 ## Architecture
 
-NiakGPT est une extension Manifest V3.
+NiakGPT est une extension **Manifest V3**.
 
 Le runtime sépare :
 
-- un bridge MAIN minimal (`page-bridge.js`) ;
-- le runtime DOM injecté après disponibilité du shell ChatGPT ;
-- les fonctions de cache, Projects, activité, navigation et panneaux ;
-- la coordination WORKER / CLIENT entre onglets ;
-- les garde-fous de compatibilité et d’auto-réparation.
+- `page-bridge.js`, unique runtime exécuté dans le monde MAIN ;
+- le runtime DOM injecté en monde isolé après disponibilité du shell ChatGPT ;
+- cache / index Projects / gouvernance ;
+- navigation, tiroirs Projects et continuité ;
+- activité et panneaux natifs ;
+- coordination WORKER / CLIENT entre onglets ;
+- garde-fous de compatibilité et d’auto-réparation.
 
-Le bridge refuse les `GET /backend-api/conversation/{id}` initiés par NiakGPT afin d’éviter de télécharger des conversations complètes uniquement pour enrichir l’interface.
+NiakGPT ne remplace pas globalement `window.fetch`.
 
-## WORKER / CLIENT
+## Réseau et gros fils
+
+Le bridge refuse les `GET /backend-api/conversation/{id}` complets initiés par NiakGPT. Les fonctions de classement, gouvernance et renommage utilisent uniquement les opérations ciblées nécessaires.
+
+Les traitements lourds sont suspendus ou différés lorsque ChatGPT charge, réfléchit, exécute une tâche ou affiche une vérification native.
+
+## Autorité Projects 0.9.59
+
+`sidebar-projects-authority-v109.js` rend `#ng8-pins` autoritaire dès que ce bloc existe et est connecté. Il ne dépend plus du nombre de pins reconnus au moment exact du rendu.
+
+Le détecteur :
+
+- recherche un heading `Projets` / `Projects` hors de l’UI NiakGPT ;
+- remonte au token exact `group/sidebar-expando-section` lorsqu’il existe ;
+- possède un fallback structurel borné ;
+- masque le conteneur complet ;
+- restaure le natif uniquement lorsque `#ng8-pins` disparaît.
+
+Le suivi est événementiel via `MutationObserver`, navigation SPA et événements NiakGPT ; aucun `setInterval` permanent n’est ajouté.
+
+## Discussions Project 0.9.59
+
+`project-chat-ux-v109.js` complète les vrais liens produits par `pin-folders-v096.js` :
+
+- `aria-current="page"` + focus coloré sur la conversation courante ;
+- bouton de renommage avec `PATCH { title }` puis mise à jour du cache local ;
+- lecture de l’état OUT de `niakgpt-continuity-v100` ;
+- badge OUT et ordre visuel après les conversations actives ;
+- clic droit et clics modifiés laissés au navigateur.
+
+## Rattrapage du classement
+
+`reclassify-v101.js` traite maintenant deux catégories :
+
+1. les conversations présentes dans une file de classement explicite ;
+2. les conversations racine/non affectées suffisamment récentes — fenêtre de rattrapage actuelle : **72 h**.
+
+Un chat déjà relié à un Project par son URL n’est pas considéré comme racine. Les locks manuels restent prioritaires. Les déplacements utilisent un `PATCH` ciblé et ne nécessitent aucun GET complet du fil.
+
+## WORKER / CLIENT et lifecycle
 
 Quand plusieurs onglets ChatGPT sont ouverts :
 
-- un seul onglet peut devenir **WORKER** ;
+- un onglet peut devenir **WORKER** ;
 - les autres restent **CLIENT** ;
-- les CLIENT lisent le cache partagé ;
-- un WORKER surchargé peut céder son rôle ;
-- `BroadcastChannel` et `navigator.locks` sont utilisés lorsque disponibles ;
-- les callbacks et canaux sont neutralisés lors d’un `pagehide` ou d’un contexte extension invalidé.
-
-## Autorité de la sidebar Projects
-
-Depuis 0.9.57, la responsabilité visuelle de la zone Projects est explicite :
-
-- si `#ng8-pins` est présent et exploitable, NiakGPT masque les surfaces Projects natives correspondantes ;
-- les marqueurs de masquage 0.9.57 sont indépendants des anciens correctifs afin qu’un rerender React ou un autre module ne puisse pas réintroduire le doublon ;
-- les URLs Project `g-p-*` sont reconnues directement ; les URLs opaques ne sont reconnues qu’après correspondance exacte avec un nom déjà connu dans la liste NiakGPT ;
-- les liens `/g/...` qui correspondent à des GPT personnalisés ne sont pas assimilés à des Projects ;
-- les chats enfants d’un Project natif et ses contrôles locaux « Afficher plus » disparaissent avec la zone native ;
-- le « Afficher plus » de l’historique de chats reste intact ;
-- si le bloc NiakGPT disparaît, tous les masques sont retirés et ChatGPT redevient immédiatement le filet de sécurité.
-
-## Auto-réparation Projects et dates
-
-Les garde-fous Projects restent événementiels :
-
-- un cache local temporaire peut être promu vers les IDs Projects canoniques dès qu’ils réapparaissent dans le DOM ;
-- une gouvernance persistée avec `0` Project principal est reconstruite si des Projects canoniques valides existent ;
-- un fallback coloré local reste visible pendant la récupération au lieu d’afficher une sidebar NiakGPT vide ;
-- les associations conversations → Projects sont remappées avec les IDs canoniques ;
-- les verrous manuels et masquages encore valides sont conservés ;
-- les dates de chronologie sont rendues comme de vrais éléments `<time>` et ne sont plus candidates au détecteur de noms de Projects ;
-- un ancien Project DOM local dont le nom est uniquement une date (`17/08`, par exemple) est supprimé du cache, de ses compteurs et de l’index ;
-- lorsque l’URL du chat contient encore son vrai Project, l’affectation est restaurée automatiquement.
-
-## Navigation et liens natifs
-
-La navigation du tiroir Project conserve les primitives du navigateur :
-
-- le titre `PROJECTS` est un lien réel vers `/projects` ;
-- chaque conversation développée est un véritable élément `<a href="…">` ;
-- le clic gauche simple peut suivre le routage SPA existant ;
-- clic droit, clic molette, Ctrl/Cmd+clic et autres clics modifiés ne sont pas interceptés.
+- les CLIENT réutilisent le cache partagé ;
+- un WORKER lourd peut céder son rôle ;
+- `BroadcastChannel` et `navigator.locks` sont utilisés quand disponibles ;
+- les canaux/callbacks sont neutralisés lors d’un `pagehide`, BFCache ou contexte extension invalidé.
 
 ## Tests et labs
 
-Le dépôt conserve les anciens labs de régression et ajoute de nouveaux tests au fil des versions.
+Les labs sont permanents dans le dépôt.
 
-### Check NiakGPT
+La CI combine :
 
-Contrôles statiques et hot-path :
+- contrôles Manifest/runtime et syntaxe ;
+- garde-fous hot-path / hydratation ;
+- Browser Matrix ;
+- Visual Lab ;
+- Runtime Diagnostics ;
+- matrices historiques 0.9.52+ ;
+- matrice 0.9.59 Chromium / Firefox / WebKit.
 
-- manifest et runtime ;
-- syntaxe JavaScript ;
-- absence de polling global réintroduit ;
-- garde-fous longues conversations ;
-- invariants Projects ;
-- contenu du package final.
+Le lab 0.9.59 couvre notamment :
 
-### Visual Lab
+- bloc Projects natif actuel masqué même lorsque l’ancien prédicat de pins « ready » serait faux ;
+- restauration native lorsque le bloc NiakGPT disparaît ;
+- GPT personnalisés préservés ;
+- focus de la conversation active ;
+- bouton renommer et mutation de titre ;
+- badge OUT + ordre en bas ;
+- clic droit natif ;
+- trois conversations récentes hors Project rattrapées automatiquement ;
+- une conversation ancienne laissée intacte ;
+- aucune lecture complète de conversation pour ce rattrapage.
 
-Playwright teste l’extension et les principales surfaces UI.
+Les captures produites par les trois moteurs sont conservées comme artifacts GitHub Actions.
 
-### Matrices multi-navigateurs
+## Documentation
 
-Les cas critiques sont exécutés sur :
-
-- Chromium ;
-- Firefox ;
-- WebKit.
-
-La couverture historique est conservée. Les régressions récentes ajoutent notamment :
-
-- cache `5 Projects / 8 chats` avec gouvernance cassée à `0 principaux` ;
-- fallback Projects local ;
-- `BroadcastChannel` fermé ;
-- `navigator.locks` levant une `DOMException` ;
-- contexte Chrome invalidé pendant une écriture de cache ;
-- ordre de chargement runtime réel ;
-- sidebar Projects ;
-- Activity / Sources ;
-- longues conversations ;
-- stabilité géométrique du chat et du rail ;
-- course de rerender entre le renderer principal et le masque des Projects natifs ;
-- contexte Project breadcrumb → barre d’état ;
-- lien `/projects` ;
-- clic droit / nouvel onglet sur les conversations des tiroirs Project ;
-- deux blocs Projects natifs et leurs contrôles « Afficher plus » face à la liste NiakGPT ;
-- faux Project créé à partir d’une date de chat et réparation de son affectation ;
-- garantie qu’un GPT personnalisé `/g/...` n’est jamais masqué comme Project ;
-- fallback vers les Projects natifs si le bloc NiakGPT disparaît.
-
-Les captures visuelles sont conservées comme artifacts GitHub Actions. Les anciens labs restent dans le dépôt.
+- [`CHANGELOG.md`](CHANGELOG.md)
+- [`ARCHITECTURE.md`](ARCHITECTURE.md)
+- [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)
+- [`PRIVACY.md`](PRIVACY.md)
+- [`SECURITY.md`](SECURITY.md)
+- [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
 ## Confidentialité et sécurité
 
-Voir :
-
-- [`PRIVACY.md`](PRIVACY.md)
-- [`SECURITY.md`](SECURITY.md)
-
-NiakGPT dépend de l’interface et de certains endpoints internes de ChatGPT. Ces surfaces ne sont pas documentées ni garanties par OpenAI et peuvent évoluer.
+NiakGPT dépend de l’interface web et de certains endpoints internes non documentés de ChatGPT. OpenAI peut modifier ces surfaces sans préavis ; les labs réduisent le risque de régression mais ne remplacent pas un smoke test sur une session authentifiée réelle.
 
 ## Licence
 

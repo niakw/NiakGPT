@@ -35,14 +35,13 @@
     }
     return names;
   }
-
+  const cleanVariant=value=>norm(value).replace(/^(?:ouvrir|open)\s+(?:le\s+)?(?:projet|project)\s+/,'').replace(/\s+\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?\s*(?:\[[^\]]*\])?$/,'').trim();
   function labelVariants(el){
     const out=[];
-    for(const raw of [el?.getAttribute?.('aria-label'),el?.getAttribute?.('title'),el?.textContent]){
-      let s=norm(raw);if(!s)continue;
-      s=s.replace(/^(?:ouvrir|open)\s+(?:le\s+)?(?:projet|project)\s+/,'').replace(/\s+\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?\s*(?:\[[^\]]*\])?$/,'').trim();
-      if(s)out.push(s);
-    }
+    for(const raw of [el?.getAttribute?.('aria-label'),el?.getAttribute?.('title'),el?.textContent]){const s=cleanVariant(raw);if(s)out.push(s);}
+    // ChatGPT Project rows often wrap the actual label next to an icon/SVG. Leaf spans are
+    // a safer exact-name signal than treating the whole row text (icon + label) as a name.
+    for(const leaf of el?.querySelectorAll?.('span')||[]){if(leaf.querySelector('span'))continue;const s=cleanVariant(leaf.textContent);if(s)out.push(s);}
     return [...new Set(out)];
   }
   function matchesManaged(el,names){
@@ -187,10 +186,16 @@
     const originalPeek=typeof bus.peek==='function'?bus.peek.bind(bus):null;
     const originalSubscribe=typeof bus.subscribe==='function'?bus.subscribe.bind(bus):null;
     try{
+      Object.defineProperties(bus,{
+        __ng107RawGet:{value:originalGet,configurable:true},
+        __ng107RawPeek:{value:originalPeek,configurable:true},
+        __ng107RawSubscribe:{value:originalSubscribe,configurable:true},
+        __ng107Sanitized:{value:true,configurable:true}
+      });
       if(originalGet)bus.get=async()=>cleanRead(await originalGet());
       if(originalPeek)bus.peek=()=>cleanRead(originalPeek());
       if(originalSubscribe)bus.subscribe=fn=>originalSubscribe(raw=>fn(cleanRead(raw)));
-      Object.defineProperty(bus,'__ng107Sanitized',{value:true,configurable:true});
+      if(bus.ready&&typeof bus.ready.then==='function')bus.ready=Promise.resolve(bus.ready).then(cleanRead);
     }catch{}
     return bus;
   }
@@ -198,7 +203,7 @@
     if(stopped||sanitizing)return;
     try{
       const bus=wrapCacheBus()||window.__NIAKGPT_CACHE_BUS__;
-      const raw=rawOverride!==undefined?rawOverride:(bus?.get?await bus.get():(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]);
+      const raw=rawOverride!==undefined?rawOverride:(bus?.__ng107RawGet?await bus.__ng107RawGet():bus?.get?await bus.get():(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]);
       const cleaned=cleanCache(raw);if(!cleaned)return;
       sanitizing=true;
       if(bus?.update)await bus.update(latest=>cleanCache(latest)||latest);
@@ -230,12 +235,13 @@
     try{cacheUnsub?.();}catch{}cacheUnsub=null;
   }
   function start(){
-    stopped=false;wrapCacheBus();bootstrap();
+    stopped=false;const bus=wrapCacheBus();bootstrap();
     // Normalise any DOM left by the previous unpacked-extension context synchronously,
     // before sidebar-host/app are injected next in the production sequence.
     normalizeChatMetadata();suppressNativeProjects();
-    const bus=window.__NIAKGPT_CACHE_BUS__;
-    if(bus?.subscribe&&!cacheUnsub)cacheUnsub=bus.subscribe(raw=>{sanitizeCache(raw);schedule(8);});
+    const rawSubscribe=bus?.__ng107RawSubscribe||null;
+    if(rawSubscribe&&!cacheUnsub)cacheUnsub=rawSubscribe(raw=>{sanitizeCache(raw);schedule(8);});
+    else if(bus?.subscribe&&!cacheUnsub)cacheUnsub=bus.subscribe(raw=>{sanitizeCache(raw);schedule(8);});
     sanitizeCache();schedule(0);
   }
 

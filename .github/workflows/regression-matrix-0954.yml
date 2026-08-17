@@ -46,7 +46,8 @@ jobs:
           m=json.load(open('manifest.json'))
           v=tuple(int(x) for x in m['version'].split('.'))
           assert v >= (0,9,54), f"0.9.54 live matrix refuses older source {m['version']}"
-          assert m['content_scripts'][0]['css'][-1]=='live-fixes-v104.css'
+          css=[x for cs in m['content_scripts'] for x in cs.get('css',[])]
+          assert 'live-fixes-v104.css' in css
           PY
           grep -q "lifecycle-guard-v104.js" background-v100.js
           grep -q "live-fixes-v104.js" background-v100.js

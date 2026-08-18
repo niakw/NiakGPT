@@ -9,7 +9,7 @@ const forbid=(s,t,m)=>{if(s.includes(t))fail(m||`forbidden ${t}`);};
 
 const main=['page-bridge.js'];
 const isolated=[
-  'onboarding-v101.js','profiles-v100.js','control-center-v090.js','cache-bus-v096.js','diagnostic-bus-v096.js',
+  'onboarding-v101.js','profiles-v100.js','control-center-v090.js','control-a11y-v110.js','cache-bus-v096.js','diagnostic-bus-v096.js',
   'cache-guardian-v100.js','recovery-v100.js','server-index-v100.js','commands-v100.js','browser-compat-v102.js',
   'lifecycle-guard-v104.js','multitab-v090.js','governance-adapter-v105.js','project-governance-v090.js',
   'governance-queue-v101.js','reclassify-v101.js','locale-fr-v101.js','project-pins-v090.js','sidebar-authority-v107.js',
@@ -51,7 +51,7 @@ for(const token of ['await waitLoad()','await waitForChatShell()','await sleep(2
 forbid(gate,'document.documentElement.dataset','pre-hydration html mutation');
 
 const authority=read('sidebar-projects-authority-v110.js');
-for(const token of ['ownProjectsPresent','sectionToken','rootObserver','ng109-native-projects-authoritative','FALLBACK · bloc NiakGPT absent'])need(authority,token,`0.9.60 Projects authority missing ${token}`);
+for(const token of ['ownProjectsPresent','sectionToken','genericChatCount','unrelatedNavCount','safeSection','relevantRootMutation','rootObserver','ng109-native-projects-authoritative','FALLBACK · bloc NiakGPT absent'])need(authority,token,`0.9.60 Projects authority missing ${token}`);
 forbid(authority,'setInterval(','0.9.60 Projects authority polling reintroduced');
 forbid(authority,'window.fetch =','0.9.60 Projects authority must not hook fetch');
 
@@ -63,6 +63,10 @@ forbid(folders,'window.fetch =','0.9.60 Project folders must not hook fetch');
 const outCache=read('continuity-out-cache-v110.js');
 for(const token of ['out:true','outUpdatedAt','projectChats','bus?.get&&bus?.update'])need(outCache,token,`0.9.60 OUT cache missing ${token}`);
 forbid(outCache,'setInterval(','0.9.60 OUT cache polling reintroduced');
+
+const controlA11y=read('control-a11y-v110.js');
+for(const token of ["setAttribute('role','switch')","setAttribute('aria-checked'","Activer le Safe Mode",'niakgpt:settings-changed'])need(controlA11y,token,`Control Center a11y missing ${token}`);
+forbid(controlA11y,'setInterval(','Control Center a11y polling reintroduced');
 
 const selfheal=read('project-state-selfheal-v102.js');
 for(const token of ['repairGovernance','mergeNativeCanonical','renderFallback','niakgpt:force-server-index'])need(selfheal,token,`Project self-heal missing ${token}`);

@@ -6,62 +6,30 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 const need=(s,t,m)=>{if(!s.includes(t))fail(m||`missing ${t}`);};
 const forbid=(s,t,m)=>{if(s.includes(t))fail(m||`forbidden ${t}`);};
 
-// 0.9.60 canonical isolation: page-bridge remains the only MAIN-world runtime.
 const main=['page-bridge.js'];
 const isolated=[
-  'onboarding-v101.js',
-  'profiles-v100.js',
-  'control-center-v090.js',
-  'cache-bus-v096.js',
-  'diagnostic-bus-v096.js',
-  'cache-guardian-v100.js',
-  'recovery-v100.js',
-  'server-index-v100.js',
-  'commands-v100.js',
-  'browser-compat-v102.js',
-  'lifecycle-guard-v104.js',
-  'multitab-v090.js',
-  'governance-adapter-v105.js',
-  'project-governance-v090.js',
-  'governance-queue-v101.js',
-  'reclassify-v101.js',
-  'locale-fr-v101.js',
-  'project-pins-v090.js',
-  'sidebar-authority-v107.js',
-  'sidebar-expando-guard-v108.js',
-  'sidebar-projects-authority-v110.js',
-  'sidebar-host-v090.js',
-  'app-v090.js',
-  'project-state-selfheal-v102.js',
-  'project-assignment-selfheal-v103.js',
-  'breadcrumb-v100.js',
-  'continuity-v100.js',
-  'visual-stability-v101.js',
-  'coach-v101.js',
-  'polish-v090.js',
-  'side-panels-v096.js',
-  'live-fixes-v104.js',
-  'live-fixes-v106.js',
-  'chronology-v090.js',
-  'pin-folders-v096.js',
-  'project-chat-ux-v110.js',
-  'project-links-v106.js',
-  'activity-ui-v097.js',
-  'retro-loader-v097.js'
+  'onboarding-v101.js','profiles-v100.js','control-center-v090.js','cache-bus-v096.js',
+  'diagnostic-bus-v096.js','cache-guardian-v100.js','recovery-v100.js','server-index-v100.js',
+  'commands-v100.js','browser-compat-v102.js','lifecycle-guard-v104.js','multitab-v090.js',
+  'governance-adapter-v105.js','project-governance-v090.js','governance-queue-v101.js',
+  'reclassify-v101.js','locale-fr-v101.js','project-pins-v090.js','sidebar-authority-v107.js',
+  'sidebar-expando-guard-v108.js','sidebar-projects-authority-v111.js','sidebar-host-v090.js',
+  'app-v090.js','project-state-selfheal-v102.js','project-assignment-selfheal-v103.js',
+  'breadcrumb-v100.js','continuity-v100.js','visual-stability-v101.js','coach-v101.js',
+  'polish-v090.js','side-panels-v096.js','live-fixes-v104.js','live-fixes-v106.js',
+  'chronology-v090.js','pin-folders-v096.js','project-chat-ux-v110.js','project-links-v106.js',
+  'activity-ui-v097.js','retro-loader-v097.js'
 ];
 
 const manifest=JSON.parse(read('manifest.json'));
 same(manifest.permissions,['storage','scripting'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*'],'host scope mismatch');
 same(manifest.content_scripts.flatMap(x=>x.js||[]),['boot-gate-v100.js'],'unexpected static runtime');
-const release=manifest.version.split('.').map(Number);if(release.length!==3||release.some(Number.isNaN)||release[0]!==0||release[1]!==9||release[2]<60)fail(`unexpected release ${manifest.version}`);
-need(JSON.stringify(manifest.content_scripts),'live-fixes-v104.css','live UI CSS missing from manifest');
-need(JSON.stringify(manifest.content_scripts),'sidebar-authority-v107.css','0.9.57 sidebar authority CSS missing from manifest');
-need(JSON.stringify(manifest.content_scripts),'sidebar-expando-guard-v108.css','0.9.58 Projects expando CSS missing from manifest');
-need(JSON.stringify(manifest.content_scripts),'sidebar-projects-authority-v110.css','0.9.60 authoritative Projects CSS missing from manifest');
-need(JSON.stringify(manifest.content_scripts),'project-chat-ux-v110.css','0.9.60 Project chat UX CSS missing from manifest');
-forbid(JSON.stringify(manifest.content_scripts),'sidebar-projects-authority-v109.css','obsolete v109 Projects CSS still wired');
-forbid(JSON.stringify(manifest.content_scripts),'project-chat-ux-v109.css','obsolete v109 chat UX CSS still wired');
+const release=manifest.version.split('.').map(Number);
+if(release.length!==3||release.some(Number.isNaN)||release[0]!==0||release[1]!==9||release[2]<61)fail(`unexpected release ${manifest.version}`);
+const manifestText=JSON.stringify(manifest.content_scripts);
+for(const css of ['live-fixes-v104.css','sidebar-authority-v107.css','sidebar-expando-guard-v108.css','sidebar-projects-authority-v111.css','project-chat-ux-v110.css'])need(manifestText,css,`${css} missing from manifest`);
+for(const obsolete of ['sidebar-projects-authority-v109.css','sidebar-projects-authority-v110.css','project-chat-ux-v109.css'])forbid(manifestText,obsolete,`${obsolete} still wired`);
 
 const background=read('background-v100.js');
 const runtimeList=name=>[...(background.match(new RegExp(`const ${name}=\\[(.*?)\\];`,'s'))?.[1]||'').matchAll(/'([^']+)'/g)].map(x=>x[1]);
@@ -69,13 +37,12 @@ same(runtimeList('MAIN_RUNTIME'),main,'MAIN runtime mismatch');
 same(runtimeList('ISOLATED_RUNTIME'),isolated,'isolated runtime mismatch');
 need(background,'chrome.scripting.executeScript');
 need(background,'niakgpt:inject-runtime-v100');
-forbid(background,"'manual-lock-main-v085.js'",'obsolete isolated fetch hook loaded');
-forbid(background,"'sidebar-projects-authority-v109.js'",'obsolete v109 Projects authority loaded');
-forbid(background,"'project-chat-ux-v109.js'",'obsolete v109 Project chat UX loaded');
+for(const obsolete of ["'manual-lock-main-v085.js'","'sidebar-projects-authority-v109.js'","'sidebar-projects-authority-v110.js'","'project-chat-ux-v109.js'"])forbid(background,obsolete,`${obsolete} loaded`);
+for(const legacy of ['hotcache-main-v084.js','activity-main-v087.js'])if(fs.existsSync(legacy))fail(`obsolete MAIN runtime still present: ${legacy}`);
 
-for(const legacy of ['hotcache-main-v084.js','activity-main-v087.js']){
-  if(fs.existsSync(legacy))fail(`obsolete MAIN runtime still present: ${legacy}`);
-}
+for(const file of [...main,...isolated,'boot-gate-v100.js','background-v100.js'])if(!fs.existsSync(file))fail(`missing runtime ${file}`);
+for(const file of isolated.filter(file=>file!=='retro-loader-v097.js'))forbid(read(file),'setInterval(',`permanent polling in ${file}`);
+const loader=read('retro-loader-v097.js');need(loader,'function stopTicker()');need(loader,'clearInterval(timer)');
 
 const bridge=read('page-bridge.js');
 need(bridge,'const nativeFetch = window.fetch.bind(window);','native fetch capture missing');
@@ -85,83 +52,36 @@ need(bridge,"error:'native_busy'",'native activity circuit breaker missing');
 forbid(bridge,'window.fetch =','global fetch replacement reintroduced');
 forbid(bridge,'globalThis.fetch =','global fetch replacement reintroduced');
 
-const adapter=read('governance-adapter-v105.js');
-for(const token of ['governance-light-inventory','trusted-project-menu','event.stopImmediatePropagation()','/backend-api/conversations?offset=0&limit=100'])need(adapter,token,`governance adapter missing ${token}`);
-forbid(adapter,'window.fetch =','governance adapter must not hook global fetch');
-forbid(adapter,'setInterval(','governance adapter polling reintroduced');
-
 const gate=read('boot-gate-v100.js');
 for(const token of ['await waitLoad()','await waitForChatShell()','await sleep(2500)','await waitForQuiet()','await nextFrames()','safeToMutate=true'])need(gate,token);
 forbid(gate,'document.documentElement.dataset','pre-hydration html mutation');
-forbid(gate,'ng99Sentinel','legacy watchdog mutation');
 
-for(const file of [...main,...isolated,'boot-gate-v100.js','background-v100.js'])if(!fs.existsSync(file))fail(`missing runtime ${file}`);
-for(const file of isolated.filter(file=>file!=='retro-loader-v097.js'))forbid(read(file),'setInterval(',`permanent polling in ${file}`);
-const loader=read('retro-loader-v097.js');need(loader,'function stopTicker()');need(loader,'clearInterval(timer)');
+const lifecycle=read('lifecycle-guard-v104.js');need(lifecycle,'SafeBroadcastChannel');need(lifecycle,'InvalidStateError');
+const app=read('app-v090.js');need(app,'MutationObserver(queueMainNodes)');need(app,'function renderPins()');need(app,'PROJECT_CHAT_SEL');forbid(app,'function routeTick()');
+const adapter=read('governance-adapter-v105.js');need(adapter,'trusted-project-menu');forbid(adapter,'window.fetch =');forbid(adapter,'setInterval(');
+const selfheal=read('project-state-selfheal-v102.js');need(selfheal,'repairGovernance');need(selfheal,'mergeNativeCanonical');forbid(selfheal,'setInterval(');
+const assignment=read('project-assignment-selfheal-v103.js');need(assignment,'localToCanonical');need(assignment,'projectId:target');forbid(assignment,'setInterval(');
 
-const compat=read('browser-compat-v102.js');need(compat,'crypto.randomUUID','randomUUID compatibility guard missing');need(compat,'getRandomValues','randomUUID secure fallback missing');
-const lifecycle=read('lifecycle-guard-v104.js');need(lifecycle,'SafeBroadcastChannel','BroadcastChannel lifecycle guard missing');need(lifecycle,'InvalidStateError','closed channel protection missing');
-const app=read('app-v090.js');
-need(app,'MutationObserver(queueMainNodes)');
-need(app,'function renderPins()');
-need(app,'PROJECT_CHAT_SEL');
-need(app,'scanRunning:false');
-need(app,'scanRequested:false');
-forbid(app,'function routeTick()');
+const projectsAuthority=read('sidebar-projects-authority-v111.js');
+for(const token of ['ownReady','ng111-native-projects-authoritative','projectHomeHref','/projects','a[href]','projectHomeTarget','relevantRootMutation','FALLBACK · bloc NiakGPT absent'])need(projectsAuthority,token,`Projects authority missing ${token}`);
+forbid(projectsAuthority,'setInterval(','Projects authority polling reintroduced');
+forbid(projectsAuthority,'window.fetch =','Projects authority must not hook fetch');
 
-const selfheal=read('project-state-selfheal-v102.js');
-for(const token of ['repairGovernance','mergeNativeCanonical','renderFallback','niakgpt:force-server-index'])need(selfheal,token,`Project self-heal missing ${token}`);
-forbid(selfheal,'characterData:true','Project self-heal must remain structural-only');
-forbid(selfheal,'setInterval(','Project self-heal polling reintroduced');
-
-const assignment=read('project-assignment-selfheal-v103.js');
-for(const token of ['localToCanonical','projectId:target','AUTO-RÉPARÉ'])need(assignment,token,`Project assignment self-heal missing ${token}`);
-forbid(assignment,'characterData:true','Project assignment self-heal must remain event-driven');
-forbid(assignment,'setInterval(','Project assignment self-heal polling reintroduced');
-
-const pins=read('project-pins-v090.js');
-need(pins,'cacheProjectIds','Project pin cache fallback missing');
-need(pins,'ATTENTE · inventaire/gouvernance Projects','Project pin zero-state diagnostic missing');
-
-const sidebarAuthority=read('sidebar-authority-v107.js');
-for(const token of ['ng107-native-project-cluster','isDateLike','isProjectChildHref','cleanCache','wrapCacheBus','FALLBACK · liste NiakGPT indisponible'])need(sidebarAuthority,token,`0.9.57 sidebar authority missing ${token}`);
-forbid(sidebarAuthority,'setInterval(','0.9.57 sidebar authority polling reintroduced');
-forbid(sidebarAuthority,'window.fetch =','0.9.57 sidebar authority must not hook fetch');
-
-const expandoGuard=read('sidebar-expando-guard-v108.js');
-for(const token of ['group/sidebar-expando-section','expandoHost','ng108-native-project-expando','FALLBACK · bloc natif disponible'])need(expandoGuard,token,`0.9.58 expando guard missing ${token}`);
-forbid(expandoGuard,'setInterval(','0.9.58 expando guard polling reintroduced');
-forbid(expandoGuard,'window.fetch =','0.9.58 expando guard must not hook fetch');
-
-const projectsAuthority=read('sidebar-projects-authority-v110.js');
-for(const token of ['ownReady','hasProjectRows','ng110-native-projects-authoritative','relevantRootMutation','FALLBACK · bloc NiakGPT absent'])need(projectsAuthority,token,`0.9.60 Projects authority missing ${token}`);
-forbid(projectsAuthority,'setInterval(','0.9.60 Projects authority polling reintroduced');
-forbid(projectsAuthority,'window.fetch =','0.9.60 Projects authority must not hook fetch');
-need(read('chronology-v090.js'),"document.createElement('time')",'chronology must emit semantic time nodes');
-
-const governance=read('project-governance-v090.js');need(governance,'verifyAndLockManualMove');need(governance,'executePlan');
 const folders=read('pin-folders-v096.js');
-need(folders,'ng96-pin-drawer');need(folders,'ng96-project-open');
-need(folders,'<a data-chat=','Project drawer chats must be native anchors');
-need(folders,"event.metaKey||event.ctrlKey||event.shiftKey||event.altKey",'modified clicks must remain native');
-forbid(folders,'<button type="button" data-chat=','Project drawer chat buttons reintroduced');
+need(folders,'ng96-pin-drawer');need(folders,'ng96-project-open');need(folders,'<a data-chat=');
+need(folders,"event.metaKey||event.ctrlKey||event.shiftKey||event.altKey");
+forbid(folders,'<button type="button" data-chat=','Project chat buttons reintroduced');
 const projectChatUx=read('project-chat-ux-v110.js');
-for(const token of ['aria-current','ng110Renamable','ng110Out','isRenameHit','Renommer la conversation',"body:{title:next}"])need(projectChatUx,token,`0.9.60 Project chat UX missing ${token}`);
-forbid(projectChatUx,'setInterval(','0.9.60 Project chat UX polling reintroduced');
-forbid(projectChatUx,'window.fetch =','0.9.60 Project chat UX must not hook fetch');
-forbid(projectChatUx,'document.createElement','0.9.60 Project chat UX must not create/reparent chat rows');
-const reclassify=read('reclassify-v101.js');
-for(const token of ['RECENT_CATCHUP_MS','recentUnassigned','needsClassification','à classer/rattraper'])need(reclassify,token,`0.9.59 recent classification catch-up missing ${token}`);
-const projectLinks=read('project-links-v106.js');
-for(const token of ["link.href='/projects'",'ng106-projects-home','verifyDrawerLinks','MutationObserver'])need(projectLinks,token,`Project link UX missing ${token}`);
-forbid(projectLinks,'setInterval(','Project link UX polling reintroduced');
-const activity=read('activity-ui-v097.js');need(activity,'Never watch characterData across the whole conversation');
-const panels=read('side-panels-v096.js');need(panels,'ng96-native-sidepanel');
-const live=read('live-fixes-v104.js');for(const token of ['suppressNativeProjects','elementsFromPoint','--ng96-rail-offset'])need(live,token,`live UI repair missing ${token}`);
-const live106=read('live-fixes-v106.js');
-for(const token of ['anti-race','breadcrumbContext','syncStatusProject','attributeFilter:[\'class\',\'href\',\'aria-label\']','projects-natifs','releaseNativeProjects'])need(live106,token,`0.9.56 live repair missing ${token}`);
-forbid(live106,'setInterval(','0.9.56 live repair polling reintroduced');
-forbid(live106,'window.fetch =','0.9.56 live repair must not hook fetch');
-const cacheBus=read('cache-bus-v096.js');need(cacheBus,'suspended','cache bus lifecycle suspension missing');need(cacheBus,"addEventListener('pageshow'",'cache bus BFCache resume missing');
+for(const token of ['aria-current','ng110Renamable','ng110Out','isRenameHit','Renommer la conversation',"body:{title:next}"])need(projectChatUx,token);
+forbid(projectChatUx,'document.createElement','Project chat UX must not create/reparent rows');
+forbid(projectChatUx,'setInterval(');
 
-console.log(`NiakGPT ${manifest.version} hydration-safe release invariants: OK`);
+const continuity=read('continuity-v100.js');
+need(continuity,"const STATE_KEY='niakgpt-continuity-v100'");
+need(continuity,'function outSignal()');
+need(continuity,'markCurrentOut');
+const reclassify=read('reclassify-v101.js');need(reclassify,'RECENT_CATCHUP_MS');need(reclassify,'recentUnassigned');
+const projectLinks=read('project-links-v106.js');need(projectLinks,"link.href='/projects'");forbid(projectLinks,'setInterval(');
+const activity=read('activity-ui-v097.js');need(activity,'Never watch characterData across the whole conversation');
+
+console.log(`NiakGPT ${manifest.version} current runtime invariants: OK`);

@@ -10,9 +10,21 @@ on:
       - 'labs/**'
       - '.github/workflows/current-finalization.yml'
   workflow_dispatch:
+    inputs:
+      profile:
+        description: Lab profile to reuse for extension runtime checks
+        required: false
+        default: runtime-cold-v116
+        type: choice
+        options:
+          - runtime-cold-v116
+          - runtime-warm-v116
 
 permissions:
   contents: read
+
+env:
+  PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.cache/ms-playwright
 
 concurrency:
   group: niakgpt-current-finalization-${{ github.ref }}
@@ -56,6 +68,13 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: visual-lab/package-lock.json
+      - name: Restore Playwright browser cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ matrix.browser }}-1.62.1-${{ hashFiles('visual-lab/package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-${{ matrix.browser }}-1.62.1-
       - name: Install lab dependencies
         working-directory: visual-lab
         run: npm ci --no-audit --no-fund
@@ -103,6 +122,13 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: visual-lab/package-lock.json
+      - name: Restore Playwright Chromium cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/ms-playwright
+          key: playwright-${{ runner.os }}-chromium-1.62.1-${{ hashFiles('visual-lab/package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-chromium-1.62.1-
       - name: Install lab dependencies
         working-directory: visual-lab
         run: npm ci --no-audit --no-fund
@@ -124,6 +150,7 @@ jobs:
         working-directory: visual-lab
         env:
           NIAKGPT_BROWSER_LABEL: chromium
+          NIAKGPT_PROFILE: ${{ inputs.profile || 'runtime-cold-v116' }}
         run: npx playwright test tests/sidebar-runtime-v116.spec.js --workers=1 --reporter=line
       - name: Upload real-runtime evidence
         if: always()
@@ -148,6 +175,15 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: visual-lab/package-lock.json
+      - name: Restore Homebrew Brave download cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/Homebrew/downloads
+            ~/Library/Caches/Homebrew/api
+          key: homebrew-brave-${{ runner.os }}-${{ runner.arch }}-stable-v1
+          restore-keys: |
+            homebrew-brave-${{ runner.os }}-${{ runner.arch }}-
       - name: Install lab dependencies
         working-directory: visual-lab
         run: npm ci --no-audit --no-fund
@@ -164,6 +200,7 @@ jobs:
           NIAKGPT_BROWSER_LABEL: brave-stable-macos
           NIAKGPT_EXECUTABLE_PATH: /Applications/Brave Browser.app/Contents/MacOS/Brave Browser
           NIAKGPT_HEADLESS: '0'
+          NIAKGPT_PROFILE: ${{ inputs.profile || 'runtime-cold-v116' }}
         run: npx playwright test tests/sidebar-runtime-v116.spec.js --workers=1 --reporter=line
       - name: Upload Brave evidence
         if: always()
@@ -192,6 +229,13 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: visual-lab/package-lock.json
+      - name: Restore Playwright browser cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ matrix.browser }}-1.62.1-${{ hashFiles('visual-lab/package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-${{ matrix.browser }}-1.62.1-
       - name: Install lab dependencies
         working-directory: visual-lab
         run: npm ci --no-audit --no-fund
@@ -260,6 +304,8 @@ jobs:
       - name: Runtime and multi-tab diagnostics
         if: matrix.browser == 'chromium'
         working-directory: visual-lab
+        env:
+          NIAKGPT_PROFILE: runtime-cold-v116
         run: npx playwright test tests/runtime-current-v105.spec.js tests/multitab-failover-v097.spec.js tests/sidebar-runtime-v116.spec.js --workers=1 --reporter=line
       - name: Upload browser evidence
         if: always()

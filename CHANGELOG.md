@@ -1,3 +1,18 @@
+# NiakGPT 0.9.62 — Finalisation sidebar, continuité, classement et performances
+
+- Le bloc Projects NiakGPT devient réellement autoritaire : détection du doublon natif par structure **et par identité des noms de Projects**, sans dépendre uniquement des classes ou des `href` ChatGPT ; Récents reste intact et le natif revient seulement si `#ng8-pins` disparaît.
+- Ajout du renommage Project/conversation depuis le bloc NiakGPT ; le Project ouvre l’action **Renommer** du menu natif via une mise en scène hors écran du bloc natif masqué, tandis que les conversations conservent un fallback `PATCH {title}` ciblé.
+- Continuité OUT renforcée : capsule commençant par `Reprends la conversation nommée « Project > chat »`, historique local et contexte Project, rattachement du nouveau chat au **Project exact** puis lock `continuity-exact`; les nouveaux chats normaux gardent le recommender habituel.
+- Nouveau rattrapage profond strictement borné pour les chats ambigus/orphelins : titre/snippet d’abord, premier message ensuite, messages suivants uniquement si nécessaire ; 2 chats max/cycle, 1 sur gros fil, 10 messages/14k caractères max, cadence réseau minimale et suspension pendant génération/429.
+- Les chats associés à un Project inexistant sont soit reclassés avec confiance, soit détachés du fantôme au lieu de rester dans un état invalide.
+- Gros fils : garde 0.9.62 à 70 tours, historique froid avec queue chaude limitée à 44 tours, `content-visibility`/containment, Matrix coupée pendant génération lourde et éléments décoratifs désactivés ; aucun retour de l’ancien intercepteur global hotcache.
+- Cache : validation transactionnelle avec 120 conversations et deux mises à jour sérialisées sans perte d’historique ; `cache-bus-v096.js` reste le propriétaire local des écritures séquentielles.
+- Entêtes : `TOI / CHATGPT` redevient systématique sur les tours récents ; date/heure fiable `JJ/MM/AA · HH:mm` depuis le DOM natif ou l’envoi courant, sans heure inventée au reload ; le module répare aussi les écrasements tardifs d’un autre décorateur.
+- Accueil : correctif mesuré du chevauchement `Par quoi commençons-nous ?` / composer, activé uniquement si les rectangles se recouvrent réellement.
+- Matrix : gardien du canvas avec fallback léger, sans prise de contrôle de la géométrie des enfants de `main`, et respect de `prefers-reduced-motion`.
+- DA : harmonisation des icônes/SVG natifs ChatGPT (couleurs, hover/focus, surfaces) sans remplacer les SVG ni leur logique.
+- QA : nouveau gate 0.9.62 avec HTML rendu, analyse DOM JSON et screenshots sur Chromium / Firefox / WebKit ; scénarios dédiés au doublon Projects, renommage natif, accueil, Matrix, gros fil, cache long, DA native, cas `TV job...` et continuité Project exacte.
+
 # NiakGPT 0.9.52 — Sidebar, native panels & long-thread stabilization
 
 - Unifies the left sidebar around the NiakGPT coloured Projects block and suppresses native Project rows, open-project child conversations and their local “Show more” controls without hiding Recents.
@@ -88,7 +103,6 @@ Les changements notables de NiakGPT sont regroupés ici. Le projet est encore en
 - fil d’Ariane basé en priorité sur l’affectation serveur/cache du chat courant et nettoyage des libellés `Ouvrir le projet …` ;
 - revalidation Chromium des pins, dates, Activité/Sources/Sorties, gros fils, viewer, onboarding, français/DA, cache stable et reclassement 54 chats.
 
-
 ## 0.9.38 — QA navigateur renforcée / panneaux natifs / accueil
 
 - ne modifie plus la géométrie ni le positionnement des enfants directs de `main`, afin de préserver l’accueil ChatGPT et son titre au-dessus du composer ;
@@ -117,9 +131,6 @@ Les changements notables de NiakGPT sont regroupés ici. Le projet est encore en
 - Panneaux Activité/Sources : NiakGPT ne transforme plus un wrapper arbitraire de titre en header flex.
 - Ajout d'une validation locale dans Chromium 144 réel : layout, gros fil + hydratation massive, pins auto-réparés, dates sans doublons, navigation Project, reclassement 11/54, Activité/Sources, panneau latéral et onboarding 1024×540.
 
-
-
-
 ## 0.9.35 — Sidebar, pins et file À classer
 
 - un seul propriétaire DOM pour les pins NiakGPT ; montage juste avant la section Récents lorsque disponible ;
@@ -137,7 +148,6 @@ Les changements notables de NiakGPT sont regroupés ici. Le projet est encore en
 - reclassement « À classer » protégé par verrou inter-onglets mais non bloqué artificiellement par le rôle CLIENT ;
 - fil d’Ariane : récupération du vrai nom du Project et du vrai titre du chat depuis le titre natif lorsque le cache est incomplet ;
 - conservation du marqueur d’index serveur lors des mises à jour DOM du cache.
-
 
 ## 0.9.33 — Correctif local consolidé / fil d’Ariane
 

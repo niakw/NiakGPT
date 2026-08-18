@@ -35,6 +35,7 @@ const ISOLATED_RUNTIME=[
   'project-assignment-selfheal-v103.js',
   'breadcrumb-v100.js',
   'continuity-v100.js',
+  'out-state-cache-v110.js',
   'visual-stability-v101.js',
   'coach-v101.js',
   'polish-v090.js',

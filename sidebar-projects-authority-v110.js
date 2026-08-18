@@ -5,6 +5,7 @@
 
   const OWN='#ng8-pins,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb';
   const HIDE='ng109-native-projects-authoritative';
+  const SIDEBAR_SEL='[data-testid="conversation-sidebar"],[data-testid="sidebar"],nav';
   let navNode=null,observer=null,rootObserver=null,bootstrapObserver=null,timer=0,stopped=false;
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
@@ -20,15 +21,25 @@
     (el.matches?.('a[href*="/g/g-p-"][href*="/project"]')??false)||
     (el.matches?.('[data-testid*="project" i],[aria-label*="project" i],[aria-label*="projet" i]')??false)
   );
+  const isProjectChatHref=h=>/\/g\/g-p-[^/]+\/c\//i.test(String(h||''));
+  const genericChatCount=host=>[...(host?.querySelectorAll?.('a[href*="/c/"]')||[])].filter(a=>outsideOwn(a)&&!isProjectChatHref(a.getAttribute('href'))).length;
+  const unrelatedNavCount=host=>[...(host?.querySelectorAll?.('a[href],button')||[])].filter(el=>{
+    if(!outsideOwn(el))return false;
+    const href=String(el.getAttribute?.('href')||'');
+    if(/^\/(?:library|tasks|plugins)(?:[/?#]|$)/i.test(href))return true;
+    const t=norm(el.textContent||el.getAttribute?.('aria-label'));
+    return /^(nouveau chat|new chat|bibliotheque|library|planification|tasks|plugins|plus|more)$/.test(t);
+  }).length;
+  const safeSection=section=>!!section&&genericChatCount(section)===0&&unrelatedNavCount(section)===0;
 
   function sectionFrom(node,nav){
     let cur=node;
     for(let depth=0;depth<12&&cur&&cur!==nav;depth++,cur=cur.parentElement){
-      if(sectionToken(cur))return cur;
+      if(sectionToken(cur)&&safeSection(cur))return cur;
     }
     cur=node;
     for(let depth=0;depth<9&&cur&&cur!==nav;depth++,cur=cur.parentElement){
-      if(cur.contains(ownProjects()))continue;
+      if(cur.contains(ownProjects())||!safeSection(cur))continue;
       const seeds=[...cur.querySelectorAll?.('[class*="project-unfurl-row"],a[href*="/g/g-p-"][href*="/project"],[data-testid*="project" i]')||[]].filter(outsideOwn);
       const labels=[...cur.querySelectorAll?.('h1,h2,h3,[role="heading"],button')||[]].filter(isProjectsLabel);
       if(seeds.length&&labels.length)return cur;
@@ -68,9 +79,18 @@
     observer.observe(nav,{childList:true,subtree:true,attributes:true,attributeFilter:['class','hidden','aria-expanded','data-testid']});
     return true;
   }
+  function relevantRootMutation(records){
+    for(const record of records){
+      for(const node of [...record.addedNodes,...record.removedNodes]){
+        if(!(node instanceof Element))continue;
+        if(node.matches?.(SIDEBAR_SEL)||node.querySelector?.(SIDEBAR_SEL))return true;
+      }
+    }
+    return false;
+  }
   function bindRoot(){
     rootObserver?.disconnect();
-    rootObserver=new MutationObserver(()=>{const nav=navRoot();if(nav!==navNode||!navNode?.isConnected)schedule(0);});
+    rootObserver=new MutationObserver(records=>{if(!relevantRootMutation(records))return;const nav=navRoot();if(nav!==navNode||!navNode?.isConnected)schedule(0);});
     rootObserver.observe(document.documentElement,{childList:true,subtree:true});
   }
   function start(){

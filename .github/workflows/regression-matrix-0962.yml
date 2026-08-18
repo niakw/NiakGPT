@@ -1,0 +1,84 @@
+name: NiakGPT 0.9.62 Single Projects + Home Layout Matrix
+
+on:
+  push:
+    branches: [main, fix/0962-single-projects-home-layout]
+    paths:
+      - 'sidebar-projects-authority-v112.js'
+      - 'sidebar-projects-authority-v112.css'
+      - 'home-layout-v112.js'
+      - 'home-layout-v112.css'
+      - 'background-v100.js'
+      - 'manifest.json'
+      - 'labs/regression_0962.py'
+      - '.github/workflows/regression-matrix-0962.yml'
+  pull_request:
+    paths:
+      - 'sidebar-projects-authority-v112.js'
+      - 'sidebar-projects-authority-v112.css'
+      - 'home-layout-v112.js'
+      - 'home-layout-v112.css'
+      - 'background-v100.js'
+      - 'manifest.json'
+      - 'labs/regression_0962.py'
+      - '.github/workflows/regression-matrix-0962.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: niakgpt-0962-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    name: 0.9.62 single Projects/home · ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify 0.9.62 wiring
+        run: |
+          python - <<'PY'
+          import json,re
+          m=json.load(open('manifest.json'))
+          assert m['version']=='0.9.62',m['version']
+          css=[x for cs in m['content_scripts'] for x in cs.get('css',[])]
+          assert 'sidebar-projects-authority-v112.css' in css
+          assert 'home-layout-v112.css' in css
+          for old in ['sidebar-authority-v107.css','sidebar-expando-guard-v108.css','sidebar-projects-authority-v111.css']:
+              assert old not in css,old
+          text=open('background-v100.js').read()
+          block=re.search(r'const ISOLATED_RUNTIME=\[(.*?)\];',text,re.S).group(1)
+          for required in ['sidebar-projects-authority-v112.js','home-layout-v112.js']:
+              assert required in block,required
+          for old in ['project-pins-v090.js','sidebar-authority-v107.js','sidebar-expando-guard-v108.js','sidebar-projects-authority-v111.js']:
+              assert old not in block,old
+          PY
+          grep -q "managedNames" sidebar-projects-authority-v112.js
+          grep -q "ng112-home-composer-shift" home-layout-v112.js
+          grep -q "Par quoi commençons-nous" labs/regression_0962.py
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install playwright==1.57.0
+          python -m playwright install --with-deps ${{ matrix.browser }}
+      - name: Run 0.9.62 regression
+        run: python labs/regression_0962.py --browser ${{ matrix.browser }}
+      - name: Upload 0.9.62 visual proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: niakgpt-0962-${{ matrix.browser }}
+          path: |
+            artifacts/0962-sidebar-${{ matrix.browser }}.png
+            artifacts/0962-home-${{ matrix.browser }}.png
+          if-no-files-found: warn
+          retention-days: 30

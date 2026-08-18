@@ -7,7 +7,7 @@ on:
         description: Historical regression suite to run
         required: true
         type: choice
-        default: '0.9.59'
+        default: '0.9.60'
         options:
           - '0.9.49'
           - '0.9.52'
@@ -18,6 +18,7 @@ on:
           - '0.9.57'
           - '0.9.58'
           - '0.9.59'
+          - '0.9.60'
           - 'bootstrap-isolation'
       browser:
         description: Browser engine
@@ -93,9 +94,7 @@ jobs:
               tar -xzf /tmp/niakgpt-0949.tgz -C /tmp/niakgpt-0949
               NIAKGPT_ROOT=/tmp/niakgpt-0949 python labs/browser_matrix_crossengine.py --browser "$BROWSER"
               ;;
-            '0.9.52')
-              python labs/visual_regression_0952.py --browser "$BROWSER"
-              ;;
+            '0.9.52') python labs/visual_regression_0952.py --browser "$BROWSER" ;;
             '0.9.53')
               python labs/regression_0953_v2.py --browser "$BROWSER"
               python labs/project_assignment_0953.py --browser "$BROWSER"
@@ -106,22 +105,15 @@ jobs:
               python labs/live_ui_regression_0954.py --browser "$BROWSER"
               python labs/lifecycle_regression_0954.py --browser "$BROWSER"
               ;;
-            '0.9.55')
-              python labs/governance_regression_0955.py --browser "$BROWSER"
-              ;;
-            '0.9.56')
-              python labs/live_regression_0956.py --browser "$BROWSER"
-              ;;
+            '0.9.55') python labs/governance_regression_0955.py --browser "$BROWSER" ;;
+            '0.9.56') python labs/live_regression_0956.py --browser "$BROWSER" ;;
             '0.9.57')
               python labs/live_regression_0957.py --browser "$BROWSER"
               python labs/sidebar_custom_gpt_0957.py --browser "$BROWSER"
               ;;
-            '0.9.58')
-              python labs/sidebar_expando_0958.py --browser "$BROWSER"
-              ;;
-            '0.9.59')
-              python labs/regression_0959.py --browser "$BROWSER"
-              ;;
+            '0.9.58') python labs/sidebar_expando_0958.py --browser "$BROWSER" ;;
+            '0.9.59') python labs/regression_0959.py --browser "$BROWSER" ;;
+            '0.9.60') python labs/regression_0960.py --browser "$BROWSER" ;;
           esac
 
       - name: Upload historical visual evidence

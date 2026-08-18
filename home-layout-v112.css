@@ -2,7 +2,7 @@
 body.ng8-ready main .ng112-home-heading-repaired{
   position:relative!important;
   z-index:3!important;
-  transform:translateY(calc(-1 * var(--ng112-home-lift,48px)))!important;
+  translate:0 calc(-1 * var(--ng112-home-lift,48px))!important;
   pointer-events:none!important;
 }
-@media(max-width:760px){body.ng8-ready main .ng112-home-heading-repaired{transform:translateY(calc(-1 * var(--ng112-home-lift,34px)))!important;}}
+@media(max-width:760px){body.ng8-ready main .ng112-home-heading-repaired{translate:0 calc(-1 * var(--ng112-home-lift,34px))!important;}}

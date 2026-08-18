@@ -82,7 +82,7 @@ need(continuity,"const STATE_KEY='niakgpt-continuity-v100'");need(continuity,'fu
 const continuity112=read('continuity-v112.js');for(const token of ['Reprends la conversation nommée','PROJECT EXACT À CONSERVER','exactProject:true','source:\'continuity-exact\''])need(continuity112,token);
 const deep=read('reclassify-deep-v112.js');for(const token of ['MAX_PER_RUN=2','MAX_HEAVY=1','analysisRpc','orphan','progressive'])need(deep,token);forbid(deep,'setInterval(');
 const analysis=read('analysis-bridge-v112.js');for(const token of ['MIN_GAP=1800','MAX_MESSAGES=10','MAX_TEXT=14000','analysis_paused_busy'])need(analysis,token);forbid(analysis,'setInterval(');
-const perf=read('performance-guard-v112.js');for(const token of ['HEAVY_AT=70','COLD_KEEP=44','requestIdleCallback','data-ng112-cold'])need(perf,token);forbid(perf,'setInterval(');
+const perf=read('performance-guard-v112.js');for(const token of ['HEAVY_AT=70','COLD_KEEP=44','requestIdleCallback','ng112Cold'])need(perf,token);forbid(perf,'setInterval(');
 const headers=read('turn-headers-v112.js');for(const token of ['data-message-timestamp','data-create-time','ng112TimeSource','pendingUserAt'])need(headers,token);forbid(headers,'setInterval(');
 const rename=read('native-rename-v112.js');for(const token of ['ng112-rename-staging','invokeNativeRename','fallbackChatRename','ng112-native-rename-project'])need(rename,token);forbid(rename,'setInterval(');
 const home=read('home-layout-v112.js');need(home,'ng112-home-heading-repaired');need(home,'getBoundingClientRect');forbid(home,'setInterval(');

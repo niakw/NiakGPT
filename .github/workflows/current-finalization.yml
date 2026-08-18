@@ -12,13 +12,33 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: niakgpt-current-finalization-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # BEGIN TEMP LIVE FIX
+  apply-live-fix:
+    if: github.event_name == 'pull_request' && github.head_ref == 'fix/codeql-live-ui-regressions'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Apply one-shot CodeQL and live UI patch
+        run: python .github/apply-live-fix.py
+      - name: Commit and push corrected branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Apply CodeQL and live UI regressions"
+          git push origin HEAD:${{ github.head_ref }}
+  # END TEMP LIVE FIX
   static-runtime:
     runs-on: ubuntu-latest
     timeout-minutes: 10

@@ -39,7 +39,10 @@ jobs:
       - name: Install visual lab
         run: npm ci --no-audit --no-fund
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        # ubuntu-latest already provides the browser system libraries. Re-running
+        # Playwright's full apt --with-deps bootstrap on every PR can consume the
+        # entire job timeout before a single browser assertion starts.
+        run: npx playwright install chromium
       - name: Run current visual and unpacked-extension assertions
         run: npm run test:current
       - name: Upload visual screenshots and report

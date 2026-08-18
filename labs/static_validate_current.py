@@ -9,7 +9,7 @@ def runtime(name):
     if not m:fail(f'missing {name}');return[]
     return re.findall(r"['\"]([^'\"]+\.js)['\"]",m.group(1))
 if manifest.get('manifest_version')!=3:fail('manifest_version != 3')
-if manifest.get('version')!='0.9.64':fail(f"version={manifest.get('version')}")
+if manifest.get('version')!='0.9.65':fail(f"version={manifest.get('version')}")
 if manifest.get('permissions')!=['storage','scripting']:fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*']:fail('host permissions drift')
 main=runtime('MAIN_RUNTIME');isolated=runtime('ISOLATED_RUNTIME')
@@ -50,6 +50,12 @@ bread=(ROOT/'breadcrumb-v113.js').read_text(encoding='utf-8')
 if '>Accueil<' not in bread or 'ng100-bc-current' not in bread:fail('canonical linked breadcrumb missing')
 att=(ROOT/'chat-attention-v113.js').read_text(encoding='utf-8')
 if 'data.ng113Unread' in att:pass
+projects=(ROOT/'sidebar-projects-authority-v112.js').read_text(encoding='utf-8')
+for token in ('sharesSidebarShell','managedIdentityCount','identityHosts','MutationObserver'):
+    if token not in projects:fail('sidebar split-root authority missing '+token)
+folders=(ROOT/'pin-folders-v096.js').read_text(encoding='utf-8')
+for token in ('drawerDirty','cooperativeNode','existing.previousElementSibling===entry'):
+    if token not in folders:fail('pin idle-stability guard missing '+token)
 if errors:
     print('STATIC_CURRENT_FAIL');[print('-',e) for e in errors];sys.exit(1)
 print(f"STATIC_CURRENT_PASS version={manifest['version']} runtime={len(main)+len(isolated)} refs={len(refs)}")

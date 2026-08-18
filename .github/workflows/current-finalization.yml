@@ -42,7 +42,7 @@ jobs:
   visual-dom-crossengine:
     name: current finalization · ${{ matrix.browser }}
     runs-on: ubuntu-latest
-    timeout-minutes: 28
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -59,7 +59,12 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Install ${{ matrix.browser }}
         working-directory: visual-lab
-        run: npx playwright install --with-deps ${{ matrix.browser }}
+        run: |
+          timeout 420s npx playwright install --with-deps ${{ matrix.browser }} || {
+            echo "First Playwright install attempt failed or timed out; retrying once"
+            sleep 8
+            timeout 420s npx playwright install --with-deps ${{ matrix.browser }}
+          }
       - name: Baseline finalization DOM and screenshots
         working-directory: visual-lab
         env:
@@ -80,6 +85,11 @@ jobs:
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node human-nav-stress-v114.mjs
+      - name: Real sidebar shape — split roots and idle action stability
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node sidebar-real-shape-v115.mjs
       - name: Live image viewer and native Projects regressions
         working-directory: visual-lab
         env:

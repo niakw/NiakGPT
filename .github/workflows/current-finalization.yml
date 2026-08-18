@@ -59,7 +59,12 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Install ${{ matrix.browser }}
         working-directory: visual-lab
-        run: npx playwright install --with-deps ${{ matrix.browser }}
+        run: |
+          timeout 420s npx playwright install --with-deps ${{ matrix.browser }} || {
+            echo "First Playwright install attempt failed or timed out; retrying once"
+            sleep 8
+            timeout 420s npx playwright install --with-deps ${{ matrix.browser }}
+          }
       - name: Baseline finalization DOM and screenshots
         working-directory: visual-lab
         env:

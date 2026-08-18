@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.65",
-  "description": "Workspace power-user local pour ChatGPT : sidebar Projects autoritaire, pins stables, actions natives, titres canoniques et gros fils optimisés.",
+  "version": "0.9.66",
+  "description": "Workspace power-user local pour ChatGPT : sidebar Projects passive, pins stables, actions natives, titres canoniques et gros fils optimisés.",
   "permissions": [
     "storage",
     "scripting"

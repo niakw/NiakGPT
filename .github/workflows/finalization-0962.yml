@@ -23,17 +23,7 @@ jobs:
       - name: Manifest and runtime syntax
         run: |
           node -e "const m=require('./manifest.json'); if(m.version!=='0.9.62') throw new Error('expected 0.9.62'); console.log(m.version)"
-          for f in \
-            background-v100.js \
-            sidebar-projects-authority-v112.js \
-            home-layout-v112.js \
-            native-rename-v112.js \
-            analysis-bridge-v112.js \
-            reclassify-deep-v112.js \
-            matrix-guardian-v112.js \
-            performance-guard-v112.js \
-            turn-headers-v112.js \
-            continuity-v112.js; do
+          for f in background-v100.js sidebar-projects-authority-v112.js home-layout-v112.js native-rename-v112.js analysis-bridge-v112.js reclassify-deep-v112.js matrix-guardian-v112.js performance-guard-v112.js turn-headers-v112.js continuity-v112.js; do
             node --check "$f"
           done
       - name: Current static validation
@@ -43,7 +33,7 @@ jobs:
 
   visual-dom-crossengine:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -60,10 +50,16 @@ jobs:
       - name: Current visual regression suite
         working-directory: visual-lab
         run: npm run test:current
-      - name: Finalization DOM + screenshots on 3 engines
+      - name: Finalization DOM and screenshots
         working-directory: visual-lab
         run: node crossengine-finalization-v112.mjs
-      - name: Upload HTML DOM analysis screenshots
+      - name: Progressive deep classification
+        working-directory: visual-lab
+        run: node deep-classification-v112.mjs
+      - name: Exact Project continuity
+        working-directory: visual-lab
+        run: node continuity-v112.mjs
+      - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:

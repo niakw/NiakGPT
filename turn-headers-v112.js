@@ -5,6 +5,7 @@
 
   const TURN='article[data-testid^="conversation-turn-"],[data-testid^="conversation-turn-"]';
   const LIVE_KEY='niakgpt-turn-live-times-v112';
+  const FULL_TIME=/^\d{2}\/\d{2}\/\d{2} · \d{2}:\d{2}$/;
   let main=null,observer=null,timer=0,pendingUserAt=0,pendingAssistantAt=0,route=location.pathname;
   const parseTime=v=>{if(typeof v==='number'&&Number.isFinite(v))return v>1e12?v:v*1000;if(typeof v==='string'){const n=Number(v);if(Number.isFinite(n))return n>1e12?n:n*1000;const d=Date.parse(v);return Number.isFinite(d)?d:0;}return 0;};
   const mid=turn=>String(turn?.getAttribute?.('data-message-id')||turn?.querySelector?.('[data-message-id]')?.getAttribute('data-message-id')||'');
@@ -20,24 +21,40 @@
   function decorate(turn,{allowLive=true}={}){
     if(!(turn instanceof HTMLElement)||!turn.isConnected)return;
     const r=role(turn);if(r!=='user'&&r!=='assistant')return;turn.dataset.ng8Role=r;
-    const id=mid(turn),exact=nativeAt(turn),stored=Number(liveMap()[id]||0);let at=exact||stored;
+    const id=mid(turn),exact=nativeAt(turn),elementStored=Number(turn.dataset.ng112At||0),sessionStored=Number(liveMap()[id]||0);let at=exact||elementStored||sessionStored;
     if(!at&&allowLive){
       if(r==='user'&&pendingUserAt){at=pendingUserAt;pendingUserAt=0;pendingAssistantAt=Date.now();}
       else if(r==='assistant'&&pendingAssistantAt){at=Date.now();pendingAssistantAt=0;}
       if(at&&id)writeLive(id,at);
     }
-    if(at){turn.dataset.ng8Time=label(at);turn.dataset.ng112TimeSource=exact?'native':'live';}
-    else if(turn.dataset.ng112TimeSource!=='native'&&turn.dataset.ng112TimeSource!=='live')delete turn.dataset.ng8Time;
+    if(at){turn.dataset.ng112At=String(at);turn.dataset.ng8Time=label(at);turn.dataset.ng112TimeSource=exact?'native':(elementStored||sessionStored?'cached-live':'live');}
+    else if(!/^(native|live|cached-live)$/.test(turn.dataset.ng112TimeSource||'')){delete turn.dataset.ng8Time;delete turn.dataset.ng112At;}
     turn.dataset.ng112Header='1';
   }
   function scanRecent(){
     timer=0;const root=document.querySelector('main');if(!root)return;const turns=[...root.querySelectorAll(TURN)],start=Math.max(0,turns.length-(document.documentElement.dataset.ng112LongThread==='1'?54:140));for(let i=start;i<turns.length;i++)decorate(turns[i],{allowLive:i>=turns.length-4});
-    window.__NIAKGPT_DIAGNOSTICS__?.set('entêtes','OK · TOI/CHATGPT · heure native prioritaire');
+    window.__NIAKGPT_DIAGNOSTICS__?.set('entêtes','OK · TOI/CHATGPT · date/heure fiable prioritaire');
   }
   function schedule(delay=80){clearTimeout(timer);timer=setTimeout(scanRecent,delay);}
   function composerTarget(target){return target instanceof Element&&!!target.closest('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]');}
   function markSend(){pendingUserAt=Date.now();pendingAssistantAt=0;}
-  function bind(){const root=document.querySelector('main');if(!root||root===main)return;observer?.disconnect();main=root;observer=new MutationObserver(records=>{let relevant=false;for(const r of records)for(const n of r.addedNodes){if(!(n instanceof Element))continue;if(n.matches?.(TURN)||n.querySelector?.(TURN)){relevant=true;break;}}if(relevant)schedule(60);});observer.observe(main,{childList:true,subtree:true});schedule(100);}
+  function bind(){
+    const root=document.querySelector('main');if(!root||root===main)return;observer?.disconnect();main=root;
+    observer=new MutationObserver(records=>{
+      let relevant=false;
+      for(const r of records){
+        if(r.type==='attributes'){
+          const turn=r.target instanceof Element?r.target.closest(TURN):null;
+          if(turn&&turn.dataset.ng112TimeSource&&!FULL_TIME.test(turn.dataset.ng8Time||'')){relevant=true;break;}
+          continue;
+        }
+        for(const n of r.addedNodes){if(!(n instanceof Element))continue;if(n.matches?.(TURN)||n.querySelector?.(TURN)){relevant=true;break;}}
+        if(relevant)break;
+      }
+      if(relevant)schedule(110);
+    });
+    observer.observe(main,{childList:true,subtree:true,attributes:true,attributeFilter:['data-ng8-time']});schedule(100);
+  }
   function routeCheck(){if(route!==location.pathname){route=location.pathname;pendingUserAt=0;pendingAssistantAt=0;}bind();schedule(120);}
   document.addEventListener('click',e=>{const b=e.target instanceof Element?e.target.closest('button'):null;if(!b)return;const label=`${b.getAttribute('aria-label')||''} ${b.getAttribute('data-testid')||''}`;if(/send|envoyer/i.test(label))markSend();},true);
   document.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.altKey&&!e.ctrlKey&&!e.metaKey&&!e.isComposing&&composerTarget(e.target))markSend();},true);

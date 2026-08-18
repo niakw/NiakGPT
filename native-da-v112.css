@@ -1,0 +1,34 @@
+/* NiakGPT 0.9.62 — native ChatGPT iconography, visually integrated without replacing native SVGs. */
+body.ng8-ready :is(header,nav,[data-testid*="sidebar" i],[data-type="unified-composer"],form:has(#prompt-textarea),form:has([data-testid="prompt-textarea"])) :is(button,a,[role="button"]):not(#ng8-pins *):not(#ng8-rail *):not(#ng8-panel *):not(#ng8-status *):not(#ng8-quick *){
+  --ng112-icon-fg:#a9bac9;
+  --ng112-icon-border:rgba(79,193,255,.16);
+}
+body.ng8-ready :is(header,nav,[data-testid*="sidebar" i],[data-type="unified-composer"],form:has(#prompt-textarea),form:has([data-testid="prompt-textarea"])) :is(button,a,[role="button"]):not(#ng8-pins *):not(#ng8-rail *):not(#ng8-panel *):not(#ng8-status *):not(#ng8-quick *) > svg{
+  color:var(--ng112-icon-fg)!important;
+  stroke:currentColor!important;
+  filter:drop-shadow(0 0 4px rgba(79,193,255,.045));
+  transition:color .12s ease,filter .12s ease,opacity .12s ease!important;
+}
+body.ng8-ready :is(header,nav,[data-testid*="sidebar" i],[data-type="unified-composer"],form:has(#prompt-textarea),form:has([data-testid="prompt-textarea"])) :is(button,a,[role="button"]):not(#ng8-pins *):not(#ng8-rail *):not(#ng8-panel *):not(#ng8-status *):not(#ng8-quick *):hover > svg,
+body.ng8-ready :is(header,nav,[data-testid*="sidebar" i],[data-type="unified-composer"],form:has(#prompt-textarea),form:has([data-testid="prompt-textarea"])) :is(button,a,[role="button"]):not(#ng8-pins *):not(#ng8-rail *):not(#ng8-panel *):not(#ng8-status *):not(#ng8-quick *):focus-visible > svg{
+  color:#dff4ff!important;
+  filter:drop-shadow(0 0 6px color-mix(in srgb,var(--ng8-current-project,#4fc1ff) 28%,transparent))!important;
+}
+body.ng8-ready :is(nav,[data-testid*="sidebar" i]) :is(button,a,[role="button"]):not(#ng8-pins *):not([data-ng8-chat="1"]):not([data-ng8-project="1"]){
+  border-radius:5px!important;
+}
+body.ng8-ready :is(nav,[data-testid*="sidebar" i]) :is(button,a,[role="button"]):not(#ng8-pins *):not([data-ng8-chat="1"]):not([data-ng8-project="1"]):hover{
+  background:linear-gradient(90deg,rgba(79,193,255,.065),rgba(78,201,176,.025))!important;
+}
+body.ng8-ready :is([data-type="unified-composer"],form:has(#prompt-textarea),form:has([data-testid="prompt-textarea"])) button:not([data-testid*="send"]):not([aria-label*="Envoyer" i]):not([aria-label*="Send" i]){
+  border:1px solid rgba(96,126,148,.18)!important;
+  background:#111c26!important;
+  color:#aebdca!important;
+  box-shadow:none!important;
+}
+body.ng8-ready :is([data-type="unified-composer"],form:has(#prompt-textarea),form:has([data-testid="prompt-textarea"])) button:not([data-testid*="send"]):not([aria-label*="Envoyer" i]):not([aria-label*="Send" i]):hover{
+  border-color:color-mix(in srgb,var(--ng8-current-project,#4fc1ff) 42%,#334858 58%)!important;
+  background:#182632!important;
+  color:#eef8ff!important;
+}
+@media(prefers-reduced-motion:reduce){body.ng8-ready :is(header,nav,[data-testid*="sidebar" i],[data-type="unified-composer"]) svg{transition:none!important;}}

@@ -17,7 +17,6 @@
   const showMoreLabel=v=>/^(afficher|voir) plus$|^show more$/.test(norm(v));
   const projectHomeHref=href=>{const raw=String(href||'').trim();if(/^\/projects\/?(?:[?#].*)?$/.test(raw))return true;try{const u=new URL(raw,location.href);return u.origin===location.origin&&/^\/projects\/?$/.test(u.pathname);}catch{return false;}};
   const projectChildHref=href=>/\/g\/g-p-[^/?#]+(?:\/|$)/i.test(String(href||''));
-  const projectHref=href=>projectHomeHref(href)||projectChildHref(href);
 
   function sharesSidebarShell(el){
     if(!el||!outsideOwn(el)||inMain(el))return false;
@@ -54,10 +53,16 @@
     }
     return null;
   }
+  function identityHosts(){
+    const hosts=new Set();
+    for(const link of document.querySelectorAll('a[href*="/g/g-p-"]')){if(!sharesSidebarShell(link))continue;const host=nearestProjectHost(link);if(host)hosts.add(host);}
+    return hosts;
+  }
   function nativeTargets(){
     const found=new Set(),names=managedNames();
     const childLinks=[...document.querySelectorAll('a[href*="/g/g-p-"]')].filter(sharesSidebarShell);
     for(const link of childLinks){const row=rowTarget(link);if(row)found.add(row);const host=nearestProjectHost(link);if(host)found.add(host);}
+    for(const host of identityHosts())found.add(host);
     for(const link of document.querySelectorAll('a[href]')){if(!sharesSidebarShell(link)||!projectHomeHref(link.getAttribute('href')))continue;const row=rowTarget(link);if(row)found.add(row);}
     for(const el of document.querySelectorAll('h1,h2,h3,[role="heading"],button,[role="button"],a,[aria-label],span')){
       if(!sharesSidebarShell(el))continue;

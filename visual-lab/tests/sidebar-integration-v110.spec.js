@@ -74,11 +74,10 @@ test('0.9.60 unpacked extension owns Projects + stable clickable chat rows + act
     }
     const box1=await date.boundingBox();expect(Math.abs(box0.x-box1.x)).toBeLessThanOrEqual(1);expect(Math.abs(box0.width-box1.width)).toBeLessThanOrEqual(1);
 
-    await page.evaluate(()=>{window.__ng110Clicks=[];for(const type of ['click','contextmenu'])document.addEventListener(type,e=>{const a=e.target.closest?.('.ng110-chat-link');if(!a)return;window.__ng110Clicks.push({type,prevented:e.defaultPrevented,ctrl:e.ctrlKey,meta:e.metaKey});e.preventDefault();});});
+    await page.evaluate(()=>{window.__ng110Clicks=[];for(const type of ['click','contextmenu'])document.addEventListener(type,e=>{const a=e.target.closest?.('.ng110-chat-link');if(!a)return;window.__ng110Clicks.push({type,prevented:e.defaultPrevented,ctrl:!!e.ctrlKey,meta:!!e.metaKey});e.preventDefault();});});
     const normal=page.locator(`.ng110-chat-link[data-chat="${C2}"]`);await normal.dispatchEvent('click',{button:0});await normal.dispatchEvent('contextmenu',{button:2});await normal.dispatchEvent('click',{button:0,ctrlKey:true});
     expect(await page.evaluate(()=>window.__ng110Clicks)).toEqual([{type:'click',prevented:false,ctrl:false,meta:false},{type:'contextmenu',prevented:false,ctrl:false,meta:false},{type:'click',prevented:false,ctrl:true,meta:false}]);
 
-    // Persist another OUT state through the real extension worker; the existing row must update without recreation.
     await page.evaluate((id)=>{window.__ng110Other=document.querySelector(`.ng110-chat-row[data-chat-row="${id}"]`);},C2);
     await worker.evaluate(async C2=>{const key='niakgpt-continuity-v100',st=(await chrome.storage.local.get(key))[key]||{schema:1,out:{}};st.out=st.out||{};st.out[C2]={out:true,updatedAt:Date.now(),reason:'limit-detected'};await chrome.storage.local.set({[key]:st});},C2);
     await expect(page.locator(`.ng110-chat-row[data-chat-row="${C2}"] .ng110-chat-status`)).toHaveText('OUT',{timeout:4000});

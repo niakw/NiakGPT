@@ -2,7 +2,7 @@ name: NiakGPT 0.9.60 Sidebar + Project Chat Stability Matrix
 
 on:
   push:
-    branches: [main, agent/niakgpt-0960-ui-fix2]
+    branches: [main]
     paths:
       - 'sidebar-projects-authority-v110.js'
       - 'sidebar-projects-authority-v110.css'

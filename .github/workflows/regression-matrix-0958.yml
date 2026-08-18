@@ -40,7 +40,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify 0.9.58+ wiring
+      - name: Verify historical 0.9.58 fixture
         run: |
           python - <<'PY'
           import json
@@ -50,8 +50,8 @@ jobs:
           css=[x for cs in m['content_scripts'] for x in cs.get('css',[])]
           assert 'sidebar-expando-guard-v108.css' in css
           PY
-          grep -q "sidebar-expando-guard-v108.js" background-v100.js
-          grep -q "sidebar-expando-guard-v108.css" manifest.json
+          test -f sidebar-expando-guard-v108.js
+          node --check sidebar-expando-guard-v108.js
           grep -q "sidebar-expando-section" sidebar-expando-guard-v108.js
           grep -q "group/project-unfurl-row" labs/sidebar_expando_0958.py
           grep -q "nativeFallbackMissing" labs/sidebar_expando_0958.py
@@ -60,5 +60,5 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install playwright==1.57.0
           python -m playwright install --with-deps ${{ matrix.browser }}
-      - name: Reproduce current ChatGPT Projects expando markup
+      - name: Reproduce historical ChatGPT Projects expando markup
         run: python labs/sidebar_expando_0958.py --browser ${{ matrix.browser }}

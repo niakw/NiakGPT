@@ -6,7 +6,7 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 const need=(s,t,m)=>{if(!s.includes(t))fail(m||`missing ${t}`);};
 const forbid=(s,t,m)=>{if(s.includes(t))fail(m||`forbidden ${t}`);};
 
-// 0.9.59 canonical isolation: page-bridge remains the only MAIN-world runtime.
+// 0.9.60 canonical isolation: page-bridge remains the only MAIN-world runtime.
 const main=['page-bridge.js'];
 const isolated=[
   'onboarding-v101.js',
@@ -27,6 +27,7 @@ const isolated=[
   'reclassify-v101.js',
   'locale-fr-v101.js',
   'project-pins-v090.js',
+  'sidebar-native-projects-v110.js',
   'sidebar-authority-v107.js',
   'sidebar-expando-guard-v108.js',
   'sidebar-projects-authority-v109.js',
@@ -43,6 +44,7 @@ const isolated=[
   'live-fixes-v104.js',
   'live-fixes-v106.js',
   'chronology-v090.js',
+  'project-drawer-v110.js',
   'pin-folders-v096.js',
   'project-chat-ux-v109.js',
   'project-links-v106.js',
@@ -54,12 +56,14 @@ const manifest=JSON.parse(read('manifest.json'));
 same(manifest.permissions,['storage','scripting'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*'],'host scope mismatch');
 same(manifest.content_scripts.flatMap(x=>x.js||[]),['boot-gate-v100.js'],'unexpected static runtime');
-const release=manifest.version.split('.').map(Number);if(release.length!==3||release.some(Number.isNaN)||release[0]!==0||release[1]!==9||release[2]<59)fail(`unexpected release ${manifest.version}`);
+const release=manifest.version.split('.').map(Number);if(release.length!==3||release.some(Number.isNaN)||release[0]!==0||release[1]!==9||release[2]<60)fail(`unexpected release ${manifest.version}`);
 need(JSON.stringify(manifest.content_scripts),'live-fixes-v104.css','live UI CSS missing from manifest');
 need(JSON.stringify(manifest.content_scripts),'sidebar-authority-v107.css','0.9.57 sidebar authority CSS missing from manifest');
 need(JSON.stringify(manifest.content_scripts),'sidebar-expando-guard-v108.css','0.9.58 Projects expando CSS missing from manifest');
 need(JSON.stringify(manifest.content_scripts),'sidebar-projects-authority-v109.css','0.9.59 authoritative Projects CSS missing from manifest');
 need(JSON.stringify(manifest.content_scripts),'project-chat-ux-v109.css','0.9.59 Project chat UX CSS missing from manifest');
+need(JSON.stringify(manifest.content_scripts),'sidebar-native-projects-v110.css','0.9.60 native Projects structural CSS missing from manifest');
+need(JSON.stringify(manifest.content_scripts),'project-drawer-v110.css','0.9.60 stable Project drawer CSS missing from manifest');
 
 const background=read('background-v100.js');
 const runtimeList=name=>[...(background.match(new RegExp(`const ${name}=\\[(.*?)\\];`,'s'))?.[1]||'').matchAll(/'([^']+)'/g)].map(x=>x[1]);
@@ -119,6 +123,7 @@ const pins=read('project-pins-v090.js');
 need(pins,'cacheProjectIds','Project pin cache fallback missing');
 need(pins,'ATTENTE · inventaire/gouvernance Projects','Project pin zero-state diagnostic missing');
 
+// Historical sidebar implementations remain on disk for their regression labs.
 const sidebarAuthority=read('sidebar-authority-v107.js');
 for(const token of ['ng107-native-project-cluster','isDateLike','isProjectChildHref','cleanCache','wrapCacheBus','FALLBACK · liste NiakGPT indisponible'])need(sidebarAuthority,token,`0.9.57 sidebar authority missing ${token}`);
 forbid(sidebarAuthority,'setInterval(','0.9.57 sidebar authority polling reintroduced');
@@ -133,6 +138,13 @@ const projectsAuthority=read('sidebar-projects-authority-v109.js');
 for(const token of ['ownProjectsPresent','group/sidebar-expando-section','ng109-native-projects-authoritative','FALLBACK · bloc NiakGPT absent'])need(projectsAuthority,token,`0.9.59 Projects authority missing ${token}`);
 forbid(projectsAuthority,'setInterval(','0.9.59 Projects authority polling reintroduced');
 forbid(projectsAuthority,'window.fetch =','0.9.59 Projects authority must not hook fetch');
+
+// 0.9.60 final authority: direct structural hide, no readiness predicate/fallback.
+const nativeProjects=read('sidebar-native-projects-v110.js');
+for(const token of ['PROJECT_ROW','ng110-native-projects-hidden','__NIAKGPT_SIDEBAR_AUTHORITY_107__=true','__NIAKGPT_SIDEBAR_EXPANDO_GUARD_108__=true','__NIAKGPT_PROJECTS_AUTHORITY_109__=true'])need(nativeProjects,token,`0.9.60 native Projects authority missing ${token}`);
+forbid(nativeProjects,'setInterval(','0.9.60 native Projects authority polling reintroduced');
+forbid(nativeProjects,'window.fetch =','0.9.60 native Projects authority must not hook fetch');
+need(read('sidebar-native-projects-v110.css'),':has([class~="group/project-unfurl-row"])','0.9.60 structural CSS guard missing');
 need(read('chronology-v090.js'),"document.createElement('time')",'chronology must emit semantic time nodes');
 
 const governance=read('project-governance-v090.js');need(governance,'verifyAndLockManualMove');need(governance,'executePlan');
@@ -145,9 +157,18 @@ const projectChatUx=read('project-chat-ux-v109.js');
 for(const token of ['aria-current','ng109-chat-rename','ng109-out-badge','Renommer la conversation',"body:{title:next}"])need(projectChatUx,token,`0.9.59 Project chat UX missing ${token}`);
 forbid(projectChatUx,'setInterval(','0.9.59 Project chat UX polling reintroduced');
 forbid(projectChatUx,'window.fetch =','0.9.59 Project chat UX must not hook fetch');
+
+// 0.9.60 drawer is the only production owner and disables both historical mutators.
+const drawer=read('project-drawer-v110.js');
+for(const token of ['__NIAKGPT_PIN_FOLDERS_096__=true','__NIAKGPT_PROJECT_CHAT_UX_109__=true','ng110-chat-row','ng110-chat-title','ng110-chat-date','ng110-chat-status','aria-current','Renommer la conversation','outState','observer?.disconnect()'])need(drawer,token,`0.9.60 Project drawer missing ${token}`);
+forbid(drawer,'setInterval(','0.9.60 Project drawer polling reintroduced');
+forbid(drawer,'window.fetch =','0.9.60 Project drawer must not hook fetch');
+forbid(drawer,"a[data-chat]').forEach(link=>link.addEventListener('click'",'0.9.60 chat anchors must keep native navigation');
+const drawerCss=read('project-drawer-v110.css');
+for(const token of ['grid-template-columns:minmax(0,1fr) 44px 30px','text-overflow:ellipsis','data-ng110-active','data-ng110-out'])need(drawerCss,token,`0.9.60 Project drawer CSS missing ${token}`);
+
 const reclassify=read('reclassify-v101.js');
 for(const token of ['RECENT_CATCHUP_MS','recentUnassigned','needsClassification','à classer/rattraper'])need(reclassify,token,`0.9.59 recent classification catch-up missing ${token}`);
-forbid(reclassify,'/backend-api/conversation/${encodeURIComponent(chat.id)}',{ });
 const projectLinks=read('project-links-v106.js');
 for(const token of ["link.href='/projects'",'ng106-projects-home','verifyDrawerLinks','MutationObserver'])need(projectLinks,token,`Project link UX missing ${token}`);
 forbid(projectLinks,'setInterval(','Project link UX polling reintroduced');

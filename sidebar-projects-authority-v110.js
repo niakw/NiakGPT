@@ -15,8 +15,6 @@
   const outsideOwn=el=>!!el&&!el.closest(OWN);
   const projectLabel=v=>/^(projets?|projects?)$/.test(norm(v));
   const exactToken=(el,token)=>[...(el?.classList||[])].some(x=>x===token||x.endsWith('/'+token));
-  const isProjectHref=el=>el?.matches?.('a[href*="/g/g-p-"]');
-  const isProjectRow=el=>!!el?.matches?.('[class*="project-unfurl-row"]')||!!el?.querySelector?.('[class*="project-unfurl-row"]');
 
   function labelNodes(scope){
     if(!scope)return[];
@@ -46,6 +44,15 @@
     return label;
   }
 
+  function projectOnlySibling(target,nav){
+    const sibling=target?.nextElementSibling;
+    if(!sibling||sibling===nav||!outsideOwn(sibling)||sibling.contains(ownProjects()))return null;
+    if(!hasProjectRows(sibling))return null;
+    if(sibling.querySelector('a[href*="/c/"],h1,h2,h3,[role="heading"]'))return null;
+    const nonProjectLinks=[...sibling.querySelectorAll('a[href]')].some(a=>!a.getAttribute('href')?.includes('/g/g-p-'));
+    return nonProjectLinks?null:sibling;
+  }
+
   function nativeTargets(nav){
     const found=new Set();
     const dedicated=[];
@@ -56,18 +63,22 @@
 
     const insideDedicated=el=>dedicated.some(section=>section.contains(el));
 
-    // Loose ChatGPT layouts can place Projects and Recents in the same nav. Never hide that
-    // shared ancestor: hide only the exact Projects label and Project-specific rows/links.
+    // Loose layouts can place Projects and Recents in the same nav. Never hide that shared
+    // ancestor: target only the exact Projects label and a Project-only adjacent list.
     for(const label of labelNodes(nav)){
       if(insideDedicated(label))continue;
-      const target=compactLabelTarget(label,nav);if(target)found.add(target);
+      const target=compactLabelTarget(label,nav);if(!target)continue;
+      found.add(target);
+      const sibling=projectOnlySibling(target,nav);if(sibling)found.add(sibling);
     }
     for(const row of nav.querySelectorAll('[class*="project-unfurl-row"]')){
       if(!outsideOwn(row)||insideDedicated(row))continue;
+      if([...found].some(target=>target.contains?.(row)))continue;
       found.add(row);
     }
     for(const link of nav.querySelectorAll('a[href*="/g/g-p-"]')){
       if(!outsideOwn(link)||insideDedicated(link))continue;
+      if([...found].some(target=>target.contains?.(link)))continue;
       const row=link.closest('[class*="project-unfurl-row"]');
       found.add(row&&outsideOwn(row)?row:link);
     }

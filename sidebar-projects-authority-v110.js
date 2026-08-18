@@ -15,48 +15,63 @@
   const outsideOwn=el=>!!el&&!el.closest(OWN);
   const projectLabel=v=>/^(projets?|projects?)$/.test(norm(v));
   const exactToken=(el,token)=>[...(el?.classList||[])].some(x=>x===token||x.endsWith('/'+token));
+  const isProjectHref=el=>el?.matches?.('a[href*="/g/g-p-"]');
+  const isProjectRow=el=>!!el?.matches?.('[class*="project-unfurl-row"]')||!!el?.querySelector?.('[class*="project-unfurl-row"]');
 
-  function hasProjectLabel(scope){
-    if(!scope)return false;
-    const nodes=scope.querySelectorAll('h1,h2,h3,[role="heading"],button,[role="button"],[aria-label],[title]');
-    for(const el of nodes){
+  function labelNodes(scope){
+    if(!scope)return[];
+    const found=[];
+    for(const el of scope.querySelectorAll('h1,h2,h3,[role="heading"],button,[role="button"],[aria-label]')){
       if(!outsideOwn(el))continue;
-      if(projectLabel(el.textContent)||projectLabel(el.getAttribute?.('aria-label'))||projectLabel(el.getAttribute?.('title')))return true;
+      if(projectLabel(el.textContent)||projectLabel(el.getAttribute?.('aria-label')))found.push(el);
     }
-    return false;
+    return found;
   }
 
   function hasProjectRows(scope){
     if(!scope)return false;
-    return !!scope.querySelector('[class*="project-unfurl-row"],a[href*="/g/g-p-"],[data-sidebar-item="true"]');
+    return !!scope.querySelector('[class*="project-unfurl-row"],a[href*="/g/g-p-"]');
   }
 
-  function looksLikeProjectSection(section,nav){
+  function isDedicatedExpando(section,nav){
     if(!section||section===nav||section.contains(ownProjects())||!outsideOwn(section))return false;
-    if(!hasProjectRows(section))return false;
-    if(hasProjectLabel(section))return true;
-    const text=norm(section.textContent);
-    return /^(projets?|projects?)\b/.test(text);
+    if(!exactToken(section,'sidebar-expando-section'))return false;
+    return labelNodes(section).length>0&&hasProjectRows(section);
   }
 
-  function sectionAncestors(node,nav,found){
-    let cur=node?.parentElement||null;
-    for(let depth=0;depth<9&&cur&&cur!==nav;depth++,cur=cur.parentElement){
-      if(exactToken(cur,'sidebar-expando-section')||looksLikeProjectSection(cur,nav)){
-        if(looksLikeProjectSection(cur,nav))found.add(cur);
-        break;
-      }
-    }
+  function compactLabelTarget(label,nav){
+    if(!label||label===nav)return null;
+    const button=label.closest('button,[role="button"]');
+    if(button&&button!==nav&&outsideOwn(button))return button;
+    return label;
   }
 
-  function nativeSections(nav){
+  function nativeTargets(nav){
     const found=new Set();
-    for(const section of nav.querySelectorAll('[class*="sidebar-expando-section"]'))if(looksLikeProjectSection(section,nav))found.add(section);
-    for(const row of nav.querySelectorAll('[class*="project-unfurl-row"],a[href*="/g/g-p-"],[data-sidebar-item="true"]')){
-      if(!outsideOwn(row))continue;
-      sectionAncestors(row,nav,found);
+    const dedicated=[];
+    for(const section of nav.querySelectorAll('[class*="sidebar-expando-section"]')){
+      if(!isDedicatedExpando(section,nav))continue;
+      dedicated.push(section);found.add(section);
     }
-    return [...found];
+
+    const insideDedicated=el=>dedicated.some(section=>section.contains(el));
+
+    // Loose ChatGPT layouts can place Projects and Recents in the same nav. Never hide that
+    // shared ancestor: hide only the exact Projects label and Project-specific rows/links.
+    for(const label of labelNodes(nav)){
+      if(insideDedicated(label))continue;
+      const target=compactLabelTarget(label,nav);if(target)found.add(target);
+    }
+    for(const row of nav.querySelectorAll('[class*="project-unfurl-row"]')){
+      if(!outsideOwn(row)||insideDedicated(row))continue;
+      found.add(row);
+    }
+    for(const link of nav.querySelectorAll('a[href*="/g/g-p-"]')){
+      if(!outsideOwn(link)||insideDedicated(link))continue;
+      const row=link.closest('[class*="project-unfurl-row"]');
+      found.add(row&&outsideOwn(row)?row:link);
+    }
+    return [...found].filter(el=>el&&el!==nav&&!el.contains(ownProjects()));
   }
 
   function release(){
@@ -71,11 +86,11 @@
     const nav=navRoot();if(!nav){release();return false;}
     if(nav!==navNode)bindNav(nav);
     if(!ownReady()){release();return false;}
-    const sections=nativeSections(nav);
-    for(const section of sections){section.classList.add(HIDE);section.dataset.ng110NativeProjects='1';section.setAttribute('aria-hidden','true');}
-    for(const old of nav.querySelectorAll('.'+HIDE))if(!sections.includes(old)){old.classList.remove(HIDE);old.removeAttribute('data-ng110-native-projects');old.removeAttribute('aria-hidden');}
-    window.__NIAKGPT_DIAGNOSTICS__?.set('projects-authority',`OK · NiakGPT autoritaire · ${sections.length} bloc(s) natif(s) masqué(s)`);
-    return sections.length>0;
+    const targets=nativeTargets(nav);
+    for(const target of targets){target.classList.add(HIDE);target.dataset.ng110NativeProjects='1';target.setAttribute('aria-hidden','true');}
+    for(const old of nav.querySelectorAll('.'+HIDE))if(!targets.includes(old)){old.classList.remove(HIDE);old.removeAttribute('data-ng110-native-projects');old.removeAttribute('aria-hidden');}
+    window.__NIAKGPT_DIAGNOSTICS__?.set('projects-authority',`OK · NiakGPT autoritaire · ${targets.length} cible(s) native(s) masquée(s)`);
+    return targets.length>0;
   }
 
   function schedule(delay=16){if(stopped)return;clearTimeout(timer);timer=setTimeout(apply,delay);}
@@ -85,7 +100,7 @@
     if(nav===navNode&&navObserver)return true;
     navObserver?.disconnect();navNode=nav;
     navObserver=new MutationObserver(()=>schedule(10));
-    navObserver.observe(nav,{childList:true,subtree:true,attributes:true,attributeFilter:['class','hidden','aria-expanded','aria-label']});
+    navObserver.observe(nav,{childList:true,subtree:true,attributes:true,attributeFilter:['class','hidden','aria-expanded','aria-label','href']});
     return true;
   }
 

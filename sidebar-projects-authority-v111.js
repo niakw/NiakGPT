@@ -15,7 +15,11 @@
   const outsideOwn=el=>!!el&&!el.closest(OWN);
   const projectLabel=v=>/^(projets?|projects?)$/.test(norm(v));
   const exactToken=(el,token)=>[...(el?.classList||[])].some(x=>x===token||x.endsWith('/'+token));
-  const projectHomeHref=href=>{try{const u=new URL(String(href||''),location.origin);return u.origin===location.origin&&/^\/projects\/?$/.test(u.pathname);}catch{return false;}};
+  const projectHomeHref=href=>{
+    const raw=String(href||'').trim();
+    if(/^\/projects\/?(?:[?#].*)?$/.test(raw))return true;
+    try{const u=new URL(raw,location.href);return u.origin===location.origin&&/^\/projects\/?$/.test(u.pathname);}catch{return false;}
+  };
   const projectChildHref=href=>String(href||'').includes('/g/g-p-');
   const projectHref=href=>projectHomeHref(href)||projectChildHref(href);
 

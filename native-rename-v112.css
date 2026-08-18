@@ -6,3 +6,6 @@
 #ng8-pins .ng96-folder-list>a[data-chat]>.ng112-native-rename-chat{position:absolute!important;right:4px!important;top:50%!important;transform:translateY(-50%)!important;width:25px!important;height:23px!important;border-radius:5px!important;font-size:13px!important;}
 /* Real button replaces the old pseudo-pencil hit target. */
 #ng8-pins .ng96-folder-list>a[data-chat]::after{content:none!important;display:none!important;}
+/* Hidden native Project rows are staged off-screen only while their native menu is invoked. */
+.ng112-rename-staging{display:block!important;visibility:hidden!important;position:fixed!important;left:-12000px!important;top:0!important;width:320px!important;height:auto!important;max-height:600px!important;opacity:0!important;pointer-events:none!important;overflow:visible!important;}
+.ng112-rename-staging-leaf{visibility:hidden!important;opacity:0!important;}

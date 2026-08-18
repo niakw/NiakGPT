@@ -4,7 +4,10 @@ import { chromium, firefox, webkit } from '@playwright/test';
 
 const ROOT=path.resolve('..');
 const OUT=path.resolve('artifacts/finalization-v112');
-const engines={chromium,firefox,webkit};
+const ALL_ENGINES={chromium,firefox,webkit};
+const requested=String(process.env.NIAKGPT_BROWSER||'').trim();
+if(requested&&!ALL_ENGINES[requested])throw new Error(`Unsupported NIAKGPT_BROWSER=${requested}`);
+const engines=requested?{[requested]:ALL_ENGINES[requested]}:ALL_ENGINES;
 const read=async file=>fs.readFile(path.join(ROOT,file),'utf8');
 const jsFiles={
   authority:await read('sidebar-projects-authority-v112.js'),

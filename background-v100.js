@@ -27,7 +27,7 @@ const ISOLATED_RUNTIME=[
   'project-pins-v090.js',
   'sidebar-authority-v107.js',
   'sidebar-expando-guard-v108.js',
-  'sidebar-projects-authority-v109.js',
+  'sidebar-projects-authority-v110.js',
   'sidebar-host-v090.js',
   'app-v090.js',
   'project-state-selfheal-v102.js',
@@ -42,7 +42,7 @@ const ISOLATED_RUNTIME=[
   'live-fixes-v106.js',
   'chronology-v090.js',
   'pin-folders-v096.js',
-  'project-chat-ux-v109.js',
+  'project-chat-ux-v110.js',
   'project-links-v106.js',
   'activity-ui-v097.js',
   'retro-loader-v097.js'
@@ -54,8 +54,20 @@ chrome.runtime.onInstalled.addListener(async details=>{
     const old=(await chrome.storage.local.get(INSTALL_META))[INSTALL_META]||{};
     const preserveUpdate=details.reason==='install'&&old.reason==='update'&&old.currentVersion===current;
     const reason=preserveUpdate?'update':details.reason;
-    const next={...old,reason,currentVersion:current,previousVersion:details.previousVersion||old.previousVersion||'',changedAt:preserveUpdate?(old.changedAt||Date.now()):Date.now()};
+    let next={...old,reason,currentVersion:current,previousVersion:details.previousVersion||old.previousVersion||'',changedAt:preserveUpdate?(old.changedAt||Date.now()):Date.now()};
     if(reason==='install'&&!old.installedAt)next.installedAt=Date.now();
+
+    // A lifecycle write can race the asynchronous onInstalled handler (notably when an
+    // unpacked extension is reloaded during an upgrade test). Re-read before committing and
+    // never overwrite a newer, explicit update marker for the same version with "install".
+    if(details.reason==='install'){
+      const latest=(await chrome.storage.local.get(INSTALL_META))[INSTALL_META]||{};
+      const latestIsUpdate=latest.reason==='update'&&latest.currentVersion===current;
+      const latestIsNewer=Number(latest.changedAt||0)>=Number(old.changedAt||0);
+      if(latestIsUpdate&&latestIsNewer){
+        next={...latest,reason:'update',currentVersion:current,previousVersion:latest.previousVersion||details.previousVersion||'',changedAt:latest.changedAt||Date.now()};
+      }
+    }
     await chrome.storage.local.set({[INSTALL_META]:next});
   }catch(error){console.warn('[NiakGPT lifecycle]',error);}
 });

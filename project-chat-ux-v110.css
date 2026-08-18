@@ -1,0 +1,13 @@
+/* NiakGPT 0.9.60 — stable Project chat rows: no wrapper/reparent loop. */
+#ng8-pins .ng96-folder-list{display:flex!important;flex-direction:column!important;}
+#ng8-pins .ng96-folder-list>a[data-ng110-chat="1"]{position:relative!important;order:0!important;grid-template-columns:minmax(0,1fr) 42px!important;padding-right:34px!important;overflow:hidden!important;isolation:isolate!important;}
+#ng8-pins .ng96-folder-list>a[data-ng110-chat="1"]>.ng110-chat-title{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;display:block!important;}
+#ng8-pins .ng96-folder-list>a[data-ng110-chat="1"]>time{width:42px!important;min-width:42px!important;max-width:42px!important;overflow:hidden!important;text-align:right!important;white-space:nowrap!important;}
+#ng8-pins .ng96-folder-list>a[data-ng110-chat="1"]::after{content:"✎";position:absolute;right:5px;top:50%;transform:translateY(-50%);width:22px;height:22px;display:grid;place-items:center;border:1px solid #2b3b48;border-radius:5px;background:#0d1720;color:#7890a4;font:700 10px/1 system-ui,sans-serif;opacity:.72;pointer-events:none;z-index:3;}
+#ng8-pins .ng96-folder-list>a[data-ng110-chat="1"]:hover::after,#ng8-pins .ng96-folder-list>a[data-ng110-chat="1"]:focus-visible::after{opacity:1;color:#fff;border-color:#4b6479;background:#172632;}
+#ng8-pins .ng96-folder-list>a[data-ng110-active="1"]{color:#fff!important;font-weight:650!important;background:rgba(79,193,255,.13)!important;box-shadow:inset 2px 0 var(--ng8-current-project,#4fc1ff)!important;}
+#ng8-pins .ng96-folder-list>a[data-ng110-active="1"]>time{color:#9edfff!important;}
+#ng8-pins .ng96-folder-list>a[data-ng110-out="1"]{order:9999!important;opacity:.82!important;padding-right:66px!important;color:#e4b9bd!important;background:linear-gradient(90deg,rgba(241,76,76,.11),rgba(30,12,14,.34))!important;box-shadow:inset 2px 0 rgba(241,76,76,.82)!important;}
+#ng8-pins .ng96-folder-list>a[data-ng110-out="1"]::before{content:"OUT";position:absolute;right:33px;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;justify-content:center;min-width:25px;padding:2px 4px;border:1px solid rgba(241,76,76,.58);border-radius:3px;background:#2b1114;color:#ff8d8d;font:800 8px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.08em;white-space:nowrap;pointer-events:none;z-index:3;}
+#ng8-pins .ng96-pin-drawer .ng100-out-badge,#ng8-pins .ng96-pin-drawer .ng100-continue{display:none!important;}
+@media(prefers-reduced-motion:reduce){#ng8-pins .ng96-folder-list>a[data-ng110-chat="1"]::after{transition:none!important;}}

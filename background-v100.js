@@ -26,6 +26,7 @@ const ISOLATED_RUNTIME=[
   'analysis-bridge-v112.js',
   'reclassify-deep-v112.js',
   'locale-fr-v101.js',
+  'sidebar-icons-v114.js',
   'sidebar-authority-v107.js',
   'sidebar-expando-guard-v108.js',
   'sidebar-projects-authority-v112.js',

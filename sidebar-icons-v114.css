@@ -1,0 +1,15 @@
+/* NiakGPT 0.9.64 — distinctive main-sidebar glyphs while preserving native controls/accessibility. */
+body.ng8-ready :is(nav,[data-testid*="sidebar" i]) [data-ng114-nav-icon]{--ng114-glyph:'◆';}
+body.ng8-ready :is(nav,[data-testid*="sidebar" i]) [data-ng114-nav-icon] .ng114-native-icon{display:none!important;}
+body.ng8-ready :is(nav,[data-testid*="sidebar" i]) [data-ng114-nav-icon]::before{
+  content:var(--ng114-glyph);display:grid!important;place-items:center!important;flex:0 0 22px!important;width:22px!important;height:22px!important;
+  margin-right:1px!important;border:1px solid rgba(79,193,255,.28)!important;border-radius:4px!important;background:linear-gradient(145deg,rgba(18,34,47,.96),rgba(8,17,25,.96))!important;
+  color:#9ddcff!important;box-shadow:inset 0 0 0 1px rgba(78,201,176,.04),0 0 10px rgba(79,193,255,.035)!important;font:800 13px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace!important;
+}
+body.ng8-ready :is(nav,[data-testid*="sidebar" i]) [data-ng114-nav-icon="new"]{--ng114-glyph:'+';}
+body.ng8-ready :is(nav,[data-testid*="sidebar" i]) [data-ng114-nav-icon="search"]{--ng114-glyph:'⌕';}
+body.ng8-ready :is(nav,[data-testid*="sidebar" i]) [data-ng114-nav-icon="images"]{--ng114-glyph:'◇';}
+body.ng8-ready :is(nav,[data-testid*="sidebar" i]) [data-ng114-nav-icon="apps"]{--ng114-glyph:'▦';}
+body.ng8-ready :is(nav,[data-testid*="sidebar" i]) [data-ng114-nav-icon="codex"]{--ng114-glyph:'</>';}
+body.ng8-ready :is(nav,[data-testid*="sidebar" i]) [data-ng114-nav-icon]:hover::before,body.ng8-ready :is(nav,[data-testid*="sidebar" i]) [data-ng114-nav-icon]:focus-visible::before{border-color:#4fc1ff!important;color:#effaff!important;background:#152735!important;}
+@media(prefers-reduced-motion:reduce){body.ng8-ready :is(nav,[data-testid*="sidebar" i]) [data-ng114-nav-icon]::before{transition:none!important;}}

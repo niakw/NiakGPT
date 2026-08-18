@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.9.63-4fc1ff">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.9.64-4fc1ff">
   <img alt="Chrome Extension" src="https://img.shields.io/badge/Chrome-Extension-4ec9b0">
   <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
   <img alt="No analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -20,7 +20,7 @@ NiakGPT est une extension navigateur qui ajoute à ChatGPT une couche de **produ
 
 Elle fonctionne directement au-dessus de l’interface officielle de ChatGPT : **pas de service parallèle, pas de compte NiakGPT supplémentaire et pas de serveur NiakGPT pour les fonctions principales**.
 
-> **Version actuelle : 0.9.63** — menu d’actions ChatGPT natif complet depuis les Projects/chats NiakGPT, suppression du propriétaire `project-pins` contradictoire, titres de conversations canoniques protégés contre les caches obsolètes, fil d’Ariane lié `Accueil > Project > Chat`, état de nouveau message visible et garde de chargement des conversations multi-onglets.
+> **Version actuelle : 0.9.64** — stabilité de navigation durcie après refresh/remount, menus de pins immédiatement interactifs, visualiseur image refermable, suppression plus robuste du dernier bloc Projects natif, icônes principales de sidebar réellement NiakGPT et correction CodeQL du sommaire DOM.
 
 ## Ce que NiakGPT apporte
 

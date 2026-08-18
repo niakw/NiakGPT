@@ -32,8 +32,13 @@ jobs:
         run: node tools/package-extension.mjs
 
   visual-dom-crossengine:
+    name: finalization · ${{ matrix.browser }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -44,26 +49,29 @@ jobs:
       - name: Install lab dependencies
         working-directory: visual-lab
         run: npm ci
-      - name: Install Chromium Firefox WebKit
+      - name: Install ${{ matrix.browser }}
         working-directory: visual-lab
-        run: npx playwright install --with-deps chromium firefox webkit
-      - name: Current visual regression suite
-        working-directory: visual-lab
-        run: npm run test:current
+        run: npx playwright install --with-deps ${{ matrix.browser }}
       - name: Finalization DOM and screenshots
         working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node crossengine-finalization-v112.mjs
       - name: Progressive deep classification
         working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node deep-classification-v112.mjs
       - name: Exact Project continuity
         working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node continuity-v112.mjs
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: niakgpt-0962-crossengine-dom-visual
-          path: visual-lab/artifacts/finalization-v112
+          name: niakgpt-0962-${{ matrix.browser }}-dom-visual
+          path: visual-lab/artifacts/finalization-v112/${{ matrix.browser }}
           if-no-files-found: error
           retention-days: 14

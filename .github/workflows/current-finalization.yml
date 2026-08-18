@@ -87,6 +87,53 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  extension-runtime-crossos:
+    name: extension runtime · ${{ matrix.os }} · chromium
+    needs: static-runtime
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: visual-lab/package-lock.json
+      - name: Install lab dependencies
+        working-directory: visual-lab
+        run: npm ci --no-audit --no-fund
+      - name: Install Chromium on Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        working-directory: visual-lab
+        run: |
+          timeout 420s npx playwright install --with-deps chromium || {
+            echo "First Chromium install attempt failed or timed out; retrying once"
+            sleep 8
+            timeout 420s npx playwright install --with-deps chromium
+          }
+      - name: Install Chromium on Windows or macOS
+        if: runner.os != 'Linux'
+        working-directory: visual-lab
+        run: npx playwright install chromium
+      - name: Real extension runtime — sidebar / human / DOM / errors / UX
+        working-directory: visual-lab
+        run: npx playwright test tests/sidebar-runtime-v116.spec.js --workers=1 --reporter=line
+      - name: Upload real-runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: niakgpt-extension-runtime-${{ matrix.os }}-chromium
+          path: |
+            visual-lab/playwright-report
+            visual-lab/test-results
+          if-no-files-found: warn
+          retention-days: 14
+
   visual-dom-crossengine:
     name: deep linux · ${{ matrix.browser }}
     needs: static-runtime
@@ -171,7 +218,7 @@ jobs:
       - name: Runtime and multi-tab diagnostics
         if: matrix.browser == 'chromium'
         working-directory: visual-lab
-        run: npx playwright test tests/runtime-current-v105.spec.js tests/multitab-failover-v097.spec.js --workers=1 --reporter=line
+        run: npx playwright test tests/runtime-current-v105.spec.js tests/multitab-failover-v097.spec.js tests/sidebar-runtime-v116.spec.js --workers=1 --reporter=line
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@v4

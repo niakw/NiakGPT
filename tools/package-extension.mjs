@@ -34,6 +34,7 @@ for(const required of [
   'project-assignment-selfheal-v103.js',
   'project-pins-v090.js',
   'sidebar-authority-v107.js',
+  'sidebar-projects-authority-v110.js',
   'sidebar-authority-v107.css',
   'cache-bus-v096.js',
   'activity-ui-v097.js',
@@ -41,8 +42,10 @@ for(const required of [
   'live-fixes-v104.js',
   'live-fixes-v106.js',
   'project-links-v106.js',
+  'project-folders-v110.js',
   'live-fixes-v104.css',
-  'continuity-v100.js'
+  'continuity-v100.js',
+  'continuity-out-cache-v110.js'
 ])if(!fs.existsSync(path.join(build,required)))throw new Error(`Runtime omitted from ZIP: ${required}`);
 for(const dead of [
   'app-v08-safe.js',
@@ -51,7 +54,11 @@ for(const dead of [
   'boot-watchdog-v099.js',
   'hotcache-main-v084.js',
   'activity-main-v087.js',
-  'manual-lock-main-v085.js'
+  'manual-lock-main-v085.js',
+  'sidebar-expando-guard-v108.js',
+  'sidebar-projects-authority-v109.js',
+  'pin-folders-v096.js',
+  'project-chat-ux-v109.js'
 ])if(fs.existsSync(path.join(build,dead)))throw new Error(`Legacy runtime in ZIP: ${dead}`);
 
 execFileSync('zip',['-qr',zip,'.'],{cwd:build,stdio:'inherit'});

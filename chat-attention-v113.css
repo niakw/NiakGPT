@@ -1,0 +1,6 @@
+/* NiakGPT 0.9.63 — clear unread/new-response state without heavy animation. */
+#ng8-pins .ng96-folder-list>a[data-chat][data-ng113-unread="1"]{color:#eaf8ff!important;font-weight:760!important;background:linear-gradient(90deg,rgba(79,193,255,.18),rgba(13,27,38,.52))!important;box-shadow:inset 3px 0 #4fc1ff!important;}
+#ng8-pins .ng96-folder-list>a[data-chat][data-ng113-unread="1"]>span::before{content:"";display:inline-block;width:7px;height:7px;margin-right:7px;border-radius:50%;background:#4fc1ff;box-shadow:0 0 0 3px rgba(79,193,255,.13);vertical-align:1px;}
+#ng8-pins .ng96-folder-list>a[data-chat][data-ng113-unread="1"]>time{color:#b9ebff!important;font-weight:850!important;}
+#ng8-pins .ng96-pin-entry[data-ng113-unread-count] > a[data-ng8-pin]{box-shadow:inset 2px 0 #4fc1ff!important;background:rgba(79,193,255,.055)!important;}
+#ng8-pins .ng96-pin-entry[data-ng113-unread-count] > a[data-ng8-pin] .ng96-chevron{color:#8addff!important;}

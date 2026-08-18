@@ -1,0 +1,142 @@
+(() => {
+  'use strict';
+  if(location.hostname!=='chatgpt.com'||window.__NIAKGPT_NATIVE_ACTIONS_113__)return;
+  window.__NIAKGPT_NATIVE_ACTIONS_113__=true;
+
+  const CACHE_KEY='niakgpt-v08-cache';
+  const OWN='#ng8-pins,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb';
+  const HIDDEN_RX=/^(ng112-native-projects-authoritative|ng111-native-projects-authoritative|ng110-native-projects-authoritative|ng109-native-projects-authoritative|ng8-native-projects-suppressed|ng8-native-project-link-suppressed|ng8-native-project-chat-suppressed)$/;
+  let cache={projects:[],chats:[]},box=null,observer=null,boot=null,timer=0,rpcSeq=0;
+
+  const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
+  const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const pid=h=>String(h||'').match(/\/g\/(g-p-[^/?#]+)/i)?.[1]||'';
+  const cid=h=>String(h||'').match(/\/c\/([A-Za-z0-9_-]+)/)?.[1]||'';
+  const currentCid=()=>cid(location.pathname);
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  const outsideOwn=el=>!!el&&!el.closest(OWN);
+  const projectName=id=>clean(cache.projects?.find(p=>p?.id===id)?.name)||'';
+  const chatTitle=id=>clean(cache.chats?.find(c=>c?.id===id)?.title)||'Conversation';
+  const projectIdForChat=id=>clean(cache.chats?.find(c=>c?.id===id)?.projectId)||'';
+
+  function rpc(path,{method='GET',body=null,timeout=15000}={}){
+    const id=`ng113a-${Date.now()}-${++rpcSeq}`;
+    return new Promise(resolve=>{
+      const t=setTimeout(()=>{off();resolve({ok:false,status:0,error:'rpc_timeout'});},timeout);
+      const h=e=>{if(e.detail?.id!==id)return;off();resolve(e.detail);};
+      const off=()=>{clearTimeout(t);document.removeEventListener('niakgpt:rpc-response',h);};
+      document.addEventListener('niakgpt:rpc-response',h);
+      document.dispatchEvent(new CustomEvent('niakgpt:rpc-request',{detail:{id,path,method,body,governance:true}}));
+    });
+  }
+
+  function nativeProjectRow(projectId,name){
+    const links=[...document.querySelectorAll(`a[href*="/g/${CSS.escape(projectId)}/"]`)].filter(outsideOwn);
+    if(links.length)return links[0].closest('[data-sidebar-item="true"],[class*="project-unfurl-row"],li')||links[0];
+    const target=norm(name);if(!target)return null;
+    for(const el of document.querySelectorAll('nav a,nav button,nav [role="link"],nav [role="button"],[data-testid*="sidebar" i] a,[data-testid*="sidebar" i] button')){
+      if(!outsideOwn(el))continue;
+      if(norm(el.textContent||el.getAttribute('aria-label'))===target)return el.closest('[data-sidebar-item="true"],[class*="project-unfurl-row"],li')||el;
+    }
+    return null;
+  }
+  function nativeChatRow(chatId){
+    const links=[...document.querySelectorAll(`a[href*="/c/${CSS.escape(chatId)}"]`)].filter(outsideOwn);
+    return links[0]?.closest('[data-sidebar-item="true"],li')||links[0]||null;
+  }
+  function currentConversationMenuButton(){
+    const root=document.querySelector('main')||document.body;
+    const buttons=[...root.querySelectorAll('button,[role="button"]')];
+    return buttons.find(b=>/more|options|menu|davantage|plus|actions?/i.test(`${b.getAttribute('aria-label')||''} ${b.title||''}`)&&!b.closest(OWN))||null;
+  }
+  function stageHidden(row){
+    const staged=[];let node=row;
+    while(node&&node!==document.body){
+      const hidden=[...(node.classList||[])].some(c=>HIDDEN_RX.test(c));
+      if(hidden){node.classList.add('ng113-actions-staging');staged.push(node);}node=node.parentElement;
+    }
+    if(row&&!staged.includes(row)){row.classList.add('ng113-actions-staging-leaf');staged.push(row);}
+    return()=>{for(const el of staged)el.classList.remove('ng113-actions-staging','ng113-actions-staging-leaf');};
+  }
+  function fireHover(el){
+    for(const type of ['pointerover','pointerenter','mouseover','mouseenter']){
+      try{const C=type.startsWith('pointer')&&typeof PointerEvent==='function'?PointerEvent:MouseEvent;el.dispatchEvent(new C(type,{bubbles:true,clientX:2,clientY:2,pointerType:'mouse'}));}catch{}
+    }
+  }
+  function menuButton(row){
+    if(!row)return null;const buttons=[...row.querySelectorAll('button,[role="button"]')];
+    return buttons.find(b=>/more|options|menu|davantage|plus|actions?/i.test(`${b.getAttribute('aria-label')||''} ${b.title||''}`))||buttons.at(-1)||null;
+  }
+  function visibleMenu(){return [...document.querySelectorAll('[role="menu"],[data-radix-menu-content],[data-state="open"]')].find(el=>!el.closest(OWN)&&getComputedStyle(el).display!=='none');}
+  async function invokeNativeMenu(row){
+    if(!row)return false;const restore=stageHidden(row);
+    try{
+      fireHover(row);await sleep(90);let b=menuButton(row);if(!b){fireHover(row);await sleep(180);b=menuButton(row);}if(!b)return false;
+      b.click();await sleep(150);if(!visibleMenu())await sleep(180);
+      return !!visibleMenu();
+    }finally{restore();}
+  }
+
+  function closeFallback(){document.getElementById('ng113-actions-fallback')?.remove();}
+  async function fallbackRename(chatId){
+    const old=chatTitle(chatId),next=clean(window.prompt('Renommer la conversation',old));if(!next||next===old)return;
+    const r=await rpc(`/backend-api/conversation/${encodeURIComponent(chatId)}`,{method:'PATCH',body:{title:next}});
+    if(r.ok)document.dispatchEvent(new CustomEvent('niakgpt:force-server-index'));
+  }
+  async function fallbackMove(chatId,projectId){
+    if(!projectId)return;const r=await rpc(`/backend-api/conversation/${encodeURIComponent(chatId)}`,{method:'PATCH',body:{gizmo_id:projectId}});
+    if(r.ok){
+      try{const bus=window.__NIAKGPT_CACHE_BUS__;if(bus?.update)await bus.update(raw=>({...raw,at:Date.now(),chats:(raw?.chats||[]).map(c=>c?.id===chatId?{...c,projectId}:c)}));}catch{}
+      document.dispatchEvent(new CustomEvent('niakgpt:force-server-index'));
+    }
+  }
+  function fallbackChatMenu(button,chatId){
+    closeFallback();const menu=document.createElement('div');menu.id='ng113-actions-fallback';menu.setAttribute('role','menu');
+    const title=document.createElement('strong');title.textContent=chatTitle(chatId);menu.appendChild(title);
+    const rename=document.createElement('button');rename.type='button';rename.setAttribute('role','menuitem');rename.textContent='Renommer';rename.addEventListener('click',()=>{closeFallback();fallbackRename(chatId);});menu.appendChild(rename);
+    const label=document.createElement('small');label.textContent='Déplacer vers';menu.appendChild(label);
+    for(const p of (cache.projects||[]).filter(p=>String(p?.id||'').startsWith('g-p-')&&!p.domOnly)){
+      const item=document.createElement('button');item.type='button';item.setAttribute('role','menuitem');item.textContent=p.name||p.id;if(p.id===projectIdForChat(chatId))item.disabled=true;
+      item.addEventListener('click',()=>{closeFallback();fallbackMove(chatId,p.id);});menu.appendChild(item);
+    }
+    document.body.appendChild(menu);
+    const r=button.getBoundingClientRect();menu.style.left=`${Math.max(8,Math.min(innerWidth-260,r.right-240))}px`;menu.style.top=`${Math.min(innerHeight-320,r.bottom+5)}px`;
+    setTimeout(()=>document.addEventListener('pointerdown',e=>{if(!menu.contains(e.target))closeFallback();},{once:true,capture:true}),0);
+  }
+
+  async function openProjectActions(projectId){
+    const ok=await invokeNativeMenu(nativeProjectRow(projectId,projectName(projectId)));
+    window.__NIAKGPT_DIAGNOSTICS__?.set('actions-project',ok?'OK · menu natif complet':'ERREUR · menu natif Project introuvable');
+  }
+  async function openChatActions(button,chatId){
+    let row=nativeChatRow(chatId),ok=await invokeNativeMenu(row);
+    if(!ok&&chatId===currentCid()){
+      const current=currentConversationMenuButton();if(current){current.click();await sleep(150);ok=!!visibleMenu();}
+    }
+    if(!ok)fallbackChatMenu(button,chatId);
+    window.__NIAKGPT_DIAGNOSTICS__?.set('actions-chat',ok?'OK · menu natif complet':'FALLBACK · actions sûres locales');
+  }
+  function icon(){return '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1.45"/><circle cx="10" cy="10" r="1.45"/><circle cx="16" cy="10" r="1.45"/></svg>';}
+  function actionButton(kind,id){
+    const b=document.createElement('button');b.type='button';b.className=`ng113-native-actions ng113-native-actions-${kind}`;b.dataset.ng113Actions=kind;b.dataset.ng113Id=id;b.innerHTML=icon();
+    b.title=kind==='project'?'Actions du Project (menu ChatGPT)':'Actions de la conversation (menu ChatGPT)';b.setAttribute('aria-label',b.title);
+    b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();kind==='project'?openProjectActions(id):openChatActions(b,id);},true);
+    return b;
+  }
+  function decorate(){
+    timer=0;const pins=document.getElementById('ng8-pins');if(!pins)return;
+    for(const entry of pins.querySelectorAll('.ng96-pin-entry')){
+      const a=entry.querySelector(':scope>a[data-ng8-pin]'),id=pid(a?.getAttribute('href'));if(!id)continue;
+      let b=entry.querySelector(':scope>.ng113-native-actions-project');if(!b)entry.insertBefore(actionButton('project',id),entry.querySelector(':scope>.ng96-project-open'));else b.dataset.ng113Id=id;
+    }
+    for(const a of pins.querySelectorAll('.ng96-folder-list>a[data-chat]')){
+      const id=a.dataset.chat||cid(a.getAttribute('href'));if(!id)continue;
+      if(!a.querySelector(':scope>.ng113-native-actions-chat'))a.appendChild(actionButton('chat',id));
+    }
+  }
+  function schedule(delay=15){clearTimeout(timer);timer=setTimeout(decorate,delay);}
+  function bind(){const next=document.getElementById('ng8-pins');if(!next||next===box)return false;observer?.disconnect();box=next;observer=new MutationObserver(()=>schedule(12));observer.observe(box,{childList:true,subtree:true});schedule(0);return true;}
+  async function start(){try{cache=(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||cache;}catch{}if(bind())return;boot?.disconnect();boot=new MutationObserver(()=>{if(bind()){boot.disconnect();boot=null;}});boot.observe(document.documentElement,{childList:true,subtree:true});setTimeout(()=>boot?.disconnect(),15000);}
+  try{chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY]){cache=changes[CACHE_KEY].newValue||cache;schedule(0);}});}catch{}
+  document.addEventListener('niakgpt:pins-rendered',()=>{bind();schedule(0);});window.addEventListener('pagehide',()=>{observer?.disconnect();boot?.disconnect();closeFallback();});if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+})();

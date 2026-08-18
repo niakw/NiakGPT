@@ -26,23 +26,23 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - name: Show current release
         run: node -e "console.log('NiakGPT', require('./manifest.json').version)"
       - name: Runtime syntax
         run: |
-          for f in background-v100.js sidebar-projects-authority-v112.js home-layout-v112.js native-rename-v112.js analysis-bridge-v112.js reclassify-deep-v112.js matrix-guardian-v112.js performance-guard-v112.js turn-headers-v112.js continuity-v112.js; do
+          for f in background-v100.js sidebar-projects-authority-v112.js home-layout-v112.js analysis-bridge-v112.js reclassify-deep-v112.js matrix-guardian-v112.js performance-guard-v112.js turn-headers-v112.js continuity-v112.js chat-state-authority-v113.js breadcrumb-v113.js chat-attention-v113.js native-actions-v113.js conversation-load-guard-v113.js; do
             node --check "$f"
           done
       - name: Current static validation
-        run: python3 labs/static_validate_0962.py
+        run: python3 labs/static_validate_current.py
       - name: Packaging exclusion check
         run: node tools/package-extension.mjs
 
   visual-dom-crossengine:
     name: current finalization · ${{ matrix.browser }}
     runs-on: ubuntu-latest
-    timeout-minutes: 18
+    timeout-minutes: 24
     strategy:
       fail-fast: false
       matrix:
@@ -51,16 +51,16 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
           cache-dependency-path: visual-lab/package-lock.json
       - name: Install lab dependencies
         working-directory: visual-lab
-        run: npm ci
+        run: npm ci --no-audit --no-fund
       - name: Install ${{ matrix.browser }}
         working-directory: visual-lab
         run: npx playwright install --with-deps ${{ matrix.browser }}
-      - name: Finalization DOM and screenshots
+      - name: Baseline finalization DOM and screenshots
         working-directory: visual-lab
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
@@ -70,11 +70,16 @@ jobs:
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node home-native-position-v112.mjs
-      - name: Identity-only Projects authority
+      - name: Native Project and chat actions
         working-directory: visual-lab
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
-        run: node sidebar-identity-v112.mjs
+        run: node sidebar-native-actions-v113.mjs
+      - name: Canonical titles breadcrumb unread and load guard
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node state-ux-v113.mjs
       - name: Progressive deep classification
         working-directory: visual-lab
         env:
@@ -85,11 +90,23 @@ jobs:
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node continuity-v112.mjs
+      - name: Full current visual lab
+        if: matrix.browser == 'chromium'
+        working-directory: visual-lab
+        run: npm run test:current
+      - name: Runtime and multi-tab diagnostics
+        if: matrix.browser == 'chromium'
+        working-directory: visual-lab
+        run: npx playwright test tests/runtime-current-v105.spec.js tests/multitab-failover-v097.spec.js --workers=1 --reporter=line
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: niakgpt-current-${{ matrix.browser }}-dom-visual
-          path: visual-lab/artifacts/finalization-v112/${{ matrix.browser }}
-          if-no-files-found: error
+          path: |
+            visual-lab/artifacts/finalization-v112/${{ matrix.browser }}
+            visual-lab/artifacts/finalization-v113/${{ matrix.browser }}
+            visual-lab/playwright-report
+            visual-lab/test-results
+          if-no-files-found: warn
           retention-days: 14

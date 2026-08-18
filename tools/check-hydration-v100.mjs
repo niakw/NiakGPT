@@ -66,7 +66,7 @@ for(const token of ['ownReady','managedNames','nameTargets','ng112-native-projec
 forbid(projectsAuthority,'setInterval(','Projects authority polling reintroduced');
 forbid(projectsAuthority,'window.fetch =','Projects authority must not hook fetch');
 const homeLayout=read('home-layout-v112.js');
-for(const token of ['Par quoi','greeting','composer','ng112-home-composer-shift','getBoundingClientRect','desiredGap','home-layout'])need(homeLayout,token,`Home layout guard missing ${token}`);
+for(const token of ['par quoi','greeting','composer','ng112-home-composer-shift','getBoundingClientRect','desiredGap','home-layout'])need(homeLayout,token,`Home layout guard missing ${token}`);
 forbid(homeLayout,'setInterval(','Home layout polling reintroduced');
 forbid(homeLayout,'window.fetch =','Home layout must not hook fetch');
 

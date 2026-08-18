@@ -5,7 +5,10 @@ import { chromium, firefox, webkit } from '@playwright/test';
 const ROOT=path.resolve('..');
 const OUT=path.resolve('artifacts/finalization-v112');
 const code=await fs.readFile(path.join(ROOT,'reclassify-deep-v112.js'),'utf8');
-const engines={chromium,firefox,webkit};
+const ALL_ENGINES={chromium,firefox,webkit};
+const requested=String(process.env.NIAKGPT_BROWSER||'').trim();
+if(requested&&!ALL_ENGINES[requested])throw new Error(`Unsupported NIAKGPT_BROWSER=${requested}`);
+const engines=requested?{[requested]:ALL_ENGINES[requested]}:ALL_ENGINES;
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg);};
 
 for(const [engine,launcher] of Object.entries(engines)){
@@ -64,4 +67,4 @@ for(const [engine,launcher] of Object.entries(engines)){
     await fs.writeFile(path.join(dir,'deep-classification.json'),JSON.stringify(result,null,2));
   }finally{await context.close();await browser.close();}
 }
-console.log('deep-classification-v112: chromium/firefox/webkit PASS');
+console.log(`deep-classification-v112: ${Object.keys(engines).join(',')} PASS`);

@@ -27,7 +27,7 @@ const ISOLATED_RUNTIME=[
   'project-pins-v090.js',
   'sidebar-authority-v107.js',
   'sidebar-expando-guard-v108.js',
-  'sidebar-projects-authority-v110.js',
+  'sidebar-projects-authority-v111.js',
   'sidebar-host-v090.js',
   'app-v090.js',
   'project-state-selfheal-v102.js',

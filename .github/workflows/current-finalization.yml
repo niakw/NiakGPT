@@ -31,7 +31,7 @@ jobs:
         run: node -e "console.log('NiakGPT', require('./manifest.json').version)"
       - name: Runtime syntax
         run: |
-          for f in background-v100.js app-v090.js visual-stability-v101.js sidebar-projects-authority-v112.js home-layout-v112.js analysis-bridge-v112.js reclassify-deep-v112.js matrix-guardian-v112.js performance-guard-v112.js turn-headers-v112.js continuity-v112.js chat-state-authority-v113.js breadcrumb-v113.js chat-attention-v113.js native-actions-v113.js conversation-load-guard-v113.js; do
+          for f in background-v100.js app-v090.js pin-folders-v096.js visual-stability-v101.js sidebar-projects-authority-v112.js home-layout-v112.js analysis-bridge-v112.js reclassify-deep-v112.js matrix-guardian-v112.js performance-guard-v112.js turn-headers-v112.js continuity-v112.js chat-state-authority-v113.js breadcrumb-v113.js chat-attention-v113.js native-actions-v113.js conversation-load-guard-v113.js sidebar-icons-v114.js; do
             node --check "$f"
           done
       - name: Current static validation
@@ -42,7 +42,7 @@ jobs:
   visual-dom-crossengine:
     name: current finalization · ${{ matrix.browser }}
     runs-on: ubuntu-latest
-    timeout-minutes: 24
+    timeout-minutes: 28
     strategy:
       fail-fast: false
       matrix:
@@ -75,6 +75,11 @@ jobs:
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node sidebar-native-actions-v113.mjs
+      - name: Human navigation stress — remounts, immediate clicks, menus, icons, images
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node human-nav-stress-v114.mjs
       - name: Live image viewer and native Projects regressions
         working-directory: visual-lab
         env:
@@ -112,6 +117,7 @@ jobs:
             visual-lab/artifacts/finalization-v112/${{ matrix.browser }}
             visual-lab/artifacts/finalization-v113/${{ matrix.browser }}
             visual-lab/artifacts/finalization-v114/${{ matrix.browser }}
+            visual-lab/artifacts/human-nav-v114/${{ matrix.browser }}
             visual-lab/playwright-report
             visual-lab/test-results
           if-no-files-found: warn

@@ -8,7 +8,7 @@
   const CLOSE_ID='ng103-image-close';
   const VIEWER_PROBE_DELAYS=[70,140,260,480,800,1300,2100,3200];
   const MATRIX_PROBE_DELAYS=[80,180,360,700,1200,2200,4200];
-  let detectorTimer=0,detectorProbe=0,viewerHost=null,closeButton=null,viewerObserver=null;
+  let detectorTimer=0,detectorProbe=0,viewerHost=null,closeButton=null,viewerObserver=null,viewerRootObserver=null;
   let matrixTimer=0,matrixProbe=0;
 
   const visible=el=>{
@@ -41,6 +41,20 @@
       return r.width>=Math.min(360,innerWidth*.34)&&r.height>=Math.min(240,innerHeight*.30);
     })||null;
   }
+  function overlayHostFromMedia(){
+    for(const media of document.querySelectorAll('img,video,canvas')){
+      if(!visible(media)||media.closest(OWN)||media.id==='ng8-matrix')continue;
+      const mr=media.getBoundingClientRect();
+      if(mr.width<Math.min(360,innerWidth*.34)||mr.height<Math.min(240,innerHeight*.30))continue;
+      let node=media.parentElement;
+      for(let depth=0;depth<10&&node&&node!==document.body;depth++,node=node.parentElement){
+        if(!visible(node)||node.closest(OWN))continue;
+        const r=node.getBoundingClientRect(),cs=getComputedStyle(node),modal=node.getAttribute('aria-modal')==='true'||node.getAttribute('role')==='dialog';
+        if(r.width>=innerWidth*.68&&r.height>=innerHeight*.68&&(cs.position==='fixed'||modal))return node;
+      }
+    }
+    return null;
+  }
   function viewerCandidate(){
     for(const host of document.querySelectorAll(VIEWER_SEL)){
       if(!visible(host)||host.closest(OWN))continue;
@@ -48,7 +62,7 @@
       if(r.width<innerWidth*.55||r.height<innerHeight*.55)continue;
       if(largeMedia(host))return host;
     }
-    return null;
+    return overlayHostFromMedia();
   }
   function nativeClose(){
     if(!viewerHost)return null;
@@ -114,7 +128,18 @@
   }
   function imageIntent(target){
     if(!(target instanceof Element)||target.closest(OWN))return false;
-    return !!(target.closest('img,video')||target.closest('button,a')?.querySelector('img,video'));
+    if(target.closest('img,video,figure,[data-testid*="image" i],[data-testid*="media" i]')||target.closest('button,a')?.querySelector('img,video,canvas'))return true;
+    const control=target.closest('button,a,[role="button"]'),label=`${control?.getAttribute?.('aria-label')||''} ${control?.getAttribute?.('title')||''}`;
+    return /image|photo|preview|aper[cç]u|visualis/i.test(label);
+  }
+  function armViewerObserver(){
+    viewerRootObserver?.disconnect();
+    viewerRootObserver=new MutationObserver(records=>{
+      if(viewerHost)return;
+      const mediaAdded=records.some(r=>[...r.addedNodes].some(n=>n instanceof Element&&(n.matches?.('img,video,canvas,[role="dialog"],[aria-modal="true"]')||n.querySelector?.('img,video,canvas'))));
+      if(mediaAdded)setTimeout(()=>scanViewer(),35);
+    });
+    viewerRootObserver.observe(document.documentElement,{childList:true,subtree:true});
   }
 
   document.addEventListener('click',event=>{
@@ -130,11 +155,12 @@
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){armMatrixProbes();if(viewerHost)scanViewer();}});
   window.addEventListener('popstate',()=>{cleanupViewer();armMatrixProbes();});
   if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>{cleanupViewer();armMatrixProbes();});
-  window.addEventListener('pageshow',event=>{if(event.persisted){armMatrixProbes();if(viewerHost)scanViewer();}});
+  window.addEventListener('pageshow',event=>{if(event.persisted){armMatrixProbes();armViewerObserver();if(viewerHost)scanViewer();}});
   window.addEventListener('pagehide',()=>{
-    clearTimeout(detectorTimer);clearTimeout(matrixTimer);viewerObserver?.disconnect();viewerObserver=null;
+    clearTimeout(detectorTimer);clearTimeout(matrixTimer);viewerObserver?.disconnect();viewerRootObserver?.disconnect();viewerObserver=viewerRootObserver=null;
   });
 
-  if(document.body)armMatrixProbes();
-  else document.addEventListener('DOMContentLoaded',armMatrixProbes,{once:true});
+  const start=()=>{armMatrixProbes();armViewerObserver();};
+  if(document.body)start();
+  else document.addEventListener('DOMContentLoaded',start,{once:true});
 })();

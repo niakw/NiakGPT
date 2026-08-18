@@ -23,17 +23,24 @@ const ISOLATED_RUNTIME=[
   'project-governance-v090.js',
   'governance-queue-v101.js',
   'reclassify-v101.js',
+  'analysis-bridge-v112.js',
+  'reclassify-deep-v112.js',
   'locale-fr-v101.js',
   'project-pins-v090.js',
   'sidebar-authority-v107.js',
   'sidebar-expando-guard-v108.js',
-  'sidebar-projects-authority-v111.js',
+  'sidebar-projects-authority-v112.js',
   'sidebar-host-v090.js',
+  'performance-guard-v112.js',
   'app-v090.js',
+  'home-layout-v112.js',
+  'matrix-guardian-v112.js',
+  'turn-headers-v112.js',
   'project-state-selfheal-v102.js',
   'project-assignment-selfheal-v103.js',
   'breadcrumb-v100.js',
   'continuity-v100.js',
+  'continuity-v112.js',
   'visual-stability-v101.js',
   'coach-v101.js',
   'polish-v090.js',
@@ -42,6 +49,7 @@ const ISOLATED_RUNTIME=[
   'live-fixes-v106.js',
   'chronology-v090.js',
   'pin-folders-v096.js',
+  'native-rename-v112.js',
   'project-chat-ux-v110.js',
   'project-links-v106.js',
   'activity-ui-v097.js',
@@ -96,7 +104,7 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
       const failure=await injectOne(tabId,frameId,file,'ISOLATED');
       if(failure)errors.push(failure);
     }
-    const coreFailed=errors.some(item=>item.includes(':app-v090.js:')||item.includes(':project-state-selfheal-v102.js:')||item.includes(':project-assignment-selfheal-v103.js:'));
+    const coreFailed=errors.some(item=>item.includes(':app-v090.js:')||item.includes(':project-state-selfheal-v102.js:')||item.includes(':project-assignment-selfheal-v103.js:')||item.includes(':sidebar-projects-authority-v112.js:'));
     sendResponse({ok:!coreFailed,errors});
   })().catch(error=>sendResponse({ok:false,errors:[`bootstrap:${String(error?.message||error)}`]}));
   return true;

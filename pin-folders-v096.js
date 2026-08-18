@@ -9,7 +9,7 @@
   let cache={projects:[],chats:[],projectChats:{}};
   let openPid='';
   let filter='';
-  let observer=null,observedBox=null,bootstrapObserver=null,renderTimer=0,internalWrite=false;
+  let observer=null,observedBox=null,bootstrapObserver=null,renderTimer=0,internalWrite=false,drawerDirty=false;
 
   try{openPid=sessionStorage.getItem(SESSION_KEY)||'';}catch{}
 
@@ -25,9 +25,9 @@
     if(!pid)return'';const chats=(raw?.chats||[]).filter(c=>c?.projectId===pid).map(c=>[c.id,c.updated||c.update_time||0,c.title||'']);return JSON.stringify([raw?.counts?.[pid]??null,chats]);
   }
   function acceptCache(next){
-    const before=projectSnapshotSignature(cache,openPid);cache=next&&typeof next==='object'?next:cache;const after=projectSnapshotSignature(cache,openPid);if(!observedBox)bindBox();if(openPid&&before!==after)schedule(40);else if(!openPid)schedule(80);
+    const before=projectSnapshotSignature(cache,openPid);cache=next&&typeof next==='object'?next:cache;const after=projectSnapshotSignature(cache,openPid);if(!observedBox)bindBox();if(openPid&&before!==after){drawerDirty=true;schedule(40);}else if(!openPid)schedule(80);
   }
-  function setOpen(pid){openPid=pid||'';filter='';try{openPid?sessionStorage.setItem(SESSION_KEY,openPid):sessionStorage.removeItem(SESSION_KEY);}catch{}}
+  function setOpen(pid){openPid=pid||'';filter='';drawerDirty=false;try{openPid?sessionStorage.setItem(SESSION_KEY,openPid):sessionStorage.removeItem(SESSION_KEY);}catch{}}
   function projectHref(pid){return cache.projects?.find(p=>p?.id===pid)?.href||`/g/${pid}/project`;}
   function chatHref(c,pid){return c?.href||`/g/${pid}/c/${c.id}`;}
   function routeNative(href){
@@ -75,7 +75,7 @@
     const all=chatsFor(pid),q=norm(filter),shown=q?all.filter(c=>norm(`${c.title||''} ${c.snippet||''}`).includes(q)):all;
     const drawer=document.createElement('div');drawer.className='ng96-pin-drawer';drawer.id=drawerId(pid);drawer.dataset.pid=pid;drawer.setAttribute('role','region');drawer.setAttribute('aria-label','Conversations du Project');
     drawer.innerHTML=`${all.length>8?`<div class="ng96-folder-search"><input type="search" value="${esc(filter)}" placeholder="Filtrer ${all.length} conversations…" aria-label="Filtrer les conversations du Project"></div>`:''}<div class="ng96-folder-list">${shown.length?shown.slice(0,160).map(c=>`<a data-chat="${esc(c.id)}" href="${esc(chatHref(c,pid))}" title="${esc(c.title||'Conversation')}"><span>${esc(c.title||'Conversation sans titre')}</span><time>${fmt(c.updated)}</time></a>`).join(''):'<div class="ng96-folder-empty">Aucune conversation indexée</div>'}</div>${all.length>160?`<small class="ng96-folder-limit">160 / ${all.length} affichées · utilise la recherche</small>`:''}`;
-    entry.insertAdjacentElement('afterend',drawer);
+    entry.insertAdjacentElement('afterend',drawer);drawerDirty=false;
     drawer.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();setOpen('');closeDrawers();anchor.focus();}});
     const input=drawer.querySelector('input');if(input){input.addEventListener('input',()=>{filter=input.value;renderDrawer(pid,anchor);requestAnimationFrame(()=>{const next=document.querySelector(`#${CSS.escape(drawerId(pid))} input`);if(next){next.focus();next.setSelectionRange(next.value.length,next.value.length);}});});}
     drawer.querySelectorAll('a[data-chat]').forEach(link=>link.addEventListener('click',event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;const c=all.find(x=>x.id===link.dataset.chat);if(!c)return;event.preventDefault();event.stopPropagation();routeNative(link.getAttribute('href')||chatHref(c,pid));}));
@@ -88,13 +88,19 @@
   function rehydrate(){
     renderTimer=0;const box=document.getElementById('ng8-pins');if(!box)return;
     internalWrite=true;
-    try{for(const anchor of box.querySelectorAll('a[data-ng8-pin="1"]'))decorateAnchor(anchor);if(openPid){const anchor=[...box.querySelectorAll('a[data-ng8-pin="1"]')].find(a=>pidFromHref(a.getAttribute('href'))===openPid);if(anchor)renderDrawer(openPid,anchor);else setOpen('');}}
-    finally{queueMicrotask(()=>{internalWrite=false;});}
+    try{
+      for(const anchor of box.querySelectorAll('a[data-ng8-pin="1"]'))decorateAnchor(anchor);
+      if(openPid){
+        const anchor=[...box.querySelectorAll('a[data-ng8-pin="1"]')].find(a=>pidFromHref(a.getAttribute('href'))===openPid);
+        if(anchor){const existing=document.getElementById(drawerId(openPid)),entry=rowFor(anchor);if(existing&&!drawerDirty&&existing.previousElementSibling===entry)anchor.setAttribute('aria-expanded','true');else renderDrawer(openPid,anchor);}else setOpen('');
+      }
+    }finally{queueMicrotask(()=>{internalWrite=false;});}
   }
   function schedule(delay=30){clearTimeout(renderTimer);renderTimer=setTimeout(rehydrate,delay);}
+  function cooperativeNode(n){return n instanceof Element&&!!n.closest?.('.ng96-pin-drawer,.ng96-pin-entry,.ng113-native-actions,#ng113-actions-fallback');}
   function bindBox(){
     const box=document.getElementById('ng8-pins');if(!box||box===observedBox)return false;
-    observer?.disconnect();observedBox=box;observer=new MutationObserver(records=>{if(internalWrite)return;const external=records.some(r=>[...r.addedNodes,...r.removedNodes].some(n=>n instanceof Element&&!n.classList?.contains('ng96-pin-drawer')&&!n.classList?.contains('ng96-pin-entry')));if(external)schedule(20);});observer.observe(box,{childList:true,subtree:true});schedule(0);return true;
+    observer?.disconnect();observedBox=box;observer=new MutationObserver(records=>{if(internalWrite)return;const external=records.some(r=>[...r.addedNodes,...r.removedNodes].some(n=>n instanceof Element&&!cooperativeNode(n)));if(external)schedule(20);});observer.observe(box,{childList:true,subtree:true});schedule(0);return true;
   }
   function bootstrap(){
     if(bindBox())return;

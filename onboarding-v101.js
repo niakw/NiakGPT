@@ -17,11 +17,14 @@
       const known=await chrome.storage.local.get([KEY,INSTALL_META]);
       if(known[KEY])return false;
       const lifecycle=known[INSTALL_META];
-      if(lifecycle?.reason==='install')return true;
-      if(lifecycle?.reason==='update'){
+      // previousVersion is stronger evidence than the transient MV3 reason. During an
+      // unpacked-extension reload Chrome can briefly report "install" after an update
+      // marker was written; a real fresh install has no previousVersion.
+      if(lifecycle?.previousVersion||lifecycle?.reason==='update'){
         await chrome.storage.local.set({[KEY]:{status:'upgrade-skipped',version:VERSION,previousVersion:lifecycle.previousVersion||'',at:Date.now()}});
         return false;
       }
+      if(lifecycle?.reason==='install')return true;
       // Defensive legacy fallback for installations predating lifecycle metadata.
       const legacy=await chrome.storage.local.get(LEGACY_STORAGE_KEYS);
       if(LEGACY_STORAGE_KEYS.some(key=>legacy[key]!=null)){
@@ -58,8 +61,7 @@
 
   // MV3 onInstalled metadata and the first injected page can race during an extension reload.
   // A delayed modal must therefore re-read lifecycle state immediately before opening rather
-  // than relying on the earlier decision. This keeps true installs visible while upgrades
-  // remain silent even when the install/update marker changes during the 1.25 s launch delay.
+  // than relying on the earlier decision. previousVersion also wins over a transient install reason.
   shouldShow().then(show=>{
     if(!show)return;
     const launch=async()=>{

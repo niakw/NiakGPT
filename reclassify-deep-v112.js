@@ -56,7 +56,7 @@
     if(raw.projectChats&&typeof raw.projectChats==='object'){
       let item=row?{...row}:null;for(const[pid,list]of Object.entries(raw.projectChats)){const i=(list||[]).findIndex(c=>c?.id===chatId);if(i>=0){item={...list[i],projectId:target||''};list.splice(i,1);}raw.counts??={};raw.counts[pid]=(list||[]).length;}
       if(item&&target){raw.projectChats[target]??=[];if(!raw.projectChats[target].some(c=>c?.id===chatId))raw.projectChats[target].push(item);raw.counts[target]=raw.projectChats[target].length;}
-    }else if(raw.counts){if(from&&raw.counts[from]!=null)raw.counts[from]=Math.max(0,Number(raw.counts[from])||0-1);if(target&&target!==from&&raw.counts[target]!=null)raw.counts[target]=(Number(raw.counts[target])||0)+1;}
+    }else if(raw.counts){if(from&&raw.counts[from]!=null)raw.counts[from]=Math.max(0,(Number(raw.counts[from])||0)-1);if(target&&target!==from&&raw.counts[target]!=null)raw.counts[target]=(Number(raw.counts[target])||0)+1;}
     raw.at=Date.now();
   }
   function continuationPendingFor(chatId){
@@ -81,7 +81,8 @@
       const now=Date.now();
       const queue=chats.filter(c=>{
         if(!c?.id||locks[c.id]||continuationPendingFor(c.id))return false;
-        const pid=clean(c.projectId),orphan=!!pid&&!byId.has(pid),ambiguous=attempts[c.id]?.status==='ambiguous',recent=!pid&&updatedMs(c)&&now-updatedMs(c)<=RECENT_MS;
+        const previous=state.checked[c.id];if(previous?.status==='orphan-detached'&&now-Number(previous.at||0)<RETRY_MS)return false;
+        const pid=clean(c.projectId),orphan=!!pid&&!byId.has(pid),ambiguous=attempts[c.id]?.status==='ambiguous'||previous?.status==='ambiguous',recent=!pid&&updatedMs(c)&&now-updatedMs(c)<=RECENT_MS;
         return orphan||ambiguous||recent;
       }).sort((a,b)=>{const ao=!!a.projectId&&!byId.has(a.projectId),bo=!!b.projectId&&!byId.has(b.projectId);return Number(bo)-Number(ao)||updatedMs(b)-updatedMs(a);});
       let processed=0,moved=0,detached=0,ambiguous=0,analysisCalls=0;const limit=heavy()?MAX_HEAVY:MAX_PER_RUN;
@@ -104,7 +105,7 @@
         }
       }
       if(processed||moved||detached)await persist(raw,state);
-      const remaining=allChats(raw).filter(c=>{const pid=clean(c.projectId);return (!!pid&&!byId.has(pid))||attempts[c.id]?.status==='ambiguous';}).length;
+      const remaining=allChats(raw).filter(c=>{const pid=clean(c.projectId),orphan=!!pid&&!byId.has(pid),unassignedAmbiguous=!pid&&(attempts[c.id]?.status==='ambiguous'||state.checked[c.id]?.status==='ambiguous');return orphan||unassignedAmbiguous;}).length;
       window.__NIAKGPT_DIAGNOSTICS__?.set('deep-classement',moved||detached?`OK · ${moved} classé(s) · ${detached} orphelin(s) détaché(s) · ${analysisCalls} analyse(s) profonde(s)`:`${remaining?'ATTENTE':'OK'} · ${remaining} ambigu/orphelin · ${analysisCalls} analyse(s) profonde(s)`);
       if(queue.length>processed&&can())schedule(heavy()?5500:2600);
     }catch(error){window.__NIAKGPT_DIAGNOSTICS__?.set('deep-classement',`ERREUR · ${String(error?.message||error).slice(0,80)}`);}finally{busy=false;}

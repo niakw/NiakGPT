@@ -10,6 +10,7 @@ const ISOLATED_RUNTIME=[
   'onboarding-v101.js',
   'profiles-v100.js',
   'control-center-v090.js',
+  'control-a11y-v110.js',
   'cache-bus-v096.js',
   'diagnostic-bus-v096.js',
   'cache-guardian-v100.js',

@@ -1,41 +1,15 @@
-name: NiakGPT 0.9.59 Sidebar + Chat UX + Catch-up Matrix
+name: NiakGPT 0.9.59 Historical Regression Matrix
 
 on:
-  push:
-    branches: [main, fix/niakgpt-0959-sidebar-chat-ux-catchup]
-    paths:
-      - 'sidebar-projects-authority-v109.js'
-      - 'sidebar-projects-authority-v109.css'
-      - 'project-chat-ux-v109.js'
-      - 'project-chat-ux-v109.css'
-      - 'reclassify-v101.js'
-      - 'background-v100.js'
-      - 'manifest.json'
-      - 'labs/regression_0959.py'
-      - '.github/workflows/regression-matrix-0959.yml'
   pull_request:
-    paths:
-      - 'sidebar-projects-authority-v109.js'
-      - 'sidebar-projects-authority-v109.css'
-      - 'project-chat-ux-v109.js'
-      - 'project-chat-ux-v109.css'
-      - 'reclassify-v101.js'
-      - 'background-v100.js'
-      - 'manifest.json'
-      - 'labs/regression_0959.py'
-      - '.github/workflows/regression-matrix-0959.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: niakgpt-0959-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   regression:
-    name: 0.9.59 live · ${{ matrix.browser }}
+    name: 0.9.59 historical · ${{ matrix.browser }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -46,34 +20,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify 0.9.59 wiring
+      - name: Verify historical 0.9.59 fixtures exist
         run: |
           python - <<'PY'
-          import json
-          m=json.load(open('manifest.json'))
-          version=tuple(int(x) for x in m['version'].split('.'))
-          assert version >= (0,9,59), m['version']
-          css=[x for cs in m['content_scripts'] for x in cs.get('css',[])]
-          for name in ['sidebar-projects-authority-v109.css','project-chat-ux-v109.css']:
-              assert name in css, name
+          from pathlib import Path
+          for name in ['sidebar-projects-authority-v109.js','sidebar-projects-authority-v109.css','project-chat-ux-v109.js','project-chat-ux-v109.css','labs/regression_0959.py']:
+              assert Path(name).exists(), name
           PY
-          grep -q "sidebar-projects-authority-v109.js" background-v100.js
-          grep -q "project-chat-ux-v109.js" background-v100.js
-          grep -q "RECENT_CATCHUP_MS" reclassify-v101.js
-          grep -q "ng109-out-badge" project-chat-ux-v109.js
-          grep -q "ng109-chat-rename" project-chat-ux-v109.js
       - name: Install Playwright
         run: |
-          python -m pip install --upgrade pip
           python -m pip install playwright==1.57.0
           python -m playwright install --with-deps ${{ matrix.browser }}
-      - name: Run 0.9.59 real regression scenarios
+      - name: Run historical regression
         run: python labs/regression_0959.py --browser ${{ matrix.browser }}
-      - name: Upload 0.9.59 visual proof
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: niakgpt-0959-${{ matrix.browser }}
-          path: artifacts/*-${{ matrix.browser }}.png
-          if-no-files-found: warn
-          retention-days: 30

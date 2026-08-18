@@ -61,8 +61,13 @@
     return null;
   }
   function identityHosts(){
-    const hosts=new Set();
+    const hosts=new Set(),names=managedNames();
     for(const link of document.querySelectorAll('a[href*="/g/g-p-"]')){if(!sharesSidebarShell(link))continue;const host=nearestProjectHost(link);if(host)hosts.add(host);}
+    if(names.size>=2){
+      for(const el of document.querySelectorAll('a,button,[role="link"],[role="button"],[class*="project" i]')){
+        if(!sharesSidebarShell(el))continue;const label=norm(el.getAttribute?.('aria-label')||el.textContent);if(!names.has(label))continue;const host=nearestProjectHost(el);if(host)hosts.add(host);
+      }
+    }
     return hosts;
   }
   function nativeTargets(){
@@ -83,6 +88,7 @@
         continue;
       }
       if(names.size&&names.has(label)){
+        const host=nearestProjectHost(el);if(host){found.add(host);continue;}
         const hasProjectIdentity=projectChildHref(el.getAttribute?.('href'))||!!el.closest?.('[class*="project-unfurl-row"]');
         if(hasProjectIdentity){const target=rowTarget(el);if(target)found.add(target);}
       }

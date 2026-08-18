@@ -41,7 +41,7 @@
   }
   function projectLinks(scope){return [...scope.querySelectorAll?.('a[href]')||[]].filter(a=>sharesSidebarShell(a)&&projectChildHref(a.getAttribute('href')));}
   function genericChatLinks(scope){return [...scope.querySelectorAll?.('a[href*="/c/"]')||[]].filter(a=>sharesSidebarShell(a)&&!projectChildHref(a.getAttribute('href')));}
-  function hasProjectHeading(scope){return [...scope.querySelectorAll?.('h1,h2,h3,[role="heading"],button,[role="button"],a,[aria-label]')||[]].some(el=>sharesSidebarShell(el)&&(projectLabel(el.textContent)||projectLabel(el.getAttribute?.('aria-label'))));}
+  function hasProjectHeading(scope){return [...scope.querySelectorAll?.('h1,h2,h3,[role="heading"],button,[role="button"],a,[aria-label],div,span')||[]].some(el=>sharesSidebarShell(el)&&(projectLabel(el.textContent)||projectLabel(el.getAttribute?.('aria-label'))));}
   function hasShowMore(scope){return [...scope.querySelectorAll?.('button,[role="button"],a')||[]].some(el=>sharesSidebarShell(el)&&showMoreLabel(el.textContent||el.getAttribute?.('aria-label')));}
   function managedIdentityCount(scope,names=managedNames()){
     if(!scope||!names.size)return 0;const seen=new Set();

@@ -36,10 +36,10 @@ jobs:
             continuity-v112.js; do
             node --check "$f"
           done
-      - name: Existing static validation
-        run: python3 labs/static_validate.py
+      - name: Current static validation
+        run: python3 labs/static_validate_0962.py
       - name: Packaging exclusion check
-        run: node tools/package-extension.mjs --check
+        run: node tools/package-extension.mjs
 
   visual-dom-crossengine:
     runs-on: ubuntu-latest

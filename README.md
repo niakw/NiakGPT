@@ -206,18 +206,17 @@ Quand plusieurs onglets ChatGPT sont ouverts :
 
 ## Tests et labs
 
-Les labs sont permanents dans le dépôt.
+Les labs restent permanents dans le dépôt, mais les anciennes matrices ne sont plus exécutées automatiquement sur chaque PR.
 
-La CI combine :
+La CI automatique se concentre sur le runtime actuel :
 
-- contrôles Manifest/runtime et syntaxe ;
-- garde-fous hot-path / hydratation ;
-- Browser Matrix ;
-- Visual Lab ;
-- Runtime Diagnostics ;
-- matrices historiques 0.9.52+ ;
-- matrice historique 0.9.59 ;
-- matrice 0.9.60 Chromium / Firefox / WebKit.
+- **Check NiakGPT** : Manifest/runtime, hydratation, hot-path, syntaxe et package ;
+- **Visual Lab** : comportement actuel et vraie extension non empaquetée sur Chromium ;
+- **Runtime Diagnostics** : runtime courant, multitab et invariants statiques ;
+- **0.9.60 Stability Matrix** : Chromium / Firefox / WebKit pour la sidebar Projects et les discussions Project ;
+- **Public Quality Gate** et **Package NiakGPT** pour la certification et l’artefact installable.
+
+Les régressions historiques 0.9.49 à 0.9.59 et l’ancien bootstrap isolation restent disponibles via le workflow manuel **NiakGPT Historical Regressions**. On peut y choisir la suite et le moteur Chromium / Firefox / WebKit sans encombrer chaque push ou PR avec des dizaines de jobs historiques.
 
 Le lab 0.9.60 couvre notamment :
 

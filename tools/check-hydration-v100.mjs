@@ -47,7 +47,7 @@ const breadcrumb=read('breadcrumb-v113.js');for(const token of ['>Accueil<','ng1
 const attention=read('chat-attention-v113.js');for(const token of ['ng113Unread','ng113UnreadCount','markSeen','initialized'])need(attention,token);forbid(attention,'setInterval(');
 const actions=read('native-actions-v113.js');for(const token of ['invokeNativeMenu','fallbackChatMenu','fallbackMove','Déplacer vers','ng113-native-actions-project','ng113-native-actions-chat','niakgpt:pins-rendered','pageshow'])need(actions,token);forbid(actions,'setInterval(');
 const loadGuard=read('conversation-load-guard-v113.js');for(const token of ['clearNiakGPTContentPressure','ng112LongThread','ng8Heavy','niakgpt:native-content-missing'])need(loadGuard,token);forbid(loadGuard,'setInterval(');
-const icons=read('sidebar-icons-v114.js');for(const token of ['ng114NavIcon','Nouvelle discussion','sidebar-icons','navigatesuccess'])need(icons,token);forbid(icons,'setInterval(');
+const icons=read('sidebar-icons-v114.js');for(const token of ['ng114NavIcon','kindFor','sidebar-icons','navigatesuccess'])need(icons,token);forbid(icons,'setInterval(');
 
 const continuity=read('continuity-v100.js');need(continuity,"const STATE_KEY='niakgpt-continuity-v100'");need(continuity,'function outSignal()');need(continuity,'markCurrentOut');
 const continuity112=read('continuity-v112.js');for(const token of ['Reprends la conversation nommée','PROJECT EXACT À CONSERVER','exactProject:true','source:\'continuity-exact\''])need(continuity112,token);

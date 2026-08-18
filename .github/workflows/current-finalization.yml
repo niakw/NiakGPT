@@ -12,33 +12,13 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: niakgpt-current-finalization-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # BEGIN TEMP LIVE FIX
-  apply-live-fix:
-    if: github.event_name == 'pull_request' && github.head_ref == 'fix/codeql-live-ui-regressions'
-    runs-on: ubuntu-latest
-    timeout-minutes: 8
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-          fetch-depth: 0
-      - name: Apply one-shot CodeQL and live UI patch
-        run: python .github/apply-live-fix.py
-      - name: Commit and push corrected branch
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "Apply CodeQL and live UI regressions"
-          git push origin HEAD:${{ github.head_ref }}
-  # END TEMP LIVE FIX
   static-runtime:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -51,7 +31,7 @@ jobs:
         run: node -e "console.log('NiakGPT', require('./manifest.json').version)"
       - name: Runtime syntax
         run: |
-          for f in background-v100.js sidebar-projects-authority-v112.js home-layout-v112.js analysis-bridge-v112.js reclassify-deep-v112.js matrix-guardian-v112.js performance-guard-v112.js turn-headers-v112.js continuity-v112.js chat-state-authority-v113.js breadcrumb-v113.js chat-attention-v113.js native-actions-v113.js conversation-load-guard-v113.js; do
+          for f in background-v100.js app-v090.js visual-stability-v101.js sidebar-projects-authority-v112.js home-layout-v112.js analysis-bridge-v112.js reclassify-deep-v112.js matrix-guardian-v112.js performance-guard-v112.js turn-headers-v112.js continuity-v112.js chat-state-authority-v113.js breadcrumb-v113.js chat-attention-v113.js native-actions-v113.js conversation-load-guard-v113.js; do
             node --check "$f"
           done
       - name: Current static validation
@@ -95,6 +75,11 @@ jobs:
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node sidebar-native-actions-v113.mjs
+      - name: Live image viewer and native Projects regressions
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node live-ui-regressions-v114.mjs
       - name: Canonical titles breadcrumb unread and load guard
         working-directory: visual-lab
         env:
@@ -126,6 +111,7 @@ jobs:
           path: |
             visual-lab/artifacts/finalization-v112/${{ matrix.browser }}
             visual-lab/artifacts/finalization-v113/${{ matrix.browser }}
+            visual-lab/artifacts/finalization-v114/${{ matrix.browser }}
             visual-lab/playwright-report
             visual-lab/test-results
           if-no-files-found: warn

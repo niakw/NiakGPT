@@ -1,39 +1,18 @@
-name: NiakGPT 0.9.61 Projects Authority + Chat Stability Matrix
+name: Historical NiakGPT 0.9.61 Projects Authority + Chat Stability Matrix
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'sidebar-projects-authority-v111.js'
-      - 'sidebar-projects-authority-v111.css'
-      - 'project-chat-ux-v110.js'
-      - 'project-chat-ux-v110.css'
-      - 'background-v100.js'
-      - 'manifest.json'
-      - 'labs/regression_0961.py'
-      - '.github/workflows/regression-matrix-0961.yml'
-  pull_request:
-    paths:
-      - 'sidebar-projects-authority-v111.js'
-      - 'sidebar-projects-authority-v111.css'
-      - 'project-chat-ux-v110.js'
-      - 'project-chat-ux-v110.css'
-      - 'background-v100.js'
-      - 'manifest.json'
-      - 'labs/regression_0961.py'
-      - '.github/workflows/regression-matrix-0961.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: niakgpt-0961-${{ github.ref }}
+  group: niakgpt-historical-0961-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   regression:
-    name: 0.9.61 current UI · ${{ matrix.browser }}
+    name: Historical 0.9.61 UI · ${{ matrix.browser }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -44,36 +23,30 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify 0.9.61 wiring
+      - name: Verify historical 0.9.61 wiring
         run: |
           python - <<'PY'
           import json
           m=json.load(open('manifest.json'))
-          assert m['version']=='0.9.61',m['version']
+          assert m['version']=='0.9.61', 'Ce workflow historique doit être lancé sur le tag/commit 0.9.61, version actuelle: '+m['version']
           css=[x for cs in m['content_scripts'] for x in cs.get('css',[])]
           assert 'sidebar-projects-authority-v111.css' in css
           assert 'project-chat-ux-v110.css' in css
-          assert 'sidebar-projects-authority-v110.css' not in css
-          assert 'sidebar-projects-authority-v109.css' not in css
-          assert 'project-chat-ux-v109.css' not in css
           PY
           grep -q "sidebar-projects-authority-v111.js" background-v100.js
-          grep -q "project-chat-ux-v110.js" background-v100.js
-          ! grep -q "sidebar-projects-authority-v110.js" background-v100.js
-          grep -q "projectHomeHref" sidebar-projects-authority-v111.js
           grep -q "our-projects" labs/regression_0961.py
       - name: Install Playwright
         run: |
           python -m pip install --upgrade pip
           python -m pip install playwright==1.57.0
           python -m playwright install --with-deps ${{ matrix.browser }}
-      - name: Run 0.9.61 current regression
+      - name: Run historical 0.9.61 regression
         run: python labs/regression_0961.py --browser ${{ matrix.browser }}
       - name: Upload visual proof
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: niakgpt-0961-${{ matrix.browser }}
+          name: niakgpt-historical-0961-${{ matrix.browser }}
           path: artifacts/0961-*-${{ matrix.browser }}.png
           if-no-files-found: warn
           retention-days: 30

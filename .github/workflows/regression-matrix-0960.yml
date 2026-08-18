@@ -1,0 +1,78 @@
+name: NiakGPT 0.9.60 Integrated Sidebar Matrix
+
+on:
+  push:
+    branches: [main, fix/niakgpt-0960-sidebar-integration]
+    paths:
+      - 'sidebar-native-projects-v110.js'
+      - 'sidebar-native-projects-v110.css'
+      - 'project-drawer-v110.js'
+      - 'project-drawer-v110.css'
+      - 'background-v100.js'
+      - 'manifest.json'
+      - 'labs/sidebar_integration_0960.py'
+      - '.github/workflows/regression-matrix-0960.yml'
+  pull_request:
+    paths:
+      - 'sidebar-native-projects-v110.js'
+      - 'sidebar-native-projects-v110.css'
+      - 'project-drawer-v110.js'
+      - 'project-drawer-v110.css'
+      - 'background-v100.js'
+      - 'manifest.json'
+      - 'labs/sidebar_integration_0960.py'
+      - '.github/workflows/regression-matrix-0960.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: niakgpt-0960-sidebar-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integrated-sidebar:
+    name: 0.9.60 sidebar integration · ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify 0.9.60 wiring
+        run: |
+          python - <<'PY'
+          import json
+          m=json.load(open('manifest.json'))
+          version=tuple(int(x) for x in m['version'].split('.'))
+          assert version >= (0,9,60), m['version']
+          css=[x for cs in m['content_scripts'] for x in cs.get('css',[])]
+          for name in ['sidebar-native-projects-v110.css','project-drawer-v110.css']:
+              assert name in css, name
+          PY
+          grep -q "sidebar-native-projects-v110.js" background-v100.js
+          grep -q "project-drawer-v110.js" background-v100.js
+          grep -q "__NIAKGPT_PIN_FOLDERS_096__=true" project-drawer-v110.js
+          grep -q "__NIAKGPT_PROJECT_CHAT_UX_109__=true" project-drawer-v110.js
+          grep -q "group/project-unfurl-row" labs/sidebar_integration_0960.py
+          grep -q "SIDEBAR_INTEGRATION_0960_PASS" labs/sidebar_integration_0960.py
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install playwright==1.57.0
+          python -m playwright install --with-deps ${{ matrix.browser }}
+      - name: Run integrated real-sidebar scenario
+        run: python labs/sidebar_integration_0960.py --browser ${{ matrix.browser }}
+      - name: Upload integrated sidebar visual proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: niakgpt-0960-sidebar-${{ matrix.browser }}
+          path: artifacts/0960-sidebar-integration-${{ matrix.browser }}.png
+          if-no-files-found: warn
+          retention-days: 30

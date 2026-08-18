@@ -72,6 +72,10 @@ test('pinned Project opens an instant local folder instead of navigating away',a
 test('bottom status geometry is invariant across all activity labels',async()=>{
   const rt=await launch();
   try{
+    // #ng8-status is mounted by the core before activity-ui appends its dedicated state cell.
+    // Geometry must be measured only after that final owner is present, otherwise the lab
+    // itself races the runtime and dereferences a null element before any geometry assertion.
+    await expect(rt.page.locator('#ng8-status .ng86-status-state')).toBeVisible({timeout:4000});
     const snapshot=async(state,label)=>rt.page.evaluate(({state,label})=>{
       const bar=document.getElementById('ng8-status'),status=bar.querySelector('.ng86-status-state');
       bar.dataset.ng86Activity=state;status.textContent=label;

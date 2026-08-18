@@ -23,17 +23,24 @@ const ISOLATED_RUNTIME=[
   'project-governance-v090.js',
   'governance-queue-v101.js',
   'reclassify-v101.js',
+  'analysis-bridge-v112.js',
+  'reclassify-deep-v112.js',
   'locale-fr-v101.js',
   'project-pins-v090.js',
   'sidebar-authority-v107.js',
   'sidebar-expando-guard-v108.js',
-  'sidebar-projects-authority-v111.js',
+  'sidebar-projects-authority-v112.js',
   'sidebar-host-v090.js',
+  'performance-guard-v112.js',
   'app-v090.js',
+  'home-layout-v112.js',
+  'matrix-guardian-v112.js',
+  'turn-headers-v112.js',
   'project-state-selfheal-v102.js',
   'project-assignment-selfheal-v103.js',
   'breadcrumb-v100.js',
   'continuity-v100.js',
+  'continuity-v112.js',
   'visual-stability-v101.js',
   'coach-v101.js',
   'polish-v090.js',
@@ -42,31 +49,40 @@ const ISOLATED_RUNTIME=[
   'live-fixes-v106.js',
   'chronology-v090.js',
   'pin-folders-v096.js',
+  'native-rename-v112.js',
   'project-chat-ux-v110.js',
   'project-links-v106.js',
   'activity-ui-v097.js',
   'retro-loader-v097.js'
 ];
 
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+
 chrome.runtime.onInstalled.addListener(async details=>{
   try{
     const current=chrome.runtime.getManifest().version;
     const old=(await chrome.storage.local.get(INSTALL_META))[INSTALL_META]||{};
-    const preserveUpdate=details.reason==='install'&&old.reason==='update'&&old.currentVersion===current;
+    const oldShowsUpgrade=old.reason==='update'||!!old.previousVersion;
+    const preserveUpdate=details.reason==='install'&&oldShowsUpgrade&&old.currentVersion===current;
     const reason=preserveUpdate?'update':details.reason;
     let next={...old,reason,currentVersion:current,previousVersion:details.previousVersion||old.previousVersion||'',changedAt:preserveUpdate?(old.changedAt||Date.now()):Date.now()};
     if(reason==='install'&&!old.installedAt)next.installedAt=Date.now();
 
-    // A lifecycle write can race the asynchronous onInstalled handler (notably when an
-    // unpacked extension is reloaded during an upgrade test). Re-read before committing and
-    // never overwrite a newer, explicit update marker for the same version with "install".
+    // MV3 can surface the service worker before its onInstalled async handler has committed.
+    // A test/user migration may therefore write an explicit update marker while this handler
+    // is still in flight. On an apparent install, wait a short bounded window then perform the
+    // final read immediately before commit. Boot waits seconds, so 140 ms has no UX cost.
     if(details.reason==='install'){
+      await sleep(140);
       const latest=(await chrome.storage.local.get(INSTALL_META))[INSTALL_META]||{};
-      const latestIsUpdate=latest.reason==='update'&&latest.currentVersion===current;
+      const latestIsUpdate=(latest.reason==='update'||!!latest.previousVersion)&&latest.currentVersion===current;
       const latestIsNewer=Number(latest.changedAt||0)>=Number(old.changedAt||0);
       if(latestIsUpdate&&latestIsNewer){
-        next={...latest,reason:'update',currentVersion:current,previousVersion:latest.previousVersion||details.previousVersion||'',changedAt:latest.changedAt||Date.now()};
+        // Never overwrite explicit upgrade evidence with a late install marker.
+        return;
       }
+      if(latest.changedAt&&Number(latest.changedAt)>Number(old.changedAt||0)&&latest.reason&&latest.reason!=='install')return;
+      if(latest.reason==='install'&&latest.currentVersion===current&&Number(latest.changedAt||0)>Number(next.changedAt||0))return;
     }
     await chrome.storage.local.set({[INSTALL_META]:next});
   }catch(error){console.warn('[NiakGPT lifecycle]',error);}
@@ -96,7 +112,7 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
       const failure=await injectOne(tabId,frameId,file,'ISOLATED');
       if(failure)errors.push(failure);
     }
-    const coreFailed=errors.some(item=>item.includes(':app-v090.js:')||item.includes(':project-state-selfheal-v102.js:')||item.includes(':project-assignment-selfheal-v103.js:'));
+    const coreFailed=errors.some(item=>item.includes(':app-v090.js:')||item.includes(':project-state-selfheal-v102.js:')||item.includes(':project-assignment-selfheal-v103.js:')||item.includes(':sidebar-projects-authority-v112.js:'));
     sendResponse({ok:!coreFailed,errors});
   })().catch(error=>sendResponse({ok:false,errors:[`bootstrap:${String(error?.message||error)}`]}));
   return true;

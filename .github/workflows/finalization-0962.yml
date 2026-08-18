@@ -1,0 +1,87 @@
+name: Finalization 0.9.62
+
+on:
+  pull_request:
+    paths:
+      - '**/*.js'
+      - '**/*.css'
+      - 'manifest.json'
+      - 'visual-lab/**'
+      - 'labs/**'
+      - '.github/workflows/finalization-0962.yml'
+  workflow_dispatch:
+
+jobs:
+  static-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Manifest and runtime syntax
+        run: |
+          node -e "const m=require('./manifest.json'); if(m.version!=='0.9.62') throw new Error('expected 0.9.62'); console.log(m.version)"
+          for f in background-v100.js sidebar-projects-authority-v112.js home-layout-v112.js native-rename-v112.js analysis-bridge-v112.js reclassify-deep-v112.js matrix-guardian-v112.js performance-guard-v112.js turn-headers-v112.js continuity-v112.js; do
+            node --check "$f"
+          done
+      - name: Current static validation
+        run: python3 labs/static_validate_0962.py
+      - name: Packaging exclusion check
+        run: node tools/package-extension.mjs
+
+  visual-dom-crossengine:
+    name: finalization · ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: visual-lab/package-lock.json
+      - name: Install lab dependencies
+        working-directory: visual-lab
+        run: npm ci
+      - name: Install ${{ matrix.browser }}
+        working-directory: visual-lab
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Finalization DOM and screenshots
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node crossengine-finalization-v112.mjs
+      - name: Preserve native home positioning
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node home-native-position-v112.mjs
+      - name: Identity-only Projects authority
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node sidebar-identity-v112.mjs
+      - name: Progressive deep classification
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node deep-classification-v112.mjs
+      - name: Exact Project continuity
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node continuity-v112.mjs
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: niakgpt-0962-${{ matrix.browser }}-dom-visual
+          path: visual-lab/artifacts/finalization-v112/${{ matrix.browser }}
+          if-no-files-found: error
+          retention-days: 14

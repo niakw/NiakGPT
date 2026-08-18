@@ -12,24 +12,25 @@ const isolated=[
   'diagnostic-bus-v096.js','cache-guardian-v100.js','recovery-v100.js','server-index-v100.js',
   'commands-v100.js','browser-compat-v102.js','lifecycle-guard-v104.js','multitab-v090.js',
   'governance-adapter-v105.js','project-governance-v090.js','governance-queue-v101.js',
-  'reclassify-v101.js','locale-fr-v101.js','project-pins-v090.js','sidebar-authority-v107.js',
-  'sidebar-expando-guard-v108.js','sidebar-projects-authority-v111.js','sidebar-host-v090.js',
-  'app-v090.js','project-state-selfheal-v102.js','project-assignment-selfheal-v103.js',
-  'breadcrumb-v100.js','continuity-v100.js','visual-stability-v101.js','coach-v101.js',
+  'reclassify-v101.js','analysis-bridge-v112.js','reclassify-deep-v112.js','locale-fr-v101.js',
+  'project-pins-v090.js','sidebar-authority-v107.js','sidebar-expando-guard-v108.js',
+  'sidebar-projects-authority-v112.js','sidebar-host-v090.js','performance-guard-v112.js',
+  'app-v090.js','home-layout-v112.js','matrix-guardian-v112.js','turn-headers-v112.js',
+  'project-state-selfheal-v102.js','project-assignment-selfheal-v103.js','breadcrumb-v100.js',
+  'continuity-v100.js','continuity-v112.js','visual-stability-v101.js','coach-v101.js',
   'polish-v090.js','side-panels-v096.js','live-fixes-v104.js','live-fixes-v106.js',
-  'chronology-v090.js','pin-folders-v096.js','project-chat-ux-v110.js','project-links-v106.js',
-  'activity-ui-v097.js','retro-loader-v097.js'
+  'chronology-v090.js','pin-folders-v096.js','native-rename-v112.js','project-chat-ux-v110.js',
+  'project-links-v106.js','activity-ui-v097.js','retro-loader-v097.js'
 ];
 
 const manifest=JSON.parse(read('manifest.json'));
 same(manifest.permissions,['storage','scripting'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*'],'host scope mismatch');
 same(manifest.content_scripts.flatMap(x=>x.js||[]),['boot-gate-v100.js'],'unexpected static runtime');
-const release=manifest.version.split('.').map(Number);
-if(release.length!==3||release.some(Number.isNaN)||release[0]!==0||release[1]!==9||release[2]<61)fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.62')fail(`unexpected release ${manifest.version}`);
 const manifestText=JSON.stringify(manifest.content_scripts);
-for(const css of ['live-fixes-v104.css','sidebar-authority-v107.css','sidebar-expando-guard-v108.css','sidebar-projects-authority-v111.css','project-chat-ux-v110.css'])need(manifestText,css,`${css} missing from manifest`);
-for(const obsolete of ['sidebar-projects-authority-v109.css','sidebar-projects-authority-v110.css','project-chat-ux-v109.css'])forbid(manifestText,obsolete,`${obsolete} still wired`);
+for(const css of ['live-fixes-v104.css','sidebar-authority-v107.css','sidebar-expando-guard-v108.css','sidebar-projects-authority-v112.css','project-chat-ux-v110.css','home-layout-v112.css','native-rename-v112.css','matrix-guardian-v112.css','performance-guard-v112.css','native-da-v112.css'])need(manifestText,css,`${css} missing from manifest`);
+for(const obsolete of ['sidebar-projects-authority-v109.css','sidebar-projects-authority-v110.css','sidebar-projects-authority-v111.css','project-chat-ux-v109.css'])forbid(manifestText,obsolete,`${obsolete} still wired`);
 
 const background=read('background-v100.js');
 const runtimeList=name=>[...(background.match(new RegExp(`const ${name}=\\[(.*?)\\];`,'s'))?.[1]||'').matchAll(/'([^']+)'/g)].map(x=>x[1]);
@@ -37,7 +38,7 @@ same(runtimeList('MAIN_RUNTIME'),main,'MAIN runtime mismatch');
 same(runtimeList('ISOLATED_RUNTIME'),isolated,'isolated runtime mismatch');
 need(background,'chrome.scripting.executeScript');
 need(background,'niakgpt:inject-runtime-v100');
-for(const obsolete of ["'manual-lock-main-v085.js'","'sidebar-projects-authority-v109.js'","'sidebar-projects-authority-v110.js'","'project-chat-ux-v109.js'"])forbid(background,obsolete,`${obsolete} loaded`);
+for(const obsolete of ["'manual-lock-main-v085.js'","'sidebar-projects-authority-v109.js'","'sidebar-projects-authority-v110.js'","'sidebar-projects-authority-v111.js'","'project-chat-ux-v109.js'"])forbid(background,obsolete,`${obsolete} loaded`);
 for(const legacy of ['hotcache-main-v084.js','activity-main-v087.js'])if(fs.existsSync(legacy))fail(`obsolete MAIN runtime still present: ${legacy}`);
 
 for(const file of [...main,...isolated,'boot-gate-v100.js','background-v100.js'])if(!fs.existsSync(file))fail(`missing runtime ${file}`);
@@ -62,8 +63,8 @@ const adapter=read('governance-adapter-v105.js');need(adapter,'trusted-project-m
 const selfheal=read('project-state-selfheal-v102.js');need(selfheal,'repairGovernance');need(selfheal,'mergeNativeCanonical');forbid(selfheal,'setInterval(');
 const assignment=read('project-assignment-selfheal-v103.js');need(assignment,'localToCanonical');need(assignment,'projectId:target');forbid(assignment,'setInterval(');
 
-const projectsAuthority=read('sidebar-projects-authority-v111.js');
-for(const token of ['ownReady','ng111-native-projects-authoritative','projectHomeHref','/projects','a[href]','projectHomeTarget','relevantRootMutation','FALLBACK · bloc NiakGPT absent'])need(projectsAuthority,token,`Projects authority missing ${token}`);
+const projectsAuthority=read('sidebar-projects-authority-v112.js');
+for(const token of ['ownReady','ng112-native-projects-authoritative','projectHomeHref','managedNames','identityHosts','relevantRootMutation','FALLBACK · bloc NiakGPT absent'])need(projectsAuthority,token,`Projects authority missing ${token}`);
 forbid(projectsAuthority,'setInterval(','Projects authority polling reintroduced');
 forbid(projectsAuthority,'window.fetch =','Projects authority must not hook fetch');
 
@@ -77,9 +78,16 @@ forbid(projectChatUx,'document.createElement','Project chat UX must not create/r
 forbid(projectChatUx,'setInterval(');
 
 const continuity=read('continuity-v100.js');
-need(continuity,"const STATE_KEY='niakgpt-continuity-v100'");
-need(continuity,'function outSignal()');
-need(continuity,'markCurrentOut');
+need(continuity,"const STATE_KEY='niakgpt-continuity-v100'");need(continuity,'function outSignal()');need(continuity,'markCurrentOut');
+const continuity112=read('continuity-v112.js');for(const token of ['Reprends la conversation nommée','PROJECT EXACT À CONSERVER','exactProject:true','source:\'continuity-exact\''])need(continuity112,token);
+const deep=read('reclassify-deep-v112.js');for(const token of ['MAX_PER_RUN=2','MAX_HEAVY=1','analysisRpc','orphan','progressive'])need(deep,token);forbid(deep,'setInterval(');
+const analysis=read('analysis-bridge-v112.js');for(const token of ['MIN_GAP=1800','MAX_MESSAGES=10','MAX_TEXT=14000','analysis_paused_busy'])need(analysis,token);forbid(analysis,'setInterval(');
+const perf=read('performance-guard-v112.js');for(const token of ['HEAVY_AT=70','COLD_KEEP=44','requestIdleCallback','ng112Cold'])need(perf,token);forbid(perf,'setInterval(');
+const headers=read('turn-headers-v112.js');for(const token of ['data-message-timestamp','data-create-time','ng112TimeSource','pendingUserAt'])need(headers,token);forbid(headers,'setInterval(');
+const rename=read('native-rename-v112.js');for(const token of ['ng112-rename-staging','invokeNativeRename','fallbackChatRename','ng112-native-rename-project'])need(rename,token);forbid(rename,'setInterval(');
+const home=read('home-layout-v112.js');need(home,'ng112-home-heading-repaired');need(home,'getBoundingClientRect');forbid(home,'setInterval(');
+const matrix=read('matrix-guardian-v112.js');need(matrix,'ng112-matrix-fallback');forbid(matrix,'setInterval(');
+
 const reclassify=read('reclassify-v101.js');need(reclassify,'RECENT_CATCHUP_MS');need(reclassify,'recentUnassigned');
 const projectLinks=read('project-links-v106.js');need(projectLinks,"link.href='/projects'");forbid(projectLinks,'setInterval(');
 const activity=read('activity-ui-v097.js');need(activity,'Never watch characterData across the whole conversation');

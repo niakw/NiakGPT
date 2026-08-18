@@ -35,6 +35,21 @@ for(const required of [
   'project-pins-v090.js',
   'sidebar-authority-v107.js',
   'sidebar-authority-v107.css',
+  'sidebar-projects-authority-v112.js',
+  'sidebar-projects-authority-v112.css',
+  'analysis-bridge-v112.js',
+  'reclassify-deep-v112.js',
+  'performance-guard-v112.js',
+  'performance-guard-v112.css',
+  'home-layout-v112.js',
+  'home-layout-v112.css',
+  'matrix-guardian-v112.js',
+  'matrix-guardian-v112.css',
+  'turn-headers-v112.js',
+  'native-rename-v112.js',
+  'native-rename-v112.css',
+  'continuity-v112.js',
+  'native-da-v112.css',
   'cache-bus-v096.js',
   'activity-ui-v097.js',
   'side-panels-v096.js',
@@ -51,7 +66,10 @@ for(const dead of [
   'boot-watchdog-v099.js',
   'hotcache-main-v084.js',
   'activity-main-v087.js',
-  'manual-lock-main-v085.js'
+  'manual-lock-main-v085.js',
+  'sidebar-projects-authority-v109.js',
+  'sidebar-projects-authority-v110.js',
+  'sidebar-projects-authority-v111.js'
 ])if(fs.existsSync(path.join(build,dead)))throw new Error(`Legacy runtime in ZIP: ${dead}`);
 
 execFileSync('zip',['-qr',zip,'.'],{cwd:build,stdio:'inherit'});

@@ -29,6 +29,7 @@ for(const required of [
   'multitab-v090.js',
   'governance-adapter-v105.js',
   'project-governance-v090.js',
+  'control-a11y-v110.js',
   'app-v090.js',
   'project-state-selfheal-v102.js',
   'project-assignment-selfheal-v103.js',

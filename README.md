@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.9.60-4fc1ff">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.9.61-4fc1ff">
   <img alt="Chrome Extension" src="https://img.shields.io/badge/Chrome-Extension-4ec9b0">
   <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
   <img alt="No analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -20,7 +20,7 @@ NiakGPT est une extension navigateur qui ajoute à ChatGPT une couche de **produ
 
 Elle fonctionne directement au-dessus de l’interface officielle de ChatGPT : **pas de service parallèle, pas de compte NiakGPT supplémentaire et pas de serveur NiakGPT pour les fonctions principales**.
 
-> **Version actuelle : 0.9.60** — sidebar Projects stabilisée, discussions Project sans reconstruction DOM, clics fiables, focus actif, état OUT persistant, rattrapage du classement récent et labs multi-navigateurs renforcés.
+> **Version actuelle : 0.9.61** — le raccourci Projects natif de ChatGPT est masqué avec le reste de son bloc Projects, tandis que le titre/lien **PROJECTS de NiakGPT reste visible**. Les garanties 0.9.60 de stabilité des discussions Project sont conservées.
 
 ## Ce que NiakGPT apporte
 
@@ -30,20 +30,20 @@ Elle fonctionne directement au-dessus de l’interface officielle de ChatGPT : *
 - conversations accessibles directement en dépliant un Project ;
 - recherche locale dans les gros Projects ;
 - dates et compteurs visibles ;
-- lien **PROJECTS** vers la page Projects de ChatGPT ;
+- lien **PROJECTS** NiakGPT vers la page Projects de ChatGPT ;
 - conversations rendues comme de vrais liens : clic droit, clic molette et Ctrl/Cmd+clic restent natifs ;
 - **conversation courante mise en évidence** dans le Project ouvert ;
 - **renommage d’une conversation directement depuis le tiroir Project** ;
-- conversations arrivées à leur limite signalées par **OUT** et reléguées après les conversations actives ;
+- conversations marquées **OUT** reléguées après les conversations actives ;
 - déplacements manuels protégés contre le reclassement automatique.
 
 ### Une seule liste Projects
 
 Lorsque le bloc Projects NiakGPT est présent, **il devient l’unique système Projects visible dans la sidebar**.
 
-NiakGPT masque le bloc Projects natif de ChatGPT sans masquer les discussions récentes. Lorsqu’un vrai conteneur `sidebar-expando-section` existe, il est masqué comme unité. Dans les layouts où Projects et Récents partagent le même `nav`, NiakGPT ne masque plus l’ancêtre commun : seuls le libellé Projects et les lignes/listes réellement Project sont ciblés.
+NiakGPT masque le bloc Projects natif de ChatGPT sans masquer les discussions récentes. Lorsqu’un vrai conteneur `sidebar-expando-section` existe, il est masqué comme unité. Dans les layouts où Projects et Récents partagent le même `nav`, NiakGPT ne masque pas l’ancêtre commun : seuls le libellé Projects, les lignes/listes Project et le raccourci natif `/projects` sont ciblés.
 
-Si le bloc NiakGPT disparaît réellement, le bloc Projects natif est restauré comme filet de sécurité. Les GPT personnalisés, Récents et leurs contrôles restent disponibles.
+Le lien **PROJECTS** appartenant à `#ng8-pins` est explicitement exclu de cette suppression et reste visible. Si le bloc NiakGPT disparaît réellement, les éléments Projects natifs sont restaurés comme filet de sécurité. Les GPT personnalisés, Récents et leurs contrôles restent disponibles.
 
 ### Classement automatique avec rattrapage
 
@@ -83,15 +83,14 @@ Les panneaux natifs de droite sont traités comme une même famille d’interfac
 
 ### Continuité des fils
 
-Lorsqu’une conversation atteint sa limite, NiakGPT peut :
+Lorsqu’un signal de limite est détecté, ou lorsqu’un fil a déjà été marqué OUT, NiakGPT peut :
 
-- la marquer **OUT** ;
-- la déplacer visuellement après les fils encore actifs ;
-- conserver cet état dans le stockage local de continuité ;
+- conserver l’état **OUT** dans le stockage local de continuité ;
+- le déplacer visuellement après les fils encore actifs ;
 - préparer une nouvelle conversation dans le même Project ;
 - injecter localement une capsule de continuité avec le contexte utile disponible.
 
-Aucun envoi automatique n’est effectué.
+La détection automatique de la limite reste **best-effort** : elle dépend des messages/alertes rendus par l’interface ChatGPT et n’est pas présentée comme fiable à 100 % tant qu’aucun signal stable n’est disponible. Aucun envoi automatique n’est effectué.
 
 ## Local-first
 
@@ -156,21 +155,23 @@ Le bridge refuse les `GET /backend-api/conversation/{id}` complets initiés par 
 
 Les traitements lourds sont suspendus ou différés lorsque ChatGPT charge, réfléchit, exécute une tâche ou affiche une vérification native.
 
-## Autorité Projects 0.9.60
+## Autorité Projects 0.9.61
 
-`sidebar-projects-authority-v110.js` rend `#ng8-pins` autoritaire dès que ce bloc existe et est visible.
+`sidebar-projects-authority-v111.js` rend `#ng8-pins` autoritaire dès que ce bloc existe et est visible.
 
 Le détecteur :
 
 - reconnaît les vrais conteneurs `sidebar-expando-section` lorsqu’ils sont dédiés aux Projects ;
+- reconnaît également le raccourci natif autonome `a[href="/projects"]`, y compris avec query string ;
 - gère les variantes `Projets` / `Projects` et les changements de markup ;
-- dans un `nav` partagé, cible seulement le libellé et la liste/lignes Project au lieu de masquer l’ancêtre qui contient aussi Récents ;
+- dans un `nav` partagé, cible seulement les éléments Project au lieu de masquer l’ancêtre qui contient aussi Récents ;
+- exclut tout élément situé dans `#ng8-pins`, notamment le lien **PROJECTS** NiakGPT ;
 - suit le remplacement complet de la sidebar lors des rerenders SPA ;
 - restaure le natif uniquement lorsque `#ng8-pins` disparaît.
 
 Le suivi est événementiel via `MutationObserver`, navigation SPA et événements NiakGPT ; aucun `setInterval` permanent n’est ajouté.
 
-## Discussions Project 0.9.60
+## Discussions Project 0.9.60, conservées en 0.9.61
 
 `project-chat-ux-v110.js` complète les vrais liens produits par `pin-folders-v096.js` **sans wrapper, reparenting ni reconstruction de ligne**.
 
@@ -181,7 +182,7 @@ Le suivi est événementiel via `MutationObserver`, navigation SPA et événemen
 - badge OUT rouge et ordre visuel après les conversations actives ;
 - clic normal, clic droit et clics modifiés laissés au vrai lien navigateur/ChatGPT.
 
-La 0.9.60 supprime du runtime les modules v109 qui enveloppaient les ancres. Cela élimine la boucle où `project-chat-ux-v109` modifiait le DOM, `pin-folders-v096` croyait à une mutation externe puis reconstruisait le tiroir en continu.
+La 0.9.60 avait supprimé du runtime les modules v109 qui enveloppaient les ancres. La 0.9.61 conserve cette architecture.
 
 ## Rattrapage du classement
 
@@ -213,13 +214,15 @@ La CI automatique se concentre sur le runtime actuel :
 - **Check NiakGPT** : Manifest/runtime, hydratation, hot-path, syntaxe et package ;
 - **Visual Lab** : comportement actuel et vraie extension non empaquetée sur Chromium ;
 - **Runtime Diagnostics** : runtime courant, multitab et invariants statiques ;
-- **0.9.60 Stability Matrix** : Chromium / Firefox / WebKit pour la sidebar Projects et les discussions Project ;
+- **0.9.61 Projects Authority + Chat Stability Matrix** : Chromium / Firefox / WebKit ;
 - **Public Quality Gate** et **Package NiakGPT** pour la certification et l’artefact installable.
 
-Les régressions historiques 0.9.49 à 0.9.59 et l’ancien bootstrap isolation restent disponibles via le workflow manuel **NiakGPT Historical Regressions**. On peut y choisir la suite et le moteur Chromium / Firefox / WebKit sans encombrer chaque push ou PR avec des dizaines de jobs historiques.
+Les régressions historiques 0.9.49 à 0.9.60 et l’ancien bootstrap isolation restent disponibles via le workflow manuel **NiakGPT Historical Regressions**. Les anciens scripts/labs sont conservés, mais les workflows versionnés obsolètes ne polluent plus chaque push ou PR.
 
-Le lab 0.9.60 couvre notamment :
+Le lab 0.9.61 couvre notamment :
 
+- raccourci Projects natif autonome `/projects` masqué ;
+- **lien PROJECTS NiakGPT explicitement vérifié visible** ;
 - bloc Projects natif masqué avec plusieurs variantes de markup ;
 - remplacement complet de la sidebar ;
 - layout où Projects et Récents partagent le même `nav`, avec vérification que Récents et le cadenas manuel restent visibles ;
@@ -231,8 +234,6 @@ Le lab 0.9.60 couvre notamment :
 - état OUT persistant et ordonné en bas ;
 - clic réel sur la conversation toujours routé ;
 - exécution sur Chromium, Firefox et WebKit avec captures de preuve.
-
-Les anciens labs, dont 0.9.59, restent présents afin de contrôler les régressions historiques.
 
 ## Documentation
 

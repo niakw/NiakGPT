@@ -114,21 +114,5 @@ console.log(`live-ui-regressions-v114: ${Object.keys(engines).join(',')} PASS`);
 '''
 Path('visual-lab/live-ui-regressions-v114.mjs').write_text(lab, encoding='utf-8')
 
-wf = Path('.github/workflows/current-finalization.yml')
-text = wf.read_text(encoding='utf-8')
-start = text.find('  # BEGIN TEMP LIVE FIX\n')
-end = text.find('  # END TEMP LIVE FIX\n')
-if start >= 0 and end >= 0:
-    text = text[:start] + text[end + len('  # END TEMP LIVE FIX\n'):]
-text = text.replace('permissions:\n  contents: write', 'permissions:\n  contents: read', 1)
-text = text.replace('for f in background-v100.js sidebar-projects-authority-v112.js', 'for f in background-v100.js app-v090.js visual-stability-v101.js sidebar-projects-authority-v112.js', 1)
-needle = '''      - name: Native Project and chat actions\n        working-directory: visual-lab\n        env:\n          NIAKGPT_BROWSER: ${{ matrix.browser }}\n        run: node sidebar-native-actions-v113.mjs\n'''
-addition = needle + '''      - name: Live image viewer and native Projects regressions\n        working-directory: visual-lab\n        env:\n          NIAKGPT_BROWSER: ${{ matrix.browser }}\n        run: node live-ui-regressions-v114.mjs\n'''
-if 'run: node live-ui-regressions-v114.mjs' not in text:
-    text = text.replace(needle, addition, 1)
-text = text.replace('            visual-lab/artifacts/finalization-v113/${{ matrix.browser }}\n', '            visual-lab/artifacts/finalization-v113/${{ matrix.browser }}\n            visual-lab/artifacts/finalization-v114/${{ matrix.browser }}\n', 1)
-wf.write_text(text, encoding='utf-8')
-
-for p in [Path('.github/workflows/_temporary-live-fix.yml'), Path('.github/apply-live-fix.py')]:
-    if p.exists():
-        p.unlink()
+# Remove only this applicator. Workflow files are cleaned by the GitHub connector after the patch push.
+Path('.github/apply-live-fix.py').unlink()

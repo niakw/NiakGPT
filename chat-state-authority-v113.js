@@ -22,9 +22,7 @@
     const iu=parseTime(incoming?.updated||incoming?.update_time||incoming?.create_time),pu=parseTime(prev?.updated),it=clean(incoming?.title),ip=clean(incoming?.projectId);
     if(!prev)return{title:it||'Conversation',projectId:ip,updated:iu};
     if(iu>pu)return{title:genericTitle(it)&&!genericTitle(prev.title)?prev.title:(it||prev.title),projectId:ip||'',updated:iu};
-    if(iu===pu){
-      return{title:genericTitle(prev.title)&&!genericTitle(it)?it:prev.title,projectId:prev.projectId||ip||'',updated:pu};
-    }
+    if(iu===pu)return{title:genericTitle(prev.title)&&!genericTitle(it)?it:prev.title,projectId:prev.projectId||ip||'',updated:pu};
     return{title:prev.title,projectId:prev.projectId,updated:pu};
   }
   function schedulePersist(){clearTimeout(persistTimer);persistTimer=setTimeout(()=>{chrome.storage.local.set({[STATE_KEY]:state}).catch(()=>{});},220);}
@@ -33,12 +31,18 @@
   async function reconcile(raw){
     if(!raw||typeof raw!=='object'||writing)return;cache=raw;let stateChanged=false,cacheChanged=false;
     const rows=Array.isArray(raw.chats)?raw.chats:[];
-    for(const c of rows){if(!c?.id)continue;const before=state.chats[c.id],next=choose(before,c);if(!before||before.title!==next.title||before.projectId!==next.projectId||before.updated!==next.updated){state.chats[c.id]=next;stateChanged=true;}
+    for(const c of rows){
+      if(!c?.id)continue;const before=state.chats[c.id],next=choose(before,c);
+      if(!before||before.title!==next.title||before.projectId!==next.projectId||before.updated!==next.updated){state.chats[c.id]=next;stateChanged=true;}
       if(clean(c.title)!==next.title||clean(c.projectId)!==next.projectId||parseTime(c.updated)!==next.updated)cacheChanged=true;
     }
-    const active=currentCid();if(active){const row=state.chats[active]||{title:'Conversation',projectId:'',updated:0},rp=routePid(),dt=titleFromDocument();let changed=false;
+    const active=currentCid();
+    if(active){
+      const row=state.chats[active]||{title:'Conversation',projectId:'',updated:0},rp=routePid(),dt=titleFromDocument();let changed=false;
       if(validPid(rp)&&row.projectId!==rp){row.projectId=rp;changed=true;}
-      if(dt&&!genericTitle(dt)&&dt!==row.title){row.title=dt;changed=true;}
+      // The browser tab title is only a rescue source for empty/generic chat names.
+      // A non-generic server/cache title is canonical and must never be replaced by page chrome.
+      if(dt&&!genericTitle(dt)&&genericTitle(row.title)){row.title=dt;changed=true;}
       if(changed){state.chats[active]=row;stateChanged=true;cacheChanged=true;}
     }
     if(stateChanged)schedulePersist();

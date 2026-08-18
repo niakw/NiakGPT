@@ -14,21 +14,44 @@ async def run(browser_name):
   async with async_playwright() as p:
     browser=await getattr(p,browser_name).launch(headless=True)
 
-    # Native Projects: markup drift + full sidebar replacement + fallback.
+    # Native Projects: expando markup drift, full sidebar replacement, shared Projects/Recents
+    # nav and native fallback. Recents must never be collateral damage.
     page=await browser.new_page(viewport={'width':900,'height':650})
     errors=[]; page.on('pageerror',lambda e: errors.append(str(e)))
     await page.set_content('''<nav data-testid="conversation-sidebar" id="s1">
       <div id="native1" class="group/sidebar-expando-section"><button><span>Projets</span></button><div class="project-unfurl-row"><div data-sidebar-item="true">NiakGPT</div></div></div>
-      <div id="recents">Discussions</div><section id="ng8-pins"><a data-ng8-pin="1" href="/g/g-p-one/project">NiakGPT</a></section></nav>''')
+      <div id="recents1">Discussions</div><section id="ng8-pins"><a data-ng8-pin="1" href="/g/g-p-one/project">NiakGPT</a></section></nav>''')
     await page.add_style_tag(content=(ROOT/'sidebar-projects-authority-v110.css').read_text())
     await page.evaluate(src('sidebar-projects-authority-v110.js')); await page.wait_for_timeout(160)
     assert await page.evaluate("getComputedStyle(native1).display")=='none'
+    assert await page.evaluate("getComputedStyle(recents1).display")!='none'
+
     await page.evaluate('''s1.outerHTML='<nav data-testid="conversation-sidebar" id="s2"><div id="native2" class="sidebar-expando-section"><div role="button" aria-label="Projects">Workspace</div><a href="/g/g-p-two/project">Films</a></div><div id="gpts">GPTs</div><section id="ng8-pins"><a data-ng8-pin="1" href="/g/g-p-two/project">Films</a></section></nav>' ''')
     await page.wait_for_timeout(200)
     assert await page.evaluate("getComputedStyle(native2).display")=='none'
     assert await page.evaluate("getComputedStyle(gpts).display")!='none'
+
+    await page.evaluate('''s2.outerHTML=`<aside data-testid="conversation-sidebar" id="s3"><nav id="shared-nav">
+      <button>Nouveau chat</button>
+      <h3 id="loose-projects">Projects</h3><div id="loose-project-list"><a href="/g/g-p-three/project">Studio</a><a href="/g/g-p-four/project">Films</a></div>
+      <h3 id="recent-heading">Récents</h3><div id="recents3"><a href="/c/chat-one">Chat récent <button class="ng85-manual-lock">🔒</button></a></div>
+      <section id="ng8-pins"><a data-ng8-pin="1" href="/g/g-p-three/project">Studio</a></section>
+    </nav></aside>`''')
+    await page.wait_for_timeout(220)
+    shared=await page.evaluate('''() => ({
+      nav:getComputedStyle(document.querySelector('#shared-nav')).display,
+      heading:getComputedStyle(document.querySelector('#loose-projects')).display,
+      projectList:getComputedStyle(document.querySelector('#loose-project-list')).display,
+      recents:getComputedStyle(document.querySelector('#recents3')).display,
+      lock:getComputedStyle(document.querySelector('.ng85-manual-lock')).display,
+      recentHeading:getComputedStyle(document.querySelector('#recent-heading')).display
+    })''')
+    assert shared['nav']!='none' and shared['heading']=='none' and shared['projectList']=='none',shared
+    assert shared['recents']!='none' and shared['lock']!='none' and shared['recentHeading']!='none',shared
+
     await page.evaluate("document.querySelector('#ng8-pins').remove()"); await page.wait_for_timeout(140)
-    assert await page.evaluate("getComputedStyle(native2).display")!='none'
+    fallback=await page.evaluate("() => ({heading:getComputedStyle(document.querySelector('#loose-projects')).display,list:getComputedStyle(document.querySelector('#loose-project-list')).display})")
+    assert fallback['heading']!='none' and fallback['list']!='none',fallback
     await page.screenshot(path=str(ART/f'0960-projects-{browser_name}.png'))
     assert not errors,errors
 

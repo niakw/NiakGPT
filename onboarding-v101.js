@@ -11,6 +11,7 @@
   let modal=null,step=0,selectedProfile='power',returnFocus=null;
   const profiles=[['power','Power','Dense et complet'],['code','Code / IDE','Code et outils techniques'],['research','Research','Lecture longue et sources'],['focus','Focus / Writing','Calme et écriture'],['analyst','Analyst','Métadonnées et tableaux'],['contrast','High Contrast','Accessibilité renforcée']];
 
+  const upgradeEvidence=lifecycle=>!!(lifecycle?.previousVersion||lifecycle?.reason==='update');
   async function shouldShow(){
     try{
       // Fast path on every normal page load: only two tiny keys, never the chat/index cache.
@@ -20,7 +21,7 @@
       // previousVersion is stronger evidence than the transient MV3 reason. During an
       // unpacked-extension reload Chrome can briefly report "install" after an update
       // marker was written; a real fresh install has no previousVersion.
-      if(lifecycle?.previousVersion||lifecycle?.reason==='update'){
+      if(upgradeEvidence(lifecycle)){
         await chrome.storage.local.set({[KEY]:{status:'upgrade-skipped',version:VERSION,previousVersion:lifecycle.previousVersion||'',at:Date.now()}});
         return false;
       }
@@ -58,6 +59,13 @@
   function open(){if(modal)return;returnFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;modal=document.createElement('div');modal.id='ng100-onboarding';modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');modal.setAttribute('aria-label','Bienvenue dans NiakGPT');document.body.appendChild(modal);render();}
 
   document.addEventListener('keydown',event=>{if(!modal)return;if(event.key==='Tab')trap(event);if(event.key==='Escape'){event.preventDefault();skip();}},true);
+  try{
+    chrome.storage.onChanged.addListener((changes,area)=>{
+      if(area!=='local')return;
+      const lifecycle=changes[INSTALL_META]?.newValue,state=changes[KEY]?.newValue;
+      if(upgradeEvidence(lifecycle)||state?.status==='upgrade-skipped')close();
+    });
+  }catch{}
 
   // MV3 onInstalled metadata and the first injected page can race during an extension reload.
   // A delayed modal must therefore re-read lifecycle state immediately before opening rather

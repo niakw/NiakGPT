@@ -102,7 +102,17 @@
   }
   const cacheBus=window.__NIAKGPT_CACHE_BUS__;
   if(cacheBus)cacheBus.subscribe(acceptCache);else chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY])acceptCache(changes[CACHE_KEY].newValue);});
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden){bindBox();schedule(80);}});
-  window.addEventListener('popstate',()=>schedule(60));
+  document.addEventListener('niakgpt:pins-rendered',()=>{bindBox();rehydrate();});
+  document.addEventListener('click',event=>{
+    if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
+    const target=event.target instanceof Element?event.target:null,anchor=target?.closest('#ng8-pins a[data-ng8-pin="1"]');
+    if(!anchor||anchor.dataset.ng96Bound)return;
+    const pid=pidFromHref(anchor.getAttribute('href'));if(!pid)return;
+    event.preventDefault();event.stopImmediatePropagation();wrapAnchor(anchor);toggle(pid,anchor);schedule(0);
+  },true);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden){bindBox();rehydrate();}});
+  window.addEventListener('popstate',()=>{bindBox();rehydrate();});
+  if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>{bindBox();rehydrate();});
+  window.addEventListener('pageshow',event=>{if(event.persisted){bindBox();rehydrate();}});
   bootstrap();
 })();

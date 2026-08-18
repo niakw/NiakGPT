@@ -1,3 +1,13 @@
+# NiakGPT 0.9.64 — Human navigation, stabilité live et sécurité
+
+- Corrige l’alerte CodeQL `js/xss-through-dom` : le texte des tours du sommaire est maintenant injecté via `textContent` et n’est plus réinterprété comme HTML.
+- Durcit les pins contre les remounts/rerenders React : dossiers et boutons d’actions se réhydratent de façon synchrone à chaque `niakgpt:pins-rendered`, avec garde du premier clic avant décoration.
+- Réarme les actions après retour BFCache, visibilité et navigation SPA.
+- Le visualiseur image détecte aussi les overlays plein écran sans ancien sélecteur dialog et restaure systématiquement le bouton de fermeture NiakGPT.
+- L’autorité Projects masque aussi la ligne native `Projects` lorsqu’elle contient un bouton d’action frère.
+- Les contrôles principaux de sidebar (nouvelle discussion, recherche, images, applications, Codex) reçoivent désormais des glyphes NiakGPT distinctifs au lieu de simples SVG ChatGPT recolorés.
+- Nouveau stress test `human-nav-stress-v114` : 16 cycles de rerender/remount/navigation + menus natifs + fermeture image sur Chromium, Firefox et WebKit.
+
 # NiakGPT 0.9.62 — Finalisation sidebar, continuité, classement et performances
 
 - Le bloc Projects NiakGPT devient réellement autoritaire : détection du doublon natif par structure **et par identité des noms de Projects**, sans dépendre uniquement des classes ou des `href` ChatGPT ; Récents reste intact et le natif revient seulement si `#ng8-pins` disparaît.

@@ -420,7 +420,12 @@
       panel.innerHTML=`<header><div><small>DIAGNOSTIC</small><b>État des modules</b></div><button aria-label="Fermer">×</button></header><div class="ng8-diag">${diagnosticRows().map(([k,v])=>`<div><span>${esc(k)}</span><b class="${/^OK|^PRÊT/.test(String(v))?'ok':/^ERREUR/.test(String(v))?'err':'wait'}">${esc(v)}</b></div>`).join('')}</div>${S.errors.length?`<details class="ng8-errors"><summary>Dernières erreurs</summary>${S.errors.map(e=>`<code>${esc(e)}</code>`).join('')}</details>`:''}<div class="ng8-joke">☠ SYSTEM // SKYNET</div>`;
     }else if(S.tab==='toc'){
       const turns=liveTurns();health('toc',turns.length?`OK · ${turns.length} blocs`:'VIDE · 0 bloc');
-      panel.innerHTML=`<header><div><small>SOMMAIRE</small><b>${turns.length} blocs</b></div><button aria-label="Fermer">×</button></header><input id="ng8-toc-search" placeholder="Filtrer le fil…"><div class="ng8-toc">${turns.map((t,i)=>`<button data-turn="${i}"><i>${String(i+1).padStart(2,'0')}</i><span>${esc((t.innerText||t.textContent||'').replace(/\s+/g,' ').slice(0,135))}</span></button>`).join('')}</div>`;
+      panel.innerHTML=`<header><div><small>SOMMAIRE</small><b>${turns.length} blocs</b></div><button aria-label="Fermer">×</button></header><input id="ng8-toc-search" placeholder="Filtrer le fil…"><div class="ng8-toc"></div>`;
+      const toc=panel.querySelector('.ng8-toc');
+      for(let i=0;i<turns.length;i++){
+        const turn=turns[i],button=document.createElement('button'),index=document.createElement('i'),label=document.createElement('span');
+        button.dataset.turn=String(i);index.textContent=String(i+1).padStart(2,'0');label.textContent=String(turn.innerText||turn.textContent||'').replace(/\s+/g,' ').slice(0,135);button.append(index,label);toc?.appendChild(button);
+      }
     }else{
       panel.innerHTML=`<header><div><small>EXPLORER</small><b>${S.projects.length} Projects · ${S.chats.length} chats</b></div><button aria-label="Fermer">×</button></header><div class="ng8-actions"><button data-repair>Nettoyer & reconstruire</button><button data-refresh>Réindexer maintenant</button></div><input id="ng8-project-search" placeholder="Filtrer les Projects…"><div class="ng8-project-table"><div class="head"><span>Projet</span><span>Chats</span></div>${sortedProjects().map(p=>`<a href="${esc(p.href)}" data-project-name="${esc(norm(p.name))}" style="--ng-project:${p.color}" class="${isLegacy(p)?'legacy ':''}${p.duplicateOf?'duplicate':''}"><i>${esc(p.icon)}</i><span>${esc(p.name)}</span><b>${S.counts.has(p.id)?(S.counts.get(p.id)==null?'?':S.counts.get(p.id)):'…'}</b></a>`).join('')}</div>`;
     }

@@ -57,6 +57,11 @@ jobs:
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node crossengine-finalization-v112.mjs
+      - name: Preserve native home positioning
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node home-native-position-v112.mjs
       - name: Identity-only Projects authority
         working-directory: visual-lab
         env:

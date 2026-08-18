@@ -12,7 +12,8 @@ const jsFiles={
   matrix:await read('matrix-guardian-v112.js'),
   perf:await read('performance-guard-v112.js'),
   headers:await read('turn-headers-v112.js'),
-  rename:await read('native-rename-v112.js')
+  rename:await read('native-rename-v112.js'),
+  cacheBus:await read('cache-bus-v096.js')
 };
 const cssFiles={
   authority:await read('sidebar-projects-authority-v112.css'),
@@ -29,18 +30,20 @@ async function basePage(browser,html,{pathname='/'}={}){
   const context=await browser.newContext({viewport:{width:1440,height:900},colorScheme:'dark',reducedMotion:'no-preference'});
   const page=await context.newPage();
   await page.addInitScript(()=>{
+    const chats=Array.from({length:120},(_,i)=>({id:`cache-${String(i).padStart(4,'0')}`,title:`Cached ${i}`,projectId:i%2?'g-p-niakgpt':'g-p-niakvio',updated:Date.now()-i*1000}));
+    chats[0]={id:'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',title:'Long thread',projectId:'g-p-niakgpt',updated:Date.now()};
     const store={
       'niakgpt-v08-cache':{
-        projects:[
+        schema:2,at:Date.now(),projects:[
           {id:'g-p-niakgpt',name:'NiakGPT'},{id:'g-p-niakvio',name:'NiakVIO'},{id:'g-p-films',name:'Films'}
-        ],
-        chats:[{id:'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',title:'Long thread',projectId:'g-p-niakgpt'}]
+        ],chats
       }
     };
+    window.__niakgptTestStore=store;
     window.chrome={
-      runtime:{getManifest:()=>({version:'0.9.62'})},
+      runtime:{id:'niakgpt-test',getManifest:()=>({version:'0.9.62'})},
       storage:{local:{
-        get:async keys=>{const list=Array.isArray(keys)?keys:[keys];return Object.fromEntries(list.filter(Boolean).map(k=>[k,store[k]]));},
+        get:async keys=>{if(keys==null)return{...store};const list=Array.isArray(keys)?keys:[keys];return Object.fromEntries(list.filter(Boolean).map(k=>[k,store[k]]));},
         set:async obj=>Object.assign(store,obj)
       },onChanged:{addListener:()=>{}}}
     };
@@ -64,7 +67,7 @@ async function sidebarScenario(browser,engine){
   const html=`<!doctype html><html><body class="ng8-ready"><nav data-testid="conversation-sidebar" style="width:310px;background:#071019;color:#fff;padding:8px">
     <section id="native-projects" class="group/sidebar-expando-section" style="padding:8px;border:1px solid #555">
       <h2>Projets</h2>
-      <div class="group/project-unfurl-row" role="button">NiakGPT<button aria-label="Plus d’options">⋯</button></div>
+      <div class="group/project-unfurl-row"><a href="/g/g-p-niakgpt/project">NiakGPT</a><button id="native-options" aria-label="Plus d’options">⋯</button></div>
       <div class="group/project-unfurl-row" role="button">NiakVIO</div>
       <div class="group/project-unfurl-row" role="button">Films</div>
     </section>
@@ -74,11 +77,14 @@ async function sidebarScenario(browser,engine){
       <div class="ng96-pin-entry"><a data-ng8-pin="1" href="/g/g-p-films/project"><span>Films</span></a></div>
     </div></section>
     <section><h2>Récents</h2><a href="/c/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa">Long thread</a></section>
-  </nav></body></html>`;
+  </nav><script>
+    document.getElementById('native-options').addEventListener('click',()=>{const menu=document.createElement('div');menu.setAttribute('role','menu');const item=document.createElement('button');item.setAttribute('role','menuitem');item.textContent='Renommer';item.addEventListener('click',()=>document.documentElement.dataset.testNativeRename='1');menu.appendChild(item);document.body.appendChild(menu);});
+  <\/script></body></html>`;
   const {context,page}=await basePage(browser,html);
   try{
     await inject(page,{css:[cssFiles.authority,cssFiles.rename],js:[jsFiles.authority,jsFiles.rename]});
     await page.waitForTimeout(500);
+    await page.locator('.ng112-native-rename-project').first().click();await page.waitForTimeout(450);
     const analysis=await page.evaluate(()=>{
       const native=document.getElementById('native-projects'),pins=document.getElementById('ng8-pins');
       return{
@@ -86,13 +92,15 @@ async function sidebarScenario(browser,engine){
         ownDisplay:getComputedStyle(pins).display,
         projectRenameButtons:pins.querySelectorAll('.ng112-native-rename-project').length,
         hiddenTargets:document.querySelectorAll('.ng112-native-projects-authoritative').length,
-        recentVisible:getComputedStyle(document.querySelector('a[href*="/c/"]')).display
+        recentVisible:getComputedStyle(document.querySelector('a[href*="/c/"]')).display,
+        nativeRenameInvoked:document.documentElement.dataset.testNativeRename||'0'
       };
     });
     assert(analysis.nativeDisplay==='none','native Projects section still visible');
     assert(analysis.ownDisplay!=='none','NiakGPT Projects section hidden');
     assert(analysis.projectRenameButtons===3,'rename controls missing from Projects');
     assert(analysis.recentVisible!=='none','Recents was hidden with Projects');
+    assert(analysis.nativeRenameInvoked==='1','managed Project rename did not invoke the native menu');
     await save(page,engine,'sidebar-projects',analysis);
   }finally{await context.close();}
 }
@@ -141,6 +149,25 @@ async function longThreadScenario(browser,engine){
   }finally{await context.close();}
 }
 
+async function cacheScenario(browser,engine){
+  const html='<!doctype html><html><body class="ng8-ready"><main><p>Cache transaction lab</p></main></body></html>';
+  const {context,page}=await basePage(browser,html,{pathname:'/c/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'});
+  try{
+    await inject(page,{js:[jsFiles.cacheBus]});await page.waitForTimeout(120);
+    const analysis=await page.evaluate(async()=>{
+      const bus=window.__NIAKGPT_CACHE_BUS__;await bus.ready;const before=await bus.get();
+      const target=before.chats[0].id;await Promise.all([
+        bus.update(raw=>({...raw,at:Date.now(),chats:raw.chats.map(c=>c.id===target?{...c,title:'Delta A',updated:Date.now()}:c)})),
+        bus.update(raw=>({...raw,at:Date.now(),cacheProof:'second-write'}))
+      ]);
+      const after=await bus.get(),stored=window.__niakgptTestStore['niakgpt-v08-cache'];
+      return{active:bus.active(),beforeCount:before.chats.length,afterCount:after.chats.length,storedCount:stored.chats.length,title:after.chats.find(c=>c.id===target)?.title,proof:after.cacheProof||'',dataset:document.documentElement.dataset.ng96CacheBus||''};
+    });
+    assert(analysis.active,'cache bus inactive');assert(analysis.beforeCount===120&&analysis.afterCount===120&&analysis.storedCount===120,'cache update lost historical conversations');assert(analysis.title==='Delta A','first serialized delta was lost');assert(analysis.proof==='second-write','second serialized delta was lost');
+    await save(page,engine,'cache-long-thread',analysis);
+  }finally{await context.close();}
+}
+
 async function nativeDaScenario(browser,engine){
   const html=`<!doctype html><html><body class="ng8-ready"><nav><button id="newchat" aria-label="Nouveau chat"><svg width="24" height="24"><path d="M2 12h20"/></svg></button></nav><main><form><div id="prompt-textarea"></div><button id="attach" aria-label="Joindre"><svg width="24" height="24"><path d="M2 2h20v20H2z"/></svg></button></form></main></body></html>`;
   const {context,page}=await basePage(browser,html);
@@ -162,6 +189,7 @@ for(const [name,launcher] of Object.entries(engines)){
     await homeScenario(browser,name);
     await matrixScenario(browser,name);
     await longThreadScenario(browser,name);
+    await cacheScenario(browser,name);
     await nativeDaScenario(browser,name);
     summary.engines[name]={ok:true,durationMs:Date.now()-started};
   }catch(error){summary.engines[name]={ok:false,durationMs:Date.now()-started,error:String(error?.stack||error)};throw error;}

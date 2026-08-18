@@ -25,6 +25,7 @@ const ISOLATED_RUNTIME=[
   'reclassify-v101.js',
   'locale-fr-v101.js',
   'project-pins-v090.js',
+  'sidebar-native-projects-v110.js',
   'sidebar-authority-v107.js',
   'sidebar-expando-guard-v108.js',
   'sidebar-projects-authority-v109.js',
@@ -41,6 +42,7 @@ const ISOLATED_RUNTIME=[
   'live-fixes-v104.js',
   'live-fixes-v106.js',
   'chronology-v090.js',
+  'project-drawer-v110.js',
   'pin-folders-v096.js',
   'project-chat-ux-v109.js',
   'project-links-v106.js',
@@ -84,7 +86,7 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
       const failure=await injectOne(tabId,frameId,file,'ISOLATED');
       if(failure)errors.push(failure);
     }
-    const coreFailed=errors.some(item=>item.includes(':app-v090.js:')||item.includes(':project-state-selfheal-v102.js:')||item.includes(':project-assignment-selfheal-v103.js:'));
+    const coreFailed=errors.some(item=>item.includes(':app-v090.js:')||item.includes(':project-state-selfheal-v102.js:')||item.includes(':project-assignment-selfheal-v103.js:')||item.includes(':sidebar-native-projects-v110.js:')||item.includes(':project-drawer-v110.js:'));
     sendResponse({ok:!coreFailed,errors});
   })().catch(error=>sendResponse({ok:false,errors:[`bootstrap:${String(error?.message||error)}`]}));
   return true;

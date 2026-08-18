@@ -28,8 +28,7 @@
     if(running){pending=true;return;}running=true;
     try{
       const bus=window.__NIAKGPT_CACHE_BUS__;
-      if(bus?.update)await bus.update(raw=>applyFlags(raw));
-      else{
+      if(bus?.get&&bus?.update){const current=await bus.get(),next=applyFlags(current);if(next!==current)await bus.update(()=>next);}else{
         const got=await chrome.storage.local.get(CACHE_KEY),raw=got?.[CACHE_KEY]||{};
         const next=applyFlags(raw);if(next!==raw)await chrome.storage.local.set({[CACHE_KEY]:next});
       }

@@ -1,0 +1,145 @@
+name: NiakGPT Historical Regressions
+
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: Historical regression suite to run
+        required: true
+        type: choice
+        default: '0.9.60'
+        options:
+          - '0.9.49'
+          - '0.9.52'
+          - '0.9.53'
+          - '0.9.54'
+          - '0.9.55'
+          - '0.9.56'
+          - '0.9.57'
+          - '0.9.58'
+          - '0.9.59'
+          - '0.9.60'
+          - 'bootstrap-isolation'
+      browser:
+        description: Browser engine
+        required: true
+        type: choice
+        default: chromium
+        options:
+          - chromium
+          - firefox
+          - webkit
+          - all
+
+permissions:
+  contents: read
+
+concurrency:
+  group: niakgpt-historical-${{ inputs.suite }}-${{ inputs.browser }}
+  cancel-in-progress: true
+
+env:
+  SNAPSHOT_SHA256: cc285737e4968884f1dff92377f8eacdeeaafc9c6722f396ac97b0e51149e9d6
+
+jobs:
+  regression:
+    name: ${{ inputs.suite }} · ${{ matrix.browser }}
+    if: ${{ inputs.suite != 'bootstrap-isolation' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - name: Select browser
+        id: select
+        shell: bash
+        run: |
+          if [[ '${{ inputs.browser }}' == 'all' || '${{ inputs.browser }}' == '${{ matrix.browser }}' ]]; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'run=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.select.outputs.run == 'true'
+
+      - uses: actions/setup-python@v5
+        if: steps.select.outputs.run == 'true'
+        with:
+          python-version: '3.12'
+
+      - name: Install Playwright
+        if: steps.select.outputs.run == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install playwright==1.57.0
+          python -m playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Run selected historical suite
+        if: steps.select.outputs.run == 'true'
+        shell: bash
+        env:
+          NIAKGPT_ROOT: ${{ github.workspace }}
+          NIAKGPT_ARTIFACTS: ${{ runner.temp }}/niakgpt-historical/${{ inputs.suite }}/${{ matrix.browser }}
+        run: |
+          set -euo pipefail
+          BROWSER='${{ matrix.browser }}'
+          case '${{ inputs.suite }}' in
+            '0.9.49')
+              cat labs/snapshot/part-* > /tmp/niakgpt-0949.b64
+              base64 -d /tmp/niakgpt-0949.b64 > /tmp/niakgpt-0949.tgz
+              echo "$SNAPSHOT_SHA256  /tmp/niakgpt-0949.tgz" | sha256sum -c -
+              mkdir -p /tmp/niakgpt-0949
+              tar -xzf /tmp/niakgpt-0949.tgz -C /tmp/niakgpt-0949
+              NIAKGPT_ROOT=/tmp/niakgpt-0949 python labs/browser_matrix_crossengine.py --browser "$BROWSER"
+              ;;
+            '0.9.52') python labs/visual_regression_0952.py --browser "$BROWSER" ;;
+            '0.9.53')
+              python labs/regression_0953_v2.py --browser "$BROWSER"
+              python labs/project_assignment_0953.py --browser "$BROWSER"
+              python labs/activity_regression_0953.py --browser "$BROWSER"
+              python labs/visual_project_recovery_0953.py --browser "$BROWSER"
+              ;;
+            '0.9.54')
+              python labs/live_ui_regression_0954.py --browser "$BROWSER"
+              python labs/lifecycle_regression_0954.py --browser "$BROWSER"
+              ;;
+            '0.9.55') python labs/governance_regression_0955.py --browser "$BROWSER" ;;
+            '0.9.56') python labs/live_regression_0956.py --browser "$BROWSER" ;;
+            '0.9.57')
+              python labs/live_regression_0957.py --browser "$BROWSER"
+              python labs/sidebar_custom_gpt_0957.py --browser "$BROWSER"
+              ;;
+            '0.9.58') python labs/sidebar_expando_0958.py --browser "$BROWSER" ;;
+            '0.9.59') python labs/regression_0959.py --browser "$BROWSER" ;;
+            '0.9.60') python labs/regression_0960.py --browser "$BROWSER" ;;
+          esac
+
+      - name: Upload historical visual evidence
+        if: always() && steps.select.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: niakgpt-historical-${{ inputs.suite }}-${{ matrix.browser }}
+          path: ${{ runner.temp }}/niakgpt-historical/${{ inputs.suite }}/${{ matrix.browser }}
+          if-no-files-found: ignore
+          retention-days: 14
+
+  bootstrap-isolation:
+    name: Historical bootstrap isolation · chromium
+    if: ${{ inputs.suite == 'bootstrap-isolation' && (inputs.browser == 'chromium' || inputs.browser == 'all') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: visual-lab/package-lock.json
+      - working-directory: visual-lab
+        run: npm ci --no-audit --no-fund
+      - working-directory: visual-lab
+        run: npx playwright install --with-deps chromium
+      - working-directory: visual-lab
+        run: node bootstrap-isolation.mjs

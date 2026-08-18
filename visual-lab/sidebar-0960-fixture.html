@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NiakGPT Sidebar 0.9.60 Lab</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Arial,sans-serif;background:#091019;color:#e5edf5}.sidebar{position:fixed;inset:0 auto 0 0;width:307px;padding:10px 8px 60px;background:#0d1720;border-right:1px solid #273543;overflow:auto}.nav a,.nav button{display:flex;align-items:center;width:100%;min-height:38px;padding:0 12px;border:0;background:transparent;color:#dce6ef;text-decoration:none}.main{margin-left:307px;padding:40px}.composer{margin-top:40px;display:flex}.composer textarea{width:600px;min-height:60px}.native-projects{margin:12px 0;padding:4px;border:1px solid #3a4650}.group\/project-unfurl-row{padding:7px 10px}
+</style>
+</head>
+<body>
+<aside class="sidebar" data-testid="conversation-sidebar">
+  <div id="native-brand">ChatGPT Plus</div>
+  <nav class="nav">
+    <button>Nouveau chat</button><a href="/projects">Projets</a><a href="/library">Bibliothèque</a>
+    <div id="native-projects-0960" class="group/sidebar-expando-section native-projects">
+      <div class="group/sidebar-expando-section-header"><button aria-expanded="true"><h2>Projets</h2></button><button aria-label="Nouveau projet">+</button></div>
+      <ul>
+        <li><div class="group/project-unfurl-row"><div role="button" data-sidebar-item="true">Studio</div></div></li>
+        <li><div class="group/project-unfurl-row"><div role="button" data-sidebar-item="true">Research Lab</div></div></li>
+        <li><button>Afficher plus</button></li>
+      </ul>
+    </div>
+    <div id="custom-gpts" class="group/sidebar-expando-section"><h2>GPTs</h2><a href="/g/custom-helper">Custom GPT</a></div>
+    <div id="recents"><h2>Discussions</h2><a href="/c/recent">Chat récent</a><button>Afficher plus</button></div>
+  </nav>
+</aside>
+<main class="main">
+  <h1>Sidebar 0.9.60</h1>
+  <div id="conversation"><article data-testid="conversation-turn-1"><div data-message-author-role="user">Tester la sidebar intégrée.</div></article><article data-testid="conversation-turn-2"><div data-message-author-role="assistant">Fixture réelle de navigation.</div></article></div>
+  <form class="composer" data-type="unified-composer" onsubmit="return false"><textarea id="prompt-textarea" data-testid="prompt-textarea">Test</textarea><button type="button" data-testid="send-button" aria-label="Envoyer">↑</button></form>
+</main>
+</body>
+</html>

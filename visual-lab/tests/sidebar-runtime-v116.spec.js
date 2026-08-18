@@ -7,6 +7,8 @@ const extensionPath=path.resolve(__dirname,'..','..');
 const fixture=fs.readFileSync(path.join(__dirname,'..','runtime-fixture.html'),'utf8');
 const manifest=JSON.parse(fs.readFileSync(path.join(extensionPath,'manifest.json'),'utf8'));
 const VERSION=manifest.version;
+const EXECUTABLE=process.env.NIAKGPT_EXECUTABLE_PATH||undefined;
+const BROWSER_LABEL=process.env.NIAKGPT_BROWSER_LABEL||'chromium';
 const CHAT1='11111111-1111-4111-8111-111111111111';
 const CHAT2='22222222-2222-4222-8222-222222222222';
 const P1='g-p-aaaaaaaaaaaaaaaa';
@@ -15,12 +17,14 @@ const projectRaw=(id,name)=>({gizmo:{gizmo:{id,display:{name,description:name},i
 const chatRaw=(id,title,time,gizmo_id)=>({id,title,update_time:time,create_time:time,gizmo_id});
 
 async function extensionWorker(context){
-  return context.serviceWorkers().find(w=>w.url().includes('background-v100.js'))||context.waitForEvent('serviceworker',{predicate:w=>w.url().includes('background-v100.js'),timeout:12000});
+  return context.serviceWorkers().find(w=>w.url().includes('background-v100.js'))||context.waitForEvent('serviceworker',{predicate:w=>w.url().includes('background-v100.js'),timeout:15000});
 }
 
 async function launchRuntime(){
-  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'niakgpt-sidebar-v116-'));
-  const context=await chromium.launchPersistentContext(dir,{headless:true,channel:'chromium',viewport:{width:1440,height:900},args:[`--disable-extensions-except=${extensionPath}`,`--load-extension=${extensionPath}`]});
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),`niakgpt-sidebar-v116-${BROWSER_LABEL}-`));
+  const launch={headless:true,viewport:{width:1440,height:900},args:[`--disable-extensions-except=${extensionPath}`,`--load-extension=${extensionPath}`]};
+  if(EXECUTABLE)launch.executablePath=EXECUTABLE;else launch.channel='chromium';
+  const context=await chromium.launchPersistentContext(dir,launch);
   const worker=await extensionWorker(context);
   await worker.evaluate(async version=>chrome.storage.local.set({'niakgpt-onboarding-v100':{status:'done',version,at:Date.now()}}),VERSION);
   const chats=[chatRaw(CHAT1,'Runtime integration test',1786608000,P1),chatRaw(CHAT2,'Second conversation',1786521600,P1)];
@@ -43,27 +47,48 @@ async function launchRuntime(){
   page.on('pageerror',e=>pageErrors.push(String(e?.stack||e)));
   page.on('console',m=>{if(m.type()==='error')consoleErrors.push(m.text());});
   await page.goto(`https://chatgpt.com/c/${CHAT1}`,{waitUntil:'commit'});
-  await expect(page.locator('#ng8-status')).toContainText(VERSION,{timeout:16000});
-  await expect(page.locator('#ng8-pins a[data-ng8-pin="1"]')).toHaveCount(2,{timeout:16000});
+  await expect(page.locator('#ng8-status')).toContainText(VERSION,{timeout:18000});
+  await expect(page.locator('#ng8-pins a[data-ng8-pin="1"]')).toHaveCount(2,{timeout:18000});
   return {context,page,pageErrors,consoleErrors,close:async()=>{await context.close();fs.rmSync(dir,{recursive:true,force:true});}};
 }
 
 async function nativeProjectsVisible(page){
   return page.evaluate(()=>{
-    const own='#ng8-pins';
-    const candidates=[...document.querySelectorAll('.project-list,a[href="/projects"],h3')].filter(el=>!el.closest(own)&&(/projects?/i.test(el.textContent||'')||el.matches('.project-list,a[href="/projects"]')));
+    const candidates=[...document.querySelectorAll('.project-list,a[href="/projects"],h3')].filter(el=>!el.closest('#ng8-pins')&&(/projects?/i.test(el.textContent||'')||el.matches('.project-list,a[href="/projects"]')));
     return candidates.filter(el=>{const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden'&&el.getClientRects().length>0;}).map(el=>({tag:el.tagName,text:(el.textContent||'').trim(),cls:el.className}));
   });
 }
 
-test('real extension: native Projects stay hidden and pin actions stay stable under React-like churn',async()=>{
+async function drawerSnapshot(page){
+  return page.evaluate(()=>{
+    const rows=[...document.querySelectorAll('#ng8-pins .ng96-folder-list>a[data-chat]')];
+    const actions=[...document.querySelectorAll('#ng8-pins .ng113-native-actions-chat')];
+    return {
+      rows:rows.length,
+      actions:actions.length,
+      uniqueRows:new Set(rows.map(r=>r.dataset.chat)).size,
+      rowsWithOneAction:rows.filter(r=>r.querySelectorAll(':scope>.ng113-native-actions-chat').length===1).length,
+      duplicateActions:rows.filter(r=>r.querySelectorAll(':scope>.ng113-native-actions-chat').length>1).length
+    };
+  });
+}
+
+test(`real extension (${BROWSER_LABEL}): Projects hidden, progressive actions complete, sidebar stable`,async()=>{
   const rt=await launchRuntime();
   try{
-    await expect.poll(()=>nativeProjectsVisible(rt.page),{timeout:6000}).toEqual([]);
+    await expect.poll(()=>nativeProjectsVisible(rt.page),{timeout:7000}).toEqual([]);
     const firstPin=rt.page.locator('#ng8-pins a[data-ng8-pin="1"]').first();
     await firstPin.click();
-    await expect(rt.page.locator('#ng8-pins .ng96-pin-drawer')).toHaveCount(1,{timeout:4000});
-    await expect(rt.page.locator('#ng8-pins .ng113-native-actions-chat')).toHaveCount(2,{timeout:4000});
+    await expect(rt.page.locator('#ng8-pins .ng96-pin-drawer')).toHaveCount(1,{timeout:5000});
+
+    // Progressive indexing invariant: every row that exists already has exactly one action.
+    await expect.poll(async()=>{
+      const s=await drawerSnapshot(rt.page);
+      return s.rows>0&&s.actions===s.rows&&s.rowsWithOneAction===s.rows&&s.duplicateActions===0;
+    },{timeout:5000}).toBe(true);
+
+    // Fixture truth: both backend chats must eventually converge in the drawer, with one action each.
+    await expect.poll(()=>drawerSnapshot(rt.page),{timeout:15000}).toEqual({rows:2,actions:2,uniqueRows:2,rowsWithOneAction:2,duplicateActions:0});
 
     await rt.page.evaluate(()=>{
       window.__sidebarChurn={removedActions:0,removedDrawers:0};
@@ -77,17 +102,19 @@ test('real extension: native Projects stay hidden and pin actions stay stable un
     await rt.page.waitForTimeout(500);
     const stable=await rt.page.evaluate(()=>({churn:window.__sidebarChurn,token:document.querySelector('#ng8-pins .ng113-native-actions-chat')?.dataset.realRuntimeToken||'',focus:document.activeElement===window.__focusedAction}));
     expect(stable).toEqual({churn:{removedActions:0,removedDrawers:0},token:'keep',focus:true});
+    expect(await drawerSnapshot(rt.page)).toEqual({rows:2,actions:2,uniqueRows:2,rowsWithOneAction:2,duplicateActions:0});
 
+    // React-like native Project remount using the text-only variant observed in production.
     await rt.page.evaluate(()=>{
       const nav=document.querySelector('aside[data-testid="conversation-sidebar"] nav');
-      const old=nav.querySelector('.project-list');old?.remove();
-      const heading=[...nav.querySelectorAll('h3')].find(x=>/projects?/i.test(x.textContent||''));heading?.remove();
+      nav.querySelector('.project-list')?.remove();
+      [...nav.querySelectorAll('h3')].find(x=>/projects?/i.test(x.textContent||''))?.remove();
       const h=document.createElement('div');h.textContent='Projets';h.id='runtime-remount-title';
       const list=document.createElement('div');list.id='runtime-remount-projects';list.innerHTML='<button role="button">Studio</button><button role="button">Research Lab</button>';
       nav.insertBefore(h,nav.querySelector('.recent-list'));nav.insertBefore(list,nav.querySelector('.recent-list'));
     });
-    await expect.poll(async()=>rt.page.evaluate(()=>['runtime-remount-title','runtime-remount-projects'].every(id=>{const el=document.getElementById(id),s=getComputedStyle(el);return s.display==='none'||s.visibility==='hidden'||!!el.closest('[data-ng112-native-projects="1"]');})),{timeout:4000}).toBe(true);
-    await expect.poll(()=>nativeProjectsVisible(rt.page),{timeout:4000}).toEqual([]);
+    await expect.poll(async()=>rt.page.evaluate(()=>['runtime-remount-title','runtime-remount-projects'].every(id=>{const el=document.getElementById(id),s=getComputedStyle(el);return s.display==='none'||s.visibility==='hidden'||!!el.closest('[data-ng112-native-projects="1"]');})),{timeout:5000}).toBe(true);
+    await expect.poll(()=>nativeProjectsVisible(rt.page),{timeout:5000}).toEqual([]);
     expect(rt.pageErrors).toEqual([]);
     expect(rt.consoleErrors).toEqual([]);
     await rt.page.evaluate(()=>window.__sidebarObs?.disconnect());

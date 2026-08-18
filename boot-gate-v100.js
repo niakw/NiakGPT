@@ -64,7 +64,8 @@
     try{
       const INSTALL_META='niakgpt-install-meta-v100',KEY='niakgpt-onboarding-v100',version=chrome.runtime.getManifest().version;
       const raw=await chrome.storage.local.get([INSTALL_META,KEY]),lifecycle=raw[INSTALL_META];
-      if(!raw[KEY]&&lifecycle?.reason==='update')await chrome.storage.local.set({[KEY]:{status:'upgrade-skipped',version,previousVersion:lifecycle.previousVersion||'',at:Date.now()}});
+      const isUpgrade=!!lifecycle?.previousVersion||lifecycle?.reason==='update';
+      if(!raw[KEY]&&isUpgrade)await chrome.storage.local.set({[KEY]:{status:'upgrade-skipped',version,previousVersion:lifecycle.previousVersion||'',at:Date.now()}});
     }catch(error){remember('ONBOARDING-GUARD',error);}
   }
 

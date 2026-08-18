@@ -6,10 +6,12 @@
   const CACHE_KEY='niakgpt-v08-cache';
   const PIN_SEL='#ng8-pins a[data-ng8-pin="1"]';
   const SESSION_KEY='niakgpt-open-pin-folder-v096';
+  const REFRESH_COOLDOWN=8000;
   let cache={projects:[],chats:[],projectChats:{}};
   let openPid='';
   let filter='';
   let observer=null,observedBox=null,bootstrapObserver=null,renderTimer=0,internalWrite=false,drawerDirty=false;
+  const refreshAt=new Map();
 
   try{openPid=sessionStorage.getItem(SESSION_KEY)||'';}catch{}
 
@@ -44,6 +46,16 @@
     for(const c of source){if(!c?.id)continue;const old=map.get(c.id)||{},updated=Math.max(parseTime(old.updated||old.update_time),parseTime(c.updated||c.update_time||c.create_time));map.set(c.id,{...old,...c,updated});}
     return [...map.values()].sort((a,b)=>(b.updated||0)-(a.updated||0)||String(a.title||'').localeCompare(String(b.title||''),'fr'));
   }
+  function ensureProjectIndex(pid){
+    if(!pid)return;
+    const listed=chatsFor(pid).length,rawExpected=cache.counts?.[pid],expected=Number(rawExpected),indexed=Array.isArray(cache.indexedProjectIds)&&cache.indexedProjectIds.includes(pid);
+    const incomplete=!indexed||(Number.isFinite(expected)&&expected>listed);
+    if(!incomplete)return;
+    const now=Date.now(),last=refreshAt.get(pid)||0;if(now-last<REFRESH_COOLDOWN)return;
+    refreshAt.set(pid,now);
+    document.dispatchEvent(new CustomEvent('niakgpt:force-server-index',{detail:{reason:'pin-open',projectId:pid,listed,expected:Number.isFinite(expected)?expected:null,indexed}}));
+    window.__NIAKGPT_DIAGNOSTICS__?.set('pin-index',`INDEX · ${pid} · ${listed}${Number.isFinite(expected)?`/${expected}`:''}`);
+  }
 
   function rowFor(anchor){return anchor.closest('.ng96-pin-entry');}
   function wrapAnchor(anchor){
@@ -75,7 +87,7 @@
     const all=chatsFor(pid),q=norm(filter),shown=q?all.filter(c=>norm(`${c.title||''} ${c.snippet||''}`).includes(q)):all;
     const drawer=document.createElement('div');drawer.className='ng96-pin-drawer';drawer.id=drawerId(pid);drawer.dataset.pid=pid;drawer.setAttribute('role','region');drawer.setAttribute('aria-label','Conversations du Project');
     drawer.innerHTML=`${all.length>8?`<div class="ng96-folder-search"><input type="search" value="${esc(filter)}" placeholder="Filtrer ${all.length} conversations…" aria-label="Filtrer les conversations du Project"></div>`:''}<div class="ng96-folder-list">${shown.length?shown.slice(0,160).map(c=>`<a data-chat="${esc(c.id)}" href="${esc(chatHref(c,pid))}" title="${esc(c.title||'Conversation')}"><span>${esc(c.title||'Conversation sans titre')}</span><time>${fmt(c.updated)}</time></a>`).join(''):'<div class="ng96-folder-empty">Aucune conversation indexée</div>'}</div>${all.length>160?`<small class="ng96-folder-limit">160 / ${all.length} affichées · utilise la recherche</small>`:''}`;
-    entry.insertAdjacentElement('afterend',drawer);drawerDirty=false;
+    entry.insertAdjacentElement('afterend',drawer);drawerDirty=false;ensureProjectIndex(pid);
     drawer.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();setOpen('');closeDrawers();anchor.focus();}});
     const input=drawer.querySelector('input');if(input){input.addEventListener('input',()=>{filter=input.value;renderDrawer(pid,anchor);requestAnimationFrame(()=>{const next=document.querySelector(`#${CSS.escape(drawerId(pid))} input`);if(next){next.focus();next.setSelectionRange(next.value.length,next.value.length);}});});}
     drawer.querySelectorAll('a[data-chat]').forEach(link=>link.addEventListener('click',event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;const c=all.find(x=>x.id===link.dataset.chat);if(!c)return;event.preventDefault();event.stopPropagation();routeNative(link.getAttribute('href')||chatHref(c,pid));}));

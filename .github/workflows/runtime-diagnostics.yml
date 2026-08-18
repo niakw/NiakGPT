@@ -16,11 +16,17 @@ on:
       - 'page-bridge.js'
       - 'background-v100.js'
       - 'manifest.json'
-      - 'tools/check-hydration-v100.mjs'
+      - 'sidebar-projects-authority-v110.js'
+      - 'project-folders-v110.js'
+      - 'continuity-out-cache-v110.js'
+      - 'control-a11y-v110.js'
+      - 'tools/check-runtime.mjs'
+      - 'tools/check-hydration-v110.mjs'
       - 'tools/check-hotpath-v096.mjs'
       - 'tools/package-extension.mjs'
       - 'visual-lab/tests/runtime-current-v105.spec.js'
       - 'visual-lab/tests/multitab-failover-v097.spec.js'
+      - 'visual-lab/tests/project-stability-v0960.spec.js'
   pull_request:
     paths:
       - '.github/workflows/runtime-diagnostics.yml'
@@ -35,11 +41,17 @@ on:
       - 'page-bridge.js'
       - 'background-v100.js'
       - 'manifest.json'
-      - 'tools/check-hydration-v100.mjs'
+      - 'sidebar-projects-authority-v110.js'
+      - 'project-folders-v110.js'
+      - 'continuity-out-cache-v110.js'
+      - 'control-a11y-v110.js'
+      - 'tools/check-runtime.mjs'
+      - 'tools/check-hydration-v110.mjs'
       - 'tools/check-hotpath-v096.mjs'
       - 'tools/package-extension.mjs'
       - 'visual-lab/tests/runtime-current-v105.spec.js'
       - 'visual-lab/tests/multitab-failover-v097.spec.js'
+      - 'visual-lab/tests/project-stability-v0960.spec.js'
   workflow_dispatch:
 
 permissions:
@@ -68,7 +80,7 @@ jobs:
       - working-directory: visual-lab
         run: npx playwright install --with-deps chromium
       - working-directory: visual-lab
-        run: npx playwright test tests/runtime-current-v105.spec.js --workers=1 --reporter=line
+        run: npx playwright test tests/runtime-current-v105.spec.js tests/project-stability-v0960.spec.js --workers=1 --reporter=line
 
   multitab:
     runs-on: ubuntu-latest
@@ -100,7 +112,7 @@ jobs:
           find . -maxdepth 1 -name '*.js' -print0 | xargs -0 -n1 node --check
       - name: Verify hydration, hot path and governance architecture
         run: |
-          node tools/check-hydration-v100.mjs
+          node tools/check-runtime.mjs
           node tools/check-hotpath-v096.mjs
       - name: Verify installable package
         run: |

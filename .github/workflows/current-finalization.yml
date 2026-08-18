@@ -39,8 +39,57 @@ jobs:
       - name: Packaging exclusion check
         run: node tools/package-extension.mjs
 
+  experience-crossplatform:
+    name: experience · ${{ matrix.os }} · ${{ matrix.browser }}
+    needs: static-runtime
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: visual-lab/package-lock.json
+      - name: Install lab dependencies
+        working-directory: visual-lab
+        run: npm ci --no-audit --no-fund
+      - name: Install browser on Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        working-directory: visual-lab
+        run: |
+          timeout 420s npx playwright install --with-deps ${{ matrix.browser }} || {
+            echo "First Playwright install attempt failed or timed out; retrying once"
+            sleep 8
+            timeout 420s npx playwright install --with-deps ${{ matrix.browser }}
+          }
+      - name: Install browser on Windows or macOS
+        if: runner.os != 'Linux'
+        working-directory: visual-lab
+        run: npx playwright install ${{ matrix.browser }}
+      - name: Human / DOM / errors / UX / remount / anti-churn
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node experience-gate-v116.mjs
+      - name: Upload cross-platform evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: niakgpt-experience-${{ matrix.os }}-${{ matrix.browser }}
+          path: visual-lab/artifacts/experience-v116
+          if-no-files-found: warn
+          retention-days: 14
+
   visual-dom-crossengine:
-    name: current finalization · ${{ matrix.browser }}
+    name: deep linux · ${{ matrix.browser }}
+    needs: static-runtime
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -90,6 +139,11 @@ jobs:
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node sidebar-real-shape-v115.mjs
+      - name: Passive authority + unrelated ChatGPT churn
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node experience-gate-v116.mjs
       - name: Live image viewer and native Projects regressions
         working-directory: visual-lab
         env:
@@ -122,12 +176,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: niakgpt-current-${{ matrix.browser }}-dom-visual
+          name: niakgpt-deep-linux-${{ matrix.browser }}-dom-visual
           path: |
             visual-lab/artifacts/finalization-v112/${{ matrix.browser }}
             visual-lab/artifacts/finalization-v113/${{ matrix.browser }}
             visual-lab/artifacts/finalization-v114/${{ matrix.browser }}
             visual-lab/artifacts/human-nav-v114/${{ matrix.browser }}
+            visual-lab/artifacts/experience-v116
             visual-lab/playwright-report
             visual-lab/test-results
           if-no-files-found: warn

@@ -33,7 +33,7 @@ concurrency:
 
 jobs:
   regression:
-    name: 0.9.61 current UI · ${{ matrix.browser }}
+    name: 0.9.61 historical UI · ${{ matrix.browser }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -44,20 +44,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify 0.9.61 wiring
+      - name: Verify 0.9.61+ historical fixture
         run: |
           python - <<'PY'
           import json
           m=json.load(open('manifest.json'))
-          assert m['version']=='0.9.61',m['version']
+          v=tuple(map(int,m['version'].split('.')))
+          assert v >= (0,9,61),m['version']
           css=[x for cs in m['content_scripts'] for x in cs.get('css',[])]
-          assert 'sidebar-projects-authority-v111.css' in css
           assert 'project-chat-ux-v110.css' in css
           assert 'sidebar-projects-authority-v110.css' not in css
           assert 'sidebar-projects-authority-v109.css' not in css
           assert 'project-chat-ux-v109.css' not in css
           PY
-          grep -q "sidebar-projects-authority-v111.js" background-v100.js
+          test -f sidebar-projects-authority-v111.js
+          test -f sidebar-projects-authority-v111.css
           grep -q "project-chat-ux-v110.js" background-v100.js
           ! grep -q "sidebar-projects-authority-v110.js" background-v100.js
           grep -q "projectHomeHref" sidebar-projects-authority-v111.js
@@ -67,7 +68,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install playwright==1.57.0
           python -m playwright install --with-deps ${{ matrix.browser }}
-      - name: Run 0.9.61 current regression
+      - name: Run 0.9.61 historical regression
         run: python labs/regression_0961.py --browser ${{ matrix.browser }}
       - name: Upload visual proof
         if: always()

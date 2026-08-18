@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.60",
-  "description": "Workspace power-user local pour ChatGPT : Projects NiakGPT autoritaires, discussions Project stables et cliquables, focus actif, état OUT persistant, classement récent et continuité locale.",
+  "version": "0.9.61",
+  "description": "Workspace power-user local pour ChatGPT : Projects NiakGPT autoritaires, menu Projects natif masqué, discussions Project stables et cliquables, focus actif, état OUT persistant et continuité locale.",
   "permissions": [
     "storage",
     "scripting"
@@ -38,7 +38,7 @@
         "live-fixes-v104.css",
         "sidebar-authority-v107.css",
         "sidebar-expando-guard-v108.css",
-        "sidebar-projects-authority-v110.css",
+        "sidebar-projects-authority-v111.css",
         "project-chat-ux-v110.css"
       ],
       "run_at": "document_start",

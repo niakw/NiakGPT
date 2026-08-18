@@ -1,0 +1,4 @@
+/* NiakGPT 0.9.62 — keep the native home greeting clear of the composer. */
+.ng112-home-composer-shift{
+  translate:0 var(--ng112-home-shift,0px)!important;
+}

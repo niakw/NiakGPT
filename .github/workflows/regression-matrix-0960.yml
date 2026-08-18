@@ -7,6 +7,7 @@ on:
       - 'sidebar-projects-authority-v110.js'
       - 'project-folders-v110.js'
       - 'continuity-out-cache-v110.js'
+      - 'control-a11y-v110.js'
       - 'background-v100.js'
       - 'manifest.json'
       - 'pin-folders-v096.css'
@@ -14,12 +15,15 @@ on:
       - 'sidebar-projects-authority-v109.css'
       - 'labs/regression_0960.py'
       - 'visual-lab/tests/project-stability-v0960.spec.js'
+      - 'tools/check-hydration-v110.mjs'
+      - 'tools/package-extension.mjs'
       - '.github/workflows/regression-matrix-0960.yml'
   pull_request:
     paths:
       - 'sidebar-projects-authority-v110.js'
       - 'project-folders-v110.js'
       - 'continuity-out-cache-v110.js'
+      - 'control-a11y-v110.js'
       - 'background-v100.js'
       - 'manifest.json'
       - 'pin-folders-v096.css'
@@ -27,6 +31,8 @@ on:
       - 'sidebar-projects-authority-v109.css'
       - 'labs/regression_0960.py'
       - 'visual-lab/tests/project-stability-v0960.spec.js'
+      - 'tools/check-hydration-v110.mjs'
+      - 'tools/package-extension.mjs'
       - '.github/workflows/regression-matrix-0960.yml'
   workflow_dispatch:
 
@@ -61,6 +67,9 @@ jobs:
           grep -q "sidebar-projects-authority-v110.js" background-v100.js
           grep -q "project-folders-v110.js" background-v100.js
           grep -q "continuity-out-cache-v110.js" background-v100.js
+          grep -q "control-a11y-v110.js" background-v100.js
+          grep -q "genericChatCount" sidebar-projects-authority-v110.js
+          grep -q "aria-checked" control-a11y-v110.js
           ! grep -q "'sidebar-expando-guard-v108.js'" background-v100.js
           ! grep -q "'sidebar-projects-authority-v109.js'" background-v100.js
           ! grep -q "'pin-folders-v096.js'" background-v100.js
@@ -68,6 +77,7 @@ jobs:
           node --check sidebar-projects-authority-v110.js
           node --check project-folders-v110.js
           node --check continuity-out-cache-v110.js
+          node --check control-a11y-v110.js
       - name: Install Playwright
         run: |
           python -m pip install --upgrade pip

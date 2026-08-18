@@ -43,11 +43,18 @@
   function genericChatLinks(scope){return [...scope.querySelectorAll?.('a[href*="/c/"]')||[]].filter(a=>sharesSidebarShell(a)&&!projectChildHref(a.getAttribute('href')));}
   function hasProjectHeading(scope){return [...scope.querySelectorAll?.('h1,h2,h3,[role="heading"],button,[role="button"],a,[aria-label]')||[]].some(el=>sharesSidebarShell(el)&&(projectLabel(el.textContent)||projectLabel(el.getAttribute?.('aria-label'))));}
   function hasShowMore(scope){return [...scope.querySelectorAll?.('button,[role="button"],a')||[]].some(el=>sharesSidebarShell(el)&&showMoreLabel(el.textContent||el.getAttribute?.('aria-label')));}
+  function managedIdentityCount(scope,names=managedNames()){
+    if(!scope||!names.size)return 0;const seen=new Set();
+    for(const el of scope.querySelectorAll?.('a,button,[role="link"],[role="button"],[class*="project-unfurl-row"],span')||[]){
+      if(!sharesSidebarShell(el))continue;const label=norm(el.getAttribute?.('aria-label')||el.textContent);if(label&&names.has(label))seen.add(label);
+    }
+    return seen.size;
+  }
   function nearestProjectHost(seed){
-    let node=seed;
+    const names=managedNames();let node=seed;
     for(let depth=0;depth<8&&node&&node!==document.body&&node!==document.documentElement;depth++,node=node.parentElement){
       if(!sharesSidebarShell(node)||node.contains(ownProjects()))continue;
-      const links=projectLinks(node);if(links.length<2)continue;
+      const links=projectLinks(node),identities=managedIdentityCount(node,names);if(links.length<2&&identities<2)continue;
       if(genericChatLinks(node).length)continue;
       if(hasProjectHeading(node)||hasShowMore(node)||node.matches?.('[class*="sidebar-expando-section"],[class*="project"]'))return node;
     }

@@ -60,20 +60,22 @@ test('pinned Project opens an instant local folder instead of navigating away',a
     await pin.click();
     expect(rt.page.url()).toBe(before);
     await expect(pin).toHaveAttribute('aria-expanded','true');
-    const drawer=rt.page.locator(`.ng96-pin-drawer[data-pid="${P1}"]`);
+    const drawer=rt.page.locator(`.ng110-pin-drawer[data-pid="${P1}"],.ng96-pin-drawer[data-pid="${P1}"]`).first();
     await expect(drawer).toBeVisible();
     await expect(drawer).toContainText('Runtime integration test');
     await expect(drawer).toContainText('Second conversation');
     await expect(drawer.locator('[data-chat]')).toHaveCount(2);
-    await expect(pin.locator('xpath=..').locator('.ng96-project-open')).toBeVisible();
+    await expect(pin.locator('xpath=..').locator('.ng110-project-open,.ng96-project-open').first()).toBeVisible();
   }finally{await rt.close();}
 });
 
 test('bottom status geometry is invariant across all activity labels',async()=>{
   const rt=await launch();
   try{
+    await expect(rt.page.locator('#ng8-status .ng86-status-state')).toBeVisible({timeout:5000});
     const snapshot=async(state,label)=>rt.page.evaluate(({state,label})=>{
-      const bar=document.getElementById('ng8-status'),status=bar.querySelector('.ng86-status-state');
+      const bar=document.getElementById('ng8-status'),status=bar?.querySelector('.ng86-status-state');
+      if(!bar||!status)throw new Error('activity status is not mounted');
       bar.dataset.ng86Activity=state;status.textContent=label;
       const get=sel=>{const r=bar.querySelector(sel)?.getBoundingClientRect();return r?{x:r.x,y:r.y,w:r.width,h:r.height}:null;};
       return{version:get('.ng8-version'),project:get('.ng8-status-project'),skynet:get('strong'),state:get('.ng86-status-state')};

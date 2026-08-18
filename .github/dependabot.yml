@@ -1,0 +1,77 @@
+version: 2
+
+updates:
+  # ------------------------------------------------------------
+  # GitHub Actions
+  # Surveille les actions utilisées dans .github/workflows/
+  # ------------------------------------------------------------
+  - package-ecosystem: "github-actions"
+    directory: "/"
+
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Paris"
+
+    # Évite une accumulation excessive de PR Dependabot.
+    open-pull-requests-limit: 5
+
+    # Laisse quelques jours aux nouvelles versions avant adoption.
+    # Les mises à jour de sécurité ne sont pas retardées par cooldown.
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3
+
+    # Regroupe les mises à jour mineures/correctives.
+    # Les changements majeurs restent dans une PR séparée pour
+    # pouvoir les tester individuellement.
+    groups:
+      github-actions-non-major:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+    commit-message:
+      prefix: "deps(actions)"
+
+
+  # ------------------------------------------------------------
+  # Visual Lab / Playwright
+  # package.json + package-lock.json dans /visual-lab
+  # ------------------------------------------------------------
+  - package-ecosystem: "npm"
+    directory: "/visual-lab"
+
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:15"
+      timezone: "Europe/Paris"
+
+    open-pull-requests-limit: 5
+
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3
+
+    # Toutes les dépendances de développement non-majeures peuvent
+    # évoluer ensemble. Une future dépendance ajoutée au Visual Lab
+    # sera donc automatiquement couverte.
+    groups:
+      visual-lab-non-major:
+        dependency-type: "development"
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+    commit-message:
+      prefix: "deps(dev)"

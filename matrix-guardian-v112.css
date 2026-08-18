@@ -1,9 +1,9 @@
-/* NiakGPT 0.9.62 — Matrix must stay visible without intercepting native UI. */
+/* NiakGPT 0.9.62 — Matrix stays visible without taking ownership of native layout. */
 body.ng8-ready main>#ng8-matrix,
 body.ng8-ready main>#ng112-matrix-fallback{
   position:fixed!important;
   inset:0!important;
-  z-index:0!important;
+  z-index:-1!important;
   pointer-events:none!important;
   max-width:none!important;
   max-height:none!important;
@@ -19,4 +19,3 @@ html[data-ng8-running="1"] body.ng8-ready main>#ng8-matrix,
 html[data-ng8-running="1"] body.ng8-ready main>#ng112-matrix-fallback{opacity:.03!important;}
 html[data-ng90-matrix="off"] #ng112-matrix-fallback,
 html[data-ng90-safe="1"] #ng112-matrix-fallback{display:none!important;}
-body.ng8-ready main>*:not(#ng8-matrix):not(#ng112-matrix-fallback){position:relative;z-index:1;}

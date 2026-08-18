@@ -16,7 +16,7 @@ const isolated=[
 ];
 const manifest=JSON.parse(read('manifest.json'));
 same(manifest.permissions,['storage','scripting'],'permissions mismatch');same(manifest.host_permissions,['https://chatgpt.com/*'],'host scope mismatch');same(manifest.content_scripts.flatMap(x=>x.js||[]),['boot-gate-v100.js'],'unexpected static runtime');
-if(manifest.version!=='0.9.64')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.65')fail(`unexpected release ${manifest.version}`);
 const manifestText=JSON.stringify(manifest.content_scripts);
 for(const css of ['live-fixes-v104.css','sidebar-authority-v107.css','sidebar-expando-guard-v108.css','sidebar-projects-authority-v112.css','project-chat-ux-v110.css','home-layout-v112.css','native-actions-v113.css','chat-attention-v113.css','matrix-guardian-v112.css','performance-guard-v112.css','sidebar-icons-v114.css','native-da-v112.css'])need(manifestText,css,`${css} missing from manifest`);
 for(const obsolete of ['native-rename-v112.css','sidebar-projects-authority-v109.css','sidebar-projects-authority-v110.css','sidebar-projects-authority-v111.css','project-chat-ux-v109.css'])forbid(manifestText,obsolete,`${obsolete} still wired`);
@@ -38,8 +38,8 @@ const adapter=read('governance-adapter-v105.js');need(adapter,'trusted-project-m
 const selfheal=read('project-state-selfheal-v102.js');need(selfheal,'repairGovernance');need(selfheal,'mergeNativeCanonical');forbid(selfheal,'setInterval(');
 const assignment=read('project-assignment-selfheal-v103.js');need(assignment,'localToCanonical');need(assignment,'projectId:target');forbid(assignment,'setInterval(');
 
-const projectsAuthority=read('sidebar-projects-authority-v112.js');for(const token of ['ownReady','ng112-native-projects-authoritative','projectHomeHref','managedNames','identityHosts','FALLBACK · bloc NiakGPT absent'])need(projectsAuthority,token);forbid(projectsAuthority,'setInterval(');forbid(projectsAuthority,'window.fetch =');
-const folders=read('pin-folders-v096.js');need(folders,'ng96-pin-drawer');need(folders,'ng96-project-open');need(folders,'<a data-chat=');need(folders,"niakgpt:pins-rendered");need(folders,'stopImmediatePropagation');forbid(folders,'<button type="button" data-chat=','Project chat buttons reintroduced');
+const projectsAuthority=read('sidebar-projects-authority-v112.js');for(const token of ['ownReady','ng112-native-projects-authoritative','projectHomeHref','managedNames','sharesSidebarShell','managedIdentityCount','identityHosts','FALLBACK · bloc NiakGPT absent'])need(projectsAuthority,token);forbid(projectsAuthority,'setInterval(');forbid(projectsAuthority,'window.fetch =');
+const folders=read('pin-folders-v096.js');for(const token of ['ng96-pin-drawer','ng96-project-open','<a data-chat=',"niakgpt:pins-rendered",'stopImmediatePropagation','drawerDirty','cooperativeNode','existing.previousElementSibling===entry'])need(folders,token);forbid(folders,'<button type="button" data-chat=','Project chat buttons reintroduced');
 const projectChatUx=read('project-chat-ux-v110.js');for(const token of ['aria-current','ng110Active','ng110Out'])need(projectChatUx,token);for(const old of ['isRenameHit','Renommer la conversation','body:{title:next}','ng110Renamable'])forbid(projectChatUx,old,'legacy custom rename interception remains');forbid(projectChatUx,'setInterval(');
 
 const state=read('chat-state-authority-v113.js');for(const token of ['iu>pu','iu===pu','titleFromDocument','projectId:prev.projectId||ip||\'\''])need(state,token);forbid(state,'setInterval(');

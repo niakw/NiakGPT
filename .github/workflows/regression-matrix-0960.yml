@@ -1,0 +1,85 @@
+name: NiakGPT 0.9.60 Project Stability Matrix
+
+on:
+  push:
+    branches: [main, fix/niakgpt-0960-project-stability]
+    paths:
+      - 'sidebar-projects-authority-v110.js'
+      - 'project-folders-v110.js'
+      - 'continuity-out-cache-v110.js'
+      - 'background-v100.js'
+      - 'manifest.json'
+      - 'pin-folders-v096.css'
+      - 'project-chat-ux-v109.css'
+      - 'sidebar-projects-authority-v109.css'
+      - 'labs/regression_0960.py'
+      - '.github/workflows/regression-matrix-0960.yml'
+  pull_request:
+    paths:
+      - 'sidebar-projects-authority-v110.js'
+      - 'project-folders-v110.js'
+      - 'continuity-out-cache-v110.js'
+      - 'background-v100.js'
+      - 'manifest.json'
+      - 'pin-folders-v096.css'
+      - 'project-chat-ux-v109.css'
+      - 'sidebar-projects-authority-v109.css'
+      - 'labs/regression_0960.py'
+      - '.github/workflows/regression-matrix-0960.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: niakgpt-0960-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    name: 0.9.60 stability · ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify 0.9.60 wiring and single ownership
+        run: |
+          python - <<'PY'
+          import json
+          m=json.load(open('manifest.json'))
+          assert m['version']=='0.9.60', m['version']
+          PY
+          grep -q "sidebar-projects-authority-v110.js" background-v100.js
+          grep -q "project-folders-v110.js" background-v100.js
+          grep -q "continuity-out-cache-v110.js" background-v100.js
+          ! grep -q "'sidebar-expando-guard-v108.js'" background-v100.js
+          ! grep -q "'sidebar-projects-authority-v109.js'" background-v100.js
+          ! grep -q "'pin-folders-v096.js'" background-v100.js
+          ! grep -q "'project-chat-ux-v109.js'" background-v100.js
+          node --check sidebar-projects-authority-v110.js
+          node --check project-folders-v110.js
+          node --check continuity-out-cache-v110.js
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install playwright==1.57.0
+          python -m playwright install --with-deps ${{ matrix.browser }}
+      - name: Keep 0.9.59 historical regression green
+        run: python labs/regression_0959.py --browser ${{ matrix.browser }}
+      - name: Run 0.9.60 rerender/click/focus/OUT regression
+        run: python labs/regression_0960.py --browser ${{ matrix.browser }}
+      - name: Upload 0.9.60 visual proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: niakgpt-0960-${{ matrix.browser }}
+          path: artifacts/0960-*-${{ matrix.browser }}.png
+          if-no-files-found: warn
+          retention-days: 30

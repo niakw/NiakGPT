@@ -56,5 +56,16 @@
 
   document.addEventListener('keydown',event=>{if(!modal)return;if(event.key==='Tab')trap(event);if(event.key==='Escape'){event.preventDefault();skip();}},true);
 
-  shouldShow().then(show=>{if(!show)return;const launch=()=>{if(document.body)open();else setTimeout(launch,200);};setTimeout(launch,1250);});
+  // MV3 onInstalled metadata and the first injected page can race during an extension reload.
+  // A delayed modal must therefore re-read lifecycle state immediately before opening rather
+  // than relying on the earlier decision. This keeps true installs visible while upgrades
+  // remain silent even when the install/update marker changes during the 1.25 s launch delay.
+  shouldShow().then(show=>{
+    if(!show)return;
+    const launch=async()=>{
+      if(!(await shouldShow()))return;
+      if(document.body)open();else setTimeout(launch,200);
+    };
+    setTimeout(launch,1250);
+  });
 })();

@@ -9,7 +9,7 @@ def runtime(name):
     if not m:fail(f'missing {name}');return[]
     return re.findall(r"['\"]([^'\"]+\.js)['\"]",m.group(1))
 if manifest.get('manifest_version')!=3:fail('manifest_version != 3')
-if manifest.get('version')!='0.9.65':fail(f"version={manifest.get('version')}")
+if manifest.get('version')!='0.9.66':fail(f"version={manifest.get('version')}")
 if manifest.get('permissions')!=['storage','scripting']:fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*']:fail('host permissions drift')
 main=runtime('MAIN_RUNTIME');isolated=runtime('ISOLATED_RUNTIME')
@@ -44,6 +44,7 @@ deep=(ROOT/'reclassify-deep-v112.js').read_text(encoding='utf-8')
 if 'MAX_PER_RUN=2' not in deep or 'MAX_HEAVY=1' not in deep:fail('deep classification budget drift')
 actions=(ROOT/'native-actions-v113.js').read_text(encoding='utf-8')
 if 'invokeNativeMenu' not in actions or 'fallbackMove' not in actions:fail('native action/fallback move path missing')
+if "data-ng112-native-projects" not in actions:fail('native actions do not stage passive Projects marks')
 state=(ROOT/'chat-state-authority-v113.js').read_text(encoding='utf-8')
 if 'iu>pu' not in state or 'iu===pu' not in state:fail('monotonic title authority missing')
 bread=(ROOT/'breadcrumb-v113.js').read_text(encoding='utf-8')
@@ -51,11 +52,20 @@ if '>Accueil<' not in bread or 'ng100-bc-current' not in bread:fail('canonical l
 att=(ROOT/'chat-attention-v113.js').read_text(encoding='utf-8')
 if 'data.ng113Unread' in att:pass
 projects=(ROOT/'sidebar-projects-authority-v112.js').read_text(encoding='utf-8')
-for token in ('sharesSidebarShell','managedIdentityCount','identityHosts','MutationObserver'):
-    if token not in projects:fail('sidebar split-root authority missing '+token)
+for token in ('sharesSidebarShell','managedIdentityCount','identityHosts','watchRoots','bindObservers',"const MARK='data-ng112-native-projects'"):
+    if token not in projects:fail('passive sidebar authority missing '+token)
+for forbidden in ('attributes:true','attributeFilter:','classList.add(HIDE)','setAttribute(\'aria-hidden\''):
+    if forbidden in projects:fail('Projects authority reintroduced native attribute/class churn: '+forbidden)
+projects_css=(ROOT/'sidebar-projects-authority-v112.css').read_text(encoding='utf-8')
+if '[data-ng112-native-projects="1"]' not in projects_css:fail('passive Projects CSS marker missing')
 folders=(ROOT/'pin-folders-v096.js').read_text(encoding='utf-8')
 for token in ('drawerDirty','cooperativeNode','existing.previousElementSibling===entry'):
     if token not in folders:fail('pin idle-stability guard missing '+token)
+experience=ROOT/'visual-lab/experience-gate-v116.mjs'
+if not experience.exists():fail('cross-platform human DOM error UX gate missing')
+workflow=(ROOT/'.github/workflows/current-finalization.yml').read_text(encoding='utf-8')
+for token in ('ubuntu-latest, windows-latest, macos-latest','chromium, firefox, webkit','Human / DOM / errors / UX / remount / anti-churn','experience-gate-v116.mjs'):
+    if token not in workflow:fail('cross-platform experience matrix missing '+token)
 if errors:
     print('STATIC_CURRENT_FAIL');[print('-',e) for e in errors];sys.exit(1)
 print(f"STATIC_CURRENT_PASS version={manifest['version']} runtime={len(main)+len(isolated)} refs={len(refs)}")

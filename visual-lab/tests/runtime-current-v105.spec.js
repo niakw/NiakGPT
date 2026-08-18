@@ -69,7 +69,7 @@ async function launch(){
   await expect(page.locator('#prompt-textarea')).toBeVisible({timeout:8000});
   await expect(page.locator('#ng8-status')).toContainText(VERSION,{timeout:12000});
   await expect.poll(()=>page.locator('html').getAttribute('data-ng86-activity'),{timeout:10000}).toBe('ready');
-  return {context,page,state,pageErrors,consoleProblems,close:async()=>{await context.close();fs.rmSync(dir,{recursive:true,force:true});}};
+  return {context,worker,page,state,pageErrors,consoleProblems,close:async()=>{await context.close();fs.rmSync(dir,{recursive:true,force:true});}};
 }
 
 function lifecycleMessages(lines){
@@ -107,6 +107,62 @@ test('trusted Project menu move is locked without any full conversation GET',asy
     await row.locator('.ng85-manual-lock').click();
     await expect(row).toHaveAttribute('data-ng85-manual','0');
     await expect(row.locator('.ng85-manual-lock')).toHaveCount(0);
+    expect(rt.pageErrors).toEqual([]);
+    expect(lifecycleMessages(rt.consoleProblems)).toEqual([]);
+  }finally{await rt.close();}
+});
+
+test('unpacked extension hides native Projects and keeps Project chats stable, active, clickable and OUT-cached',async()=>{
+  const rt=await launch();
+  try{
+    const nativeHeading=rt.page.locator('.nav h3').filter({hasText:/^Projects$/});
+    await expect(nativeHeading).toBeHidden({timeout:16000});
+    for(const nativeProject of await rt.page.locator('.project-list a').all())await expect(nativeProject).toBeHidden();
+    await expect(rt.page.locator('.recent-list')).toBeVisible();
+    await expect(rt.page.locator('#lab-chat-active')).toBeVisible();
+
+    const p1=rt.page.locator(`#ng8-pins a[href*="${P1}"]`).first();
+    await expect(p1).toBeVisible({timeout:16000});
+    await p1.click();
+    const drawer=rt.page.locator(`#ng8-pins .ng96-pin-drawer[data-pid="${P1}"]`);
+    await expect(drawer).toBeVisible();
+    const row1=drawer.locator(`.ng109-chat-row[data-chat-row="${CHAT1}"]`);
+    const row2=drawer.locator(`.ng109-chat-row[data-chat-row="${CHAT2}"]`);
+    await expect(row1).toBeVisible();
+    await expect(row2).toBeVisible();
+    await expect(row1).toHaveAttribute('data-ng109-active','1');
+    await expect(row1.locator('a[data-chat]')).toHaveAttribute('aria-current','page');
+
+    const layout=await rt.page.evaluate(chatId=>{
+      const row=document.querySelector(`#ng8-pins .ng109-chat-row[data-chat-row="${chatId}"]`),title=row.querySelector('.ng96-chat-title'),time=row.querySelector('time');
+      window.__ngStableProjectRow=row;window.__ngStableProjectTimeX=time.getBoundingClientRect().x;
+      return {titleRight:title.getBoundingClientRect().right,timeLeft:time.getBoundingClientRect().left};
+    },CHAT1);
+    expect(layout.titleRight).toBeLessThanOrEqual(layout.timeLeft+1);
+
+    await rt.page.evaluate(()=>{
+      const drawer=document.querySelector('#ng8-pins .ng96-pin-drawer');
+      for(let i=0;i<30;i++){const n=document.createElement('i');drawer.appendChild(n);n.remove();}
+    });
+    await rt.page.waitForTimeout(450);
+    expect(await rt.page.evaluate(chatId=>document.querySelector(`#ng8-pins .ng109-chat-row[data-chat-row="${chatId}"]`)===window.__ngStableProjectRow,CHAT1)).toBe(true);
+    expect(Math.abs(await rt.page.evaluate(chatId=>document.querySelector(`#ng8-pins .ng109-chat-row[data-chat-row="${chatId}"] time`).getBoundingClientRect().x-window.__ngStableProjectTimeX,CHAT1))).toBeLessThan(1);
+
+    await rt.worker.evaluate(async chatId=>chrome.storage.local.set({'niakgpt-continuity-v100':{schema:1,out:{[chatId]:{out:true,title:'Second conversation',reason:'limit-detected',updatedAt:1787000000000}}}}),CHAT2);
+    await expect(row2).toHaveAttribute('data-ng109-out','1',{timeout:6000});
+    await expect(row2.locator('.ng109-out-badge')).toHaveText('OUT');
+    await expect(drawer.locator('.ng109-chat-row').last()).toHaveAttribute('data-chat-row',CHAT2);
+    const cacheOut=await rt.worker.evaluate(async chatId=>{
+      const cache=(await chrome.storage.local.get('niakgpt-v08-cache'))['niakgpt-v08-cache'];
+      const top=(cache?.chats||[]).find(c=>c.id===chatId),project=Object.values(cache?.projectChats||{}).flat().find(c=>c.id===chatId);
+      return {top:top?.out===true,project:project?.out===true};
+    },CHAT2);
+    expect(cacheOut).toEqual({top:true,project:true});
+
+    await rt.page.evaluate(()=>{window.__ngNativeChatClicks=0;document.getElementById('lab-chat-active').addEventListener('click',e=>{e.preventDefault();window.__ngNativeChatClicks++;});});
+    await row1.locator('a[data-chat]').click();
+    await expect.poll(()=>rt.page.evaluate(()=>window.__ngNativeChatClicks),{timeout:2500}).toBe(1);
+    expect(rt.state.conversationGets).toBe(0);
     expect(rt.pageErrors).toEqual([]);
     expect(lifecycleMessages(rt.consoleProblems)).toEqual([]);
   }finally{await rt.close();}

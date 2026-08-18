@@ -1,0 +1,77 @@
+name: NiakGPT 0.9.60 Sidebar + Project Chat Stability Matrix
+
+on:
+  push:
+    branches: [main, agent/niakgpt-0960-ui-fix2]
+    paths:
+      - 'sidebar-projects-authority-v110.js'
+      - 'sidebar-projects-authority-v110.css'
+      - 'project-chat-ux-v110.js'
+      - 'project-chat-ux-v110.css'
+      - 'background-v100.js'
+      - 'manifest.json'
+      - 'labs/regression_0960.py'
+      - '.github/workflows/regression-matrix-0960.yml'
+  pull_request:
+    paths:
+      - 'sidebar-projects-authority-v110.js'
+      - 'sidebar-projects-authority-v110.css'
+      - 'project-chat-ux-v110.js'
+      - 'project-chat-ux-v110.css'
+      - 'background-v100.js'
+      - 'manifest.json'
+      - 'labs/regression_0960.py'
+      - '.github/workflows/regression-matrix-0960.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: niakgpt-0960-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    name: 0.9.60 stable UI · ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify 0.9.60 wiring
+        run: |
+          python - <<'PY'
+          import json
+          m=json.load(open('manifest.json'))
+          assert m['version']=='0.9.60',m['version']
+          css=[x for cs in m['content_scripts'] for x in cs.get('css',[])]
+          assert 'sidebar-projects-authority-v110.css' in css
+          assert 'project-chat-ux-v110.css' in css
+          assert 'sidebar-projects-authority-v109.css' not in css
+          assert 'project-chat-ux-v109.css' not in css
+          PY
+          grep -q "sidebar-projects-authority-v110.js" background-v100.js
+          grep -q "project-chat-ux-v110.js" background-v100.js
+          ! grep -q "sidebar-projects-authority-v109.js" background-v100.js
+          ! grep -q "project-chat-ux-v109.js" background-v100.js
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install playwright==1.57.0
+          python -m playwright install --with-deps ${{ matrix.browser }}
+      - name: Run 0.9.60 stability regression
+        run: python labs/regression_0960.py --browser ${{ matrix.browser }}
+      - name: Upload visual proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: niakgpt-0960-${{ matrix.browser }}
+          path: artifacts/0960-*-${{ matrix.browser }}.png
+          if-no-files-found: warn
+          retention-days: 30

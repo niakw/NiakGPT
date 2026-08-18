@@ -1,0 +1,6 @@
+/* NiakGPT 0.9.62 — one Projects UI: NiakGPT owns the visible sidebar Project surface. */
+.ng112-native-projects-hidden{
+  display:none!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}

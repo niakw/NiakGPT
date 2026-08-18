@@ -11,17 +11,21 @@
   let modal=null,step=0,selectedProfile='power',returnFocus=null;
   const profiles=[['power','Power','Dense et complet'],['code','Code / IDE','Code et outils techniques'],['research','Research','Lecture longue et sources'],['focus','Focus / Writing','Calme et écriture'],['analyst','Analyst','Métadonnées et tableaux'],['contrast','High Contrast','Accessibilité renforcée']];
 
+  async function skipUpgrade(lifecycle,status='upgrade-skipped'){
+    await chrome.storage.local.set({[KEY]:{status,version:VERSION,previousVersion:lifecycle?.previousVersion||'',at:Date.now()}});
+    return false;
+  }
   async function shouldShow(){
     try{
       // Fast path on every normal page load: only two tiny keys, never the chat/index cache.
       const known=await chrome.storage.local.get([KEY,INSTALL_META]);
       if(known[KEY])return false;
       const lifecycle=known[INSTALL_META];
+      if(lifecycle?.reason==='update')return skipUpgrade(lifecycle);
+      // Chrome MV3 can transiently surface reason=install during an unpacked reload/update.
+      // A previousVersion is authoritative evidence that this is not a first installation.
+      if(lifecycle?.reason==='install'&&lifecycle?.previousVersion)return skipUpgrade(lifecycle,'upgrade-install-race-skipped');
       if(lifecycle?.reason==='install')return true;
-      if(lifecycle?.reason==='update'){
-        await chrome.storage.local.set({[KEY]:{status:'upgrade-skipped',version:VERSION,previousVersion:lifecycle.previousVersion||'',at:Date.now()}});
-        return false;
-      }
       // Defensive legacy fallback for installations predating lifecycle metadata.
       const legacy=await chrome.storage.local.get(LEGACY_STORAGE_KEYS);
       if(LEGACY_STORAGE_KEYS.some(key=>legacy[key]!=null)){

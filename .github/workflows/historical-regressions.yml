@@ -7,7 +7,7 @@ on:
         description: Historical regression suite to run
         required: true
         type: choice
-        default: '0.9.60'
+        default: '0.9.61'
         options:
           - '0.9.49'
           - '0.9.52'
@@ -19,6 +19,7 @@ on:
           - '0.9.58'
           - '0.9.59'
           - '0.9.60'
+          - '0.9.61'
           - 'bootstrap-isolation'
       browser:
         description: Browser engine
@@ -114,6 +115,7 @@ jobs:
             '0.9.58') python labs/sidebar_expando_0958.py --browser "$BROWSER" ;;
             '0.9.59') python labs/regression_0959.py --browser "$BROWSER" ;;
             '0.9.60') python labs/regression_0960.py --browser "$BROWSER" ;;
+            '0.9.61') python labs/regression_0961.py --browser "$BROWSER" ;;
           esac
 
       - name: Upload historical visual evidence

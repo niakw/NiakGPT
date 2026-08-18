@@ -1,4 +1,4 @@
-name: Finalization 0.9.62
+name: NiakGPT Current Finalization
 
 on:
   pull_request:
@@ -8,8 +8,15 @@ on:
       - 'manifest.json'
       - 'visual-lab/**'
       - 'labs/**'
-      - '.github/workflows/finalization-0962.yml'
+      - '.github/workflows/current-finalization.yml'
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: niakgpt-current-finalization-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   static-runtime:
@@ -20,9 +27,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Manifest and runtime syntax
+      - name: Show current release
+        run: node -e "console.log('NiakGPT', require('./manifest.json').version)"
+      - name: Runtime syntax
         run: |
-          node -e "const m=require('./manifest.json'); if(m.version!=='0.9.62') throw new Error('expected 0.9.62'); console.log(m.version)"
           for f in background-v100.js sidebar-projects-authority-v112.js home-layout-v112.js native-rename-v112.js analysis-bridge-v112.js reclassify-deep-v112.js matrix-guardian-v112.js performance-guard-v112.js turn-headers-v112.js continuity-v112.js; do
             node --check "$f"
           done
@@ -32,7 +40,7 @@ jobs:
         run: node tools/package-extension.mjs
 
   visual-dom-crossengine:
-    name: finalization · ${{ matrix.browser }}
+    name: current finalization · ${{ matrix.browser }}
     runs-on: ubuntu-latest
     timeout-minutes: 18
     strategy:
@@ -81,7 +89,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: niakgpt-0962-${{ matrix.browser }}-dom-visual
+          name: niakgpt-current-${{ matrix.browser }}-dom-visual
           path: visual-lab/artifacts/finalization-v112/${{ matrix.browser }}
           if-no-files-found: error
           retention-days: 14

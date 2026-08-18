@@ -56,6 +56,8 @@ const ISOLATED_RUNTIME=[
   'retro-loader-v097.js'
 ];
 
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+
 chrome.runtime.onInstalled.addListener(async details=>{
   try{
     const current=chrome.runtime.getManifest().version;
@@ -66,16 +68,21 @@ chrome.runtime.onInstalled.addListener(async details=>{
     let next={...old,reason,currentVersion:current,previousVersion:details.previousVersion||old.previousVersion||'',changedAt:preserveUpdate?(old.changedAt||Date.now()):Date.now()};
     if(reason==='install'&&!old.installedAt)next.installedAt=Date.now();
 
-    // A lifecycle write can race the asynchronous onInstalled handler (notably when an
-    // unpacked extension is reloaded during an upgrade test). previousVersion is treated as
-    // upgrade evidence even if Chrome transiently reports reason="install".
+    // MV3 can surface the service worker before its onInstalled async handler has committed.
+    // A test/user migration may therefore write an explicit update marker while this handler
+    // is still in flight. On an apparent install, wait a short bounded window then perform the
+    // final read immediately before commit. Boot waits seconds, so 140 ms has no UX cost.
     if(details.reason==='install'){
+      await sleep(140);
       const latest=(await chrome.storage.local.get(INSTALL_META))[INSTALL_META]||{};
       const latestIsUpdate=(latest.reason==='update'||!!latest.previousVersion)&&latest.currentVersion===current;
       const latestIsNewer=Number(latest.changedAt||0)>=Number(old.changedAt||0);
       if(latestIsUpdate&&latestIsNewer){
-        next={...latest,reason:'update',currentVersion:current,previousVersion:latest.previousVersion||details.previousVersion||'',changedAt:latest.changedAt||Date.now()};
+        // Never overwrite explicit upgrade evidence with a late install marker.
+        return;
       }
+      if(latest.changedAt&&Number(latest.changedAt)>Number(old.changedAt||0)&&latest.reason&&latest.reason!=='install')return;
+      if(latest.reason==='install'&&latest.currentVersion===current&&Number(latest.changedAt||0)>Number(next.changedAt||0))return;
     }
     await chrome.storage.local.set({[INSTALL_META]:next});
   }catch(error){console.warn('[NiakGPT lifecycle]',error);}

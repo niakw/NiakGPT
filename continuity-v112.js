@@ -38,21 +38,28 @@
     window.__NIAKGPT_DIAGNOSTICS__?.set('continuité-112',`PRÊT · ${data.projectName} > ${data.chatName} · Project verrouillé`);
     location.assign(data.projectId?`/g/${encodeURIComponent(data.projectId)}/project`:'/');
   }
-  async function lockNewChat(){
-    if(patching)return;const p=pending(),newId=currentCid();if(!p?.exactProject||!p.projectId||!newId||newId===p.chatId)return;patching=true;
+  async function persistExactLock(p,newId){
     try{
-      const r=await rpc(`/backend-api/conversation/${encodeURIComponent(newId)}`,{method:'PATCH',body:{gizmo_id:p.projectId}});if(!r.ok)return;
-      try{
-        const got=await chrome.storage.local.get([CACHE_KEY,GOV_KEY]),raw=got[CACHE_KEY]||{},gov=got[GOV_KEY]||{};
-        raw.chats=Array.isArray(raw.chats)?raw.chats:[];const row=raw.chats.find(c=>c?.id===newId);if(row)row.projectId=p.projectId;raw.at=Date.now();
-        gov.locks={...(gov.locks||{}),[newId]:{projectId:p.projectId,at:Date.now(),source:'continuity-exact'}};
-        await chrome.storage.local.set({[CACHE_KEY]:raw,[GOV_KEY]:gov});
-      }catch{}
-      p.patched=true;p.lockedAt=Date.now();savePending(p);document.documentElement.dataset.ng112ContinuityProject=p.projectId;
-      window.__NIAKGPT_DIAGNOSTICS__?.set('continuité-112',`OK · nouveau chat verrouillé sur ${p.projectName||p.projectId}`);
-      setTimeout(()=>{try{sessionStorage.removeItem(PENDING_KEY);}catch{}delete document.documentElement.dataset.ng112ContinuityProject;},1200);
+      const got=await chrome.storage.local.get([CACHE_KEY,GOV_KEY]),raw=got[CACHE_KEY]||{},gov=got[GOV_KEY]||{};
+      raw.chats=Array.isArray(raw.chats)?raw.chats:[];const row=raw.chats.find(c=>c?.id===newId);if(row)row.projectId=p.projectId;raw.at=Date.now();
+      gov.locks={...(gov.locks||{}),[newId]:{projectId:p.projectId,at:Date.now(),source:'continuity-exact'}};
+      await chrome.storage.local.set({[CACHE_KEY]:raw,[GOV_KEY]:gov});
+    }catch{}
+    p.patched=true;p.lockedAt=Date.now();savePending(p);document.documentElement.dataset.ng112ContinuityProject=p.projectId;
+    window.__NIAKGPT_DIAGNOSTICS__?.set('continuité-112',`OK · nouveau chat verrouillé sur ${p.projectName||p.projectId}`);
+    setTimeout(()=>{try{sessionStorage.removeItem(PENDING_KEY);}catch{}delete document.documentElement.dataset.ng112ContinuityProject;},1200);
+  }
+  async function lockNewChat(attempt=0){
+    if(patching)return;const p=pending(),newId=currentCid();if(!p?.exactProject||!p.projectId||!newId||newId===p.chatId)return;
+    // continuity-v100 is injected just before this module and already owns the normal
+    // Project PATCH. Give it one short chance to finish so 0.9.62 only adds the exact lock.
+    if(!p.patched&&attempt<1){routeTimer=setTimeout(()=>lockNewChat(attempt+1),180);return;}
+    patching=true;
+    try{
+      if(!p.patched){const r=await rpc(`/backend-api/conversation/${encodeURIComponent(newId)}`,{method:'PATCH',body:{gizmo_id:p.projectId}});if(!r.ok)return;}
+      await persistExactLock(p,newId);
     }finally{patching=false;}
   }
-  function onRoute(){clearTimeout(routeTimer);routeTimer=setTimeout(lockNewChat,120);}
+  function onRoute(){clearTimeout(routeTimer);routeTimer=setTimeout(()=>lockNewChat(0),120);}
   document.addEventListener('click',interceptContinue,true);window.addEventListener('popstate',onRoute);if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',onRoute);document.addEventListener('niakgpt:activity-changed',()=>{if((document.documentElement.dataset.ng86Activity||'ready')==='ready')onRoute();});onRoute();
 })();

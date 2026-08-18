@@ -14,13 +14,10 @@
   function persist(){clearTimeout(persistTimer);persistTimer=setTimeout(()=>chrome.storage.local.set({[STATE_KEY]:state}).catch(()=>{}),160);}
   function markSeen(id,at=0){if(!id)return;const row=chatById(id),stamp=Math.max(at,updated(row));if(stamp>Number(state.seen[id]||0)){state.seen[id]=stamp;persist();}}
   function unread(id){const row=chatById(id),stamp=updated(row);return stamp>0&&stamp>Number(state.seen[id]||0);}
-  function initializeIfNeeded(){
-    if(state.initialized)return;for(const c of cache.chats||[])if(c?.id)state.seen[c.id]=updated(c);state.initialized=true;persist();
-  }
+  function initializeIfNeeded(){if(state.initialized)return;for(const c of cache.chats||[])if(c?.id)state.seen[c.id]=updated(c);state.initialized=true;persist();}
   function apply(){
     timer=0;initializeIfNeeded();const current=currentCid();if(current&&!document.hidden)markSeen(current);
-    const pins=document.getElementById('ng8-pins');if(!pins)return;
-    const unreadByProject=new Map();
+    const pins=document.getElementById('ng8-pins');if(!pins)return;const unreadByProject=new Map();
     for(const a of pins.querySelectorAll('.ng96-folder-list>a[data-chat]')){
       const id=a.dataset.chat||cid(a.getAttribute('href'));if(!id)continue;const isUnread=unread(id)&&!(id===current&&!document.hidden),row=chatById(id);
       if(isUnread){a.dataset.ng113Unread='1';a.setAttribute('aria-label',`${row?.title||'Conversation'} · nouveau message`);if(row?.projectId)unreadByProject.set(row.projectId,(unreadByProject.get(row.projectId)||0)+1);}
@@ -39,9 +36,8 @@
     try{const got=await chrome.storage.local.get([STATE_KEY,CACHE_KEY]);state=got[STATE_KEY]&&typeof got[STATE_KEY]==='object'?got[STATE_KEY]:state;state.seen=state.seen||{};cache=got[CACHE_KEY]||cache;}catch{}
     initializeIfNeeded();const bus=window.__NIAKGPT_CACHE_BUS__;if(bus){bus.subscribe(accept);try{accept(await bus.get());}catch{}}schedule(0);
   }
-  document.addEventListener('click',e=>{const a=e.target instanceof Element?e.target.closest('#ng8-pins .ng96-folder-list>a[data-chat]'):null;if(!a)return;const id=a.dataset.chat||cid(a.getAttribute('href'));if(id){markSeen(id);schedule(0);}},true);
-  window.addEventListener('popstate',()=>schedule(50));if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>schedule(50));
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden){markSeen(currentCid());schedule(0);}});
+  document.addEventListener('click',e=>{if(e.target instanceof Element&&e.target.closest('.ng113-native-actions'))return;const a=e.target instanceof Element?e.target.closest('#ng8-pins .ng96-folder-list>a[data-chat]'):null;if(!a)return;const id=a.dataset.chat||cid(a.getAttribute('href'));if(id){markSeen(id);schedule(0);}},true);
+  window.addEventListener('popstate',()=>schedule(50));if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>schedule(50));document.addEventListener('visibilitychange',()=>{if(!document.hidden){markSeen(currentCid());schedule(0);}});
   try{chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY])accept(changes[CACHE_KEY].newValue);});}catch{}
   start();
 })();

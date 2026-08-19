@@ -75,9 +75,9 @@
   }
   function placeFloatingMenu(menu,source,index=0){
     if(!(menu instanceof HTMLElement)||!(source instanceof HTMLElement))return;
-    const sr=source.getBoundingClientRect(),preferredLeft=sidebarRight(source)+8+index*8,maxLeft=Math.max(8,innerWidth-Math.min(320,Math.max(220,menu.getBoundingClientRect().width||240))-8),left=Math.min(maxLeft,Math.max(8,preferredLeft));
+    const sr=source.getBoundingClientRect(),rawWidth=menu.getBoundingClientRect().width||240,width=Math.min(320,Math.max(220,rawWidth)),base=sidebarRight(source)+8,preferredLeft=base+index*(width+8),maxLeft=Math.max(8,innerWidth-width-8),left=Math.min(maxLeft,Math.max(8,preferredLeft));
     const menuHeight=Math.min(innerHeight-16,Math.max(80,menu.getBoundingClientRect().height||260)),top=Math.min(Math.max(8,sr.top-4+index*10),Math.max(8,innerHeight-menuHeight-8));
-    menu.classList.add('ng113-native-menu-floating');menu.style.setProperty('--ng113-menu-left',`${left}px`);menu.style.setProperty('--ng113-menu-top',`${top}px`);menu.dataset.ng113Floated='1';
+    menu.classList.add('ng113-native-menu-floating');menu.style.setProperty('--ng113-menu-left',`${left}px`);menu.style.setProperty('--ng113-menu-top',`${top}px`);menu.dataset.ng113Floated='1';menu.dataset.ng113FloatIndex=String(index);
   }
   function floatVisibleMenus(){if(!menuSource)return;visibleMenus().forEach((menu,index)=>placeFloatingMenu(menu,menuSource,index));}
   function armMenuFloat(source){

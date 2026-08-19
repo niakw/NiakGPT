@@ -136,12 +136,11 @@
     const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 20 20');svg.setAttribute('aria-hidden','true');
     for(const x of [4,10,16]){const c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',String(x));c.setAttribute('cy','10');c.setAttribute('r','1.45');svg.appendChild(c);}return svg;
   }
-  function actionButton(kind,id){
-    const b=document.createElement('button');b.type='button';b.className=`ng113-native-actions ng113-native-actions-${kind}`;b.dataset.ng113Actions=kind;b.dataset.ng113Id=id;b.appendChild(icon());
-    b.title=kind==='project'?'Actions du Project (menu ChatGPT)':'Actions de la conversation (menu ChatGPT)';b.setAttribute('aria-label',b.title);
-    b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();kind==='project'?openProjectActions(b,id):openChatActions(b,id);},true);
-    return b;
+  function normalizeButton(button,kind,id){
+    if(!(button instanceof HTMLButtonElement))return null;button.type='button';button.classList.add('ng113-native-actions',`ng113-native-actions-${kind}`);button.dataset.ng113Actions=kind;button.dataset.ng113Id=id;
+    const title=kind==='project'?'Actions du Project (menu ChatGPT)':'Actions de la conversation (menu ChatGPT)';button.title=title;button.setAttribute('aria-label',title);return button;
   }
+  function actionButton(kind,id){const b=document.createElement('button');normalizeButton(b,kind,id);b.appendChild(icon());return b;}
   function ensureChatEntry(a){
     let entry=a.closest('.ng96-chat-entry');if(entry)return entry;
     entry=document.createElement('div');entry.className='ng96-chat-entry';entry.dataset.chatEntry=a.dataset.chat||cid(a.getAttribute('href'))||'';a.parentElement?.insertBefore(entry,a);entry.appendChild(a);return entry;
@@ -151,18 +150,24 @@
     pins.querySelectorAll('.ng96-project-open').forEach(button=>button.remove());
     for(const entry of pins.querySelectorAll('.ng96-pin-entry')){
       const a=entry.querySelector(':scope>a[data-ng8-pin]'),id=pid(a?.getAttribute('href'));if(!id)continue;
-      let b=entry.querySelector(':scope>.ng113-native-actions-project');if(!b)entry.appendChild(actionButton('project',id));else b.dataset.ng113Id=id;
+      let b=entry.querySelector(':scope>.ng113-native-actions-project');if(!b){b=actionButton('project',id);entry.appendChild(b);}else normalizeButton(b,'project',id);
     }
     for(const a of pins.querySelectorAll('.ng96-folder-list a[data-chat]')){
       const id=a.dataset.chat||cid(a.getAttribute('href'));if(!id)continue;const entry=ensureChatEntry(a);entry.dataset.chatEntry=id;
-      let nested=a.querySelector(':scope>.ng113-native-actions-chat');if(nested){entry.appendChild(nested);nested.dataset.ng113Id=id;}
-      let b=entry.querySelector(':scope>.ng113-native-actions-chat');if(!b)entry.appendChild(actionButton('chat',id));else b.dataset.ng113Id=id;
+      let nested=a.querySelector(':scope>.ng113-native-actions-chat');if(nested)entry.appendChild(nested);
+      let b=entry.querySelector(':scope>.ng113-native-actions-chat');if(!b){b=actionButton('chat',id);entry.appendChild(b);}else normalizeButton(b,'chat',id);
       for(const extra of entry.querySelectorAll(':scope>.ng113-native-actions-chat'))if(extra!==b)extra.remove();
     }
   }
   function schedule(delay=15){clearTimeout(timer);timer=setTimeout(decorate,delay);}
   function bind(){const next=document.getElementById('ng8-pins');if(!next||next===box)return false;observer?.disconnect();box=next;observer=new MutationObserver(()=>schedule(12));observer.observe(box,{childList:true,subtree:true});schedule(0);return true;}
   async function start(){try{cache=(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||cache;}catch{}if(bind())return;boot?.disconnect();boot=new MutationObserver(()=>{if(bind()){boot.disconnect();boot=null;}});boot.observe(document.documentElement,{childList:true,subtree:true});setTimeout(()=>boot?.disconnect(),15000);}
+
+  document.addEventListener('click',event=>{
+    if(event.button!==0)return;const target=event.target instanceof Element?event.target:null,button=target?.closest('#ng8-pins .ng113-native-actions');if(!(button instanceof HTMLButtonElement))return;
+    const kind=button.dataset.ng113Actions,id=clean(button.dataset.ng113Id);if(!id||!['project','chat'].includes(kind))return;
+    event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();kind==='project'?openProjectActions(button,id):openChatActions(button,id);
+  },true);
   try{chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY]){cache=changes[CACHE_KEY].newValue||cache;schedule(0);}});}catch{}
   document.addEventListener('niakgpt:folder-rendered',()=>{bind();decorate();});
   document.addEventListener('niakgpt:pins-rendered',()=>{bind();decorate();});

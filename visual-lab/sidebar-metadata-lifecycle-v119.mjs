@@ -48,3 +48,4 @@ for(const [engine,launcher] of Object.entries(engines)){
   }finally{await context.close();await browser.close();}
 }
 console.log(`sidebar-metadata-lifecycle-v119: ${Object.keys(engines).join(',')} PASS`);
+await import('./sidebar-metadata-concurrency-v119.mjs');

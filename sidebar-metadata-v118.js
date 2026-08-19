@@ -39,7 +39,7 @@
 
   function cleanCache(raw){
     if(!raw||typeof raw!=='object')return null;
-    const projects=Array.isArray(raw.projects)?raw.projects:[],badIds=new Set(projects.filter(p=>{const id=String(p?.id||'');const canonical=id.startsWith('g-p-')||!!pidFromHref(p?.href||'');return p?.domOnly&&isDateLike(p?.name)&&!canonical;}).map(p=>String(p.id||'')).filter(Boolean));
+    const projects=Array.isArray(raw.projects)?raw.projects:[],badIds=new Set(projects.filter(p=>{const id=String(p?.id||'');const canonical=id.startsWith('g-p-');return p?.domOnly&&isDateLike(p?.name)&&!canonical;}).map(p=>String(p.id||'')).filter(Boolean));
     if(!badIds.size)return null;
     const cleanedProjects=projects.filter(p=>!badIds.has(String(p?.id||'')));
     const cleanedChats=(Array.isArray(raw.chats)?raw.chats:[]).map(c=>{

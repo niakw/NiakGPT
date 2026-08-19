@@ -15,7 +15,7 @@ def runtime(name):
     return re.findall(r"['\"]([^'\"]+\.js)['\"]",match.group(1))
 
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if manifest.get('version')!='0.9.67': fail(f"version={manifest.get('version')}")
+if manifest.get('version')!='0.9.68': fail(f"version={manifest.get('version')}")
 if manifest.get('permissions')!=['storage','scripting']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*']: fail('host permissions drift')
 main=runtime('MAIN_RUNTIME'); isolated=runtime('ISOLATED_RUNTIME')
@@ -51,8 +51,8 @@ if 'MAX_PER_RUN=2' not in deep or 'MAX_HEAVY=1' not in deep: fail('deep classifi
 actions=(ROOT/'native-actions-v113.js').read_text(encoding='utf-8')
 if 'invokeNativeMenu' not in actions or 'fallbackMove' not in actions: fail('native action/fallback move path missing')
 if 'data-ng112-native-projects' not in actions: fail('native actions do not stage passive Projects marks')
-for token in ('placeFloatingMenu','ng113-native-menu-floating','ensureChatEntry','ng96-chat-entry','showPopover','ng113TopLayer'):
-    if token not in actions: fail('left-sidebar action geometry/top-layer missing '+token)
+for token in ('placeFloatingMenu','ng113-native-menu-floating','ensureChatEntry','ng96-chat-entry','showPopover','ng113TopLayer','menuBaseline','menuSession','sessionVisibleMenus','resetFloatingMenu','fallbackOutsideHandler'):
+    if token not in actions: fail('left-sidebar action geometry/session cleanup missing '+token)
 state=(ROOT/'chat-state-authority-v113.js').read_text(encoding='utf-8')
 if 'iu>pu' not in state or 'iu===pu' not in state: fail('monotonic title authority missing')
 bread=(ROOT/'breadcrumb-v113.js').read_text(encoding='utf-8')
@@ -70,10 +70,12 @@ for token in ('drawerDirty','cooperativeNode','existing.previousElementSibling==
 if "createElement('button');open.type='button';open.className='ng96-project-open'" in folders: fail('obsolete Project open-page button recreated')
 chatux=(ROOT/'project-chat-ux-v110.js').read_text(encoding='utf-8')
 if 'ng110ChatRow' not in chatux: fail('chat state is not mirrored to atomic rows')
-experience=ROOT/'visual-lab/experience-gate-v116.mjs'; runtime_gate=ROOT/'visual-lab/tests/sidebar-runtime-v116.spec.js'; hitbox_gate=ROOT/'visual-lab/sidebar-hitboxes-v117.mjs'
+experience=ROOT/'visual-lab/experience-gate-v116.mjs'; runtime_gate=ROOT/'visual-lab/tests/sidebar-runtime-v116.spec.js'; hitbox_gate=ROOT/'visual-lab/sidebar-hitboxes-v117.mjs'; session_gate=ROOT/'visual-lab/native-menu-session-v118.mjs'
 if not experience.exists(): fail('cross-platform human DOM error UX gate missing')
 if not runtime_gate.exists(): fail('real extension runtime gate missing')
 if not hitbox_gate.exists(): fail('left-sidebar hitbox gate missing')
+if not session_gate.exists(): fail('native menu session cleanup gate missing')
+if hitbox_gate.exists() and "import('./native-menu-session-v118.mjs')" not in hitbox_gate.read_text(encoding='utf-8'): fail('native menu cleanup gate is not chained into cross-engine sidebar validation')
 profile_dir=ROOT/'visual-lab/profiles'
 for name,mode in (('runtime-cold-v116','cold'),('runtime-warm-v116','warm')):
     p=profile_dir/f'{name}.json'
@@ -98,4 +100,4 @@ if errors:
     print('STATIC_CURRENT_FAIL')
     for e in errors: print('-',e)
     sys.exit(1)
-print(f"STATIC_CURRENT_PASS version={manifest['version']} runtime={len(main)+len(isolated)} refs={len(refs)} profiles=2 cached-browsers=on left-sidebar=atomic-top-layer")
+print(f"STATIC_CURRENT_PASS version={manifest['version']} runtime={len(main)+len(isolated)} refs={len(refs)} profiles=2 cached-browsers=on left-sidebar=atomic-top-layer-session-clean")

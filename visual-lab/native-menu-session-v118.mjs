@@ -31,8 +31,6 @@ for(const [engine,launcher] of Object.entries(engines)){
     const action=page.locator('#ng8-pins .ng113-native-actions-project');
     assert(await action.count()===1,'NiakGPT project action was not decorated');
 
-    // Two user clicks can arrive in the same event-loop turn. Without a serialization
-    // guard both async open paths reach the native trigger and toggle the menu twice.
     await page.evaluate(()=>{const b=document.querySelector('#ng8-pins .ng113-native-actions-project');b.click();b.click();});
     await page.waitForTimeout(520);
     const rapid=await page.evaluate(()=>{const m=document.getElementById('native-action-menu');return{triggerClicks:window.__nativeTriggerClicks,busy:document.querySelector('#ng8-pins .ng113-native-actions-project')?.getAttribute('aria-busy')||'',display:getComputedStyle(m).display,popover:m.matches?.(':popover-open')||false,floated:m.dataset.ng113Floated==='1'};});
@@ -46,10 +44,7 @@ for(const [engine,launcher] of Object.entries(engines)){
     const opened=await page.evaluate(()=>{
       const own=document.getElementById('native-action-menu'),other=document.getElementById('unrelated-menu');
       const r=own.getBoundingClientRect(),o=other.getBoundingClientRect();
-      return{
-        ownFloated:own.dataset.ng113Floated==='1',ownTop:own.dataset.ng113TopLayer==='1',ownPopover:own.matches(':popover-open'),ownLeft:r.left,
-        otherFloated:other.dataset.ng113Floated==='1',otherTop:other.dataset.ng113TopLayer==='1',otherPopover:other.matches(':popover-open'),otherLeft:o.left,otherTopPx:o.top,
-      };
+      return{ownFloated:own.dataset.ng113Floated==='1',ownTop:own.dataset.ng113TopLayer==='1',ownPopover:own.matches(':popover-open'),ownLeft:r.left,otherFloated:other.dataset.ng113Floated==='1',otherTop:other.dataset.ng113TopLayer==='1',otherPopover:other.matches(':popover-open'),otherLeft:o.left,otherTopPx:o.top};
     });
     assert(opened.ownFloated&&opened.ownTop&&opened.ownPopover&&opened.ownLeft>=314,`owned menu did not float: ${JSON.stringify(opened)}`);
     assert(!opened.otherFloated&&!opened.otherTop&&!opened.otherPopover,`unrelated visible menu was captured: ${JSON.stringify(opened)}`);
@@ -57,12 +52,7 @@ for(const [engine,launcher] of Object.entries(engines)){
 
     await page.evaluate(()=>{document.getElementById('native-action-menu').style.display='none';document.body.dispatchEvent(new MouseEvent('click',{bubbles:true}));});
     await page.waitForTimeout(1150);
-    const cleaned=await page.evaluate(()=>{
-      const own=document.getElementById('native-action-menu'),other=document.getElementById('unrelated-menu');
-      return{
-        cls:own.classList.contains('ng113-native-menu-floating'),leftVar:own.style.getPropertyValue('--ng113-menu-left'),topVar:own.style.getPropertyValue('--ng113-menu-top'),floated:own.dataset.ng113Floated||'',topLayer:own.dataset.ng113TopLayer||'',floatIndex:own.dataset.ng113FloatIndex||'',ownedPopover:own.dataset.ng113PopoverOwned||'',popoverAttr:own.hasAttribute('popover'),otherFloated:other.classList.contains('ng113-native-menu-floating'),
-      };
-    });
+    const cleaned=await page.evaluate(()=>{const own=document.getElementById('native-action-menu'),other=document.getElementById('unrelated-menu');return{cls:own.classList.contains('ng113-native-menu-floating'),leftVar:own.style.getPropertyValue('--ng113-menu-left'),topVar:own.style.getPropertyValue('--ng113-menu-top'),floated:own.dataset.ng113Floated||'',topLayer:own.dataset.ng113TopLayer||'',floatIndex:own.dataset.ng113FloatIndex||'',ownedPopover:own.dataset.ng113PopoverOwned||'',popoverAttr:own.hasAttribute('popover'),otherFloated:other.classList.contains('ng113-native-menu-floating')};});
     assert(!cleaned.cls&&!cleaned.leftVar&&!cleaned.topVar&&!cleaned.floated&&!cleaned.topLayer&&!cleaned.floatIndex&&!cleaned.ownedPopover&&!cleaned.popoverAttr,`native menu cleanup incomplete: ${JSON.stringify(cleaned)}`);
     assert(!cleaned.otherFloated,'unrelated menu was mutated during cleanup');
 
@@ -77,34 +67,21 @@ for(const [engine,launcher] of Object.entries(engines)){
     const reopened=await page.evaluate(()=>{const e=document.getElementById('native-action-menu'),r=e.getBoundingClientRect();return{floated:e.dataset.ng113Floated==='1',topLayer:e.dataset.ng113TopLayer==='1',left:r.left};});
     assert(reopened.floated&&reopened.topLayer&&reopened.left>=314,`reused native menu did not promote cleanly a second time: ${JSON.stringify(reopened)}`);
 
-    // Fallback session must die at the exact close, not 900 ms later. Otherwise a
-    // completely unrelated menu appearing just after dismissal can be captured by a
-    // delayed queueMenuFloat timer.
     await page.evaluate(()=>{document.getElementById('native-action-menu').style.display='none';});
     await page.waitForTimeout(1050);
-    await page.evaluate(()=>{
-      const id='33333333-3333-4333-8333-333333333333';
-      const list=document.createElement('div');list.className='ng96-folder-list';
-      const entry=document.createElement('div');entry.className='ng96-chat-entry';
-      const a=document.createElement('a');a.dataset.chat=id;a.href=`/g/g-p-studio/c/${id}`;a.textContent='Fallback chat';
-      entry.appendChild(a);list.appendChild(entry);document.getElementById('ng8-pins').appendChild(list);
-    });
+    await page.evaluate(()=>{const id='33333333-3333-4333-8333-333333333333';const list=document.createElement('div');list.className='ng96-folder-list';const entry=document.createElement('div');entry.className='ng96-chat-entry';const a=document.createElement('a');a.dataset.chat=id;a.href=`/g/g-p-studio/c/${id}`;a.textContent='Fallback chat';entry.appendChild(a);list.appendChild(entry);document.getElementById('ng8-pins').appendChild(list);});
     const fallbackAction=page.locator('#ng8-pins .ng113-native-actions-chat');
     await fallbackAction.waitFor({state:'visible'});await fallbackAction.click();
     await page.waitForFunction(()=>document.getElementById('ng113-actions-fallback')?.matches?.(':popover-open'));
     await page.mouse.click(1100,700);
     await page.waitForFunction(()=>!document.getElementById('ng113-actions-fallback'));
-    await page.evaluate(()=>{
-      const m=document.createElement('div');m.id='post-fallback-menu';m.className='menu';m.setAttribute('role','menu');m.style.cssText='left:840px;top:420px';m.innerHTML='<button role="menuitem">Unrelated later menu</button>';document.querySelector('main').appendChild(m);
-    });
+    await page.evaluate(()=>{const m=document.createElement('div');m.id='post-fallback-menu';m.className='menu';m.setAttribute('role','menu');m.style.cssText='left:840px;top:420px';m.innerHTML='<button role="menuitem">Unrelated later menu</button>';document.querySelector('main').appendChild(m);});
     await page.waitForTimeout(220);
     const afterFallback=await page.evaluate(()=>{const m=document.getElementById('post-fallback-menu'),r=m.getBoundingClientRect();return{floated:m.dataset.ng113Floated==='1',topLayer:m.dataset.ng113TopLayer==='1',popover:m.matches?.(':popover-open')||false,left:r.left,top:r.top};});
     assert(!afterFallback.floated&&!afterFallback.topLayer&&!afterFallback.popover&&afterFallback.left>=830,`closed fallback session captured a later unrelated menu: ${JSON.stringify(afterFallback)}`);
 
     console.log(`${engine} native menu rapid-click/isolation/cleanup/reuse/fallback-close: PASS`);
-  }finally{
-    await context.close();
-    await browser.close();
-  }
+  }finally{await context.close();await browser.close();}
 }
 console.log(`native-menu-session-v118: ${Object.keys(engines).join(',')} PASS`);
+await import('./native-action-races-v119.mjs');

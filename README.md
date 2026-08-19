@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.9.68-4fc1ff">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.9.69-4fc1ff">
   <img alt="Chrome Extension" src="https://img.shields.io/badge/Chrome-Extension-4ec9b0">
   <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
   <img alt="No analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,7 +21,7 @@ NiakGPT est une extension navigateur qui ajoute à ChatGPT une couche de **produ
 
 Elle fonctionne directement au-dessus de l’interface officielle de ChatGPT : **pas de service parallèle, pas de compte NiakGPT supplémentaire et pas de serveur NiakGPT pour les fonctions principales**.
 
-> **Version actuelle : 0.9.68** — une seule autorité pour la visibilité des Projects natifs, menus d’actions ChatGPT isolés et restaurés proprement, nettoyage metadata/cache terminé avant les consommateurs du boot, navigation/sidebar durcies et matrice de régression multi-moteurs conservée.
+> **Version actuelle : 0.9.69** — bloc Projects NiakGPT ancré de façon stable dans la sidebar, noms de Projects utilisés comme dossiers, menus d’actions de production natifs ChatGPT uniquement, continuité OUT avec Project exact ou recommandé et reprise bornée après interruption réseau/vérification.
 
 ## Ce que NiakGPT apporte
 
@@ -29,13 +29,15 @@ Elle fonctionne directement au-dessus de l’interface officielle de ChatGPT : *
 
 - Projects colorés et immédiatement identifiables ;
 - conversations accessibles en dépliant un Project ;
+- le clic sur le nom d’un Project déplie/replie ses chats sans naviguer vers la page Project ;
+- bloc Projects replacé dans un slot stable de la sidebar après accueil, navigation SPA, remount React ou BFCache ;
 - recherche locale dans les gros Projects ;
 - dates et compteurs visibles ;
 - conversation courante mise en évidence ;
 - conversations `OUT` reléguées après les conversations actives ;
 - nouveaux messages/réponses terminées hors vue signalés dans les conversations et leur Project ;
 - déplacements manuels et continuations protégés contre le reclassement automatique ;
-- menu d’actions ChatGPT complet depuis les lignes Project/chat lorsqu’une ligne native existe, avec fallback local borné pour les conversations.
+- menus d’actions de production **natifs ChatGPT uniquement** : Project/chat n’invente plus de panneau de paramètres local si le menu natif n’est pas disponible.
 
 ### Une seule autorité Projects
 
@@ -43,18 +45,23 @@ Lorsque `#ng8-pins` est sain, `sidebar-projects-authority-v112.js` est **l’uni
 
 Il reconnaît les variantes de markup ChatGPT par structure, liens, libellés `Projets / Projects` et identité des Projects réellement gérés par NiakGPT. Les conversations **Récents** restent intactes et le natif redevient visible si le bloc NiakGPT disparaît réellement.
 
+`sidebar-ux-v119.js` complète cette autorité sans en devenir une seconde : il ne masque aucun Project natif. Il maintient seulement le bloc NiakGPT dans son emplacement logique, empêche la navigation du nom d’un Project et relance un rendu borné si React a réellement retiré le bloc.
+
 Les anciennes autorités `sidebar-authority-v107.js` et `sidebar-expando-guard-v108.js` restent uniquement comme patrimoine de régression historique : elles ne sont plus injectées ni empaquetées. `live-fixes-v104.js` et `live-fixes-v106.js` n’ont plus le droit de masquer Projects.
 
 ### Menus d’actions natifs sans collision
 
-`native-actions-v113.js` ouvre le vrai menu ChatGPT quand il est disponible, mais chaque ouverture est maintenant une **session isolée** :
+`native-actions-controller-v119.js` contrôle les clics de production avant `native-actions-v113.js`, qui conserve ses primitives éprouvées de décoration et de session.
 
+- un Project non encore rendu dans la liste native peut être recherché de façon bornée via la vraie surface ChatGPT et `Afficher plus / Show more` ;
+- le même bouton `…` ferme sa session au second clic au lieu de rouvrir immédiatement le menu ;
+- clic extérieur et `Échap` ferment également la session ;
 - les menus déjà visibles avant l’action restent intacts ;
 - seul le menu créé/ouvert par l’action courante est promu dans le top layer ;
 - sous-menus et menus imbriqués restent cliquables hors de la sidebar ;
 - à la fermeture, Popover, classes, variables de position et datasets NiakGPT sont retirés ;
 - un nœud DOM réutilisé par React retrouve donc sa géométrie native ;
-- le fallback local ferme immédiatement sa session pour qu’un autre menu apparu ensuite ne puisse pas être capturé par un timer tardif.
+- si ChatGPT n’a pas rendu de menu natif pour un chat, NiakGPT échoue proprement au lieu d’afficher un fallback custom.
 
 ### Cache et metadata au démarrage
 
@@ -111,16 +118,27 @@ NiakGPT **ne remplace pas globalement `window.fetch`**. Le monde MAIN est rédui
 
 ### Continuité des fils OUT
 
-Lorsqu’un fil est continué, NiakGPT prépare explicitement :
+Lorsqu’un fil est continué, NiakGPT prépare explicitement le contexte du fil précédent et poursuit dans un nouveau chat lorsque ChatGPT impose cette transition.
 
-`Reprends la conversation nommée « NOMPROJECT > NOMCHAT » exactement là où elle s’est arrêtée.`
+Si le fil possède déjà un Project, le nouveau chat est rattaché au **Project exact d’origine** puis protégé par un verrou `continuity-exact`. Si le fil était hors Project, NiakGPT peut recommander localement le Project le plus pertinent à partir du titre, de l’historique et du contexte Project disponible ; cette recommandation n’est jamais présentée comme le Project d’origine.
 
-Le nouveau chat est ensuite rattaché au Project exact d’origine puis protégé par un verrou `continuity-exact`. Aucun envoi automatique n’est effectué.
+Aucun envoi automatique n’est effectué.
+
+### Reprise après interruption ChatGPT
+
+`interruption-guard-v119.js` reconnaît de façon bornée les signaux de fil arrivé à sa limite, de vérification et de connexion perdue.
+
+- **limite de fil** : prépare la continuité OUT et expose `CONTINUER LE FIL` ;
+- **vérification** : ne contourne pas le challenge et n’interagit pas avec son iframe ; une fois le signal disparu, le bouton natif Retry/Regenerate/Continue peut être déclenché une seule fois ;
+- **connexion perdue** : même tentative native unique après retour de la connexion ;
+- si aucune reprise native n’est possible, `REPRENDRE` prépare un message de reprise dans un composer vide, sans l’envoyer ;
+- aucun `reload` automatique et aucun polling permanent.
 
 ### Panneaux natifs, accueil et DA
 
 - Activité / Réflexion / Sources / Outputs restent bornés et positionnés sans voler la largeur du chat ;
 - le visualiseur image conserve un contrôle de fermeture fiable ;
+- les greetings natifs courts de l’accueil peuvent être masqués lorsqu’aucun message n’est présent afin d’éviter leur saut visuel ;
 - le titre d’accueil n’est déplacé qu’en cas de chevauchement mesuré ;
 - Matrix respecte `prefers-reduced-motion` ;
 - les icônes/SVG ChatGPT restent natifs, avec harmonisation NiakGPT du contraste, hover/focus et surfaces.
@@ -160,7 +178,9 @@ NiakGPT est une extension **Manifest V3**.
 - **Cache bus** : sérialise et partage l’état local.
 - **Metadata barrier** : nettoie le cache avant les consommateurs métier.
 - **Projects authority** : `sidebar-projects-authority-v112.js` uniquement.
-- **Menus natifs** : sessions top-layer isolées, réversibles et testées sur réutilisation DOM.
+- **Placement sidebar** : `sidebar-ux-v119.js` stabilise le bloc NiakGPT sans devenir une autorité de visibilité native.
+- **Menus natifs** : `native-actions-controller-v119.js` impose le natif-only en production ; les sessions top-layer restent isolées et réversibles.
+- **Interruptions** : `interruption-guard-v119.js` orchestre la reprise autorisée sans contourner les contrôles de sécurité/service.
 - **Multi-onglets** : coordination WORKER / CLIENT, `BroadcastChannel` et `navigator.locks` quand disponibles.
 
 Voir [`ARCHITECTURE.md`](ARCHITECTURE.md) pour les invariants détaillés.
@@ -178,7 +198,7 @@ La validation courante conserve plusieurs niveaux :
 7. gate prioritaire Brave stable réel sur macOS ;
 8. régressions historiques à la demande.
 
-Les scénarios couvrent notamment : autorité Projects et remounts, hitboxes Project/chat, menus imbriqués, isolation/cleanup des menus, barrière metadata/cache, preview image, titres canoniques, non-lus, gros fils, classification profonde, continuité exacte et multi-onglets.
+Les scénarios couvrent notamment : autorité Projects et remounts, placement stable du bloc Projects, hitboxes Project/chat, menus imbriqués, fermeture au second clic, native-only, isolation/cleanup des menus, barrière metadata/cache, preview image, greetings d’accueil, titres canoniques, non-lus, gros fils, classification profonde, continuité exacte/recommandée, reprise réseau/vérification et multi-onglets.
 
 ## Philosophie
 

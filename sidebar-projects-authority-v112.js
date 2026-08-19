@@ -18,6 +18,14 @@
   const showMoreLabel=v=>/^(afficher|voir) plus$|^show more$/.test(norm(v));
   const projectHomeHref=href=>{const raw=String(href||'').trim();if(/^\/projects\/?(?:[?#].*)?$/.test(raw))return true;try{const u=new URL(raw,location.href);return u.origin===location.origin&&/^\/projects\/?$/.test(u.pathname);}catch{return false;}};
   const projectChildHref=href=>/\/g\/g-p-[^/?#]+(?:\/|$)/i.test(String(href||''));
+  function structuralProjectSurface(candidate){
+    if(!candidate)return false;
+    if(candidate.querySelector?.('[class*="project-unfurl-row"]'))return true;
+    const links=[...candidate.querySelectorAll?.('a[href]')||[]],projectLinks=links.filter(a=>projectChildHref(a.getAttribute('href')));
+    if(links.some(a=>projectHomeHref(a.getAttribute('href')))||projectLinks.length>=2)return true;
+    if(projectLinks.length!==1)return false;
+    return [...candidate.querySelectorAll?.('h1,h2,h3,[role="heading"],button,[role="button"],[aria-label]')||[]].some(node=>projectLabel(node.textContent)||projectLabel(node.getAttribute?.('aria-label'))||showMoreLabel(node.textContent||node.getAttribute?.('aria-label')));
+  }
 
   function sharesSidebarShell(el){
     if(!el||!outsideOwn(el)||inMain(el))return false;
@@ -27,16 +35,13 @@
     let node=own.parentElement;
     for(let depth=0;depth<7&&node&&node!==document.body&&node!==document.documentElement;depth++,node=node.parentElement){if(node.contains(el))return true;}
     const candidate=el.closest?.(selector);if(!shell||!candidate||candidate===shell)return false;
+    if(candidate.getAttribute?.(MARK)==='1'&&structuralProjectSurface(candidate))return true;
     const sr=shell.getBoundingClientRect?.(),cr=candidate.getBoundingClientRect?.();if(!sr||!cr)return false;
     const maxWidth=Math.min(520,innerWidth*.48);if(sr.width<80||cr.width<40||sr.width>maxWidth||cr.width>maxWidth)return false;
     if(sr.left>innerWidth*.42||cr.left>innerWidth*.42)return false;
     const overlap=Math.max(0,Math.min(sr.right,cr.right)-Math.max(sr.left,cr.left));
     if(overlap<Math.min(sr.width,cr.width)*.55||Math.abs(sr.left-cr.left)>64)return false;
-    if(candidate.querySelector?.('[class*="project-unfurl-row"]'))return true;
-    const links=[...candidate.querySelectorAll?.('a[href]')||[]],projectLinks=links.filter(a=>projectChildHref(a.getAttribute('href')));
-    if(links.some(a=>projectHomeHref(a.getAttribute('href')))||projectLinks.length>=2)return true;
-    if(projectLinks.length!==1)return false;
-    return [...candidate.querySelectorAll?.('h1,h2,h3,[role="heading"],button,[role="button"],[aria-label]')||[]].some(node=>projectLabel(node.textContent)||projectLabel(node.getAttribute?.('aria-label'))||showMoreLabel(node.textContent||node.getAttribute?.('aria-label')));
+    return structuralProjectSurface(candidate);
   }
   function managedNames(){
     const box=ownProjects(),names=new Set();if(!box)return names;

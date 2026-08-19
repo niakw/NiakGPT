@@ -73,7 +73,14 @@
     }finally{for(const restore of restores.reverse())restore();}
   }
   function visibleMenus(){return [...document.querySelectorAll(MENU_SEL)].filter(el=>outsideOwn(el)&&isVisible(el));}
-  function sidebarRight(source){const shell=source?.closest?.('[data-testid*="sidebar" i],aside,nav')||document.querySelector('[data-testid*="sidebar" i],aside,nav');const r=shell?.getBoundingClientRect?.();return r?.width>80?r.right:Math.max(0,source?.getBoundingClientRect?.().right||0);}
+  function sidebarRight(source){
+    const shells=[];let node=source;
+    while(node&&node!==document.body&&node!==document.documentElement){if(node.matches?.('[data-testid*="sidebar" i],aside,nav'))shells.push(node);node=node.parentElement;}
+    if(!shells.length)for(const el of document.querySelectorAll('[data-testid*="sidebar" i],aside,nav'))if(!el.closest('main,[role="main"]'))shells.push(el);
+    let right=Math.max(0,source?.getBoundingClientRect?.().right||0);
+    for(const shell of shells){const r=shell.getBoundingClientRect?.();if(!r||r.width<=80||r.left>=innerWidth*.5)continue;right=Math.max(right,r.right);}
+    return right;
+  }
   function promote(menu,index=0){
     if(!(menu instanceof HTMLElement)||!session||session.baseline.has(menu))return false;
     session.menus.add(menu);

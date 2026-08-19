@@ -16,3 +16,4 @@ for(const [engine,launcher] of Object.entries(engines)){
   }finally{await context.close();await browser.close();}
 }
 console.log(`live-ui-regressions-v114: ${Object.keys(engines).join(',')} PASS`);
+await import('./sidebar-metadata-v118.mjs');

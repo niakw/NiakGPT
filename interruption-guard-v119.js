@@ -16,7 +16,7 @@
   const editor=()=>document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"]')||[...document.querySelectorAll('textarea,[contenteditable="true"]')].reverse().find(el=>!el.closest('#ng8-coach,#ng119-interruption'));
   const draftKey=()=>`${DRAFT_PREFIX}${location.pathname}`;
   const assistantLength=()=>{const list=document.querySelectorAll('main [data-message-author-role="assistant"],[role="main"] [data-message-author-role="assistant"]'),last=list.item(list.length-1);return clean(last?.innerText||last?.textContent).length;};
-  const nativeBusy=()=>document.documentElement.dataset.ng8Running==='1'||['loading','waiting','thinking','executing'].includes(document.documentElement.dataset.ng86Activity||'')||!!document.querySelector('button[data-testid*="stop" i],button[aria-label*="Stop" i],button[aria-label*="Arr[êe]ter" i]');
+  const nativeBusy=()=>document.documentElement.dataset.ng8Running==='1'||['loading','waiting','thinking','executing'].includes(document.documentElement.dataset.ng86Activity||'')||!!document.querySelector('button[data-testid*="stop" i],button[aria-label*="Stop" i],button[aria-label*="Arrêter" i],button[aria-label*="Arreter" i]');
   function setEditor(ed,text){
     if(!ed)return false;try{if('value'in ed){const proto=Object.getPrototypeOf(ed),setter=Object.getOwnPropertyDescriptor(proto,'value')?.set;setter?setter.call(ed,text):ed.value=text;}else{ed.focus();ed.textContent=text;}ed.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:text}));return true;}catch{return false;}
   }
@@ -87,9 +87,9 @@
     if(currentSignal(incident.type))return false;
     if(incident.type==='verify')publishVerification(false);
     if(!recoveryStable())return false;
-    const retry=nativeRetry();
-    if(retry&&!incident.retried){incident={...incident,retried:true,recoveredAt:Date.now()};saveIncident(incident);retry.click();mount(incident.type,{ready:false});window.__NIAKGPT_DIAGNOSTICS__?.set('interruption-119','REPRISE · bouton ChatGPT natif déclenché une fois');setTimeout(()=>{if(incident&&!currentSignal(incident.type))mount(incident.type,{ready:true});},900);return true;}
-    restoreDraft();mount(incident.type,{ready:true});window.__NIAKGPT_DIAGNOSTICS__?.set('interruption-119','PRÊT · état restauré · reprise manuelle disponible');return false;
+    restoreDraft();const retry=nativeRetry();
+    if(retry&&!incident.retried){incident={...incident,retried:true,recoveredAt:Date.now()};saveIncident(incident);retry.click();mount(incident.type,{ready:false});window.__NIAKGPT_DIAGNOSTICS__?.set('interruption-119','REPRISE · brouillon restauré · bouton ChatGPT natif déclenché une fois');setTimeout(()=>{if(incident&&!currentSignal(incident.type))mount(incident.type,{ready:true});},900);return true;}
+    mount(incident.type,{ready:true});window.__NIAKGPT_DIAGNOSTICS__?.set('interruption-119','PRÊT · état restauré · reprise manuelle disponible');return false;
   }
   function scheduleRecovery(delay=240){clearTimeout(timer);timer=setTimeout(()=>{timer=0;tryNativeRecovery();},delay);}
   function inspectNode(node){
@@ -117,7 +117,7 @@
   window.addEventListener('offline',()=>begin('network','connection lost'));
   window.addEventListener('popstate',onRoute);if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',onRoute);
   window.addEventListener('pageshow',()=>{bind();lastAssistantLen=assistantLength();lastGrowthAt=Date.now()-2000;if(incident&&['verify','network'].includes(incident.type))mount(incident.type,{ready:true});setTimeout(scan,120);});
-  window.addEventListener('pagehide',()=>{saveDraft();publishVerification(false);},{once:true});
+  window.addEventListener('pagehide',()=>{saveDraft();publishVerification(false);});
   const start=()=>{lastAssistantLen=assistantLength();lastGrowthAt=Date.now()-2000;bind();if(incident){if(incident.type==='limit'&&/\/c\//.test(location.pathname))mount('limit');else if(['verify','network'].includes(incident.type))mount(incident.type,{ready:true});}restoreDraft();scan();};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();

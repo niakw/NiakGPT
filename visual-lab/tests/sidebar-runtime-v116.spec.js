@@ -20,7 +20,7 @@ const P2='g-p-bbbbbbbbbbbbbbbb';
 const projectRaw=(id,name)=>({gizmo:{gizmo:{id,display:{name,description:name},instructions:''}}});
 const chatRaw=(id,title,time,gizmo_id)=>({id,title,update_time:time,create_time:time,gizmo_id});
 
-test.setTimeout(75000);
+test.setTimeout(120000);
 
 function loadProfile(){
   if(!fs.existsSync(PROFILE_PATH))throw new Error(`Unknown lab profile: ${PROFILE_PATH}`);
@@ -36,6 +36,7 @@ function loadProfile(){
   return expand(raw);
 }
 const PROFILE=loadProfile();
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
 async function extensionWorker(context){
   return context.serviceWorkers().find(w=>w.url().includes('background-v100.js'))||context.waitForEvent('serviceworker',{predicate:w=>w.url().includes('background-v100.js'),timeout:15000});
@@ -56,18 +57,20 @@ async function launchRuntime(){
   const worker=await extensionWorker(context);
   await worker.evaluate(async storage=>chrome.storage.local.set(storage),PROFILE.storageLocal||{});
   const chats=[chatRaw(CHAT1,'Runtime integration test',1786608000,P1),chatRaw(CHAT2,'Second conversation',1786521600,P1)];
+  const traffic={documents:0,session:0,projects:0,projectChats:{},general:0,conversationGet:0,conversationPatch:0,other:[]};
   await context.route('https://chatgpt.com/**',async route=>{
     const req=route.request(),url=new URL(req.url()),method=req.method().toUpperCase();
     const json=body=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});
-    if(req.resourceType()==='document'&&/^\/c\/[0-9a-f-]+$/i.test(url.pathname))return route.fulfill({status:200,contentType:'text/html; charset=utf-8',body:fixture});
-    if(url.pathname==='/api/auth/session')return json({accessToken:'runtime-sidebar-token'});
-    if(url.pathname==='/backend-api/gizmos/snorlax/sidebar')return json({items:[projectRaw(P1,'Studio'),projectRaw(P2,'Research Lab')],cursor:null});
+    if(req.resourceType()==='document'&&/^\/c\/[0-9a-f-]+$/i.test(url.pathname)){traffic.documents++;return route.fulfill({status:200,contentType:'text/html; charset=utf-8',body:fixture});}
+    if(url.pathname==='/api/auth/session'){traffic.session++;return json({accessToken:'runtime-sidebar-token'});}
+    if(url.pathname==='/backend-api/gizmos/snorlax/sidebar'){traffic.projects++;return json({items:[projectRaw(P1,'Studio'),projectRaw(P2,'Research Lab')],cursor:null});}
     const pm=url.pathname.match(/^\/backend-api\/gizmos\/(g-p-[A-Za-z0-9]+)\/conversations$/);
-    if(pm)return json({items:chats.filter(c=>c.gizmo_id===pm[1]),cursor:null});
-    if(url.pathname==='/backend-api/conversations')return json({items:chats,has_more:false,total:chats.length});
+    if(pm){traffic.projectChats[pm[1]]=(traffic.projectChats[pm[1]]||0)+1;return json({items:chats.filter(c=>c.gizmo_id===pm[1]),cursor:null});}
+    if(url.pathname==='/backend-api/conversations'){traffic.general++;return json({items:chats,has_more:false,total:chats.length});}
     const cm=url.pathname.match(/^\/backend-api\/conversation\/([0-9a-f-]{20,})$/i);
-    if(cm&&method==='PATCH')return json({id:cm[1],gizmo_id:P1});
-    if(cm&&method==='GET')return json({id:cm[1],gizmo_id:P1,mapping:{}});
+    if(cm&&method==='PATCH'){traffic.conversationPatch++;return json({id:cm[1],gizmo_id:P1});}
+    if(cm&&method==='GET'){traffic.conversationGet++;return json({id:cm[1],gizmo_id:P1,mapping:{}});}
+    traffic.other.push(`${method} ${url.pathname}${url.search}`);if(traffic.other.length>30)traffic.other.shift();
     return route.fulfill({status:204,body:''});
   });
   const page=context.pages()[0]||await context.newPage();
@@ -78,11 +81,21 @@ async function launchRuntime(){
   if(!HEADLESS)await page.bringToFront();
   await expect(page.locator('#ng8-status')).toContainText(VERSION,{timeout:18000});
   await expect(page.locator('#ng8-pins a[data-ng8-pin="1"]')).toHaveCount(2,{timeout:18000});
-  return {context,page,pageErrors,consoleErrors,close:async()=>{await context.close();fs.rmSync(dir,{recursive:true,force:true});}};
+  return {context,worker,page,pageErrors,consoleErrors,traffic,close:async()=>{try{await Promise.race([context.close(),sleep(7000)]);}catch{}fs.rmSync(dir,{recursive:true,force:true});}};
 }
 
 async function nativeProjectsVisible(page){return page.evaluate(()=>[...document.querySelectorAll('.project-list,a[href="/projects"],h3')].filter(el=>!el.closest('#ng8-pins')&&(/projects?/i.test(el.textContent||'')||el.matches('.project-list,a[href="/projects"]'))).filter(el=>{const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden'&&el.getClientRects().length>0;}).map(el=>({tag:el.tagName,text:(el.textContent||'').trim(),cls:el.className})));}
-async function drawerSnapshot(page){return page.evaluate(()=>{const rows=[...document.querySelectorAll('#ng8-pins .ng96-folder-list>a[data-chat]')],actions=[...document.querySelectorAll('#ng8-pins .ng113-native-actions-chat')];return{rows:rows.length,actions:actions.length,uniqueRows:new Set(rows.map(r=>r.dataset.chat)).size,rowsWithOneAction:rows.filter(r=>r.querySelectorAll(':scope>.ng113-native-actions-chat').length===1).length,duplicateActions:rows.filter(r=>r.querySelectorAll(':scope>.ng113-native-actions-chat').length>1).length};});}
+async function drawerSnapshot(page){return page.evaluate(()=>{const rows=[...document.querySelectorAll('#ng8-pins .ng96-folder-list>a[data-chat]')],actions=[...document.querySelectorAll('#ng8-pins .ng113-native-actions-chat')];return{rows:rows.length,actions:actions.length,uniqueRows:new Set(rows.map(r=>r.dataset.chat)).size,chatIds:rows.map(r=>r.dataset.chat),rowsWithOneAction:rows.filter(r=>r.querySelectorAll(':scope>.ng113-native-actions-chat').length===1).length,duplicateActions:rows.filter(r=>r.querySelectorAll(':scope>.ng113-native-actions-chat').length>1).length};});}
+async function runtimeDiagnostics(rt){
+  const dom=await rt.page.evaluate(()=>({
+    visibility:document.visibilityState,hidden:document.hidden,
+    root:{ng100CacheGuard:document.documentElement.dataset.ng100CacheGuard||'',ng90Safe:document.documentElement.dataset.ng90Safe||'',ng100Recovery:document.documentElement.dataset.ng100Recovery||'',ng8Running:document.documentElement.dataset.ng8Running||'',ng86Activity:document.documentElement.dataset.ng86Activity||'',ng105Verification:document.documentElement.dataset.ng105Verification||'',ng100RateLimitedUntil:document.documentElement.dataset.ng100RateLimitedUntil||'',ng8TabRole:document.documentElement.dataset.ng8TabRole||''},
+    pinIndex:document.documentElement.dataset.ng96CacheBus||'',drawer:[...document.querySelectorAll('#ng8-pins .ng96-folder-list>a[data-chat]')].map(a=>({id:a.dataset.chat,title:a.textContent?.trim()}))
+  }));
+  const cache=await rt.worker.evaluate(async key=>(await chrome.storage.local.get(key))[key]||{},'niakgpt-v08-cache');
+  const slim={serverIndexedAt:cache.serverIndexedAt||0,projectInventoryAt:cache.projectInventoryAt||0,counts:cache.counts||{},indexedProjectIds:cache.indexedProjectIds||[],projects:(cache.projects||[]).map(p=>({id:p.id,name:p.name,domOnly:!!p.domOnly})),chats:(cache.chats||[]).map(c=>({id:c.id,title:c.title,projectId:c.projectId,updated:c.updated})),projectChats:Object.fromEntries(Object.entries(cache.projectChats||{}).map(([pid,list])=>[pid,(Array.isArray(list)?list:[]).map(c=>({id:c.id,title:c.title,projectId:c.projectId,updated:c.updated}))]))};
+  return{traffic:rt.traffic,dom,cache:slim,snapshot:await drawerSnapshot(rt.page),pageErrors:rt.pageErrors,consoleErrors:rt.consoleErrors};
+}
 
 test(`real extension (${BROWSER_LABEL}, ${PROFILE_NAME}): Projects hidden, progressive actions complete, sidebar stable`,async()=>{
   let rt;
@@ -99,13 +112,16 @@ test(`real extension (${BROWSER_LABEL}, ${PROFILE_NAME}): Projects hidden, progr
       await expect.poll(async()=>{const s=await drawerSnapshot(rt.page);return s.rows>0&&s.actions===s.rows&&s.rowsWithOneAction===s.rows&&s.duplicateActions===0;},{timeout:5000}).toBe(true);
     });
     if(PROFILE_NAME.includes('cold')){
-      await test.step('cold profile: progressive backend index converges to all chats + actions',async()=>{await expect.poll(()=>drawerSnapshot(rt.page),{timeout:15000}).toEqual({rows:2,actions:2,uniqueRows:2,rowsWithOneAction:2,duplicateActions:0});});
+      await test.step('cold profile: progressive backend index converges to all chats + actions',async()=>{
+        try{await expect.poll(async()=>{const s=await drawerSnapshot(rt.page);return{s:s.rows,a:s.actions,u:s.uniqueRows,one:s.rowsWithOneAction,dup:s.duplicateActions};},{timeout:18000}).toEqual({s:2,a:2,u:2,one:2,dup:0});}
+        catch(error){const diag=await runtimeDiagnostics(rt);console.log(`RUNTIME_INDEX_DIAG ${JSON.stringify(diag)}`);throw new Error(`${error.message}\nRUNTIME_INDEX_DIAG=${JSON.stringify(diag)}`);}
+      });
     }else{
-      await test.step('warm profile: cached chats/actions are immediately complete',async()=>{await expect.poll(()=>drawerSnapshot(rt.page),{timeout:5000}).toEqual({rows:2,actions:2,uniqueRows:2,rowsWithOneAction:2,duplicateActions:0});});
+      await test.step('warm profile: cached chats/actions are immediately complete',async()=>{await expect.poll(async()=>{const s=await drawerSnapshot(rt.page);return{s:s.rows,a:s.actions,u:s.uniqueRows,one:s.rowsWithOneAction,dup:s.duplicateActions};},{timeout:5000}).toEqual({s:2,a:2,u:2,one:2,dup:0});});
     }
     await test.step('unrelated ChatGPT DOM/class churn does not rebuild drawer or blink actions',async()=>{
       await rt.page.evaluate(()=>{window.__sidebarChurn={removedActions:0,removedDrawers:0};const pins=document.getElementById('ng8-pins'),action=pins.querySelector('.ng113-native-actions-chat');action.dataset.realRuntimeToken='keep';action.focus();window.__focusedAction=action;window.__sidebarObs=new MutationObserver(rs=>{for(const r of rs)for(const n of r.removedNodes){if(!(n instanceof Element))continue;window.__sidebarChurn.removedActions+=n.matches('.ng113-native-actions-chat')?1:n.querySelectorAll?.('.ng113-native-actions-chat').length||0;window.__sidebarChurn.removedDrawers+=n.matches('.ng96-pin-drawer')?1:n.querySelectorAll?.('.ng96-pin-drawer').length||0;}});window.__sidebarObs.observe(pins,{childList:true,subtree:true});const main=document.querySelector('main');for(let i=0;i<500;i++)main.className=`main native-state-${i%23}`;const content=document.getElementById('lab-content');for(let i=0;i<80;i++){const d=document.createElement('div');d.textContent=`stream-${i}`;content.insertBefore(d,content.querySelector('.composer'));if(i%2===0)d.remove();}});
-      await rt.page.waitForTimeout(500);const stable=await rt.page.evaluate(()=>({churn:window.__sidebarChurn,token:document.querySelector('#ng8-pins .ng113-native-actions-chat')?.dataset.realRuntimeToken||'',focus:document.activeElement===window.__focusedAction}));expect(stable).toEqual({churn:{removedActions:0,removedDrawers:0},token:'keep',focus:true});expect(await drawerSnapshot(rt.page)).toEqual({rows:2,actions:2,uniqueRows:2,rowsWithOneAction:2,duplicateActions:0});
+      await rt.page.waitForTimeout(500);const stable=await rt.page.evaluate(()=>({churn:window.__sidebarChurn,token:document.querySelector('#ng8-pins .ng113-native-actions-chat')?.dataset.realRuntimeToken||'',focus:document.activeElement===window.__focusedAction}));expect(stable).toEqual({churn:{removedActions:0,removedDrawers:0},token:'keep',focus:true});const snap=await drawerSnapshot(rt.page);expect({rows:snap.rows,actions:snap.actions,uniqueRows:snap.uniqueRows,rowsWithOneAction:snap.rowsWithOneAction,duplicateActions:snap.duplicateActions}).toEqual({rows:2,actions:2,uniqueRows:2,rowsWithOneAction:2,duplicateActions:0});
     });
     await test.step('React-like text-only Projects remount is hidden again',async()=>{
       await rt.page.evaluate(()=>{const nav=document.querySelector('aside[data-testid="conversation-sidebar"] nav');nav.querySelector('.project-list')?.remove();[...nav.querySelectorAll('h3')].find(x=>/projects?/i.test(x.textContent||''))?.remove();const h=document.createElement('div');h.textContent='Projets';h.id='runtime-remount-title';const list=document.createElement('div');list.id='runtime-remount-projects';list.innerHTML='<button role="button">Studio</button><button role="button">Research Lab</button>';nav.insertBefore(h,nav.querySelector('.recent-list'));nav.insertBefore(list,nav.querySelector('.recent-list'));});

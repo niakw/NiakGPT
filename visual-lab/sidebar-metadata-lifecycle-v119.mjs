@@ -63,30 +63,40 @@ for(const [engine,launcher] of Object.entries(engines)){
     await racePage.evaluate(cacheBusJs);
     await racePage.evaluate(metadataJs);
     assert(await racePage.evaluate(()=>window.__NIAKGPT_METADATA_READY_118__==='ready'),'metadata/cache bus race fixture did not become ready');
+    await racePage.evaluate(()=>{
+      window.__persistentPhase='visible';window.__persistentSeen=[];
+      window.__persistentUnsub=window.__NIAKGPT_CACHE_BUS__.subscribe(raw=>window.__persistentSeen.push({phase:window.__persistentPhase,ids:(raw?.projects||[]).map(p=>p.id),chats:(raw?.chats||[]).map(c=>c.id)}));
+    });
+    await racePage.waitForTimeout(20);
+    const persistentBaseline=await racePage.evaluate(()=>window.__persistentSeen.length);
     const dirty={schema:2,at:2,projects:[{id:'g-p-base',name:'Base',domOnly:false},{id:'dom-old',name:'Today',domOnly:true}],chats:[],counts:{'dom-old':1},projectChats:{'dom-old':[]},indexedProjectIds:['g-p-base','dom-old']};
     const newer={schema:2,at:3,projects:[{id:'g-p-base',name:'Base',domOnly:false},{id:'g-p-new',name:'New',domOnly:false}],chats:[{id:'new-chat',title:'New hidden chat',projectId:'g-p-new',href:'/c/new-chat'}],counts:{'g-p-new':1},projectChats:{},indexedProjectIds:['g-p-base','g-p-new']};
     await racePage.evaluate(({dirty,newer})=>{
       window.__delaySet=true;
       window.__externalSet(dirty,'dirty-runtime');
-      setTimeout(()=>window.__fireTransition('pagehide',true),20);
+      setTimeout(()=>{window.__persistentPhase='hidden';window.__fireTransition('pagehide',true);},20);
       setTimeout(()=>window.__externalSet(newer,'hidden-external-new'),40);
-      setTimeout(()=>window.__fireTransition('pageshow',true),50);
+      setTimeout(()=>{window.__persistentPhase='resuming';window.__fireTransition('pageshow',true);},50);
     },{dirty,newer});
     await racePage.waitForTimeout(520);
     const race=await racePage.evaluate(()=>({
       ready:window.__NIAKGPT_METADATA_READY_118__||'',
       store:window.__store['niakgpt-v08-cache'],
       peek:window.__NIAKGPT_CACHE_BUS__.peek(),
-      events:window.__events
+      events:window.__events,
+      persistentSeen:window.__persistentSeen
     }));
-    const storeIds=(race.store?.projects||[]).map(p=>p.id),peekIds=(race.peek?.projects||[]).map(p=>p.id);
+    const storeIds=(race.store?.projects||[]).map(p=>p.id),peekIds=(race.peek?.projects||[]).map(p=>p.id),afterBaseline=(race.persistentSeen||[]).slice(persistentBaseline);
     assert(race.ready==='ready',`BFCache cache bus resume left metadata unready: ${JSON.stringify(race)}`);
     assert(storeIds.includes('g-p-new')&&peekIds.includes('g-p-new'),`BFCache cache bus resume lost the newest hidden snapshot: ${JSON.stringify(race)}`);
     assert((race.store?.chats||[]).some(c=>c.id==='new-chat')&&(race.peek?.chats||[]).some(c=>c.id==='new-chat'),`BFCache cache bus resume lost the newest hidden chat: ${JSON.stringify(race)}`);
     assert(race.events.some(x=>x==='hidden-external-new:3'),`BFCache race fixture never published the hidden external snapshot: ${JSON.stringify(race)}`);
+    assert(!afterBaseline.some(x=>x.phase==='hidden'),`persisted cache subscriber was notified while BFCache-suspended: ${JSON.stringify(race.persistentSeen)}`);
+    assert(afterBaseline.some(x=>x.phase==='resuming'&&x.ids.includes('g-p-new')&&x.chats.includes('new-chat')),`persisted cache subscriber did not survive BFCache or receive newest resume state: ${JSON.stringify(race.persistentSeen)}`);
+    await racePage.evaluate(()=>window.__persistentUnsub?.());
     await racePage.close();
 
-    console.log(`${engine} sidebar metadata + cache bus pagehide/pageshow/BFCache newest-state lifecycle: PASS`);
+    console.log(`${engine} sidebar metadata + cache bus pagehide/pageshow/BFCache newest-state + persistent-subscriber lifecycle: PASS`);
   }finally{await context.close();await browser.close();}
 }
 console.log(`sidebar-metadata-lifecycle-v119: ${Object.keys(engines).join(',')} PASS`);

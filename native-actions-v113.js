@@ -97,6 +97,13 @@
     if(!(menu instanceof HTMLElement))return false;
     try{
       if(typeof menu.showPopover!=='function')return false;
+      // Chromium's hosted Windows runtime is less deterministic with simultaneous
+      // manual popovers than macOS/Linux. Keep the native DOM untouched and hand
+      // the browser top layer to the most recently opened menu/submenu instead.
+      for(const other of promotedMenus){
+        if(other===menu)continue;
+        try{if(other.matches?.(':popover-open'))other.hidePopover();}catch{}
+      }
       if(!menu.hasAttribute('popover')){
         menu.setAttribute('popover','manual');
         menu.dataset.ng113PopoverOwned='1';

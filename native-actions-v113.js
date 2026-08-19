@@ -6,7 +6,7 @@
   const CACHE_KEY='niakgpt-v08-cache';
   const OWN='#ng8-pins,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb';
   const HIDDEN_RX=/^(ng112-native-projects-authoritative|ng111-native-projects-authoritative|ng110-native-projects-authoritative|ng109-native-projects-authoritative|ng8-native-projects-suppressed|ng8-native-project-link-suppressed|ng8-native-project-chat-suppressed)$/;
-  let cache={projects:[],chats:[]},box=null,observer=null,boot=null,timer=0,rpcSeq=0;
+  let cache={projects:[],chats:[]},box=null,observer=null,boot=null,timer=0,rpcSeq=0,menuObserver=null,menuSource=null,menuArmTimer=0;
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -67,12 +67,29 @@
     if(!row)return null;const buttons=[...row.querySelectorAll('button,[role="button"]')];
     return buttons.find(b=>/more|options|menu|davantage|plus|actions?/i.test(`${b.getAttribute('aria-label')||''} ${b.title||''}`))||buttons.at(-1)||null;
   }
-  function visibleMenu(){return [...document.querySelectorAll('[role="menu"],[data-radix-menu-content],[data-state="open"]')].find(el=>!el.closest(OWN)&&getComputedStyle(el).display!=='none');}
-  async function invokeNativeMenu(row){
-    if(!row)return false;const restore=stageHidden(row);
+  function visibleMenus(){return [...document.querySelectorAll('[role="menu"],[data-radix-menu-content],[data-state="open"]')].filter(el=>!el.closest(OWN)&&getComputedStyle(el).display!=='none'&&getComputedStyle(el).visibility!=='hidden');}
+  function visibleMenu(){return visibleMenus()[0]||null;}
+  function sidebarRight(source){
+    const sidebar=source?.closest?.('[data-testid*="sidebar" i],aside,nav')||document.querySelector('[data-testid*="sidebar" i],aside');
+    const r=sidebar?.getBoundingClientRect?.();return r&&r.width>80?r.right:Math.max(0,source?.getBoundingClientRect?.().right||0);
+  }
+  function placeFloatingMenu(menu,source,index=0){
+    if(!(menu instanceof HTMLElement)||!(source instanceof HTMLElement))return;
+    const sr=source.getBoundingClientRect(),preferredLeft=sidebarRight(source)+8+index*8,maxLeft=Math.max(8,innerWidth-Math.min(320,Math.max(220,menu.getBoundingClientRect().width||240))-8),left=Math.min(maxLeft,Math.max(8,preferredLeft));
+    const menuHeight=Math.min(innerHeight-16,Math.max(80,menu.getBoundingClientRect().height||260)),top=Math.min(Math.max(8,sr.top-4+index*10),Math.max(8,innerHeight-menuHeight-8));
+    menu.classList.add('ng113-native-menu-floating');menu.style.setProperty('--ng113-menu-left',`${left}px`);menu.style.setProperty('--ng113-menu-top',`${top}px`);menu.dataset.ng113Floated='1';
+  }
+  function floatVisibleMenus(){if(!menuSource)return;visibleMenus().forEach((menu,index)=>placeFloatingMenu(menu,menuSource,index));}
+  function armMenuFloat(source){
+    if(!(source instanceof HTMLElement))return;menuSource=source;clearTimeout(menuArmTimer);
+    if(!menuObserver){menuObserver=new MutationObserver(()=>queueMicrotask(floatVisibleMenus));menuObserver.observe(document.body,{childList:true,subtree:true});}
+    floatVisibleMenus();menuArmTimer=setTimeout(()=>{if(!visibleMenus().length){menuSource=null;menuObserver?.disconnect();menuObserver=null;}},12000);
+  }
+  async function invokeNativeMenu(row,source){
+    if(!row)return false;const restore=stageHidden(row);armMenuFloat(source);
     try{
       fireHover(row);await sleep(90);let b=menuButton(row);if(!b){fireHover(row);await sleep(180);b=menuButton(row);}if(!b)return false;
-      b.click();await sleep(150);if(!visibleMenu())await sleep(180);
+      b.click();await sleep(150);if(!visibleMenu())await sleep(180);floatVisibleMenus();
       return !!visibleMenu();
     }finally{restore();}
   }
@@ -99,39 +116,44 @@
       const item=document.createElement('button');item.type='button';item.setAttribute('role','menuitem');item.textContent=p.name||p.id;if(p.id===projectIdForChat(chatId))item.disabled=true;
       item.addEventListener('click',()=>{closeFallback();fallbackMove(chatId,p.id);});menu.appendChild(item);
     }
-    document.body.appendChild(menu);
-    const r=button.getBoundingClientRect();menu.style.left=`${Math.max(8,Math.min(innerWidth-260,r.right-240))}px`;menu.style.top=`${Math.min(innerHeight-320,r.bottom+5)}px`;
+    document.body.appendChild(menu);placeFloatingMenu(menu,button,0);
     setTimeout(()=>document.addEventListener('pointerdown',e=>{if(!menu.contains(e.target))closeFallback();},{once:true,capture:true}),0);
   }
 
-  async function openProjectActions(projectId){
-    const ok=await invokeNativeMenu(nativeProjectRow(projectId,projectName(projectId)));
+  async function openProjectActions(button,projectId){
+    const ok=await invokeNativeMenu(nativeProjectRow(projectId,projectName(projectId)),button);
     window.__NIAKGPT_DIAGNOSTICS__?.set('actions-project',ok?'OK · menu natif complet':'ERREUR · menu natif Project introuvable');
   }
   async function openChatActions(button,chatId){
-    let row=nativeChatRow(chatId),ok=await invokeNativeMenu(row);
+    let row=nativeChatRow(chatId),ok=await invokeNativeMenu(row,button);
     if(!ok&&chatId===currentCid()){
-      const current=currentConversationMenuButton();if(current){current.click();await sleep(150);ok=!!visibleMenu();}
+      const current=currentConversationMenuButton();if(current){armMenuFloat(button);current.click();await sleep(150);floatVisibleMenus();ok=!!visibleMenu();}
     }
     if(!ok)fallbackChatMenu(button,chatId);
     window.__NIAKGPT_DIAGNOSTICS__?.set('actions-chat',ok?'OK · menu natif complet':'FALLBACK · actions sûres locales');
   }
-  function icon(){return '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1.45"/><circle cx="10" cy="10" r="1.45"/><circle cx="16" cy="10" r="1.45"/></svg>';}
+  function icon(){
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 20 20');svg.setAttribute('aria-hidden','true');
+    for(const x of [4,10,16]){const c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',String(x));c.setAttribute('cy','10');c.setAttribute('r','1.45');svg.appendChild(c);}return svg;
+  }
   function actionButton(kind,id){
-    const b=document.createElement('button');b.type='button';b.className=`ng113-native-actions ng113-native-actions-${kind}`;b.dataset.ng113Actions=kind;b.dataset.ng113Id=id;b.innerHTML=icon();
+    const b=document.createElement('button');b.type='button';b.className=`ng113-native-actions ng113-native-actions-${kind}`;b.dataset.ng113Actions=kind;b.dataset.ng113Id=id;b.appendChild(icon());
     b.title=kind==='project'?'Actions du Project (menu ChatGPT)':'Actions de la conversation (menu ChatGPT)';b.setAttribute('aria-label',b.title);
-    b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();kind==='project'?openProjectActions(id):openChatActions(b,id);},true);
+    b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();kind==='project'?openProjectActions(b,id):openChatActions(b,id);},true);
     return b;
   }
   function decorate(){
     timer=0;const pins=document.getElementById('ng8-pins');if(!pins)return;
+    pins.querySelectorAll('.ng96-project-open').forEach(button=>button.remove());
     for(const entry of pins.querySelectorAll('.ng96-pin-entry')){
       const a=entry.querySelector(':scope>a[data-ng8-pin]'),id=pid(a?.getAttribute('href'));if(!id)continue;
-      let b=entry.querySelector(':scope>.ng113-native-actions-project');if(!b)entry.insertBefore(actionButton('project',id),entry.querySelector(':scope>.ng96-project-open'));else b.dataset.ng113Id=id;
+      let b=entry.querySelector(':scope>.ng113-native-actions-project');if(!b)entry.appendChild(actionButton('project',id));else b.dataset.ng113Id=id;
     }
     for(const a of pins.querySelectorAll('.ng96-folder-list>a[data-chat]')){
       const id=a.dataset.chat||cid(a.getAttribute('href'));if(!id)continue;
-      if(!a.querySelector(':scope>.ng113-native-actions-chat'))a.appendChild(actionButton('chat',id));
+      let nested=a.querySelector(':scope>.ng113-native-actions-chat');if(nested){a.insertAdjacentElement('afterend',nested);nested.dataset.ng113Id=id;continue;}
+      const sibling=a.nextElementSibling?.matches?.('.ng113-native-actions-chat')?a.nextElementSibling:null;if(sibling){sibling.dataset.ng113Id=id;continue;}
+      a.insertAdjacentElement('afterend',actionButton('chat',id));
     }
   }
   function schedule(delay=15){clearTimeout(timer);timer=setTimeout(decorate,delay);}
@@ -142,7 +164,7 @@
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){bind();decorate();}});
   window.addEventListener('popstate',()=>{bind();decorate();});
   if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>{bind();decorate();});
-  window.addEventListener('pagehide',()=>{observer?.disconnect();boot?.disconnect();observer=boot=null;box=null;closeFallback();});
+  window.addEventListener('pagehide',()=>{observer?.disconnect();boot?.disconnect();menuObserver?.disconnect();observer=boot=menuObserver=null;box=null;menuSource=null;closeFallback();});
   window.addEventListener('pageshow',event=>{if(event.persisted)start();});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();

@@ -12,25 +12,30 @@
   let filter='';
   let observer=null,observedBox=null,bootstrapObserver=null,renderTimer=0,internalWrite=false,drawerDirty=false;
 
-  try{openPid=sessionStorage.getItem(SESSION_KEY)||'';}catch{}
-
   const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt',"'":'&#39;','"':'&quot;'}[c]));
   const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
-  const pidFromHref=h=>String(h||'').match(/\/g\/(g-p-[^/]+)\/(?:project|c\/)/i)?.[1]||'';
+  const normalizePid=v=>{const s=String(v||'').trim(),m=s.match(/^g-p-([A-Za-z0-9]+)(?:-.+)?$/);return m?`g-p-${m[1]}`:s;};
+  const pidFromHref=h=>normalizePid(String(h||'').match(/\/g\/(g-p-[^/]+)\/(?:project|c\/)/i)?.[1]||'');
   const cidFromHref=h=>String(h||'').match(/\/c\/([0-9a-f-]{20,})/i)?.[1]||'';
   const parseTime=v=>{if(typeof v==='number'&&Number.isFinite(v))return v>1e12?v:v*1000;if(typeof v==='string'){const n=Number(v);if(Number.isFinite(n))return n>1e12?n:n*1000;const d=Date.parse(v);return Number.isFinite(d)?d:0;}return 0;};
   const fmt=ms=>{if(!ms)return'—';const d=new Date(ms),now=new Date(),base=`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;return d.getFullYear()===now.getFullYear()?base:`${base}/${String(d.getFullYear()).slice(-2)}`;};
   const drawerId=pid=>`ng96-folder-${String(pid||'').replace(/[^A-Za-z0-9_-]/g,'')}`;
   const actionMarkup=id=>`<button type="button" class="ng113-native-actions ng113-native-actions-chat" data-ng113-actions="chat" data-ng113-id="${esc(id)}" aria-label="${CHAT_ACTION_LABEL}" title="${CHAT_ACTION_LABEL}"><span class="ng113-dots" aria-hidden="true">•••</span></button>`;
 
+  try{openPid=normalizePid(sessionStorage.getItem(SESSION_KEY)||'');}catch{}
+
   function projectSnapshotSignature(raw,pid){
-    if(!pid)return'';const chats=(raw?.chats||[]).filter(c=>c?.projectId===pid).map(c=>[c.id,c.updated||c.update_time||0,c.title||'']);return JSON.stringify([raw?.counts?.[pid]??null,chats]);
+    if(!pid)return'';const chats=(raw?.chats||[]).filter(c=>normalizePid(c?.projectId)===pid).map(c=>[c.id,c.updated||c.update_time||0,c.title||'']);return JSON.stringify([raw?.counts?.[pid]??null,chats]);
   }
   function acceptCache(next){
     const before=projectSnapshotSignature(cache,openPid);cache=next&&typeof next==='object'?next:cache;const after=projectSnapshotSignature(cache,openPid);if(!observedBox)bindBox();if(openPid&&before!==after){drawerDirty=true;schedule(40);}else if(!openPid)schedule(80);
   }
-  function setOpen(pid){openPid=pid||'';filter='';drawerDirty=false;try{openPid?sessionStorage.setItem(SESSION_KEY,openPid):sessionStorage.removeItem(SESSION_KEY);}catch{}}
-  function chatHref(c,pid){return c?.href||`/g/${pid}/c/${c.id}`;}
+  function setOpen(pid){openPid=normalizePid(pid||'');filter='';drawerDirty=false;try{openPid?sessionStorage.setItem(SESSION_KEY,openPid):sessionStorage.removeItem(SESSION_KEY);}catch{}}
+  function projectBase(pid){
+    pid=normalizePid(pid);const p=(cache.projects||[]).find(x=>normalizePid(x?.id)===pid),href=String(p?.href||'');
+    const m=href.match(/^(\/g\/g-p-[^/]+)(?:\/project|\/c\/)/i);return m?.[1]||`/g/${pid}`;
+  }
+  function chatHref(c,pid){return c?.href||`${projectBase(pid)}/c/${c.id}`;}
   function routeNative(href){
     const chatId=cidFromHref(href),projectId=pidFromHref(href);
     const links=[...document.querySelectorAll('a[href]')].filter(a=>!a.closest('#ng8-pins,#ng8-panel,#ng8-quick,#ng90-control,#ng100-command'));
@@ -39,10 +44,12 @@
     location.assign(href);
   }
   function chatsFor(pid){
-    const direct=Array.isArray(cache.projectChats?.[pid])?cache.projectChats[pid]:[];
-    const source=direct.length?direct:(cache.chats||[]).filter(c=>c?.projectId===pid);
+    pid=normalizePid(pid);
+    let direct=[];
+    for(const [key,list] of Object.entries(cache.projectChats||{}))if(normalizePid(key)===pid&&Array.isArray(list))direct.push(...list);
+    const source=direct.length?direct:(cache.chats||[]).filter(c=>normalizePid(c?.projectId)===pid);
     const map=new Map();
-    for(const c of source){if(!c?.id)continue;const old=map.get(c.id)||{},updated=Math.max(parseTime(old.updated||old.update_time),parseTime(c.updated||c.update_time||c.create_time));map.set(c.id,{...old,...c,updated});}
+    for(const c of source){if(!c?.id)continue;const old=map.get(c.id)||{},updated=Math.max(parseTime(old.updated||old.update_time),parseTime(c.updated||c.update_time||c.create_time));map.set(c.id,{...old,...c,projectId:pid,updated});}
     return [...map.values()].sort((a,b)=>(b.updated||0)-(a.updated||0)||String(a.title||'').localeCompare(String(b.title||''),'fr'));
   }
 
@@ -58,8 +65,8 @@
   function decorateAnchor(anchor){
     const pid=pidFromHref(anchor.getAttribute('href'));if(!pid)return;
     const entry=wrapAnchor(anchor);if(!entry)return;
-    entry.querySelector(':scope>.ng96-project-open')?.remove();
-    anchor.dataset.ng96Folder='1';anchor.setAttribute('role','button');anchor.setAttribute('aria-haspopup','true');anchor.setAttribute('aria-controls',drawerId(pid));anchor.setAttribute('aria-expanded',pid===openPid?'true':'false');anchor.title='Afficher les conversations du Project';
+    entry.dataset.pid=pid;entry.querySelector(':scope>.ng96-project-open')?.remove();
+    anchor.dataset.ng96Folder='1';anchor.dataset.ng96Pid=pid;anchor.setAttribute('role','button');anchor.setAttribute('aria-haspopup','true');anchor.setAttribute('aria-controls',drawerId(pid));anchor.setAttribute('aria-expanded',pid===openPid?'true':'false');anchor.title='Afficher les conversations du Project';
     let chevron=anchor.querySelector(':scope > .ng96-chevron');if(!chevron){chevron=document.createElement('em');chevron.className='ng96-chevron';chevron.textContent='›';chevron.setAttribute('aria-hidden','true');anchor.appendChild(chevron);}
     if(!anchor.dataset.ng96Bound){
       anchor.dataset.ng96Bound='1';
@@ -70,7 +77,7 @@
 
   function closeDrawers(){for(const d of document.querySelectorAll('#ng8-pins .ng96-pin-drawer'))d.remove();document.querySelectorAll(PIN_SEL).forEach(a=>a.setAttribute('aria-expanded','false'));}
   function renderDrawer(pid,anchor){
-    closeDrawers();if(!pid||!anchor)return;
+    pid=normalizePid(pid);closeDrawers();if(!pid||!anchor)return;
     const entry=rowFor(anchor);if(!entry)return;
     anchor.setAttribute('aria-expanded','true');
     const all=chatsFor(pid),q=norm(filter),shown=q?all.filter(c=>norm(`${c.title||''} ${c.snippet||''}`).includes(q)):all;
@@ -84,7 +91,7 @@
     document.dispatchEvent(new CustomEvent('niakgpt:folder-rendered',{detail:{projectId:pid,chats:shown.length,drawerId:drawer.id}}));
   }
   function toggle(pid,anchor){
-    if(openPid===pid){setOpen('');closeDrawers();return;}
+    pid=normalizePid(pid);if(openPid===pid){setOpen('');closeDrawers();return;}
     setOpen(pid);renderDrawer(pid,anchor);
   }
 

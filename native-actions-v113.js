@@ -8,7 +8,7 @@
   const MENU_SEL='[role="menu"],[data-radix-menu-content]';
   const HIDDEN_RX=/^(ng112-native-projects-authoritative|ng111-native-projects-authoritative|ng110-native-projects-authoritative|ng109-native-projects-authoritative|ng8-native-projects-suppressed|ng8-native-project-link-suppressed|ng8-native-project-chat-suppressed)$/;
   let cache={projects:[],chats:[]},box=null,observer=null,boot=null,timer=0,rpcSeq=0,menuObserver=null,submenuObserver=null,menuSource=null,menuArmTimer=0;
-  let fallbackOutsideHandler=null,fallbackEscapeHandler=null;
+  let fallbackOutsideHandler=null,fallbackEscapeHandler=null,actionOpening=null;
   const promotedMenus=new Set(),menuBaseline=new Set(),menuSession=new Set();
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
@@ -266,11 +266,23 @@
   function schedule(delay=15){clearTimeout(timer);timer=setTimeout(decorate,delay);}
   function bind(){const next=document.getElementById('ng8-pins');if(!next||next===box)return false;observer?.disconnect();box=next;observer=new MutationObserver(()=>schedule(12));observer.observe(box,{childList:true,subtree:true});schedule(0);return true;}
   async function start(){try{cache=(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||cache;}catch{}if(bind())return;boot?.disconnect();boot=new MutationObserver(()=>{if(bind()){boot.disconnect();boot=null;}});boot.observe(document.documentElement,{childList:true,subtree:true});setTimeout(()=>boot?.disconnect(),15000);}
+  function runAction(button,kind,id){
+    if(actionOpening)return actionOpening;
+    button.setAttribute('aria-busy','true');
+    actionOpening=Promise.resolve(kind==='project'?openProjectActions(button,id):openChatActions(button,id)).catch(error=>{
+      console.warn('[NiakGPT native actions]',error);
+      stopMenuFloat();
+    }).finally(()=>{
+      button.removeAttribute('aria-busy');
+      actionOpening=null;
+    });
+    return actionOpening;
+  }
 
   document.addEventListener('click',event=>{
     if(event.button!==0)return;const target=event.target instanceof Element?event.target:null,button=target?.closest('#ng8-pins .ng113-native-actions');if(!(button instanceof HTMLButtonElement))return;
     const kind=button.dataset.ng113Actions,id=clean(button.dataset.ng113Id);if(!id||!['project','chat'].includes(kind))return;
-    event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();kind==='project'?openProjectActions(button,id):openChatActions(button,id);
+    event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();runAction(button,kind,id);
   },true);
   document.addEventListener('pointerdown',event=>{
     if(!menuSource)return;const target=event.target instanceof Element?event.target:null;
@@ -289,7 +301,7 @@
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){bind();decorate();}});
   window.addEventListener('popstate',()=>{bind();decorate();});
   if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>{bind();decorate();});
-  window.addEventListener('pagehide',()=>{observer?.disconnect();boot?.disconnect();observer=boot=null;box=null;stopMenuFloat();closeFallback();});
+  window.addEventListener('pagehide',()=>{observer?.disconnect();boot?.disconnect();observer=boot=null;box=null;stopMenuFloat();closeFallback();actionOpening=null;});
   window.addEventListener('pageshow',event=>{if(event.persisted)start();});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();

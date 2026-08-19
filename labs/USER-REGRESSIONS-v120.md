@@ -9,6 +9,7 @@ This gate is intentionally based on the concrete failures reported against the l
 - route changes select the exact active conversation and scroll it into view
 - repeated composer input and streamed DOM growth must not change the Projects slot geometry or parent/sibling identity
 - Project and chat ellipsis buttons expose ChatGPT's native menu only; a second click closes it and no NiakGPT fallback menu appears
+- `native-actions-v113` remains the single owner of hidden native-row staging and Popover/top-layer geometry; `native-actions-guard-v120` only adds second-click close, fallback refusal and bounded focus stabilization
 - the disposable home greeting is hidden so it cannot cause layout jumps
 - native verification sets the bridge pause flag exactly to `1`; NiakGPT never attempts to bypass the verification and may only use native Retry after the check disappears
 - a transient connection-lost state preserves the draft and may invoke ChatGPT's native Retry once after recovery

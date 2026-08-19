@@ -36,19 +36,7 @@ for(const [engine,launcher] of Object.entries(engines)){
     await page.evaluate(metadataJs);
     const injectionMs=Date.now()-started;
     await page.waitForTimeout(20);
-    const state=await page.evaluate(()=>({
-      ready:window.__NIAKGPT_METADATA_READY_118__||'',
-      nativeDisplay:getComputedStyle(document.getElementById('native-projects')).display,
-      nativeClasses:[...document.getElementById('native-projects').classList],
-      dateTag:document.querySelector('#chat .ng8-chat-date')?.tagName||'',
-      fakeBadge:!!document.querySelector('#chat .ng8-chat-project'),
-      badProjects:(window.__labRaw.projects||[]).filter(p=>p.id==='dom-p-date1708').length,
-      chatProject:(window.__labRaw.chats||[]).find(c=>c.id==='11111111-1111-4111-8111-111111111111')?.projectId||'',
-      badCount:Object.prototype.hasOwnProperty.call(window.__labRaw.counts||{},'dom-p-date1708'),
-      badIndexed:(window.__labRaw.indexedProjectIds||[]).includes('dom-p-date1708'),
-      authorityMarks:document.querySelectorAll('[data-ng112-native-projects],.ng107-native-project-row,.ng107-native-project-cluster,.ng108-native-project-expando,.ng8-native-project-link-suppressed').length,
-      subscribeSnapshots:window.__subscribeSnapshots,
-    }));
+    const state=await page.evaluate(()=>({ready:window.__NIAKGPT_METADATA_READY_118__||'',nativeDisplay:getComputedStyle(document.getElementById('native-projects')).display,nativeClasses:[...document.getElementById('native-projects').classList],dateTag:document.querySelector('#chat .ng8-chat-date')?.tagName||'',fakeBadge:!!document.querySelector('#chat .ng8-chat-project'),badProjects:(window.__labRaw.projects||[]).filter(p=>p.id==='dom-p-date1708').length,chatProject:(window.__labRaw.chats||[]).find(c=>c.id==='11111111-1111-4111-8111-111111111111')?.projectId||'',badCount:Object.prototype.hasOwnProperty.call(window.__labRaw.counts||{},'dom-p-date1708'),badIndexed:(window.__labRaw.indexedProjectIds||[]).includes('dom-p-date1708'),authorityMarks:document.querySelectorAll('[data-ng112-native-projects],.ng107-native-project-row,.ng107-native-project-cluster,.ng108-native-project-expando,.ng8-native-project-link-suppressed').length,subscribeSnapshots:window.__subscribeSnapshots}));
     assert(injectionMs>=140,`async metadata injection returned before delayed read+write sanitation completed (${injectionMs}ms)`);
     assert(state.ready==='ready',`metadata injection resolved before readiness: ${JSON.stringify(state)}`);
     assert(state.subscribeSnapshots.length>=1&&!state.subscribeSnapshots[0].includes('dom-p-date1708'),`cache subscription was armed before initial sanitation completed: ${JSON.stringify(state.subscribeSnapshots)}`);
@@ -72,9 +60,7 @@ for(const [engine,launcher] of Object.entries(engines)){
     assert(race.ids.includes('g-p-two'),`metadata sanitation overwrote a later lock-coordinated cache publication: ${JSON.stringify(race)}`);
     assert(!race.ids.includes('dom-race-b'),`later lock-coordinated dirty cache was not sanitized: ${JSON.stringify(race)}`);
     console.log(`${engine} sidebar metadata read+write barrier + shared-lock race: PASS · ${injectionMs}ms`);
-  }finally{
-    await context.close();
-    await browser.close();
-  }
+  }finally{await context.close();await browser.close();}
 }
 console.log(`sidebar-metadata-v118: ${Object.keys(engines).join(',')} PASS`);
+await import('./sidebar-metadata-failure-v119.mjs');

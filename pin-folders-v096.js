@@ -4,13 +4,10 @@
   window.__NIAKGPT_PIN_FOLDERS_096__ = true;
 
   const CACHE_KEY='niakgpt-v08-cache';
-  const GOV_KEY='niakgpt-governance-v085';
   const PIN_SEL='#ng8-pins a[data-ng8-pin="1"]';
   const SESSION_KEY='niakgpt-open-pin-folder-v096';
   const CHAT_ACTION_LABEL='Actions de la conversation (menu ChatGPT)';
-  const QUEUE_NAMES=new Set(['a classer','hors projet / a classer','hors projet/a classer','unclassified','to classify']);
   let cache={projects:[],chats:[],projectChats:{},counts:{},indexedProjectIds:[]};
-  let governance={hiddenProjectIds:[]};
   let openPid='';
   let filter='';
   let observer=null,observedBox=null,bootstrapObserver=null,renderTimer=0,internalWrite=false,drawerDirty=false,rpcSeq=0;
@@ -38,11 +35,8 @@
   function projectSnapshotSignature(raw,pid){
     if(!pid)return'';const chats=(raw?.chats||[]).filter(c=>normalizePid(c?.projectId)===pid).map(c=>[c.id,c.updated||c.update_time||0,c.title||'']);return JSON.stringify([raw?.counts?.[pid]??null,chats]);
   }
-  function inventorySignature(raw){
-    return JSON.stringify((raw?.projects||[]).map(p=>[normalizePid(p?.id),p?.name||'',!!p?.domOnly,p?.duplicateOf||'']));
-  }
   function acceptCache(next){
-    const before=projectSnapshotSignature(cache,openPid),beforeInventory=inventorySignature(cache);cache=next&&typeof next==='object'?next:cache;const after=projectSnapshotSignature(cache,openPid),afterInventory=inventorySignature(cache);if(!observedBox)bindBox();if(openPid&&before!==after){drawerDirty=true;schedule(20);}else if(beforeInventory!==afterInventory||!openPid)schedule(40);
+    const before=projectSnapshotSignature(cache,openPid);cache=next&&typeof next==='object'?next:cache;const after=projectSnapshotSignature(cache,openPid);if(!observedBox)bindBox();if(openPid&&before!==after){drawerDirty=true;schedule(20);}else if(!openPid)schedule(40);
   }
   function setOpen(pid){openPid=normalizePid(pid||'');filter='';drawerDirty=false;try{openPid?sessionStorage.setItem(SESSION_KEY,openPid):sessionStorage.removeItem(SESSION_KEY);}catch{}}
   function projectBase(pid){
@@ -65,34 +59,6 @@
     const map=new Map();
     for(const c of source){if(!c?.id)continue;const old=map.get(c.id)||{},updated=Math.max(parseTime(old.updated||old.update_time),parseTime(c.updated||c.update_time||c.create_time));map.set(c.id,{...old,...c,projectId:pid,updated});}
     return [...map.values()].sort((a,b)=>(b.updated||0)-(a.updated||0)||String(a.title||'').localeCompare(String(b.title||''),'fr'));
-  }
-  function projectRecency(pid){let t=0;for(const c of cache.chats||[])if(normalizePid(c?.projectId)===pid)t=Math.max(t,parseTime(c.updated||c.update_time||c.create_time));return t;}
-  function eligibleProjects(){
-    const hidden=new Set((governance.hiddenProjectIds||[]).map(normalizePid));
-    const map=new Map();
-    for(const p of cache.projects||[]){const id=normalizePid(p?.id);if(!id.startsWith('g-p-')||p?.domOnly||p?.duplicateOf||hidden.has(id)||QUEUE_NAMES.has(norm(p?.name)))continue;const old=map.get(id)||{};map.set(id,{...old,...p,id,href:p?.href||`/g/${id}/project`});}
-    return [...map.values()].sort((a,b)=>projectRecency(b.id)-projectRecency(a.id)||String(a.name||'').localeCompare(String(b.name||''),'fr'));
-  }
-  function projectAnchor(p){
-    const a=document.createElement('a');a.dataset.ng8Pin='1';a.href=p.href||`/g/${p.id}/project`;if(p.color)a.style.setProperty('--ng-project',p.color);a.innerHTML=`<i>${esc(p.icon||'▤')}</i><span>${esc(p.name||'Project')}</span><small class="ng8-project-meta">${fmt(projectRecency(p.id))}  [${cache.counts?.[p.id]??'…'}]</small>`;return a;
-  }
-  function ensureFullProjectInventory(box){
-    if(!(box instanceof HTMLElement))return;
-    let list=box.querySelector(':scope>.ng8-pin-list');if(!list){list=document.createElement('div');list.className='ng8-pin-list';const head=box.querySelector(':scope>.ng8-pin-head');head?.insertAdjacentElement('afterend',list)||box.prepend(list);}
-    const eligible=eligibleProjects(),wanted=new Set(eligible.map(p=>p.id));
-    const existing=new Map();
-    for(const a of box.querySelectorAll('a[data-ng8-pin="1"]')){const id=pidFromHref(a.getAttribute('href'));if(id&&!existing.has(id))existing.set(id,a);}
-    for(const [id,a] of existing){if(wanted.has(id))continue;const row=rowFor(a);(row&&row.closest('#ng8-pins')?row:a).remove();}
-    for(const p of eligible){let a=existing.get(p.id);if(!a||!a.isConnected)a=projectAnchor(p);else{
-        const span=a.querySelector(':scope>span');if(span&&p.name)span.textContent=p.name;
-        const meta=a.querySelector(':scope>.ng8-project-meta');if(meta)meta.textContent=`${fmt(projectRecency(p.id))}  [${cache.counts?.[p.id]??'…'}]`;
-      }
-      const row=rowFor(a);list.appendChild(row||a);
-    }
-    box.querySelector(':scope>.ng90-project-extras')?.remove();
-    const count=box.querySelector(':scope>.ng8-pin-head>b');if(count)count.textContent=String(eligible.length);
-    box.dataset.ng8Rendered=String(eligible.length);
-    window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',eligible.length?`OK · ${eligible.length} Projects NiakGPT · inventaire complet`:'ATTENTE · aucun Project à afficher');
   }
 
   function rowFor(anchor){return anchor?.closest?.('.ng96-pin-entry')||null;}
@@ -174,7 +140,6 @@
     renderTimer=0;const box=document.getElementById('ng8-pins');if(!box)return;
     internalWrite=true;
     try{
-      ensureFullProjectInventory(box);
       box.querySelectorAll('.ng96-project-open').forEach(button=>button.remove());
       for(const anchor of box.querySelectorAll('a[data-ng8-pin="1"]'))decorateAnchor(anchor);
       if(openPid){
@@ -194,11 +159,13 @@
     bootstrapObserver=new MutationObserver(()=>{if(bindBox()){bootstrapObserver?.disconnect();bootstrapObserver=null;}});bootstrapObserver.observe(document.documentElement,{childList:true,subtree:true});setTimeout(()=>{bootstrapObserver?.disconnect();bootstrapObserver=null;},15000);
   }
   const cacheBus=window.__NIAKGPT_CACHE_BUS__;
-  if(cacheBus)cacheBus.subscribe(acceptCache);
-  try{
-    chrome.storage.onChanged.addListener((changes,area)=>{if(area!=='local')return;if(changes[CACHE_KEY]&&!cacheBus)acceptCache(changes[CACHE_KEY].newValue);if(changes[GOV_KEY]){governance=changes[GOV_KEY].newValue||governance;schedule(10);}});
-    Promise.resolve(chrome.storage.local.get([CACHE_KEY,GOV_KEY])).then(result=>{if(!cacheBus)acceptCache(result?.[CACHE_KEY]||{});governance=result?.[GOV_KEY]||governance;schedule(0);}).catch(()=>{});
-  }catch{}
+  if(cacheBus){
+    try{cacheBus.subscribe(acceptCache);}catch{}
+    Promise.resolve(cacheBus.get?.()).then(raw=>{if(raw)acceptCache(raw);}).catch(()=>{});
+  }else{
+    try{chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY])acceptCache(changes[CACHE_KEY].newValue);});}catch{}
+    Promise.resolve(chrome.storage.local.get(CACHE_KEY)).then(result=>acceptCache(result?.[CACHE_KEY]||{})).catch(()=>{});
+  }
   document.addEventListener('niakgpt:pins-rendered',()=>{bindBox();rehydrate();});
   document.addEventListener('niakgpt:activity-changed',event=>{if(event.detail?.active===false){for(const [pid,state] of loadState)if(state==='waiting')hydrateProject(pid);}});
   document.addEventListener('niakgpt:rate-limit-cleared',()=>{for(const [pid,state] of loadState)if(state==='waiting')hydrateProject(pid);});

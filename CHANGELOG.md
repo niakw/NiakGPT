@@ -1,3 +1,38 @@
+# NiakGPT 0.9.68 — Autorité Projects unique, menus isolés et boot cache déterministe
+
+- `sidebar-projects-authority-v112.js` devient l’unique propriétaire de la visibilité des Projects natifs ; `sidebar-authority-v107.js` et `sidebar-expando-guard-v108.js` restent uniquement dans les régressions historiques et ne sont plus injectés/empaquetés.
+- `live-fixes-v104.js` ne gère plus que les panneaux Activité / Réflexion / Sources / Outputs ; `live-fixes-v106.js` ne gère plus que le contexte Project et le nettoyage ponctuel des anciennes marques de migration.
+- Ajout de `sidebar-metadata-v118.js/css` : normalisation des dates, suppression des faux Projects-date et réparation conservatrice du cache, sans aucune responsabilité de visibilité Projects.
+- Le boot impose désormais `cache-bus → diagnostics → metadata v118 → cache-guardian/recovery/server-index → gouvernance/UI`.
+- `sidebar-metadata-v118.js` est une IIFE async : sa première sanitation du cache est réellement attendue avant que l’injecteur ne passe aux consommateurs suivants.
+- `native-actions-v113.js` isole chaque session de menu : les menus déjà visibles restent intacts, seuls les menus ouverts par l’action courante sont promus, et le cleanup retire Popover, top-layer, classe, variables CSS et datasets NiakGPT.
+- La réutilisation d’un même nœud natif par React est couverte ; une seconde ouverture doit repartir d’un état natif propre.
+- Le fallback local conversation termine maintenant sa session flottante exactement à la fermeture, afin qu’un menu apparu ensuite ne puisse pas être capturé par un timer tardif.
+- Nouveaux/renforcés gates : `native-menu-session-v118`, `sidebar-metadata-v118`, autorité/remount, hitboxes atomiques, preview image, validateurs d’ordre de boot et exclusion des anciennes autorités du ZIP.
+- Documentation README/architecture/changelog synchronisée avec le runtime 0.9.68 et la licence GPL-3.0.
+
+# NiakGPT 0.9.67 — Hitboxes sidebar et menus flottants
+
+- Sépare physiquement la zone cliquable du Project et son bouton `…`, sans chevauchement.
+- Chaque conversation des drawers devient une ligne atomique `.ng96-chat-entry` contenant son lien et son bouton d’actions comme deux hitboxes sœurs.
+- Les menus ChatGPT natifs sont promus hors des contextes de clipping de la sidebar, avec prise en charge des sous-menus.
+- Suppression du bouton redondant d’ouverture Project et stabilisation des clics immédiats après remount/rerender.
+- Nouveau gate pixel `sidebar-hitboxes-v117` et renforcement de la matrice réelle, y compris Brave stable visible sur macOS.
+
+# NiakGPT 0.9.66 — Autorité sidebar passive et matrice OS/navigateurs
+
+- Remplace l’autorité Projects agressive par un marquage passif `data-ng112-native-projects` + CSS.
+- Retire l’observation globale des attributs/classes du document et limite les observers aux roots/sidebar utiles en `childList`.
+- Les actions natives savent exposer temporairement hors écran une surface Projects masquée sans réintroduire de churn permanent.
+- Renforce la matrice Ubuntu / Windows / macOS × Chromium / Firefox / WebKit, plus Brave stable réel sur macOS et profils cold/warm.
+
+# NiakGPT 0.9.65 — Sidebar autoritaire et pins sans clignotement
+
+- Étend la détection des Projects natifs aux roots/sous-arbres frères et variantes de markup réellement observées.
+- Corrige le feedback loop entre dossiers épinglés et actions natives qui faisait clignoter/remplacer les boutons `…`.
+- Le drawer existant est conservé tant que ses données n’ont pas changé ; les mutations coopérantes ne forcent plus sa reconstruction.
+- Ajoute un gate « real shape » avec roots séparés, remount du bloc natif, actions et vérification anti-churn.
+
 # NiakGPT 0.9.64 — Human navigation, stabilité live et sécurité
 
 - Corrige l’alerte CodeQL `js/xss-through-dom` : le texte des tours du sommaire est maintenant injecté via `textContent` et n’est plus réinterprété comme HTML.

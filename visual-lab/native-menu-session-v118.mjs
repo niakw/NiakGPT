@@ -21,7 +21,7 @@ for(const [engine,launcher] of Object.entries(engines)){
       const store={'niakgpt-v08-cache':{projects:[{id:P,name:'Studio',href:`/g/${P}/project`}],chats:[]}};
       window.chrome={runtime:{id:'lab',getManifest:()=>({version:'0.9.68'})},storage:{local:{get:async key=>typeof key==='string'?{[key]:store[key]}:{...store},set:async obj=>Object.assign(store,obj)},onChanged:{addListener:()=>{}}}};
     });
-    const html=`<!doctype html><html><head><style>*{box-sizing:border-box}body{margin:0;background:#080e14;color:#dce7f1;font-family:Arial}.sidebar{position:fixed;left:0;top:0;bottom:0;width:310px;overflow:hidden;padding:10px;background:#101820}.native-row{display:grid;grid-template-columns:minmax(0,1fr) 36px;gap:4px}.native-row a,.native-row button{min-height:34px}.menu{position:absolute;width:230px;padding:8px;border:1px solid #405267;background:#17212b}.menu button{display:block;width:100%;min-height:34px}#unrelated-menu{left:760px;top:60px}#native-action-menu{left:18px;top:120px;display:none}#ng8-pins{margin-top:180px}.ng96-pin-entry{display:grid;grid-template-columns:minmax(0,1fr) 32px;gap:4px}.ng96-pin-entry>a{min-height:34px;padding:7px;background:#0c151e;color:#dce7f1;text-decoration:none}</style></head><body><aside class="sidebar" data-testid="conversation-sidebar"><div class="native-row" data-sidebar-item="true"><a href="/g/g-p-studio/project">Studio</a><button id="native-project-more" aria-label="Plus d’options">•••</button></div><section id="ng8-pins"><div class="ng96-pin-entry" data-pid="g-p-studio"><a data-ng8-pin="1" href="/g/g-p-studio/project">Studio</a></div></section></aside><main style="margin-left:310px;padding:30px"><div id="unrelated-menu" class="menu" role="menu"><button role="menuitem">Compte</button></div><div id="native-action-menu" class="menu" role="menu"><button role="menuitem">Renommer</button><button role="menuitem">Supprimer</button></div></main><script>const actionMenu=document.getElementById('native-action-menu');document.getElementById('native-project-more').onclick=()=>{actionMenu.style.display='block'};<\/script></body></html>`;
+    const html=`<!doctype html><html><head><style>*{box-sizing:border-box}body{margin:0;background:#080e14;color:#dce7f1;font-family:Arial}.sidebar{position:fixed;left:0;top:0;bottom:0;width:310px;overflow:hidden;padding:10px;background:#101820}.native-row{display:grid;grid-template-columns:minmax(0,1fr) 36px;gap:4px}.native-row a,.native-row button{min-height:34px}.menu{position:absolute;width:230px;padding:8px;border:1px solid #405267;background:#17212b}.menu button{display:block;width:100%;min-height:34px}#unrelated-menu{left:760px;top:60px}#native-action-menu{left:18px;top:120px;display:none}#ng8-pins{margin-top:180px}.ng96-pin-entry{display:grid;grid-template-columns:minmax(0,1fr) 32px;gap:4px}.ng96-pin-entry>a{min-height:34px;padding:7px;background:#0c151e;color:#dce7f1;text-decoration:none}</style></head><body><aside class="sidebar" data-testid="conversation-sidebar"><div class="native-row" data-sidebar-item="true"><a href="/g/g-p-studio/project">Studio</a><button id="native-project-more" aria-label="Plus d’options">•••</button></div><section id="ng8-pins"><div class="ng96-pin-entry" data-pid="g-p-studio"><a data-ng8-pin="1" href="/g/g-p-studio/project">Studio</a></div></section></aside><main style="margin-left:310px;padding:30px"><div id="unrelated-menu" class="menu" role="menu"><button role="menuitem">Compte</button></div><div id="native-action-menu" class="menu" role="menu"><button role="menuitem">Renommer</button><button role="menuitem">Supprimer</button></div></main><script>window.__nativeTriggerClicks=0;const actionMenu=document.getElementById('native-action-menu');document.getElementById('native-project-more').onclick=()=>{window.__nativeTriggerClicks++;actionMenu.style.display=actionMenu.style.display==='block'?'none':'block'};<\/script></body></html>`;
     await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html',body:html}));
     await page.goto('https://chatgpt.com/',{waitUntil:'domcontentloaded'});
     await page.addStyleTag({content:actionCss});
@@ -30,8 +30,17 @@ for(const [engine,launcher] of Object.entries(engines)){
 
     const action=page.locator('#ng8-pins .ng113-native-actions-project');
     assert(await action.count()===1,'NiakGPT project action was not decorated');
-    const unrelatedBefore=await page.evaluate(()=>{const e=document.getElementById('unrelated-menu'),r=e.getBoundingClientRect();return{left:r.left,top:r.top};});
 
+    // Two user clicks can arrive in the same event-loop turn. Without a serialization
+    // guard both async open paths reach the native trigger and toggle the menu twice.
+    await page.evaluate(()=>{const b=document.querySelector('#ng8-pins .ng113-native-actions-project');b.click();b.click();});
+    await page.waitForTimeout(520);
+    const rapid=await page.evaluate(()=>{const m=document.getElementById('native-action-menu');return{triggerClicks:window.__nativeTriggerClicks,busy:document.querySelector('#ng8-pins .ng113-native-actions-project')?.getAttribute('aria-busy')||'',display:getComputedStyle(m).display,popover:m.matches?.(':popover-open')||false,floated:m.dataset.ng113Floated==='1'};});
+    assert(rapid.triggerClicks===1&&rapid.display!=='none'&&rapid.popover&&rapid.floated&&!rapid.busy,`rapid double click was not serialized: ${JSON.stringify(rapid)}`);
+    await page.evaluate(()=>{const m=document.getElementById('native-action-menu');if(m.matches?.(':popover-open'))m.hidePopover();m.style.display='none';window.__nativeTriggerClicks=0;document.body.dispatchEvent(new MouseEvent('click',{bubbles:true}));});
+    await page.waitForTimeout(1150);
+
+    const unrelatedBefore=await page.evaluate(()=>{const e=document.getElementById('unrelated-menu'),r=e.getBoundingClientRect();return{left:r.left,top:r.top};});
     await action.click();
     await page.waitForFunction(()=>document.getElementById('native-action-menu')?.matches?.(':popover-open'));
     const opened=await page.evaluate(()=>{
@@ -92,7 +101,7 @@ for(const [engine,launcher] of Object.entries(engines)){
     const afterFallback=await page.evaluate(()=>{const m=document.getElementById('post-fallback-menu'),r=m.getBoundingClientRect();return{floated:m.dataset.ng113Floated==='1',topLayer:m.dataset.ng113TopLayer==='1',popover:m.matches?.(':popover-open')||false,left:r.left,top:r.top};});
     assert(!afterFallback.floated&&!afterFallback.topLayer&&!afterFallback.popover&&afterFallback.left>=830,`closed fallback session captured a later unrelated menu: ${JSON.stringify(afterFallback)}`);
 
-    console.log(`${engine} native menu session isolation/cleanup/reuse/fallback-close: PASS`);
+    console.log(`${engine} native menu rapid-click/isolation/cleanup/reuse/fallback-close: PASS`);
   }finally{
     await context.close();
     await browser.close();

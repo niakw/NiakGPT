@@ -5,8 +5,9 @@
 
   const CACHE_KEY='niakgpt-v08-cache';
   const OWN='#ng8-pins,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb';
+  const MENU_SEL='[role="menu"],[data-radix-menu-content]';
   const HIDDEN_RX=/^(ng112-native-projects-authoritative|ng111-native-projects-authoritative|ng110-native-projects-authoritative|ng109-native-projects-authoritative|ng8-native-projects-suppressed|ng8-native-project-link-suppressed|ng8-native-project-chat-suppressed)$/;
-  let cache={projects:[],chats:[]},box=null,observer=null,boot=null,timer=0,rpcSeq=0,menuObserver=null,menuSource=null,menuArmTimer=0;
+  let cache={projects:[],chats:[]},box=null,observer=null,boot=null,timer=0,rpcSeq=0,menuObserver=null,submenuObserver=null,menuSource=null,menuArmTimer=0;
   const promotedMenus=new Set();
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
@@ -69,7 +70,7 @@
     return buttons.find(b=>/more|options|menu|davantage|plus|actions?/i.test(`${b.getAttribute('aria-label')||''} ${b.title||''}`))||buttons.at(-1)||null;
   }
   function visibleMenus(){
-    return [...document.querySelectorAll('[role="menu"],[data-radix-menu-content]')].filter(el=>{
+    return [...document.querySelectorAll(MENU_SEL)].filter(el=>{
       if(!outsideOwn(el)||!el.isConnected)return false;
       const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden';
     });
@@ -97,13 +98,6 @@
     if(!(menu instanceof HTMLElement))return false;
     try{
       if(typeof menu.showPopover!=='function')return false;
-      // Chromium's hosted Windows runtime is less deterministic with simultaneous
-      // manual popovers than macOS/Linux. Keep the native DOM untouched and hand
-      // the browser top layer to the most recently opened menu/submenu instead.
-      for(const other of promotedMenus){
-        if(other===menu)continue;
-        try{if(other.matches?.(':popover-open'))other.hidePopover();}catch{}
-      }
       if(!menu.hasAttribute('popover')){
         menu.setAttribute('popover','manual');
         menu.dataset.ng113PopoverOwned='1';
@@ -123,7 +117,7 @@
     menu.classList.add('ng113-native-menu-floating');menu.style.setProperty('--ng113-menu-left',`${left}px`);menu.style.setProperty('--ng113-menu-top',`${top}px`);menu.dataset.ng113Floated='1';menu.dataset.ng113FloatIndex=String(index);
   }
   function stopMenuFloat(){
-    clearTimeout(menuArmTimer);menuArmTimer=0;menuObserver?.disconnect();menuObserver=null;menuSource=null;cleanupPromotedMenus(true);
+    clearTimeout(menuArmTimer);menuArmTimer=0;menuObserver?.disconnect();submenuObserver?.disconnect();menuObserver=submenuObserver=null;menuSource=null;cleanupPromotedMenus(true);
   }
   function floatVisibleMenus(){
     cleanupPromotedMenus();
@@ -133,18 +127,33 @@
     if(!menus.length){menuArmTimer=setTimeout(()=>{if(!visibleMenus().length)stopMenuFloat();},900);return;}
     menus.forEach((menu,index)=>placeFloatingMenu(menu,menuSource,index));
   }
+  function menuNodesFrom(node){
+    if(!(node instanceof Element))return[];
+    const out=[];if(node.matches?.(MENU_SEL))out.push(node);for(const menu of node.querySelectorAll?.(MENU_SEL)||[])out.push(menu);return out;
+  }
   function hasMenuMutation(records){
-    for(const record of records||[]){
-      for(const node of [...(record.addedNodes||[]),...(record.removedNodes||[])]){
-        if(!(node instanceof Element))continue;
-        if(node.matches?.('[role="menu"],[data-radix-menu-content]')||node.querySelector?.('[role="menu"],[data-radix-menu-content]'))return true;
-      }
-    }
+    for(const record of records||[])for(const node of [...(record.addedNodes||[]),...(record.removedNodes||[])])if(menuNodesFrom(node).length)return true;
     return false;
   }
   function queueMenuFloat(){
     if(!menuSource)return;
     for(const delay of [0,32,90,180,360,700])setTimeout(()=>{if(menuSource)floatVisibleMenus();},delay);
+  }
+  function armSubmenuPromotion(source){
+    if(!(source instanceof HTMLElement))return;
+    submenuObserver?.disconnect();
+    const known=new Set(document.querySelectorAll(MENU_SEL));
+    const promoteExact=menu=>{
+      if(!(menu instanceof HTMLElement)||known.has(menu)||!outsideOwn(menu))return false;
+      const retry=()=>{if(menu.isConnected&&menuSource)placeFloatingMenu(menu,menuSource,Math.max(1,visibleMenus().filter(m=>m!==menu).length));};
+      for(const delay of [0,16,48,100,200,420,800,1400])setTimeout(retry,delay);
+      return true;
+    };
+    submenuObserver=new MutationObserver(records=>{
+      for(const record of records)for(const node of record.addedNodes||[])for(const menu of menuNodesFrom(node))if(promoteExact(menu)){submenuObserver?.disconnect();submenuObserver=null;return;}
+    });
+    submenuObserver.observe(document.body,{childList:true,subtree:true});
+    setTimeout(()=>{submenuObserver?.disconnect();submenuObserver=null;},2400);
   }
   function armMenuFloat(source){
     if(!(source instanceof HTMLElement))return;menuSource=source;clearTimeout(menuArmTimer);
@@ -239,9 +248,17 @@
     const kind=button.dataset.ng113Actions,id=clean(button.dataset.ng113Id);if(!id||!['project','chat'].includes(kind))return;
     event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();kind==='project'?openProjectActions(button,id):openChatActions(button,id);
   },true);
-  document.addEventListener('pointerdown',()=>{if(menuSource)queueMenuFloat();},true);
-  document.addEventListener('click',()=>{if(menuSource)queueMenuFloat();},true);
-  document.addEventListener('keydown',event=>{if(menuSource&&(event.key==='Escape'||event.key==='Enter'||event.key===' '))queueMenuFloat();},true);
+  document.addEventListener('pointerdown',event=>{
+    if(!menuSource)return;const target=event.target instanceof Element?event.target:null;
+    if(target?.closest('[role="menuitem"][aria-haspopup="menu"],[data-radix-menu-sub-trigger]'))armSubmenuPromotion(menuSource);
+    queueMenuFloat();
+  },true);
+  document.addEventListener('click',event=>{
+    if(!menuSource)return;const target=event.target instanceof Element?event.target:null;
+    if(target?.closest('[role="menuitem"][aria-haspopup="menu"],[data-radix-menu-sub-trigger]'))armSubmenuPromotion(menuSource);
+    queueMenuFloat();
+  },true);
+  document.addEventListener('keydown',event=>{if(menuSource&&(event.key==='Escape'||event.key==='Enter'||event.key===' ')){const target=event.target instanceof Element?event.target:null;if(target?.closest('[role="menuitem"][aria-haspopup="menu"],[data-radix-menu-sub-trigger]'))armSubmenuPromotion(menuSource);queueMenuFloat();}},true);
   try{chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY]){cache=changes[CACHE_KEY].newValue||cache;schedule(0);}});}catch{}
   document.addEventListener('niakgpt:folder-rendered',()=>{bind();decorate();});
   document.addEventListener('niakgpt:pins-rendered',()=>{bind();decorate();});

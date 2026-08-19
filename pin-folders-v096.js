@@ -4,13 +4,17 @@
   window.__NIAKGPT_PIN_FOLDERS_096__ = true;
 
   const CACHE_KEY='niakgpt-v08-cache';
+  const GOV_KEY='niakgpt-governance-v085';
   const PIN_SEL='#ng8-pins a[data-ng8-pin="1"]';
   const SESSION_KEY='niakgpt-open-pin-folder-v096';
   const CHAT_ACTION_LABEL='Actions de la conversation (menu ChatGPT)';
-  let cache={projects:[],chats:[],projectChats:{}};
+  const QUEUE_NAMES=new Set(['a classer','hors projet / a classer','hors projet/a classer','unclassified','to classify']);
+  let cache={projects:[],chats:[],projectChats:{},counts:{},indexedProjectIds:[]};
+  let governance={hiddenProjectIds:[]};
   let openPid='';
   let filter='';
-  let observer=null,observedBox=null,bootstrapObserver=null,renderTimer=0,internalWrite=false,drawerDirty=false;
+  let observer=null,observedBox=null,bootstrapObserver=null,renderTimer=0,internalWrite=false,drawerDirty=false,rpcSeq=0;
+  const loadState=new Map();
 
   const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt',"'":'&#39;','"':'&quot;'}[c]));
   const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
@@ -21,14 +25,24 @@
   const fmt=ms=>{if(!ms)return'—';const d=new Date(ms),now=new Date(),base=`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;return d.getFullYear()===now.getFullYear()?base:`${base}/${String(d.getFullYear()).slice(-2)}`;};
   const drawerId=pid=>`ng96-folder-${String(pid||'').replace(/[^A-Za-z0-9_-]/g,'')}`;
   const actionMarkup=id=>`<button type="button" class="ng113-native-actions ng113-native-actions-chat" data-ng113-actions="chat" data-ng113-id="${esc(id)}" aria-label="${CHAT_ACTION_LABEL}" title="${CHAT_ACTION_LABEL}"><span class="ng113-dots" aria-hidden="true">•••</span></button>`;
+  const listFrom=(data,...keys)=>{for(const key of keys)if(Array.isArray(data?.[key]))return data[key];return[];};
+  const nextCursor=data=>data?.cursor??data?.next_cursor??data?.nextCursor??null;
+  const bridgeBusy=()=>document.documentElement.dataset.ng8Running==='1'||['loading','waiting','thinking','executing'].includes(document.documentElement.dataset.ng86Activity||'')||document.documentElement.dataset.ng105Verification==='1';
 
   try{openPid=normalizePid(sessionStorage.getItem(SESSION_KEY)||'');}catch{}
 
+  function rpc(path,{timeout=18000}={}){
+    const id=`ng96-folder-${Date.now()}-${++rpcSeq}`;
+    return new Promise(resolve=>{const t=setTimeout(()=>{off();resolve({ok:false,status:0,error:'rpc_timeout'});},timeout),h=e=>{if(e.detail?.id!==id)return;off();resolve(e.detail);},off=()=>{clearTimeout(t);document.removeEventListener('niakgpt:rpc-response',h);};document.addEventListener('niakgpt:rpc-response',h);document.dispatchEvent(new CustomEvent('niakgpt:rpc-request',{detail:{id,path,method:'GET'}}));});
+  }
   function projectSnapshotSignature(raw,pid){
     if(!pid)return'';const chats=(raw?.chats||[]).filter(c=>normalizePid(c?.projectId)===pid).map(c=>[c.id,c.updated||c.update_time||0,c.title||'']);return JSON.stringify([raw?.counts?.[pid]??null,chats]);
   }
+  function inventorySignature(raw){
+    return JSON.stringify((raw?.projects||[]).map(p=>[normalizePid(p?.id),p?.name||'',!!p?.domOnly,p?.duplicateOf||'']));
+  }
   function acceptCache(next){
-    const before=projectSnapshotSignature(cache,openPid);cache=next&&typeof next==='object'?next:cache;const after=projectSnapshotSignature(cache,openPid);if(!observedBox)bindBox();if(openPid&&before!==after){drawerDirty=true;schedule(40);}else if(!openPid)schedule(80);
+    const before=projectSnapshotSignature(cache,openPid),beforeInventory=inventorySignature(cache);cache=next&&typeof next==='object'?next:cache;const after=projectSnapshotSignature(cache,openPid),afterInventory=inventorySignature(cache);if(!observedBox)bindBox();if(openPid&&before!==after){drawerDirty=true;schedule(20);}else if(beforeInventory!==afterInventory||!openPid)schedule(40);
   }
   function setOpen(pid){openPid=normalizePid(pid||'');filter='';drawerDirty=false;try{openPid?sessionStorage.setItem(SESSION_KEY,openPid):sessionStorage.removeItem(SESSION_KEY);}catch{}}
   function projectBase(pid){
@@ -52,8 +66,36 @@
     for(const c of source){if(!c?.id)continue;const old=map.get(c.id)||{},updated=Math.max(parseTime(old.updated||old.update_time),parseTime(c.updated||c.update_time||c.create_time));map.set(c.id,{...old,...c,projectId:pid,updated});}
     return [...map.values()].sort((a,b)=>(b.updated||0)-(a.updated||0)||String(a.title||'').localeCompare(String(b.title||''),'fr'));
   }
+  function projectRecency(pid){let t=0;for(const c of cache.chats||[])if(normalizePid(c?.projectId)===pid)t=Math.max(t,parseTime(c.updated||c.update_time||c.create_time));return t;}
+  function eligibleProjects(){
+    const hidden=new Set((governance.hiddenProjectIds||[]).map(normalizePid));
+    const map=new Map();
+    for(const p of cache.projects||[]){const id=normalizePid(p?.id);if(!id.startsWith('g-p-')||p?.domOnly||p?.duplicateOf||hidden.has(id)||QUEUE_NAMES.has(norm(p?.name)))continue;const old=map.get(id)||{};map.set(id,{...old,...p,id,href:p?.href||`/g/${id}/project`});}
+    return [...map.values()].sort((a,b)=>projectRecency(b.id)-projectRecency(a.id)||String(a.name||'').localeCompare(String(b.name||''),'fr'));
+  }
+  function projectAnchor(p){
+    const a=document.createElement('a');a.dataset.ng8Pin='1';a.href=p.href||`/g/${p.id}/project`;if(p.color)a.style.setProperty('--ng-project',p.color);a.innerHTML=`<i>${esc(p.icon||'▤')}</i><span>${esc(p.name||'Project')}</span><small class="ng8-project-meta">${fmt(projectRecency(p.id))}  [${cache.counts?.[p.id]??'…'}]</small>`;return a;
+  }
+  function ensureFullProjectInventory(box){
+    if(!(box instanceof HTMLElement))return;
+    let list=box.querySelector(':scope>.ng8-pin-list');if(!list){list=document.createElement('div');list.className='ng8-pin-list';const head=box.querySelector(':scope>.ng8-pin-head');head?.insertAdjacentElement('afterend',list)||box.prepend(list);}
+    const eligible=eligibleProjects(),wanted=new Set(eligible.map(p=>p.id));
+    const existing=new Map();
+    for(const a of box.querySelectorAll('a[data-ng8-pin="1"]')){const id=pidFromHref(a.getAttribute('href'));if(id&&!existing.has(id))existing.set(id,a);}
+    for(const [id,a] of existing){if(wanted.has(id))continue;const row=rowFor(a);(row&&row.closest('#ng8-pins')?row:a).remove();}
+    for(const p of eligible){let a=existing.get(p.id);if(!a||!a.isConnected)a=projectAnchor(p);else{
+        const span=a.querySelector(':scope>span');if(span&&p.name)span.textContent=p.name;
+        const meta=a.querySelector(':scope>.ng8-project-meta');if(meta)meta.textContent=`${fmt(projectRecency(p.id))}  [${cache.counts?.[p.id]??'…'}]`;
+      }
+      const row=rowFor(a);list.appendChild(row||a);
+    }
+    box.querySelector(':scope>.ng90-project-extras')?.remove();
+    const count=box.querySelector(':scope>.ng8-pin-head>b');if(count)count.textContent=String(eligible.length);
+    box.dataset.ng8Rendered=String(eligible.length);
+    window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',eligible.length?`OK · ${eligible.length} Projects NiakGPT · inventaire complet`:'ATTENTE · aucun Project à afficher');
+  }
 
-  function rowFor(anchor){return anchor.closest('.ng96-pin-entry');}
+  function rowFor(anchor){return anchor?.closest?.('.ng96-pin-entry')||null;}
   function wrapAnchor(anchor){
     if(!(anchor instanceof HTMLElement))return null;
     const existing=rowFor(anchor);if(existing){existing.querySelector(':scope>.ng96-project-open')?.remove();return existing;}
@@ -75,7 +117,39 @@
     }
   }
 
+  async function publishProjectChats(pid,list){
+    const merge=latest=>{
+      latest=latest&&typeof latest==='object'?latest:{};const chats=new Map((latest.chats||[]).filter(c=>c?.id).map(c=>[c.id,{...c}]));
+      for(const c of list){const old=chats.get(c.id)||{};chats.set(c.id,{...old,...c,projectId:pid,updated:Math.max(parseTime(old.updated||old.update_time),parseTime(c.updated||c.update_time||c.create_time))});}
+      const projectChats={...(latest.projectChats||{}),[pid]:list.map(c=>({...c,projectId:pid}))};
+      return{...latest,at:Date.now(),chats:[...chats.values()],projectChats,counts:{...(latest.counts||{}),[pid]:list.length},indexedProjectIds:[...new Set([...(latest.indexedProjectIds||[]),pid])]};
+    };
+    try{
+      const bus=window.__NIAKGPT_CACHE_BUS__;if(bus?.update){const next=await bus.update(merge);if(next)acceptCache(next);}else{const raw=(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||cache,next=merge(raw);await chrome.storage.local.set({[CACHE_KEY]:next});acceptCache(next);}
+    }catch{}
+  }
+  async function hydrateProject(pid){
+    pid=normalizePid(pid);if(!pid||chatsFor(pid).length)return;
+    const state=loadState.get(pid);if(state==='loading'||state==='ready-empty')return;
+    if(bridgeBusy()){loadState.set(pid,'waiting');window.__NIAKGPT_DIAGNOSTICS__?.set('pins-chats',`ATTENTE · ${pid} · reprise après réponse ChatGPT`);if(openPid===pid){drawerDirty=true;schedule(40);}return;}
+    loadState.set(pid,'loading');if(openPid===pid){drawerDirty=true;schedule(0);}window.__NIAKGPT_DIAGNOSTICS__?.set('pins-chats',`CHARGEMENT · ${pid}`);
+    const out=new Map(),seen=new Set();let cursor=null,error='';
+    for(let page=0;page<40;page++){
+      if(bridgeBusy()){error='native_busy';break;}
+      const qs=new URLSearchParams({limit:'20'});if(cursor!=null&&cursor!=='')qs.set('cursor',String(cursor));
+      const r=await rpc(`/backend-api/gizmos/${encodeURIComponent(pid)}/conversations?${qs}`);
+      if(!r.ok){error=r.error||`HTTP ${r.status||0}`;break;}
+      const items=listFrom(r.data,'items','conversations');for(const raw of items){const id=String(raw?.id||raw?.conversation_id||'').trim();if(!id)continue;out.set(id,{id,title:String(raw?.title||raw?.conversation_title||'Conversation'),snippet:String(raw?.snippet||''),projectId:pid,updated:parseTime(raw?.update_time||raw?.create_time),href:''});}
+      const next=nextCursor(r.data);if(!items.length||next==null||next==='')break;const key=String(next);if(seen.has(key))break;seen.add(key);cursor=next;
+    }
+    if(error){
+      const waiting=error==='native_busy'||/native_busy|bridge-pause/i.test(error);loadState.set(pid,waiting?'waiting':'error');window.__NIAKGPT_DIAGNOSTICS__?.set('pins-chats',`${waiting?'ATTENTE':'ERREUR'} · ${pid} · ${String(error).slice(0,80)}`);if(openPid===pid){drawerDirty=true;schedule(80);}return;
+    }
+    const list=[...out.values()].sort((a,b)=>(b.updated||0)-(a.updated||0));await publishProjectChats(pid,list);loadState.set(pid,list.length?'ready':'ready-empty');window.__NIAKGPT_DIAGNOSTICS__?.set('pins-chats',`OK · ${pid} · ${list.length} chats`);if(openPid===pid){drawerDirty=true;schedule(0);}
+  }
+
   function closeDrawers(){for(const d of document.querySelectorAll('#ng8-pins .ng96-pin-drawer'))d.remove();document.querySelectorAll(PIN_SEL).forEach(a=>a.setAttribute('aria-expanded','false'));}
+  function emptyMessage(pid){const state=loadState.get(pid);if(state==='loading')return'Chargement des conversations…';if(state==='waiting')return'En attente de la fin de la réponse ChatGPT…';if(state==='error')return'Chargement impossible · reclique pour réessayer';if(state==='ready-empty')return'Aucune conversation dans ce Project';return'Chargement des conversations…';}
   function renderDrawer(pid,anchor){
     pid=normalizePid(pid);closeDrawers();if(!pid||!anchor)return;
     const entry=rowFor(anchor);if(!entry)return;
@@ -83,22 +157,24 @@
     const all=chatsFor(pid),q=norm(filter),shown=q?all.filter(c=>norm(`${c.title||''} ${c.snippet||''}`).includes(q)):all;
     const drawer=document.createElement('div');drawer.className='ng96-pin-drawer';drawer.id=drawerId(pid);drawer.dataset.pid=pid;drawer.setAttribute('role','region');drawer.setAttribute('aria-label','Conversations du Project');
     const rows=shown.slice(0,160).map(c=>`<div class="ng96-chat-entry" data-chat-entry="${esc(c.id)}"><a data-chat="${esc(c.id)}" href="${esc(chatHref(c,pid))}" title="${esc(c.title||'Conversation')}"><span>${esc(c.title||'Conversation sans titre')}</span><time>${fmt(c.updated)}</time></a>${actionMarkup(c.id)}</div>`).join('');
-    drawer.innerHTML=`${all.length>8?`<div class="ng96-folder-search"><input type="search" value="${esc(filter)}" placeholder="Filtrer ${all.length} conversations…" aria-label="Filtrer les conversations du Project"></div>`:''}<div class="ng96-folder-list">${shown.length?rows:'<div class="ng96-folder-empty">Aucune conversation indexée</div>'}</div>${all.length>160?`<small class="ng96-folder-limit">160 / ${all.length} affichées · utilise la recherche</small>`:''}`;
+    drawer.innerHTML=`${all.length>8?`<div class="ng96-folder-search"><input type="search" value="${esc(filter)}" placeholder="Filtrer ${all.length} conversations…" aria-label="Filtrer les conversations du Project"></div>`:''}<div class="ng96-folder-list">${shown.length?rows:`<div class="ng96-folder-empty">${esc(emptyMessage(pid))}</div>`}</div>${all.length>160?`<small class="ng96-folder-limit">160 / ${all.length} affichées · utilise la recherche</small>`:''}`;
     entry.insertAdjacentElement('afterend',drawer);drawerDirty=false;
     drawer.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();setOpen('');closeDrawers();anchor.focus();}});
     const input=drawer.querySelector('input');if(input){input.addEventListener('input',()=>{filter=input.value;renderDrawer(pid,anchor);requestAnimationFrame(()=>{const next=document.querySelector(`#${CSS.escape(drawerId(pid))} input`);if(next){next.focus();next.setSelectionRange(next.value.length,next.value.length);}});});}
     drawer.querySelectorAll('.ng96-chat-entry>a[data-chat]').forEach(link=>link.addEventListener('click',event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;const c=all.find(x=>x.id===link.dataset.chat);if(!c)return;event.preventDefault();event.stopPropagation();routeNative(link.getAttribute('href')||chatHref(c,pid));}));
     document.dispatchEvent(new CustomEvent('niakgpt:folder-rendered',{detail:{projectId:pid,chats:shown.length,drawerId:drawer.id}}));
+    if(!all.length&&loadState.get(pid)!=='ready-empty')queueMicrotask(()=>hydrateProject(pid));
   }
   function toggle(pid,anchor){
     pid=normalizePid(pid);if(openPid===pid){setOpen('');closeDrawers();return;}
-    setOpen(pid);renderDrawer(pid,anchor);
+    if(loadState.get(pid)==='error')loadState.delete(pid);setOpen(pid);renderDrawer(pid,anchor);
   }
 
   function rehydrate(){
     renderTimer=0;const box=document.getElementById('ng8-pins');if(!box)return;
     internalWrite=true;
     try{
+      ensureFullProjectInventory(box);
       box.querySelectorAll('.ng96-project-open').forEach(button=>button.remove());
       for(const anchor of box.querySelectorAll('a[data-ng8-pin="1"]'))decorateAnchor(anchor);
       if(openPid){
@@ -111,18 +187,22 @@
   function cooperativeNode(n){return n instanceof Element&&!!n.closest?.('.ng96-pin-drawer,.ng96-pin-entry,.ng96-chat-entry,.ng113-native-actions,#ng113-actions-fallback');}
   function bindBox(){
     const box=document.getElementById('ng8-pins');if(!box||box===observedBox)return false;
-    observer?.disconnect();observedBox=box;observer=new MutationObserver(records=>{if(internalWrite)return;const external=records.some(r=>[...r.addedNodes,...r.removedNodes].some(n=>n instanceof Element&&!cooperativeNode(n)));if(external)schedule(20);});observer.observe(box,{childList:true,subtree:true});schedule(0);return true;
+    observer?.disconnect();observedBox=box;observer=new MutationObserver(records=>{if(internalWrite)return;const external=records.some(r=>[...r.addedNodes,...r.removedNodes].some(n=>n instanceof Element&&!cooperativeNode(n)));if(external)schedule(10);});observer.observe(box,{childList:true,subtree:true});schedule(0);return true;
   }
   function bootstrap(){
     if(bindBox())return;
     bootstrapObserver=new MutationObserver(()=>{if(bindBox()){bootstrapObserver?.disconnect();bootstrapObserver=null;}});bootstrapObserver.observe(document.documentElement,{childList:true,subtree:true});setTimeout(()=>{bootstrapObserver?.disconnect();bootstrapObserver=null;},15000);
   }
   const cacheBus=window.__NIAKGPT_CACHE_BUS__;
-  if(cacheBus)cacheBus.subscribe(acceptCache);else{
-    chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY])acceptCache(changes[CACHE_KEY].newValue);});
-    Promise.resolve(chrome.storage.local.get(CACHE_KEY)).then(result=>acceptCache(result?.[CACHE_KEY]||{})).catch(()=>{});
-  }
+  if(cacheBus)cacheBus.subscribe(acceptCache);
+  try{
+    chrome.storage.onChanged.addListener((changes,area)=>{if(area!=='local')return;if(changes[CACHE_KEY]&&!cacheBus)acceptCache(changes[CACHE_KEY].newValue);if(changes[GOV_KEY]){governance=changes[GOV_KEY].newValue||governance;schedule(10);}});
+    Promise.resolve(chrome.storage.local.get([CACHE_KEY,GOV_KEY])).then(result=>{if(!cacheBus)acceptCache(result?.[CACHE_KEY]||{});governance=result?.[GOV_KEY]||governance;schedule(0);}).catch(()=>{});
+  }catch{}
   document.addEventListener('niakgpt:pins-rendered',()=>{bindBox();rehydrate();});
+  document.addEventListener('niakgpt:activity-changed',event=>{if(event.detail?.active===false){for(const [pid,state] of loadState)if(state==='waiting')hydrateProject(pid);}});
+  document.addEventListener('niakgpt:rate-limit-cleared',()=>{for(const [pid,state] of loadState)if(state==='waiting')hydrateProject(pid);});
+  window.addEventListener('online',()=>{for(const [pid,state] of loadState)if(state==='waiting'||state==='error'){loadState.delete(pid);if(openPid===pid)hydrateProject(pid);}});
   document.addEventListener('click',event=>{
     if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
     const target=event.target instanceof Element?event.target:null,anchor=target?.closest('#ng8-pins a[data-ng8-pin="1"]');
@@ -130,7 +210,7 @@
     const pid=pidFromHref(anchor.getAttribute('href'));if(!pid)return;
     event.preventDefault();event.stopImmediatePropagation();wrapAnchor(anchor);toggle(pid,anchor);schedule(0);
   },true);
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden){bindBox();rehydrate();}});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden){bindBox();rehydrate();for(const [pid,state] of loadState)if(state==='waiting')hydrateProject(pid);}});
   window.addEventListener('popstate',()=>{bindBox();rehydrate();});
   if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>{bindBox();rehydrate();});
   window.addEventListener('pageshow',event=>{if(event.persisted){bindBox();rehydrate();}});

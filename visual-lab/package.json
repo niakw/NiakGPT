@@ -5,6 +5,7 @@
   "scripts": {
     "test": "playwright test",
     "test:current": "playwright test --grep-invert \"native Sources/Outputs panels and collapsed handles stay left of NiakGPT rail|contextual coach changes recommendations with the actual prompt|organizer and pins diagnostics resolve instead of staying in ATTENTE|real extension boots and Project counters use cursor-safe pagination|native manual Project move is verified, locked, and explicitly unlockable|static collapsed Sources handle stays fully left of right rail|static collapsed handle also clears the NiakGPT panel when it is open|two simultaneous tabs produce one heavy backend GET and both receive the conversation|a third request after persistence is an immediate cache hit with no network|hot cache serves repeat conversation GET locally and invalidates on dirty|real activity sensor exposes ATTENTE then analysis state\"",
+    "test:user-regressions": "node user-reported-regressions-v120.mjs",
     "test:headed": "playwright test --headed",
     "serve": "python3 -m http.server 4173 --directory .."
   },

@@ -14,8 +14,21 @@
   const visible=el=>{if(!(el instanceof Element)||!el.isConnected)return false;const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden'&&el.getClientRects().length>0;};
   const ownRecoveryNode=el=>el instanceof Element&&(el.id==='ng119-interruption'||!!el.closest('#ng119-interruption'));
   const editor=()=>document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"]')||[...document.querySelectorAll('textarea,[contenteditable="true"]')].reverse().find(el=>!el.closest('#ng8-coach,#ng119-interruption'));
+  const editorText=ed=>clean(ed?('value'in ed?ed.value:ed.innerText||ed.textContent):'');
   function setEditor(ed,text){
     if(!ed)return false;try{if('value'in ed){const proto=Object.getPrototypeOf(ed),setter=Object.getOwnPropertyDescriptor(proto,'value')?.set;setter?setter.call(ed,text):ed.value=text;}else{ed.focus();ed.textContent=text;}ed.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:text}));return true;}catch{return false;}
+  }
+  function setVerificationPause(on){
+    const root=document.documentElement;
+    if(on){
+      if(root.dataset.ng119Verification!=='1'&&root.dataset.ng105Verification!=='1')root.dataset.ng119VerificationOwn='1';
+      root.dataset.ng119Verification='1';root.dataset.ng105Verification='1';
+      window.__NIAKGPT_DIAGNOSTICS__?.set('vérification','PAUSE · bridge NiakGPT suspendu pendant la vérification native');
+      return;
+    }
+    if(root.dataset.ng119VerificationOwn==='1')delete root.dataset.ng105Verification;
+    delete root.dataset.ng119Verification;delete root.dataset.ng119VerificationOwn;
+    window.__NIAKGPT_DIAGNOSTICS__?.set('vérification','OK · vérification native absente');
   }
   function readIncident(){try{const data=JSON.parse(sessionStorage.getItem(KEY)||'null');return data&&Date.now()-Number(data.at||0)<20*60*1000?data:null;}catch{return null;}}
   function saveIncident(data){incident=data;try{data?sessionStorage.setItem(KEY,JSON.stringify(data)):sessionStorage.removeItem(KEY);}catch{}}
@@ -36,9 +49,11 @@
   }
   function bar(){return document.getElementById('ng119-interruption');}
   function clearBar(){bar()?.remove();delete document.documentElement.dataset.ng119Interruption;}
+  function rememberDraft(data){const text=editorText(editor());return text&&!data?.draft?{...data,draft:text}:data;}
+  function restoreDraft(){const text=clean(incident?.draft);if(!text)return false;const ed=editor();if(!ed||editorText(ed))return false;return setEditor(ed,text);}
   function resumePrompt(){
     const text='Reprends exactement là où le travail ou la réponse s’est interrompu avant l’incident. Ne recommence pas les étapes déjà terminées ; poursuis directement la tâche en cours et vérifie ce qui restait inachevé.';
-    const ed=editor();if(!ed)return false;const current=clean('value'in ed?ed.value:ed.innerText||ed.textContent);if(current)return false;return setEditor(ed,text);
+    const ed=editor();if(!ed)return false;const current=editorText(ed);if(current)return false;return setEditor(ed,text);
   }
   function mount(type,{ready=false}={}){
     let box=bar();if(!box){box=document.createElement('aside');box.id='ng119-interruption';box.setAttribute('role','status');document.body.appendChild(box);}
@@ -48,11 +63,12 @@
       const b=box.querySelector('.ng100-continue');b.disabled=marking;return box;
     }
     const label=type==='verify'?'VÉRIFICATION CHATGPT':'CONNEXION INTERROMPUE';
-    const msg=type==='verify'?'NiakGPT ne contourne pas la vérification. Il reprend dès que ChatGPT la libère.':'NiakGPT attend le retour de la connexion et utilise le bouton natif de reprise s’il apparaît.';
+    const msg=type==='verify'?'NiakGPT ne contourne pas la vérification et suspend ses propres requêtes. Il reprend dès que ChatGPT la libère.':'NiakGPT attend le retour de la connexion, conserve le brouillon et utilise le bouton natif de reprise s’il apparaît.';
     box.innerHTML=`<strong>${label}</strong><span>${msg}</span><button type="button" data-ng119-resume>${ready?'REPRENDRE':'EN ATTENTE'}</button>`;
-    const b=box.querySelector('[data-ng119-resume]');b.disabled=!ready;b.addEventListener('click',()=>{if(resumePrompt()){box.querySelector('span').textContent='Message de reprise préparé dans le champ. Aucun envoi automatique.';b.disabled=true;b.textContent='PRÊT À ENVOYER';}else{box.querySelector('span').textContent='Le champ contient déjà du texte ou n’est pas disponible : rien n’a été écrasé.';}});return box;
+    const b=box.querySelector('[data-ng119-resume]');b.disabled=!ready;b.addEventListener('click',()=>{if(restoreDraft()){box.querySelector('span').textContent='Brouillon restauré. Aucun envoi automatique.';b.disabled=true;b.textContent='BROUILLON RESTAURÉ';}else if(resumePrompt()){box.querySelector('span').textContent='Message de reprise préparé dans le champ. Aucun envoi automatique.';b.disabled=true;b.textContent='PRÊT À ENVOYER';}else{box.querySelector('span').textContent='Le champ contient déjà du texte ou n’est pas disponible : rien n’a été écrasé.';}});return box;
   }
   async function handleLimit(reason='dom-limit'){
+    setVerificationPause(false);
     const cid=String(location.pathname).match(/\/c\/([A-Za-z0-9_-]+)/)?.[1]||'';if(!cid)return;
     if(!incident||incident.type!=='limit'||incident.chatId!==cid)saveIncident({type:'limit',chatId:cid,at:Date.now(),reason,retried:false});
     marking=true;mount('limit');
@@ -62,15 +78,19 @@
   }
   function begin(type,text=''){
     if(type==='limit'){handleLimit('signal');return;}
-    if(!incident||incident.type!==type)saveIncident({type,at:Date.now(),retried:false,recovered:false,sample:clean(text).slice(0,240)});
-    mount(type,{ready:false});window.__NIAKGPT_DIAGNOSTICS__?.set('interruption-119',type==='verify'?'PAUSE · vérification native':'PAUSE · connexion');scheduleRecovery(500);
+    if(type==='verify')setVerificationPause(true);else if(!currentSignal('verify'))setVerificationPause(false);
+    if(!incident||incident.type!==type)saveIncident(rememberDraft({type,at:Date.now(),retried:false,recovered:false,sample:clean(text).slice(0,240)}));
+    else if(!incident.draft){const next=rememberDraft(incident);if(next!==incident)saveIncident(next);}
+    mount(type,{ready:false});window.__NIAKGPT_DIAGNOSTICS__?.set('interruption-119',type==='verify'?'PAUSE · vérification native + bridge':'PAUSE · connexion + brouillon conservé');scheduleRecovery(500);
   }
   function tryNativeRecovery(){
     if(!incident||!['verify','network'].includes(incident.type))return false;
     if(currentSignal(incident.type))return false;
+    if(incident.type==='verify')setVerificationPause(false);
+    restoreDraft();
     const retry=nativeRetry();
     if(retry&&!incident.retried){incident={...incident,retried:true,recoveredAt:Date.now()};saveIncident(incident);retry.click();mount(incident.type,{ready:false});window.__NIAKGPT_DIAGNOSTICS__?.set('interruption-119','REPRISE · bouton ChatGPT natif déclenché une fois');setTimeout(()=>{if(incident&&!currentSignal(incident.type))mount(incident.type,{ready:true});},900);return true;}
-    mount(incident.type,{ready:true});window.__NIAKGPT_DIAGNOSTICS__?.set('interruption-119','PRÊT · reprise manuelle préparée');return false;
+    mount(incident.type,{ready:true});window.__NIAKGPT_DIAGNOSTICS__?.set('interruption-119',incident.draft?'PRÊT · brouillon conservé':'PRÊT · reprise manuelle préparée');return false;
   }
   function scheduleRecovery(delay=240){clearTimeout(timer);timer=setTimeout(()=>{timer=0;tryNativeRecovery();},delay);}
   function inspectNode(node){
@@ -79,7 +99,7 @@
     if(!type){for(const el of node.querySelectorAll?.('[role="alert"],[role="status"],[data-testid*="error" i],[data-testid*="limit" i],[data-testid*="toast" i],[data-testid*="challenge" i]')||[]){if(ownRecoveryNode(el))continue;type=classifyText(candidateText(el));if(type)break;}}
     if(type)begin(type,text);
   }
-  function scan(){const signal=currentSignal();if(signal)begin(signal.kind,candidateText(signal.node));else if(incident&&['verify','network'].includes(incident.type))scheduleRecovery(120);}
+  function scan(){const signal=currentSignal();if(signal)begin(signal.kind,candidateText(signal.node));else if(incident&&['verify','network'].includes(incident.type))scheduleRecovery(120);else setVerificationPause(false);}
   function bind(){
     observer?.disconnect();observer=new MutationObserver(records=>{
       let structural=false;
@@ -99,6 +119,7 @@
   window.addEventListener('offline',()=>begin('network','connection lost'));
   window.addEventListener('popstate',onRoute);if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',onRoute);
   window.addEventListener('pageshow',()=>{bind();if(incident&&['verify','network'].includes(incident.type))mount(incident.type,{ready:true});setTimeout(scan,120);});
+  window.addEventListener('pagehide',()=>{observer?.disconnect();clearTimeout(timer);},{once:true});
   const start=()=>{bind();if(incident){if(incident.type==='limit'&&/\/c\//.test(location.pathname))mount('limit');else if(['verify','network'].includes(incident.type))mount(incident.type,{ready:true});}scan();};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();

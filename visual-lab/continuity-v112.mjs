@@ -20,8 +20,9 @@ for(const [engine,launcher] of Object.entries(engines)){
   const page=await context.newPage();
   try{
     await page.addInitScript(({oldId,projectId})=>{
+      const oldChat={id:oldId,title:'Correction interface finale',projectId,href:`/g/${projectId}/c/${oldId}`,updated:Date.now()};
       const store={
-        'niakgpt-v08-cache':{schema:2,at:Date.now(),projects:[{id:projectId,name:'NiakGPT',description:'Extension locale power-user.',instructions:'Priorité stabilité et vitesse.'}],chats:[{id:oldId,title:'Correction interface finale',projectId,updated:Date.now()}]},
+        'niakgpt-v08-cache':{schema:2,at:Date.now(),projects:[{id:projectId,name:'NiakGPT',description:'Extension locale power-user.',instructions:'Priorité stabilité et vitesse.'}],chats:[oldChat],projectChats:{[projectId]:[oldChat]},counts:{[projectId]:1},indexedProjectIds:[projectId]},
         'niakgpt-governance-v085':{autoResync:true,coreProjectIds:[projectId],locks:{}}
       };
       window.__testStore=store;window.__patches=[];
@@ -37,8 +38,10 @@ for(const [engine,launcher] of Object.entries(engines)){
     await page.locator('.ng100-continue').click();
     await page.waitForURL(`**/g/${projectId}/project`);
     const pending=await page.evaluate(()=>JSON.parse(sessionStorage.getItem('niakgpt-continuity-pending-v100')||'null'));
+    const openedProject=await page.evaluate(()=>sessionStorage.getItem('niakgpt-open-pin-folder-v096'));
     assert(pending?.exactProject===true,'continuation does not carry exactProject');
     assert(pending?.projectId===projectId,`wrong pending Project ${pending?.projectId}`);
+    assert(openedProject===projectId,'continuation did not keep the exact Project drawer open');
     assert(pending?.capsule?.startsWith('Reprends la conversation nommée « NiakGPT > Correction interface finale »'),'continuity prompt name missing');
     assert(pending?.capsule?.includes('PROJECT EXACT À CONSERVER : NiakGPT'),'exact Project instruction missing');
     assert(pending?.capsule?.includes('CONTEXTE COMPLET DISPONIBLE DU FIL PRÉCÉDENT'),'previous history missing');
@@ -47,19 +50,32 @@ for(const [engine,launcher] of Object.entries(engines)){
     await page.evaluate(()=>{
       document.addEventListener('niakgpt:rpc-request',event=>{
         const d=event.detail||{};if(d.method!=='PATCH')return;window.__patches.push({path:d.path,body:d.body});
-        const cache=window.__testStore['niakgpt-v08-cache'];if(!cache.chats.some(c=>d.path.endsWith(c.id)))cache.chats.push({id:d.path.split('/').pop(),title:'Suite',projectId:'',updated:Date.now()});
         setTimeout(()=>document.dispatchEvent(new CustomEvent('niakgpt:rpc-response',{detail:{id:d.id,ok:true,status:200,data:{}}})),15);
       },true);
     });
     await page.addScriptTag({content:code});
-    await page.waitForTimeout(750);
+    await page.waitForTimeout(850);
     const result=await page.evaluate(({newId,projectId})=>{
       const store=window.__testStore,cache=store['niakgpt-v08-cache'],gov=store['niakgpt-governance-v085'];
-      return{patches:window.__patches,chat:cache.chats.find(c=>c.id===newId),lock:gov.locks?.[newId],pending:sessionStorage.getItem('niakgpt-continuity-pending-v100'),projectId};
+      return{
+        patches:window.__patches,
+        chat:cache.chats.find(c=>c.id===newId),
+        projectChat:(cache.projectChats?.[projectId]||[]).find(c=>c.id===newId),
+        count:cache.counts?.[projectId],
+        indexed:(cache.indexedProjectIds||[]).includes(projectId),
+        openKey:sessionStorage.getItem('niakgpt-open-pin-folder-v096'),
+        lock:gov.locks?.[newId],
+        pending:sessionStorage.getItem('niakgpt-continuity-pending-v100'),
+        projectId
+      };
     },{newId,projectId});
     assert(result.patches.length===1,`expected one continuity PATCH, got ${result.patches.length}`);
     assert(result.patches[0]?.body?.gizmo_id===projectId,'continuation PATCH targets wrong Project');
-    assert(result.chat?.projectId===projectId,'cache continuation Project not locked');
+    assert(result.chat?.projectId===projectId,'runtime did not create continued chat in global cache');
+    assert(result.projectChat?.projectId===projectId,'runtime did not create continued chat in Project inventory');
+    assert(result.count>=2,'Project conversation count did not include continued chat');
+    assert(result.indexed===true,'continued Project lost indexed state');
+    assert(result.openKey===projectId,'continued chat did not keep source Project drawer open');
     assert(result.lock?.projectId===projectId&&result.lock?.source==='continuity-exact','governance exact Project lock missing');
 
     const dir=path.join(OUT,engine);await fs.mkdir(dir,{recursive:true});

@@ -134,8 +134,10 @@
         if(/Extension context invalidated|context invalidated/i.test(msg))stop();
         window.__NIAKGPT_DIAGNOSTICS__?.set('metadata-sidebar',`ERREUR · sanitation cache · ${msg.slice(0,120)}`);
         return{ok:false,error};
+      }finally{
+        sanitizeTask=null;
       }
-    })().finally(()=>{sanitizeTask=null;});
+    })();
     return sanitizeTask;
   }
 

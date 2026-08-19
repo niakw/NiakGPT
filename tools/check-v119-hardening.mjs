@@ -47,6 +47,21 @@ for(const token of [
 ])need(metadata,token,`metadata data-integrity/lifecycle/concurrency/runtime-retry invariant missing: ${token}`);
 forbid(metadata,"const canonical=id.startsWith('g-p-')||!!pidFromHref(p?.href||'')",'date ghost can be incorrectly legitimized by another Project in its href');
 
+const cacheBus=read('cache-bus-v096.js');
+for(const token of [
+  'resumeReady=null',
+  'hiddenExternal=null',
+  'writeEpoch=0',
+  'staleWriteDuringSuspend=false',
+  'ownWriteSignatures',
+  'get:()=>resumeReady||',
+  'if(epoch!==writeEpoch){staleWriteDuringSuspend=true;return value;}',
+  'if(suspended){if(!own)hiddenExternal=next;return;}',
+  'try{await writeChain;}catch{}',
+  'restore=staleWriteDuringSuspend&&deferred',
+  'api.ready=resumed'
+])need(cacheBus,token,`cache bus BFCache newest-state invariant missing: ${token}`);
+
 const authorityGate=read('visual-lab/sidebar-authority-isolation-v119.mjs');
 for(const token of [
   'search-project-result',
@@ -97,6 +112,16 @@ for(const token of [
 ])need(concurrencyGate,token,`metadata unlocked concurrency/runtime-retry gate incomplete: ${token}`);
 const failureGate=read('visual-lab/sidebar-metadata-failure-v119.mjs');
 need(failureGate,"import('./sidebar-metadata-concurrency-v119.mjs')",'unlocked metadata concurrency gate is not chained after failure coverage');
+const lifecycleGate=read('visual-lab/sidebar-metadata-lifecycle-v119.mjs');
+for(const token of [
+  'cacheBusJs',
+  'hidden-external-new',
+  'g-p-new',
+  'new-chat',
+  'BFCache cache bus resume lost the newest hidden snapshot',
+  "window.__fireTransition('pagehide',true)",
+  "window.__fireTransition('pageshow',true)"
+])need(lifecycleGate,token,`metadata/cache-bus BFCache lifecycle gate incomplete: ${token}`);
 
 const actions=read('native-actions-v113.js');
 for(const token of ['actionEpoch','actionOpening','actionCurrent','claimTriggerMenu','menuStrict','source.isConnected'])need(actions,token,`native-action race guard missing ${token}`);
@@ -107,4 +132,4 @@ need(background,"const HARD_ISOLATED_BARRIER='sidebar-metadata-v118.js'",'metada
 need(read('tools/check-runtime.mjs'),"import './check-runtime-syntax.mjs'",'dynamic runtime syntax gate is not part of runtime check');
 need(read('tools/check-runtime.mjs'),"import '../labs/background-boot-barrier-v119.mjs'",'background barrier gate is not part of runtime check');
 
-console.log('V119_HARDENING_PASS actions=serialized authority=structural metadata=lossless/fail-closed/lifecycle/concurrency/runtime-retry=guarded');
+console.log('V119_HARDENING_PASS actions=serialized authority=structural cachebus=bfcache-newest-state metadata=lossless/fail-closed/lifecycle/concurrency/runtime-retry=guarded');

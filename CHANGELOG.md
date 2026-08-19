@@ -5,10 +5,13 @@
 - Ajout de `sidebar-metadata-v118.js/css` : normalisation des dates, suppression des faux Projects-date et réparation conservatrice du cache, sans aucune responsabilité de visibilité Projects.
 - Le boot impose désormais `cache-bus → diagnostics → metadata v118 → cache-guardian/recovery/server-index → gouvernance/UI`.
 - `sidebar-metadata-v118.js` est une IIFE async : sa première sanitation du cache est réellement attendue avant que l’injecteur ne passe aux consommateurs suivants.
+- Les publications runtime du cache reçoivent un ordre monotone interne : une sanitation ancienne retardée par Web Locks ne peut plus écraser un snapshot externe plus récent, y compris lorsque les timestamps `at` sont identiques.
+- `cache-bus-v096.js` conserve le snapshot externe le plus récent pendant une suspension BFCache, attend les écritures déjà en vol puis réhydrate l’état newest-first au `pageshow`.
+- Les abonnés existants du cache-bus survivent désormais à un `pagehide` BFCache persistant : aucune notification n’est envoyée pendant la suspension, puis le snapshot le plus récent est republié à la reprise ; seul un vrai départ de page détruit les listeners.
 - `native-actions-v113.js` isole chaque session de menu : les menus déjà visibles restent intacts, seuls les menus ouverts par l’action courante sont promus, et le cleanup retire Popover, top-layer, classe, variables CSS et datasets NiakGPT.
 - La réutilisation d’un même nœud natif par React est couverte ; une seconde ouverture doit repartir d’un état natif propre.
 - Le fallback local conversation termine maintenant sa session flottante exactement à la fermeture, afin qu’un menu apparu ensuite ne puisse pas être capturé par un timer tardif.
-- Nouveaux/renforcés gates : `native-menu-session-v118`, `sidebar-metadata-v118`, autorité/remount, hitboxes atomiques, preview image, validateurs d’ordre de boot et exclusion des anciennes autorités du ZIP.
+- Nouveaux/renforcés gates : `native-menu-session-v118`, `sidebar-metadata-v118`, lifecycle/concurrence/BFCache, autorité/remount, hitboxes atomiques, preview image, validateurs d’ordre de boot et exclusion des anciennes autorités du ZIP.
 - Documentation README/architecture/changelog synchronisée avec le runtime 0.9.68 et la licence GPL-3.0.
 
 # NiakGPT 0.9.67 — Hitboxes sidebar et menus flottants
@@ -83,7 +86,7 @@
 - Confirms NiakGPT never calls `/backend-api/f/conversation/resume`; that route is not present in the extension.
 - Adds a bridge circuit breaker so queued NiakGPT backend requests do not execute while ChatGPT is loading, waiting, thinking, executing, or showing a native verification challenge.
 - Server Project refresh now waits for ChatGPT activity to return to ready; cached Projects remain available immediately.
-- Long-thread activity tracking no longer observes character-data mutations across the entire conversation DOM; streamed-token observation is scoped to the current assistant turn.
+- Long-thread activity tracking no longer observes character-data mutations across the entire conversation DOM; streamed-token observation est scoped to the current assistant turn.
 - Existing labs are preserved; 0.9.51 adds regression coverage rather than replacing prior suites.
 
 # NiakGPT 0.9.50

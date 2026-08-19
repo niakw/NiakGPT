@@ -2,6 +2,7 @@ const { test, expect, chromium } = require('@playwright/test');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 
 const extensionPath=path.resolve(__dirname,'..','..');
 const labRoot=path.resolve(__dirname,'..');
@@ -42,6 +43,22 @@ async function extensionWorker(context){
   return context.serviceWorkers().find(w=>w.url().includes('background-v100.js'))||context.waitForEvent('serviceworker',{predicate:w=>w.url().includes('background-v100.js'),timeout:15000});
 }
 
+async function closeRuntime(context,dir){
+  let settled=false;
+  const closePromise=context.close().then(()=>{settled=true;}).catch(()=>{settled=true;});
+  await Promise.race([closePromise,sleep(5000)]);
+  if(!settled&&BROWSER_LABEL.includes('brave')&&process.platform==='darwin'){
+    const pattern='/Applications/Brave Browser.app/Contents/MacOS/Brave Browser';
+    for(const signal of ['-TERM','-KILL']){
+      try{execFileSync('/usr/bin/pkill',[signal,'-f',pattern],{stdio:'ignore'});}catch{}
+      await Promise.race([closePromise,sleep(1800)]);
+      if(settled)break;
+    }
+  }
+  if(!settled)await Promise.race([closePromise,sleep(1200)]);
+  fs.rmSync(dir,{recursive:true,force:true});
+}
+
 async function launchRuntime(){
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),`niakgpt-sidebar-v116-${BROWSER_LABEL}-${PROFILE_NAME}-`));
   const browserPrefs=PROFILE.browser||{};
@@ -73,7 +90,7 @@ async function launchRuntime(){
   await page.goto(`https://chatgpt.com/c/${CHAT1}`,{waitUntil:'commit'});if(!HEADLESS)await page.bringToFront();
   await expect(page.locator('#ng8-status')).toContainText(VERSION,{timeout:18000});
   await expect(page.locator('#ng8-pins a[data-ng8-pin="1"]')).toHaveCount(2,{timeout:18000});
-  return {context,worker,page,pageErrors,consoleErrors,traffic,close:async()=>{try{await Promise.race([context.close(),sleep(7000)]);}catch{}fs.rmSync(dir,{recursive:true,force:true});}};
+  return {context,worker,page,pageErrors,consoleErrors,traffic,close:()=>closeRuntime(context,dir)};
 }
 
 const studioPin=page=>page.locator(`#ng8-pins a[data-ng8-pin="1"][href="/g/${P1}/project"]`);

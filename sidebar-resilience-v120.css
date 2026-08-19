@@ -1,0 +1,90 @@
+/* NiakGPT 0.9.69 — pinned Projects slot, real drawer scrolling and active-row stability. */
+#ng8-pins[data-ng120-stable-slot]{
+  display:block!important;
+  position:relative!important;
+  flex:0 0 auto!important;
+  align-self:stretch!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  margin:6px 0 8px!important;
+  padding:0!important;
+  overflow:visible!important;
+  contain:layout style!important;
+  z-index:4!important;
+}
+#ng8-pins[data-ng120-stable-slot]>.ng8-pin-head,
+#ng8-pins[data-ng120-stable-slot]>.ng8-pin-list,
+#ng8-pins[data-ng120-stable-slot] .ng96-pin-entry{
+  box-sizing:border-box!important;
+}
+#ng8-pins .ng96-pin-drawer{
+  overflow:visible!important;
+  contain:layout style!important;
+}
+#ng8-pins .ng96-folder-list{
+  display:flex!important;
+  flex-direction:column!important;
+  min-height:0!important;
+  max-height:min(46vh,420px)!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  overscroll-behavior:contain!important;
+  scrollbar-gutter:stable!important;
+  scrollbar-width:thin!important;
+  touch-action:pan-y!important;
+  -webkit-overflow-scrolling:touch!important;
+}
+#ng8-pins .ng96-folder-list>.ng96-chat-entry{
+  flex:0 0 auto!important;
+}
+#ng8-pins .ng96-chat-entry>a[data-ng110-active="1"],
+#ng8-pins .ng96-chat-entry[data-ng110-active="1"]>a[data-chat]{
+  outline:1px solid color-mix(in srgb,var(--ng8-current-project,#4fc1ff) 78%,#fff 22%)!important;
+  outline-offset:-1px!important;
+  box-shadow:inset 3px 0 var(--ng8-current-project,#4fc1ff)!important;
+}
+html[data-ng8-running="1"] #ng8-pins[data-ng120-stable-slot],
+html[data-ng86-activity="waiting"] #ng8-pins[data-ng120-stable-slot],
+html[data-ng86-activity="thinking"] #ng8-pins[data-ng120-stable-slot],
+html[data-ng86-activity="executing"] #ng8-pins[data-ng120-stable-slot]{
+  margin-top:6px!important;
+  margin-bottom:8px!important;
+  transform:none!important;
+  translate:none!important;
+}
+main [data-ng120-welcome="1"]{display:none!important;}
+
+/* Native menus stay native; only their geometry is corrected. */
+.ng120-actions-stage{
+  display:block!important;
+  visibility:hidden!important;
+  position:fixed!important;
+  left:-12000px!important;
+  top:0!important;
+  width:320px!important;
+  max-height:640px!important;
+  opacity:0!important;
+  pointer-events:none!important;
+  overflow:visible!important;
+}
+.ng120-native-menu{
+  position:fixed!important;
+  inset:auto!important;
+  left:var(--ng120-menu-left,320px)!important;
+  top:var(--ng120-menu-top,80px)!important;
+  right:auto!important;
+  bottom:auto!important;
+  margin:0!important;
+  max-width:min(330px,calc(100vw - 16px))!important;
+  max-height:calc(100dvh - 16px)!important;
+  overflow:auto!important;
+  z-index:2147483646!important;
+  transform:none!important;
+  translate:none!important;
+  visibility:visible!important;
+  opacity:1!important;
+  pointer-events:auto!important;
+}
+#ng113-actions-fallback{display:none!important;}
+@media(max-width:760px){#ng8-pins .ng96-folder-list{max-height:min(52dvh,430px)!important;}}

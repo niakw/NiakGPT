@@ -1,0 +1,3 @@
+/* NiakGPT 0.9.68 — sidebar metadata hygiene only; no native Projects suppression. */
+time.ng8-chat-date{display:inline-block;}
+.ng8-chat-project[data-ng118-invalid-project="1"]{display:none!important;}

@@ -44,6 +44,13 @@ for(const [engine,launcher] of Object.entries(engines)){
       assert(s.clicks===0&&s.busy.every(v=>!v)&&s.display==='none',`remount preserved a stale action/busy state: ${JSON.stringify(s)}`);await page.close();
     }
     {
+      const page=await makePage(browser);await page.locator('.ng113-native-actions-project').click({noWaitAfter:true});await page.waitForTimeout(20);
+      await page.evaluate(()=>{const old=document.getElementById('ng8-pins'),next=old.cloneNode(true);old.replaceWith(next);document.dispatchEvent(new CustomEvent('niakgpt:pins-rendered'));});
+      await page.locator('.ng113-native-actions-project').click({noWaitAfter:true});await page.waitForTimeout(500);
+      const s=await page.evaluate(()=>{const own=document.getElementById('native-project-menu');return{clicks:window.__nativeClicks,busy:[...document.querySelectorAll('.ng113-native-actions')].map(b=>b.getAttribute('aria-busy')||''),display:getComputedStyle(own).display,pop:own.matches(':popover-open'),float:own.dataset.ng113Floated||''};});
+      assert(s.clicks===1&&s.busy.every(v=>!v)&&s.display==='block'&&s.pop&&s.float==='1',`first click on remounted action was swallowed by stale in-flight action: ${JSON.stringify(s)}`);await page.close();
+    }
+    {
       const page=await makePage(browser);await page.locator('.ng113-native-actions-project').click({noWaitAfter:true});await page.waitForTimeout(115);
       await page.evaluate(()=>{const m=document.createElement('div');m.id='racer';m.className='menu';m.setAttribute('role','menu');m.style.cssText='display:block;left:800px;top:60px';m.innerHTML='<button role="menuitem">Concurrent</button>';document.querySelector('main').appendChild(m);});await page.waitForTimeout(500);
       const s=await page.evaluate(()=>{const own=document.getElementById('native-project-menu'),racer=document.getElementById('racer'),r=racer.getBoundingClientRect();return{clicks:window.__nativeClicks,ownPop:own.matches(':popover-open'),ownFloat:own.dataset.ng113Floated||'',racerPop:racer.matches(':popover-open'),racerFloat:racer.dataset.ng113Floated||'',racerLeft:r.left};});
@@ -55,7 +62,7 @@ for(const [engine,launcher] of Object.entries(engines)){
       const s=await page.evaluate(()=>({unsafe:window.__unsafeClicks,display:getComputedStyle(document.getElementById('native-project-menu')).display,pop:document.getElementById('native-project-menu').matches(':popover-open')}));
       assert(s.unsafe===0&&s.display==='none'&&!s.pop,`unsafe native button fallback was clicked: ${JSON.stringify(s)}`);await page.close();
     }
-    console.log(`${engine} native action lifecycle/remount/ownership/fail-safe races: PASS`);
+    console.log(`${engine} native action lifecycle/remount/reclick/ownership/fail-safe races: PASS`);
   }finally{await browser.close();}
 }
 console.log(`native-action-races-v119: ${Object.keys(engines).join(',')} PASS`);

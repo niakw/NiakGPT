@@ -72,7 +72,7 @@
     return bus;
   }
   function sanitizeCache(){
-    if(stopped)return Promise.resolve();
+    if(stopped)return Promise.resolve({ok:false,stopped:true,error:new Error('metadata_stopped')});
     if(sanitizeTask)return sanitizeTask;
     sanitizeTask=(async()=>{
       const run=async()=>{
@@ -86,9 +86,12 @@
       try{
         if(navigator.locks?.request)await navigator.locks.request(DATA_LOCK,{mode:'exclusive'},run);
         else await run();
+        return{ok:true};
       }catch(error){
         const msg=String(error?.message||error||'');
         if(/Extension context invalidated|context invalidated/i.test(msg))stop();
+        window.__NIAKGPT_DIAGNOSTICS__?.set('metadata-sidebar',`ERREUR · sanitation cache · ${msg.slice(0,120)}`);
+        return{ok:false,error};
       }
     })().finally(()=>{sanitizeTask=null;});
     return sanitizeTask;
@@ -116,8 +119,10 @@
 
   async function start(){
     stopped=false;const bus=wrapCacheBus();bootstrap();normalizeChatMetadata();
-    try{await sanitizeCache();}
-    finally{window.__NIAKGPT_METADATA_READY_118__='ready';}
+    let result=await sanitizeCache();
+    if(!result?.ok&&!stopped){await new Promise(resolve=>setTimeout(resolve,80));result=await sanitizeCache();}
+    if(!result?.ok){window.__NIAKGPT_METADATA_READY_118__='error';throw result?.error||new Error('metadata_sanitize_failed');}
+    window.__NIAKGPT_METADATA_READY_118__='ready';
     const rawSubscribe=bus?.__ng118RawSubscribe||null;
     if(rawSubscribe&&!cacheUnsub)cacheUnsub=rawSubscribe(raw=>{sanitizeCache(raw);schedule(8);});
     else if(bus?.subscribe&&!cacheUnsub)cacheUnsub=bus.subscribe(raw=>{sanitizeCache(raw);schedule(8);});

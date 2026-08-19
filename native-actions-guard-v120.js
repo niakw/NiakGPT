@@ -62,12 +62,15 @@
     }catch{return false;}
   }
   function place(menu,index=0){
-    if(!(menu instanceof HTMLElement)||!session?.source?.isConnected)return;
-    promoteNative(menu);
+    if(!(menu instanceof HTMLElement)||!session?.source?.isConnected||!menu.isConnected)return false;
+    const topLayer=promoteNative(menu);
     const sr=session.source.getBoundingClientRect(),side=session.source.closest('[data-testid*="sidebar" i],aside,nav')||document.querySelector('[data-testid*="sidebar" i],aside,nav'),rr=side?.getBoundingClientRect(),w=Math.min(330,Math.max(220,menu.getBoundingClientRect().width||250)),h=Math.min(innerHeight-16,Math.max(80,menu.getBoundingClientRect().height||250));
     let left=Math.max((rr?.right||sr.right)+8,8)+index*(w+8);if(left+w>innerWidth-8)left=Math.max(8,(rr?.right||sr.right)-w-8-index*(w+8));
     const top=Math.min(Math.max(8,sr.top-4+index*10),Math.max(8,innerHeight-h-8));
-    menu.classList.add('ng120-native-menu');menu.style.setProperty('--ng120-menu-left',`${left}px`);menu.style.setProperty('--ng120-menu-top',`${top}px`);menu.dataset.ng120Native='1';session.menus.add(menu);
+    menu.classList.add('ng120-native-menu');menu.style.setProperty('--ng120-menu-left',`${left}px`);menu.style.setProperty('--ng120-menu-top',`${top}px`);menu.dataset.ng120Native='1';session.menus.add(menu);return topLayer;
+  }
+  function queuePlace(menu,index=0,token=session?.token){
+    for(const delay of [0,16,48,100,180,320,520])setTimeout(()=>{if(session?.token===token&&menu?.isConnected)place(menu,index);},delay);
   }
   function cleanupMenu(menu){
     if(!(menu instanceof HTMLElement))return;
@@ -89,8 +92,8 @@
   }
   function watchMenus(token){
     observer?.disconnect();observer=new MutationObserver(()=>{
-      if(!session||session.token!==token)return;const all=menus().filter(m=>!session.baseline.has(m));all.forEach((m,i)=>place(m,i));
-      clearTimeout(closeTimer);closeTimer=setTimeout(()=>{if(session?.token===token&&session.menus.size&&![...session.menus].some(visible))finishSession();},220);
+      if(!session||session.token!==token)return;const all=menus().filter(m=>!session.baseline.has(m));all.forEach((m,i)=>queuePlace(m,i,token));
+      clearTimeout(closeTimer);closeTimer=setTimeout(()=>{if(session?.token===token&&session.menus.size&&![...session.menus].some(visible))finishSession();},850);
     });observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['style','hidden','aria-hidden','data-state']});
   }
   async function openNative(source,kind,id){
@@ -104,7 +107,7 @@
     trigger.click();
     for(const delay of [35,80,160,300,520]){
       await sleep(delay);if(!session||session.token!==token)return false;
-      const exact=controlledMenu(trigger),fresh=exact||menus().find(m=>!baseline.has(m));if(fresh){place(fresh,0);restore();session.restore=()=>{};window.__NIAKGPT_DIAGNOSTICS__?.set(`actions-${kind}`,'OK · menu natif');return true;}
+      const exact=controlledMenu(trigger),fresh=exact||menus().find(m=>!baseline.has(m));if(fresh){place(fresh,0);queuePlace(fresh,0,token);restore();session.restore=()=>{};window.__NIAKGPT_DIAGNOSTICS__?.set(`actions-${kind}`,'OK · menu natif');return true;}
     }
     finishSession();window.__NIAKGPT_DIAGNOSTICS__?.set(`actions-${kind}`,'ERREUR · menu natif non ouvert');return false;
   }
@@ -131,7 +134,7 @@
   document.addEventListener('keydown',event=>{if(['Tab','Enter',' ','Escape','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(event.key))lastIntentAt=Date.now();},true);
   document.addEventListener('focusin',event=>{const action=managedAction(event.target);if(action)armFocusLease(action);else if(focusLease&&Date.now()-lastIntentAt<180)focusLease=null;},true);
   document.addEventListener('focusout',event=>{const action=managedAction(event.target);if(action)releaseOrRestoreFocus(action);},true);
-  window.addEventListener('resize',()=>{if(session)[...session.menus].filter(visible).forEach((m,i)=>place(m,i));});
+  window.addEventListener('resize',()=>{if(session)[...session.menus].filter(visible).forEach((m,i)=>queuePlace(m,i,session.token));});
   window.addEventListener('popstate',()=>{focusLease=null;closeSession();});if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>{focusLease=null;closeSession();});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){focusLease=null;closeSession();}});
   window.addEventListener('pagehide',()=>{focusLease=null;finishSession();},{once:true});

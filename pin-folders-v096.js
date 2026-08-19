@@ -79,6 +79,7 @@
     drawer.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();setOpen('');closeDrawers();anchor.focus();}});
     const input=drawer.querySelector('input');if(input){input.addEventListener('input',()=>{filter=input.value;renderDrawer(pid,anchor);requestAnimationFrame(()=>{const next=document.querySelector(`#${CSS.escape(drawerId(pid))} input`);if(next){next.focus();next.setSelectionRange(next.value.length,next.value.length);}});});}
     drawer.querySelectorAll('.ng96-chat-entry>a[data-chat]').forEach(link=>link.addEventListener('click',event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;const c=all.find(x=>x.id===link.dataset.chat);if(!c)return;event.preventDefault();event.stopPropagation();routeNative(link.getAttribute('href')||chatHref(c,pid));}));
+    document.dispatchEvent(new CustomEvent('niakgpt:folder-rendered',{detail:{projectId:pid,chats:shown.length,drawerId:drawer.id}}));
   }
   function toggle(pid,anchor){
     if(openPid===pid){setOpen('');closeDrawers();return;}

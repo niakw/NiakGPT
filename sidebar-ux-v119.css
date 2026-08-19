@@ -1,0 +1,6 @@
+/* NiakGPT 0.9.69 — stable Projects slot + folder-only Project labels. */
+html:not([data-ng119-pins-ready="1"]) #ng8-pins{visibility:hidden!important;}
+#ng8-pins[data-ng119-placement]{visibility:visible!important;}
+#ng8-pins a[data-ng8-pin="1"]{text-decoration:none!important;}
+#ng8-pins a[data-ng8-pin="1"]>span{cursor:pointer!important;}
+main .ng119-native-home-greeting,[role="main"] .ng119-native-home-greeting{display:none!important;visibility:hidden!important;pointer-events:none!important;}

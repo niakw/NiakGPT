@@ -31,3 +31,4 @@ for(const [engine,launcher] of Object.entries(engines)){
 }
 console.log(`sidebar-hitboxes-v117: ${Object.keys(engines).join(',')} PASS`);
 await import('./native-menu-session-v118.mjs');
+await import('./sidebar-recovery-v119.mjs');

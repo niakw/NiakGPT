@@ -4,8 +4,11 @@
   window.__NIAKGPT_CONTINUITY_112__=true;
 
   const CACHE_KEY='niakgpt-v08-cache',GOV_KEY='niakgpt-governance-v085',PENDING_KEY='niakgpt-continuity-pending-v100';
+  const STOP=new Set('le la les un une des de du et ou en sur pour avec sans dans au aux ce cet cette ces mon ma mes ton ta tes son sa ses nos vos leur leurs je tu il elle on nous vous ils elles est sont a à the and or of to for in on with from chat conversation projet project faire fais moi peux peut comment pourquoi quoi cela cette ceci avoir etre être besoin voudrais veux faudrait faut'.split(/\s+/));
   let seq=0,patching=false,routeTimer=0;
   const clean=v=>String(v??'').replace(/\r/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+  const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const words=v=>norm(v).replace(/[^a-z0-9à-ÿ_-]+/gi,' ').split(/\s+/).filter(x=>x.length>2&&!STOP.has(x));
   const cid=v=>String(v||'').match(/\/c\/([A-Za-z0-9_-]+)/)?.[1]||'';
   const currentCid=()=>cid(location.pathname);
   const escLine=v=>clean(v).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
@@ -13,29 +16,48 @@
   async function cache(){try{return(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||{};}catch{return{};}}
   function pending(){try{const p=JSON.parse(sessionStorage.getItem(PENDING_KEY)||'null');if(!p||Date.now()-Number(p.createdAt||0)>30*60*1000)return null;return p;}catch{return null;}}
   function savePending(p){try{sessionStorage.setItem(PENDING_KEY,JSON.stringify(p));}catch{}}
+  function recommendProject(raw,title,history){
+    const projects=(raw?.projects||[]).filter(p=>String(p?.id||'').startsWith('g-p-')&&!p.domOnly);
+    if(!projects.length)return null;
+    const source=words(`${title}\n${String(history||'').slice(0,10000)}\n${String(history||'').slice(-12000)}`),freq=new Map();for(const w of source)freq.set(w,(freq.get(w)||0)+1);
+    let best=null,bestScore=0;
+    for(const p of projects){
+      const nameWords=new Set(words(p.name)),descWords=new Set(words(p.description)),instructionWords=new Set(words(p.instructions));let score=0;
+      for(const [w,count] of freq){const weight=Math.min(3,count);if(nameWords.has(w))score+=4*weight;if(descWords.has(w))score+=2*weight;if(instructionWords.has(w))score+=weight;}
+      const pname=norm(p.name);if(pname&&norm(title).includes(pname))score+=12;
+      if(score>bestScore){bestScore=score;best=p;}
+    }
+    return best&&bestScore>=3?{...best,score:bestScore}:null;
+  }
   async function makeCapsule(chatId){
-    const state=window.__NIAKGPT_CONTINUITY__?.getState?.()||{},entry=state.out?.[chatId]||{},raw=await cache(),chat=(raw.chats||[]).find(c=>c?.id===chatId)||{},projectId=entry.projectId||chat.projectId||'',project=(raw.projects||[]).find(p=>p?.id===projectId)||{};
-    const projectName=escLine(project.name)||'Hors projet',chatName=escLine(entry.title||chat.title)||'Conversation',history=clean(entry.history||'');
+    const state=window.__NIAKGPT_CONTINUITY__?.getState?.()||{},entry=state.out?.[chatId]||{},raw=await cache(),chat=(raw.chats||[]).find(c=>c?.id===chatId)||{},originalProjectId=entry.projectId||chat.projectId||'',originalProject=(raw.projects||[]).find(p=>p?.id===originalProjectId)||{};
+    const chatName=escLine(entry.title||chat.title)||'Conversation',history=clean(entry.history||''),recommended=!originalProjectId?recommendProject(raw,chatName,history):null;
+    const projectId=originalProjectId||recommended?.id||'',project=originalProjectId?originalProject:(recommended||{}),projectName=escLine(project.name)||(projectId?'Project':'Hors projet'),exactProject=!!originalProjectId;
     const projectContext=[];if(clean(project.description))projectContext.push(`Description : ${clean(project.description)}`);if(clean(project.instructions))projectContext.push(`Instructions du Project : ${clean(project.instructions)}`);
+    const projectRule=exactProject
+      ?`PROJECT EXACT À CONSERVER : ${projectName}\nCe nouveau chat appartient obligatoirement au même Project que le fil précédent. Ne propose pas un autre Project pour ce chat.`
+      :recommended
+        ?`PROJECT RECOMMANDÉ PAR NIAKGPT : ${projectName}\nLe fil précédent était hors Project. NiakGPT recommande ce Project d’après le titre, l’historique et le contexte disponible ; utilise-le comme espace de continuité, sans prétendre qu’il s’agissait du Project d’origine.`
+        :'PROJECT : aucun rattachement fiable détecté automatiquement. Conserve la continuité du fil sans inventer un Project d’origine.';
     const capsule=[
-      `Reprends la conversation nommée « ${projectName} > ${chatName} » exactement là où elle s’est arrêtée.`,
+      `Reprends la conversation nommée « ${exactProject?projectName:'Hors projet'} > ${chatName} » exactement là où elle s’est arrêtée.`,
       'CONTINUITÉ NIAKGPT — FIL PRÉCÉDENT ARRIVÉ À SA LIMITE',
-      `PROJECT EXACT À CONSERVER : ${projectName}`,
+      projectRule,
       `CONVERSATION D’ORIGINE : ${chatName}`,
       `Source : ${entry.sourceUrl||`${location.origin}/c/${chatId}`}`,
-      projectContext.length?`CONTEXTE DU PROJECT\n${projectContext.join('\n')}`:'',
-      'RÈGLE DE CONTINUITÉ\nCe nouveau chat appartient obligatoirement au même Project que le fil précédent. Ne propose pas un autre Project pour ce chat. Poursuis le travail déjà engagé, conserve les décisions, contraintes, éléments validés et demandes encore inachevées. Ne recommence pas les étapes déjà terminées.',
-      history?`CONTEXTE COMPLET DISPONIBLE DU FIL PRÉCÉDENT\n${history}`:'CONTEXTE DU FIL PRÉCÉDENT\nHistorique local indisponible ; utilise le nom du Project, le nom du chat et le contexte du Project ci-dessus.'
+      projectContext.length?`CONTEXTE DU PROJECT ${exactProject?'D’ORIGINE':'RECOMMANDÉ'}\n${projectContext.join('\n')}`:'',
+      'RÈGLE DE CONTINUITÉ\nPoursuis le travail déjà engagé, conserve les décisions, contraintes, éléments validés et demandes encore inachevées. Ne recommence pas les étapes déjà terminées.',
+      history?`CONTEXTE COMPLET DISPONIBLE DU FIL PRÉCÉDENT\n${history}`:'CONTEXTE DU FIL PRÉCÉDENT\nHistorique local indisponible ; utilise le nom du chat et le contexte disponible ci-dessus.'
     ].filter(Boolean).join('\n\n');
-    return{projectId,projectName,chatName,capsule,sourceUrl:entry.sourceUrl||`${location.origin}/c/${chatId}`};
+    return{projectId,projectName,chatName,capsule,sourceUrl:entry.sourceUrl||`${location.origin}/c/${chatId}`,exactProject,recommendedProjectId:recommended?.id||'',recommendedProjectName:recommended?.name||'',recommendationScore:recommended?.score||0};
   }
   async function interceptContinue(event){
     const b=event.target instanceof Element?event.target.closest('.ng100-continue'):null;if(!b)return;
     const link=b.closest('a[href*="/c/"]'),chatId=cid(link?.getAttribute('href'))||cid(location.pathname);if(!chatId)return;
     event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();
-    const data=await makeCapsule(chatId),p={schema:2,chatId,projectId:data.projectId,projectName:data.projectName,chatName:data.chatName,capsule:data.capsule,createdAt:Date.now(),sourceUrl:data.sourceUrl,patched:false,exactProject:true};savePending(p);
+    const data=await makeCapsule(chatId),p={schema:3,chatId,projectId:data.projectId,projectName:data.projectName,chatName:data.chatName,capsule:data.capsule,createdAt:Date.now(),sourceUrl:data.sourceUrl,patched:false,exactProject:data.exactProject,recommendedProjectId:data.recommendedProjectId,recommendedProjectName:data.recommendedProjectName,recommendationScore:data.recommendationScore};savePending(p);
     document.documentElement.dataset.ng112ContinuityProject=data.projectId||'none';
-    window.__NIAKGPT_DIAGNOSTICS__?.set('continuité-112',`PRÊT · ${data.projectName} > ${data.chatName} · Project verrouillé`);
+    window.__NIAKGPT_DIAGNOSTICS__?.set('continuité-112',data.exactProject?`PRÊT · ${data.projectName} > ${data.chatName} · Project verrouillé`:data.recommendedProjectId?`PRÊT · Project recommandé ${data.recommendedProjectName}`:'PRÊT · continuité hors Project');
     location.assign(data.projectId?`/g/${encodeURIComponent(data.projectId)}/project`:'/');
   }
   async function persistExactLock(p,newId){
@@ -52,7 +74,7 @@
   async function lockNewChat(attempt=0){
     if(patching)return;const p=pending(),newId=currentCid();if(!p?.exactProject||!p.projectId||!newId||newId===p.chatId)return;
     // continuity-v100 is injected just before this module and already owns the normal
-    // Project PATCH. Give it one short chance to finish so 0.9.62 only adds the exact lock.
+    // Project PATCH. Give it one short chance to finish so v112 only adds the exact lock.
     if(!p.patched&&attempt<1){routeTimer=setTimeout(()=>lockNewChat(attempt+1),180);return;}
     patching=true;
     try{

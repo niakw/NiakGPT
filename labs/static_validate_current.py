@@ -15,12 +15,12 @@ def runtime(name):
     return re.findall(r"['\"]([^'\"]+\.js)['\"]",match.group(1))
 
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if manifest.get('version')!='0.9.68': fail(f"version={manifest.get('version')}")
+if manifest.get('version')!='0.9.69': fail(f"version={manifest.get('version')}")
 if manifest.get('permissions')!=['storage','scripting']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*']: fail('host permissions drift')
 main=runtime('MAIN_RUNTIME'); isolated=runtime('ISOLATED_RUNTIME')
 if main!=['page-bridge.js']: fail(f'MAIN_RUNTIME={main!r}')
-required={'sidebar-metadata-v118.js','sidebar-projects-authority-v112.js','home-layout-v112.js','analysis-bridge-v112.js','reclassify-deep-v112.js','matrix-guardian-v112.js','performance-guard-v112.js','turn-headers-v112.js','continuity-v112.js','chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','native-actions-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js'}
+required={'sidebar-metadata-v118.js','sidebar-projects-authority-v112.js','home-layout-v112.js','analysis-bridge-v112.js','reclassify-deep-v112.js','matrix-guardian-v112.js','performance-guard-v112.js','turn-headers-v112.js','continuity-v112.js','chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','native-actions-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','sidebar-ux-v119.js','native-actions-controller-v119.js','interruption-guard-v119.js'}
 missing_runtime=sorted(required-set(isolated))
 if missing_runtime: fail('current runtime missing: '+', '.join(missing_runtime))
 for forbidden in ('project-pins-v090.js','native-rename-v112.js','breadcrumb-v100.js','sidebar-authority-v107.js','sidebar-expando-guard-v108.js'):
@@ -29,8 +29,11 @@ try:
     metadata_index=isolated.index('sidebar-metadata-v118.js')
     for consumer in ('cache-guardian-v100.js','recovery-v100.js','server-index-v100.js','project-governance-v090.js','reclassify-v101.js'):
         if metadata_index>=isolated.index(consumer): fail(f'sidebar metadata must sanitize cache before {consumer}')
+    if isolated.index('sidebar-ux-v119.js')>=isolated.index('pin-folders-v096.js'): fail('sidebar UX guard must register before pin folder click handlers')
+    if isolated.index('native-actions-controller-v119.js')>=isolated.index('native-actions-v113.js'): fail('native-only action controller must register before v113 production click handler')
+    if isolated.index('interruption-guard-v119.js')<=isolated.index('continuity-v112.js'): fail('interruption guard must load after continuity capture handler')
 except ValueError as exc:
-    fail(f'metadata-first runtime order incomplete: {exc}')
+    fail(f'runtime order incomplete: {exc}')
 refs=set(main+isolated)
 for cs in manifest.get('content_scripts',[]): refs.update(cs.get('js',[])); refs.update(cs.get('css',[]))
 refs.add(manifest.get('background',{}).get('service_worker','')); refs.update((manifest.get('icons') or {}).values()); refs.update((manifest.get('action',{}).get('default_icon') or {}).values())
@@ -46,7 +49,7 @@ all_runtime='\n'.join((ROOT/f).read_text(encoding='utf-8') for f in main+isolate
 if 'setInterval(' in '\n'.join((ROOT/f).read_text(encoding='utf-8') for f in isolated if f!='retro-loader-v097.js'): fail('permanent polling in isolated runtime')
 if re.search(r'window\.fetch\s*=|globalThis\.fetch\s*=',all_runtime): fail('runtime replaces global fetch')
 manifest_text=json.dumps(manifest)
-for required_css in ('sidebar-metadata-v118.css','sidebar-projects-authority-v112.css','home-layout-v112.css','matrix-guardian-v112.css','performance-guard-v112.css','native-da-v112.css','sidebar-icons-v114.css','native-actions-v113.css','chat-attention-v113.css'):
+for required_css in ('sidebar-metadata-v118.css','sidebar-projects-authority-v112.css','home-layout-v112.css','matrix-guardian-v112.css','performance-guard-v112.css','native-da-v112.css','sidebar-icons-v114.css','native-actions-v113.css','chat-attention-v113.css','sidebar-ux-v119.css','interruption-guard-v119.css'):
     if required_css not in manifest_text: fail(f'missing CSS {required_css}')
 for forbidden_css in ('native-rename-v112.css','sidebar-authority-v107.css','sidebar-expando-guard-v108.css','sidebar-projects-authority-v111.css','sidebar-projects-authority-v110.css','sidebar-projects-authority-v109.css'):
     if forbidden_css in manifest_text: fail(f'old CSS wired: {forbidden_css}')
@@ -55,11 +58,26 @@ if 'COLD_KEEP=44' not in perf or 'requestIdleCallback' not in perf: fail('long-t
 deep=(ROOT/'reclassify-deep-v112.js').read_text(encoding='utf-8')
 if 'MAX_PER_RUN=2' not in deep or 'MAX_HEAVY=1' not in deep: fail('deep classification budget drift')
 actions=(ROOT/'native-actions-v113.js').read_text(encoding='utf-8')
-if 'invokeNativeMenu' not in actions or 'fallbackMove' not in actions: fail('native action/fallback move path missing')
+if 'invokeNativeMenu' not in actions or 'fallbackMove' not in actions: fail('v113 tested action primitives missing')
 if 'data-ng112-native-projects' not in actions: fail('native actions do not stage passive Projects marks')
 for token in ('placeFloatingMenu','ng113-native-menu-floating','ensureChatEntry','ng96-chat-entry','showPopover','ng113TopLayer','menuBaseline','menuSession','sessionVisibleMenus','resetFloatingMenu','fallbackOutsideHandler','actionEpoch','actionOpening','actionCurrent','claimTriggerMenu','menuStrict','aria-busy',"b.getAttribute('aria-haspopup')==='menu'",'source.isConnected'):
     if token not in actions: fail('left-sidebar action lifecycle/session/race cleanup missing '+token)
 if 'buttons.at(-1)' in actions: fail('native action can click arbitrary last native button')
+controller=(ROOT/'native-actions-controller-v119.js').read_text(encoding='utf-8')
+for token in ('resolveNativeProjectRow','showMoreButton','closeSession','session?.key===key','opening?.key===key','aucun fallback custom','currentConversationMenuButton','stopImmediatePropagation','ng119Owned'):
+    if token not in controller: fail('native-only reliable actions controller incomplete '+token)
+if 'fallbackChatMenu(' in controller or 'fallbackMove(' in controller: fail('v119 production controller reintroduced custom chat action fallback')
+sidebar_ux=(ROOT/'sidebar-ux-v119.js').read_text(encoding='utf-8')
+for token in ('nativeProjectsAnchor','firstRecentsAnchor','primaryTail','ng119PinsReady','event.preventDefault();','niakgpt:settings-changed','ng119-native-home-greeting'):
+    if token not in sidebar_ux: fail('stable sidebar placement/folder-only UX incomplete '+token)
+continuity=(ROOT/'continuity-v112.js').read_text(encoding='utf-8')
+for token in ('recommendProject','PROJECT RECOMMANDÉ PAR NIAKGPT','recommendedProjectId','exactProject:data.exactProject','recommendationScore'):
+    if token not in continuity: fail('OUT continuity recommendation path incomplete '+token)
+interrupt=(ROOT/'interruption-guard-v119.js').read_text(encoding='utf-8')
+for token in ('LIMIT_RX','VERIFY_RX','NETWORK_RX','nativeRetry','markCurrentOut','ng100-continue','tryNativeRecovery','incident.retried','resumePrompt'):
+    if token not in interrupt: fail('bounded interruption recovery incomplete '+token)
+for forbidden in ('setInterval(','location.reload(','challenge.click(','iframe.click('):
+    if forbidden in interrupt: fail('interruption guard attempts unsafe/unbounded recovery '+forbidden)
 state=(ROOT/'chat-state-authority-v113.js').read_text(encoding='utf-8')
 if 'iu>pu' not in state or 'iu===pu' not in state: fail('monotonic title authority missing')
 bread=(ROOT/'breadcrumb-v113.js').read_text(encoding='utf-8')
@@ -96,10 +114,13 @@ for token in ('drawerDirty','cooperativeNode','existing.previousElementSibling==
 if "createElement('button');open.type='button';open.className='ng96-project-open'" in folders: fail('obsolete Project open-page button recreated')
 chatux=(ROOT/'project-chat-ux-v110.js').read_text(encoding='utf-8')
 if 'ng110ChatRow' not in chatux: fail('chat state is not mirrored to atomic rows')
-experience=ROOT/'visual-lab/experience-gate-v116.mjs'; runtime_gate=ROOT/'visual-lab/tests/sidebar-runtime-v116.spec.js'; hitbox_gate=ROOT/'visual-lab/sidebar-hitboxes-v117.mjs'; session_gate=ROOT/'visual-lab/native-menu-session-v118.mjs'; action_race_gate=ROOT/'visual-lab/native-action-races-v119.mjs'; authority_isolation_gate=ROOT/'visual-lab/sidebar-authority-isolation-v119.mjs'; metadata_gate=ROOT/'visual-lab/sidebar-metadata-v118.mjs'; metadata_failure_gate=ROOT/'visual-lab/sidebar-metadata-failure-v119.mjs'; metadata_lifecycle_gate=ROOT/'visual-lab/sidebar-metadata-lifecycle-v119.mjs'; live_gate=ROOT/'visual-lab/live-ui-regressions-v114.mjs'
-for path,label in ((experience,'cross-platform human DOM error UX gate'),(runtime_gate,'real extension runtime gate'),(hitbox_gate,'left-sidebar hitbox gate'),(session_gate,'native menu session cleanup gate'),(action_race_gate,'native action race gate'),(authority_isolation_gate,'Projects authority isolation gate'),(metadata_gate,'sidebar metadata-only gate'),(metadata_failure_gate,'metadata failure barrier gate'),(metadata_lifecycle_gate,'metadata lifecycle gate')):
+experience=ROOT/'visual-lab/experience-gate-v116.mjs'; runtime_gate=ROOT/'visual-lab/tests/sidebar-runtime-v116.spec.js'; hitbox_gate=ROOT/'visual-lab/sidebar-hitboxes-v117.mjs'; session_gate=ROOT/'visual-lab/native-menu-session-v118.mjs'; action_race_gate=ROOT/'visual-lab/native-action-races-v119.mjs'; authority_isolation_gate=ROOT/'visual-lab/sidebar-authority-isolation-v119.mjs'; metadata_gate=ROOT/'visual-lab/sidebar-metadata-v118.mjs'; metadata_failure_gate=ROOT/'visual-lab/sidebar-metadata-failure-v119.mjs'; metadata_lifecycle_gate=ROOT/'visual-lab/sidebar-metadata-lifecycle-v119.mjs'; recovery_gate=ROOT/'visual-lab/sidebar-recovery-v119.mjs'; live_gate=ROOT/'visual-lab/live-ui-regressions-v114.mjs'
+for path,label in ((experience,'cross-platform human DOM error UX gate'),(runtime_gate,'real extension runtime gate'),(hitbox_gate,'left-sidebar hitbox gate'),(session_gate,'native menu session cleanup gate'),(action_race_gate,'native action race gate'),(authority_isolation_gate,'Projects authority isolation gate'),(metadata_gate,'sidebar metadata-only gate'),(metadata_failure_gate,'metadata failure barrier gate'),(metadata_lifecycle_gate,'metadata lifecycle gate'),(recovery_gate,'sidebar/interruption recovery gate')):
     if not path.exists(): fail(label+' missing')
-if hitbox_gate.exists() and "import('./native-menu-session-v118.mjs')" not in hitbox_gate.read_text(encoding='utf-8'): fail('native menu cleanup gate is not chained into cross-engine sidebar validation')
+if hitbox_gate.exists():
+    hitbox_text=hitbox_gate.read_text(encoding='utf-8')
+    if "import('./native-menu-session-v118.mjs')" not in hitbox_text: fail('native menu cleanup gate is not chained into cross-engine sidebar validation')
+    if "import('./sidebar-recovery-v119.mjs')" not in hitbox_text: fail('0.9.69 sidebar/recovery gate is not chained into cross-engine validation')
 if session_gate.exists() and "import('./native-action-races-v119.mjs')" not in session_gate.read_text(encoding='utf-8'): fail('native action race gate is not chained into cross-engine menu validation')
 if action_race_gate.exists() and "import('./sidebar-authority-isolation-v119.mjs')" not in action_race_gate.read_text(encoding='utf-8'): fail('Projects authority isolation gate is not chained into cross-engine action/sidebar validation')
 if live_gate.exists() and "import('./sidebar-metadata-v118.mjs')" not in live_gate.read_text(encoding='utf-8'): fail('metadata-only gate is not chained into cross-engine live UI validation')
@@ -147,4 +168,4 @@ if errors:
     print('STATIC_CURRENT_FAIL')
     for e in errors: print('-',e)
     sys.exit(1)
-print(f"STATIC_CURRENT_PASS version={manifest['version']} runtime={len(main)+len(isolated)} refs={len(refs)} profiles=2 cached-browsers=on linux-playwright=containerized left-sidebar=atomic-top-layer-session-race-isolated single-projects-authority metadata-first serialized-shared-lock-fail-closed-lifecycle-sanitation")
+print(f"STATIC_CURRENT_PASS version={manifest['version']} runtime={len(main)+len(isolated)} refs={len(refs)} profiles=2 cached-browsers=on linux-playwright=containerized left-sidebar=stable-folder-native-only-recovery single-projects-authority metadata-first serialized-shared-lock-fail-closed-lifecycle-sanitation")

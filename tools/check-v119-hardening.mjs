@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 
+// Latest-head certification only: PR concurrency must make stale workflow runs obsolete.
 const read=p=>fs.readFileSync(p,'utf8');
 const fail=m=>{throw new Error(m);};
 const need=(s,t,m)=>{if(!s.includes(t))fail(m||`missing ${t}`);};

@@ -17,7 +17,7 @@ for(const [engine,launcher] of Object.entries(engines)){
       const GOOD='g-p-good',BAD='dom-p-date1708',CID='11111111-1111-4111-8111-111111111111';
       window.__labRaw={schema:2,at:1,projects:[{id:GOOD,name:'Studio',href:`/g/${GOOD}/project`,domOnly:false},{id:BAD,name:'17/08',href:`/c/${CID}`,domOnly:true}],chats:[{id:CID,title:'Chat test',projectId:BAD,href:`/g/${GOOD}/c/${CID}`,updated:1}],counts:{[GOOD]:1,[BAD]:1},projectChats:{[BAD]:[]},indexedProjectIds:[GOOD,BAD]};
       window.__subs=[];
-      window.__NIAKGPT_CACHE_BUS__={async get(){return window.__labRaw;},peek(){return window.__labRaw;},async update(fn){window.__labRaw=fn(window.__labRaw)||window.__labRaw;for(const sub of [...window.__subs])sub(window.__labRaw);return window.__labRaw;},subscribe(fn){window.__subs.push(fn);return()=>{window.__subs=window.__subs.filter(x=>x!==fn);};}};
+      window.__NIAKGPT_CACHE_BUS__={async get(){await new Promise(r=>setTimeout(r,90));return window.__labRaw;},peek(){return window.__labRaw;},async update(fn){window.__labRaw=fn(window.__labRaw)||window.__labRaw;for(const sub of [...window.__subs])sub(window.__labRaw);return window.__labRaw;},subscribe(fn){window.__subs.push(fn);return()=>{window.__subs=window.__subs.filter(x=>x!==fn);};}};
       window.chrome={storage:{local:{async get(){return{'niakgpt-v08-cache':window.__labRaw};},async set(obj){if(obj['niakgpt-v08-cache'])window.__labRaw=obj['niakgpt-v08-cache'];}},onChanged:{addListener(){}}}};
       window.__NIAKGPT_DIAGNOSTICS__={set(){}};
     });
@@ -25,9 +25,11 @@ for(const [engine,launcher] of Object.entries(engines)){
     await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html',body:html}));
     await page.goto('https://chatgpt.com/',{waitUntil:'domcontentloaded'});
     await page.addStyleTag({content:metadataCss});
-    await page.addScriptTag({content:metadataJs});
-    await page.waitForTimeout(420);
+    const started=Date.now();
+    await page.evaluate(metadataJs);
+    const injectionMs=Date.now()-started;
     const state=await page.evaluate(()=>({
+      ready:window.__NIAKGPT_METADATA_READY_118__||'',
       nativeDisplay:getComputedStyle(document.getElementById('native-projects')).display,
       nativeClasses:[...document.getElementById('native-projects').classList],
       dateTag:document.querySelector('#chat .ng8-chat-date')?.tagName||'',
@@ -38,13 +40,15 @@ for(const [engine,launcher] of Object.entries(engines)){
       badIndexed:(window.__labRaw.indexedProjectIds||[]).includes('dom-p-date1708'),
       authorityMarks:document.querySelectorAll('[data-ng112-native-projects],.ng107-native-project-row,.ng107-native-project-cluster,.ng108-native-project-expando,.ng8-native-project-link-suppressed').length,
     }));
+    assert(injectionMs>=70,`async metadata injection returned before delayed cache read (${injectionMs}ms)`);
+    assert(state.ready==='ready',`metadata injection resolved before readiness: ${JSON.stringify(state)}`);
     assert(state.nativeDisplay!=='none',`metadata module suppressed native Projects: ${JSON.stringify(state)}`);
     assert(state.authorityMarks===0,`metadata module created authority marks: ${JSON.stringify(state)}`);
     assert(state.dateTag==='TIME','date metadata was not normalized to <time>');
     assert(!state.fakeBadge,'date-shaped fake Project badge survived');
     assert(state.badProjects===0&&!state.badCount&&!state.badIndexed,'date-shaped ghost Project survived cache cleanup');
     assert(state.chatProject==='g-p-good',`chat Project recovery failed: ${JSON.stringify(state)}`);
-    console.log(`${engine} sidebar metadata-only hygiene: PASS`);
+    console.log(`${engine} sidebar metadata async barrier + hygiene: PASS · ${injectionMs}ms`);
   }finally{
     await context.close();
     await browser.close();

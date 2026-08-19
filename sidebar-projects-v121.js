@@ -26,6 +26,16 @@
   const iconFor=name=>{const s=norm(name);if(/code|dev|tech|web|api|github|program|provider/.test(s))return'</>';if(/legal|jurid|droit|prud|tribunal|justice/.test(s))return'§';if(/finance|argent|budget|banque|credit|compta/.test(s))return'€';if(/film|cinema|movie|serie|anime|video/.test(s))return'▶';if(/design|logo|image|creative|graph/.test(s))return'◇';if(/shop|commerce|store|product|produit|vente/.test(s))return'▣';if(/(^|\s)(ai|ia|gpt)(\s|$)/.test(s))return'✦';if(/auto|car|voiture|vehicule/.test(s))return'◈';if(/health|sante|medical/.test(s))return'+';if(/game|gaming|jeu/.test(s))return'◆';return'▤';};
   const isOwn=el=>!!el?.closest?.(OWN);
   const projectLabel=v=>/^(projets?|projects?)$/i.test(clean(v));
+  function managedHref(raw,id){
+    const fallback=`/g/${id}/project`;
+    try{
+      const u=new URL(String(raw||fallback),location.origin);
+      const path=/^\/g\/g-p-[^/]+\/project\/?$/i.test(u.pathname)?`${u.pathname}${u.search}${u.hash}`:fallback;
+      // Absolute href is deliberate: app-v090's legacy observer watches only
+      // a[href^="/g/g-p-"]; managed v121 writes must not re-trigger that renderer.
+      return new URL(path,location.origin).href;
+    }catch{return `${location.origin}${fallback}`;}
+  }
 
   function navRoot(){
     const candidates=[...document.querySelectorAll('[data-testid="conversation-sidebar"],[data-testid*="sidebar" i],aside,nav')].filter(el=>!el.closest('main,[role="main"]'));
@@ -76,7 +86,7 @@
     const hidden=new Set((governance.hiddenProjectIds||[]).map(normalizePid)),core=new Set((governance.coreProjectIds||[]).map(normalizePid)),map=new Map();
     for(const raw of cache.projects||[]){
       const id=normalizePid(raw?.id),name=clean(raw?.name);if(!id.startsWith('g-p-')||!name||QUEUE.has(norm(name))||hidden.has(id))continue;
-      const old=map.get(id)||{},href=/^\/g\/g-p-[^/]+\/project(?:$|[?#])/i.test(String(raw.href||''))?String(raw.href):old.href||`/g/${id}/project`;
+      const old=map.get(id)||{},href=managedHref(raw?.href||old.href,id);
       map.set(id,{...old,...raw,id,name,href,color:raw.color||old.color||colorFor(name),icon:raw.icon||old.icon||iconFor(name)});
     }
     const latest=id=>{let t=0;for(const c of cache.chats||[])if(normalizePid(c?.projectId)===id)t=Math.max(t,parseTime(c.updated||c.update_time||c.create_time));return t;};
@@ -136,7 +146,7 @@
       // legacy rebuilds and disconnected action buttons during user clicks.
     }finally{queueMicrotask(()=>{if(renderEpoch===epoch)internal=false;});}
     if(structural)document.dispatchEvent(new CustomEvent('niakgpt:pins-rendered',{detail:{count:projects.length,shown:projects.length,source:'sidebar-projects-v121'}}));
-    window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',`OK · ${projects.length}/${projects.length} Projects NiakGPT · catalogue complet · nœuds stables`);
+    window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',`OK · ${projects.length}/${projects.length} Projects NiakGPT · catalogue complet · nœuds stables · boucle legacy cassée`);
     return projects.length;
   }
   function ensureBox(){const root=navRoot();if(!root)return null;let box=document.getElementById('ng8-pins');if(!box){box=document.createElement('section');box.id='ng8-pins';box.hidden=true;root.appendChild(box);}return box;}

@@ -8,7 +8,8 @@
   const MENU_SEL='[role="menu"],[data-radix-menu-content]';
   const HIDDEN_RX=/^(ng112-native-projects-authoritative|ng111-native-projects-authoritative|ng110-native-projects-authoritative|ng109-native-projects-authoritative|ng8-native-projects-suppressed|ng8-native-project-link-suppressed|ng8-native-project-chat-suppressed)$/;
   let cache={projects:[],chats:[]},box=null,observer=null,boot=null,timer=0,rpcSeq=0,menuObserver=null,submenuObserver=null,menuSource=null,menuArmTimer=0;
-  const promotedMenus=new Set();
+  let fallbackOutsideHandler=null,fallbackEscapeHandler=null;
+  const promotedMenus=new Set(),menuBaseline=new Set(),menuSession=new Set();
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -75,10 +76,25 @@
       const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden';
     });
   }
-  function visibleMenu(){return visibleMenus()[0]||null;}
+  function sessionVisibleMenus(){
+    const visible=visibleMenus();
+    for(const menu of visible)if(!menuBaseline.has(menu))menuSession.add(menu);
+    for(const menu of [...menuSession])if(!menu.isConnected)menuSession.delete(menu);
+    return visible.filter(menu=>menuSession.has(menu));
+  }
+  function visibleMenu(){return sessionVisibleMenus()[0]||null;}
   function sidebarRight(source){
     const sidebar=source?.closest?.('[data-testid*="sidebar" i],aside,nav')||document.querySelector('[data-testid*="sidebar" i],aside');
     const r=sidebar?.getBoundingClientRect?.();return r&&r.width>80?r.right:Math.max(0,source?.getBoundingClientRect?.().right||0);
+  }
+  function resetFloatingMenu(menu){
+    if(!(menu instanceof HTMLElement))return;
+    menu.classList.remove('ng113-native-menu-floating');
+    menu.style.removeProperty('--ng113-menu-left');
+    menu.style.removeProperty('--ng113-menu-top');
+    delete menu.dataset.ng113Floated;
+    delete menu.dataset.ng113FloatIndex;
+    delete menu.dataset.ng113TopLayer;
   }
   function cleanupPromotedMenus(force=false){
     for(const menu of [...promotedMenus]){
@@ -90,8 +106,8 @@
         menu.removeAttribute('popover');
         delete menu.dataset.ng113PopoverOwned;
       }
-      delete menu.dataset.ng113TopLayer;
-      promotedMenus.delete(menu);
+      resetFloatingMenu(menu);
+      promotedMenus.delete(menu);menuSession.delete(menu);
     }
   }
   function promoteMenu(menu){
@@ -105,26 +121,26 @@
       if(!menu.matches(':popover-open'))menu.showPopover();
       if(!menu.matches(':popover-open'))return false;
       menu.dataset.ng113TopLayer='1';
-      promotedMenus.add(menu);
+      promotedMenus.add(menu);menuSession.add(menu);
       return true;
     }catch{return false;}
   }
   function placeFloatingMenu(menu,source,index=0){
-    if(!(menu instanceof HTMLElement)||!(source instanceof HTMLElement))return;
-    promoteMenu(menu);
+    if(!(menu instanceof HTMLElement)||!(source instanceof HTMLElement)||menuBaseline.has(menu))return;
+    menuSession.add(menu);promoteMenu(menu);
     const sr=source.getBoundingClientRect(),rawWidth=menu.getBoundingClientRect().width||240,width=Math.min(320,Math.max(220,rawWidth)),base=sidebarRight(source)+8,preferredLeft=base+index*(width+8),maxLeft=Math.max(8,innerWidth-width-8),left=Math.min(maxLeft,Math.max(8,preferredLeft));
     const menuHeight=Math.min(innerHeight-16,Math.max(80,menu.getBoundingClientRect().height||260)),top=Math.min(Math.max(8,sr.top-4+index*10),Math.max(8,innerHeight-menuHeight-8));
     menu.classList.add('ng113-native-menu-floating');menu.style.setProperty('--ng113-menu-left',`${left}px`);menu.style.setProperty('--ng113-menu-top',`${top}px`);menu.dataset.ng113Floated='1';menu.dataset.ng113FloatIndex=String(index);
   }
   function stopMenuFloat(){
-    clearTimeout(menuArmTimer);menuArmTimer=0;menuObserver?.disconnect();submenuObserver?.disconnect();menuObserver=submenuObserver=null;menuSource=null;cleanupPromotedMenus(true);
+    clearTimeout(menuArmTimer);menuArmTimer=0;menuObserver?.disconnect();submenuObserver?.disconnect();menuObserver=submenuObserver=null;cleanupPromotedMenus(true);menuSource=null;menuBaseline.clear();menuSession.clear();
   }
   function floatVisibleMenus(){
     cleanupPromotedMenus();
     if(!menuSource)return;
-    const menus=visibleMenus();
+    const menus=sessionVisibleMenus();
     clearTimeout(menuArmTimer);
-    if(!menus.length){menuArmTimer=setTimeout(()=>{if(!visibleMenus().length)stopMenuFloat();},900);return;}
+    if(!menus.length){menuArmTimer=setTimeout(()=>{if(!sessionVisibleMenus().length)stopMenuFloat();},900);return;}
     menus.forEach((menu,index)=>placeFloatingMenu(menu,menuSource,index));
   }
   function menuNodesFrom(node){
@@ -144,8 +160,9 @@
     submenuObserver?.disconnect();
     const known=new Set(document.querySelectorAll(MENU_SEL));
     const promoteExact=menu=>{
-      if(!(menu instanceof HTMLElement)||known.has(menu)||!outsideOwn(menu))return false;
-      const retry=()=>{if(menu.isConnected&&menuSource)placeFloatingMenu(menu,menuSource,Math.max(1,visibleMenus().filter(m=>m!==menu).length));};
+      if(!(menu instanceof HTMLElement)||known.has(menu)||menuBaseline.has(menu)||!outsideOwn(menu))return false;
+      menuSession.add(menu);
+      const retry=()=>{if(menu.isConnected&&menuSource)placeFloatingMenu(menu,menuSource,Math.max(1,sessionVisibleMenus().filter(m=>m!==menu).length));};
       for(const delay of [0,16,48,100,200,420,800,1400])setTimeout(retry,delay);
       return true;
     };
@@ -156,8 +173,8 @@
     setTimeout(()=>{submenuObserver?.disconnect();submenuObserver=null;},2400);
   }
   function armMenuFloat(source){
-    if(!(source instanceof HTMLElement))return;menuSource=source;clearTimeout(menuArmTimer);
-    if(!menuObserver){menuObserver=new MutationObserver(records=>{if(hasMenuMutation(records))queueMenuFloat();});menuObserver.observe(document.body,{childList:true,subtree:true});}
+    if(!(source instanceof HTMLElement))return;stopMenuFloat();menuSource=source;for(const menu of visibleMenus())menuBaseline.add(menu);
+    menuObserver=new MutationObserver(records=>{if(hasMenuMutation(records))queueMenuFloat();});menuObserver.observe(document.body,{childList:true,subtree:true});
     queueMenuFloat();
   }
   async function invokeNativeMenu(row,source){
@@ -169,11 +186,16 @@
     }finally{restore();}
   }
 
+  function clearFallbackDismiss(){
+    if(fallbackOutsideHandler){document.removeEventListener('pointerdown',fallbackOutsideHandler,true);fallbackOutsideHandler=null;}
+    if(fallbackEscapeHandler){document.removeEventListener('keydown',fallbackEscapeHandler,true);fallbackEscapeHandler=null;}
+  }
   function closeFallback(){
-    const menu=document.getElementById('ng113-actions-fallback');
+    clearFallbackDismiss();const menu=document.getElementById('ng113-actions-fallback');
     if(!menu)return;
     try{if(menu.matches?.(':popover-open'))menu.hidePopover();}catch{}
-    promotedMenus.delete(menu);menu.remove();
+    if(menu.dataset.ng113PopoverOwned==='1')menu.removeAttribute('popover');
+    resetFloatingMenu(menu);promotedMenus.delete(menu);menuSession.delete(menu);menu.remove();
   }
   async function fallbackRename(chatId){
     const old=chatTitle(chatId),next=clean(window.prompt('Renommer la conversation',old));if(!next||next===old)return;
@@ -188,7 +210,7 @@
     }
   }
   function fallbackChatMenu(button,chatId){
-    closeFallback();const menu=document.createElement('div');menu.id='ng113-actions-fallback';menu.setAttribute('role','menu');
+    closeFallback();armMenuFloat(button);const menu=document.createElement('div');menu.id='ng113-actions-fallback';menu.setAttribute('role','menu');
     const title=document.createElement('strong');title.textContent=chatTitle(chatId);menu.appendChild(title);
     const rename=document.createElement('button');rename.type='button';rename.setAttribute('role','menuitem');rename.textContent='Renommer';rename.addEventListener('click',()=>{closeFallback();fallbackRename(chatId);});menu.appendChild(rename);
     const label=document.createElement('small');label.textContent='Déplacer vers';menu.appendChild(label);
@@ -196,8 +218,10 @@
       const item=document.createElement('button');item.type='button';item.setAttribute('role','menuitem');item.textContent=p.name||p.id;if(p.id===projectIdForChat(chatId))item.disabled=true;
       item.addEventListener('click',()=>{closeFallback();fallbackMove(chatId,p.id);});menu.appendChild(item);
     }
-    document.body.appendChild(menu);armMenuFloat(button);placeFloatingMenu(menu,button,0);
-    setTimeout(()=>document.addEventListener('pointerdown',e=>{if(!menu.contains(e.target))closeFallback();},{once:true,capture:true}),0);
+    document.body.appendChild(menu);placeFloatingMenu(menu,button,0);
+    fallbackOutsideHandler=e=>{const target=e.target instanceof Node?e.target:null;if(target&&!menu.contains(target))closeFallback();};
+    fallbackEscapeHandler=e=>{if(e.key==='Escape'){e.preventDefault();closeFallback();button.focus();}};
+    setTimeout(()=>{if(menu.isConnected){document.addEventListener('pointerdown',fallbackOutsideHandler,true);document.addEventListener('keydown',fallbackEscapeHandler,true);}},0);
   }
 
   async function openProjectActions(button,projectId){

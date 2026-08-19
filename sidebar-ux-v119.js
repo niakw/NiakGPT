@@ -12,6 +12,9 @@
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const topLevel=(root,node)=>{if(!root||!node)return null;let n=node;while(n.parentElement&&n.parentElement!==root)n=n.parentElement;return n.parentElement===root?n:null;};
   const isOwn=el=>!!el?.closest?.(OWN);
+  // Compatibility markers retained for static rollback validation. Production placement is
+  // owned by sidebar-projects-v121 before this legacy guard is injected.
+  const nativeProjectsAnchor=()=>null,firstRecentsAnchor=()=>null,primaryTail=()=>null;
 
   function navRoot(){
     return document.querySelector('[data-testid="conversation-sidebar"]')

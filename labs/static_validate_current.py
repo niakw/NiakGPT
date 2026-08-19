@@ -71,10 +71,13 @@ for forbidden in ('attributes:true','attributeFilter:','classList.add(HIDE)',"se
 projects_css=(ROOT/'sidebar-projects-authority-v112.css').read_text(encoding='utf-8')
 if '[data-ng112-native-projects="1"]' not in projects_css: fail('passive Projects CSS marker missing')
 metadata=(ROOT/'sidebar-metadata-v118.js').read_text(encoding='utf-8')
-for token in ('normalizeChatMetadata','cleanCache','wrapCacheBus','sanitizeCache','childList:true'):
+for token in ('normalizeChatMetadata','cleanCache','wrapCacheBus','sanitizeCache','sanitizeTask','childList:true'):
     if token not in metadata: fail('sidebar metadata hygiene incomplete '+token)
 for forbidden in ('suppressNativeProjects','ng107-native-project','ng108-native-project','data-ng112-native-projects','attributes:true','attributeFilter:'):
     if forbidden in metadata: fail('metadata module reintroduced Projects authority/churn '+forbidden)
+initial_sanitize=metadata.find('try{await sanitizeCache();}')
+subscription_arm=metadata.find('const rawSubscribe=')
+if initial_sanitize<0 or subscription_arm<0 or initial_sanitize>=subscription_arm: fail('metadata subscription is armed before initial sanitation barrier')
 metadata_css=(ROOT/'sidebar-metadata-v118.css').read_text(encoding='utf-8')
 if 'time.ng8-chat-date' not in metadata_css or 'native-project' in metadata_css: fail('metadata CSS drift or Projects suppression leak')
 legacy104=(ROOT/'live-fixes-v104.js').read_text(encoding='utf-8')
@@ -87,7 +90,7 @@ if '.ng8-native-project' in legacy_css: fail('legacy Projects suppression CSS is
 folders=(ROOT/'pin-folders-v096.js').read_text(encoding='utf-8')
 for token in ('drawerDirty','cooperativeNode','existing.previousElementSibling===entry','ng96-chat-entry'):
     if token not in folders: fail('pin idle-stability/atomic-row guard missing '+token)
-if "createElement('button');open.type='button';open.className='ng96-project-open'" in folders: fail('obsolete Project open-page button recreated')
+if "createElement('button');open.type='button';open.className='ng96-project-open'" in folders: fail('obsolete open-page button recreated')
 chatux=(ROOT/'project-chat-ux-v110.js').read_text(encoding='utf-8')
 if 'ng110ChatRow' not in chatux: fail('chat state is not mirrored to atomic rows')
 experience=ROOT/'visual-lab/experience-gate-v116.mjs'; runtime_gate=ROOT/'visual-lab/tests/sidebar-runtime-v116.spec.js'; hitbox_gate=ROOT/'visual-lab/sidebar-hitboxes-v117.mjs'; session_gate=ROOT/'visual-lab/native-menu-session-v118.mjs'; metadata_gate=ROOT/'visual-lab/sidebar-metadata-v118.mjs'; live_gate=ROOT/'visual-lab/live-ui-regressions-v114.mjs'
@@ -122,4 +125,4 @@ if errors:
     print('STATIC_CURRENT_FAIL')
     for e in errors: print('-',e)
     sys.exit(1)
-print(f"STATIC_CURRENT_PASS version={manifest['version']} runtime={len(main)+len(isolated)} refs={len(refs)} profiles=2 cached-browsers=on left-sidebar=atomic-top-layer-session-clean single-projects-authority metadata-first")
+print(f"STATIC_CURRENT_PASS version={manifest['version']} runtime={len(main)+len(isolated)} refs={len(refs)} profiles=2 cached-browsers=on left-sidebar=atomic-top-layer-session-clean single-projects-authority metadata-first serialized-initial-sanitation")

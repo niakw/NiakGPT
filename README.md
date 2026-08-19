@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.9.69-4fc1ff">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.9.70-4fc1ff">
   <img alt="Chrome Extension" src="https://img.shields.io/badge/Chrome-Extension-4ec9b0">
   <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
   <img alt="No analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,7 +21,7 @@ NiakGPT est une extension navigateur qui ajoute à ChatGPT une couche de **produ
 
 Elle fonctionne directement au-dessus de l’interface officielle de ChatGPT : **pas de service parallèle, pas de compte NiakGPT supplémentaire et pas de serveur NiakGPT pour les fonctions principales**.
 
-> **Version actuelle : 0.9.69** — bloc Projects NiakGPT ancré de façon stable dans la sidebar, noms de Projects utilisés comme dossiers, menus d’actions de production natifs ChatGPT uniquement, continuité OUT avec Project exact ou recommandé et reprise bornée après interruption réseau/vérification.
+> **Version actuelle : 0.9.70** — sidebar Projects stable, menus d’actions natifs ChatGPT uniquement, chat actif automatiquement visible dans les longs Projects, continuité OUT immédiatement matérialisée dans le Project exact et pause réelle du trafic NiakGPT pendant une vérification ChatGPT avant reprise bornée.
 
 ## Ce que NiakGPT apporte
 
@@ -30,7 +30,8 @@ Elle fonctionne directement au-dessus de l’interface officielle de ChatGPT : *
 - Projects colorés et immédiatement identifiables ;
 - conversations accessibles en dépliant un Project ;
 - le clic sur le nom d’un Project déplie/replie ses chats sans naviguer vers la page Project ;
-- bloc Projects replacé dans un slot stable de la sidebar après accueil, navigation SPA, remount React ou BFCache ;
+- bloc Projects replacé dans un slot stable de la sidebar après accueil, pages natives, navigation SPA, remount React ou BFCache ;
+- le chat actif est automatiquement marqué et ramené dans la zone visible d’un long drawer Project ;
 - recherche locale dans les gros Projects ;
 - dates et compteurs visibles ;
 - conversation courante mise en évidence ;
@@ -120,7 +121,9 @@ NiakGPT **ne remplace pas globalement `window.fetch`**. Le monde MAIN est rédui
 
 Lorsqu’un fil est continué, NiakGPT prépare explicitement le contexte du fil précédent et poursuit dans un nouveau chat lorsque ChatGPT impose cette transition.
 
-Si le fil possède déjà un Project, le nouveau chat est rattaché au **Project exact d’origine** puis protégé par un verrou `continuity-exact`. Si le fil était hors Project, NiakGPT peut recommander localement le Project le plus pertinent à partir du titre, de l’historique et du contexte Project disponible ; cette recommandation n’est jamais présentée comme le Project d’origine.
+Si le fil possède déjà un Project, le nouveau chat est rattaché au **Project exact d’origine** puis protégé par un verrou `continuity-exact`. Dès que son identifiant existe, NiakGPT l’insère aussi dans `chats` et `projectChats`, synchronise compteur/index et garde le Project ouvert : la nouvelle conversation devient donc immédiatement visible dans la sidebar sans attendre le prochain index serveur.
+
+Si le fil était hors Project, NiakGPT peut recommander localement le Project le plus pertinent à partir du titre, de l’historique et du contexte Project disponible ; cette recommandation n’est jamais présentée comme le Project d’origine.
 
 Aucun envoi automatique n’est effectué.
 
@@ -129,10 +132,11 @@ Aucun envoi automatique n’est effectué.
 `interruption-guard-v119.js` reconnaît de façon bornée les signaux de fil arrivé à sa limite, de vérification et de connexion perdue.
 
 - **limite de fil** : prépare la continuité OUT et expose `CONTINUER LE FIL` ;
-- **vérification** : ne contourne pas le challenge et n’interagit pas avec son iframe ; une fois le signal disparu, le bouton natif Retry/Regenerate/Continue peut être déclenché une seule fois ;
-- **connexion perdue** : même tentative native unique après retour de la connexion ;
-- si aucune reprise native n’est possible, `REPRENDRE` prépare un message de reprise dans un composer vide, sans l’envoyer ;
-- aucun `reload` automatique et aucun polling permanent.
+- **vérification** : ne contourne pas le challenge et n’interagit pas avec son iframe ; le guard publie `data-ng105-verification=1`, déjà consommé par `page-bridge`, afin de suspendre réellement le trafic NiakGPT tant que la vérification est visible ;
+- une fois la vérification disparue, le flag est retiré uniquement s’il appartient au guard, puis la reprise attend que l’activité native et la sortie assistant soient stables ;
+- **connexion perdue** : conserve le brouillon puis tente le bouton natif Retry/Regenerate/Continue une seule fois après retour à un état stable ;
+- si aucune reprise native n’est possible, `REPRENDRE` restaure le brouillon ou prépare un message de reprise dans un composer vide, sans l’envoyer ;
+- aucun `reload` automatique, aucun clic sur challenge/iframe et aucun polling permanent.
 
 ### Panneaux natifs, accueil et DA
 
@@ -180,7 +184,7 @@ NiakGPT est une extension **Manifest V3**.
 - **Projects authority** : `sidebar-projects-authority-v112.js` uniquement.
 - **Placement sidebar** : `sidebar-ux-v119.js` stabilise le bloc NiakGPT sans devenir une autorité de visibilité native.
 - **Menus natifs** : `native-actions-controller-v119.js` impose le natif-only en production ; les sessions top-layer restent isolées et réversibles.
-- **Interruptions** : `interruption-guard-v119.js` orchestre la reprise autorisée sans contourner les contrôles de sécurité/service.
+- **Interruptions** : `interruption-guard-v119.js` suspend le bridge pendant une vérification et orchestre ensuite une reprise autorisée sans contourner les contrôles de sécurité/service.
 - **Multi-onglets** : coordination WORKER / CLIENT, `BroadcastChannel` et `navigator.locks` quand disponibles.
 
 Voir [`ARCHITECTURE.md`](ARCHITECTURE.md) pour les invariants détaillés.
@@ -198,7 +202,7 @@ La validation courante conserve plusieurs niveaux :
 7. gate prioritaire Brave stable réel sur macOS ;
 8. régressions historiques à la demande.
 
-Les scénarios couvrent notamment : autorité Projects et remounts, placement stable du bloc Projects, hitboxes Project/chat, menus imbriqués, fermeture au second clic, native-only, isolation/cleanup des menus, barrière metadata/cache, preview image, greetings d’accueil, titres canoniques, non-lus, gros fils, classification profonde, continuité exacte/recommandée, reprise réseau/vérification et multi-onglets.
+Les scénarios couvrent notamment : autorité Projects et remounts, placement stable du bloc Projects sur accueil/Library/Projects, hitboxes Project/chat, menus imbriqués, fermeture au second clic, native-only, isolation/cleanup des menus, barrière metadata/cache, preview image, greetings d’accueil, titres canoniques, non-lus, gros fils, classification profonde, continuité exacte/recommandée avec insertion immédiate, auto-scroll d’un Project de 14 chats, pause réelle du bridge pendant vérification, reprise réseau native unique et multi-onglets.
 
 ## Philosophie
 

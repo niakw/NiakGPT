@@ -135,12 +135,16 @@ runtime_text=runtime_gate.read_text(encoding='utf-8')
 for token in ('NIAKGPT_PROFILE','runtime-cold-v116','PROFILE.storageLocal','saved profile','Project row has two exclusive hitboxes','Chat actions menu is also a real top-layer overlay','atomic chat/action rows'):
     if token not in runtime_text: fail('saved runtime/sidebar UX integration missing '+token)
 workflow=(ROOT/'.github/workflows/current-finalization.yml').read_text(encoding='utf-8')
-for token in ('ubuntu-latest, windows-latest, macos-latest','chromium, firefox, webkit','Human / DOM / errors / UX / remount / anti-churn','experience-gate-v116.mjs','sidebar-hitboxes-v117.mjs','LEFT SIDEBAR pixel hitboxes','PRIMARY real Brave — left sidebar'):
+for token in ('chromium, firefox, webkit','Human / DOM / errors / UX / remount / anti-churn','experience-gate-v116.mjs','sidebar-hitboxes-v117.mjs','LEFT SIDEBAR pixel hitboxes','PRIMARY real Brave — left sidebar'):
     if token not in workflow: fail('cross-platform experience matrix missing '+token)
+for token in ('experience-linux:','os: [windows-latest, macos-latest]','extension-runtime-linux:','matrix:\n        browser: [chromium, firefox, webkit]','mcr.microsoft.com/playwright:v1.62.1-noble','PLAYWRIGHT_BROWSERS_PATH: /ms-playwright','HOME: /root'):
+    if token not in workflow: fail('Linux container / cross-platform topology missing '+token)
+if workflow.count('mcr.microsoft.com/playwright:v1.62.1-noble')!=3: fail('Playwright Linux container must be pinned in exactly three Linux job families')
+if 'playwright install --with-deps' in workflow: fail('Linux Finalization reintroduced apt --with-deps')
 for token in ('PLAYWRIGHT_BROWSERS_PATH','actions/cache@v4','playwright-${{ runner.os }}-${{ matrix.browser }}-1.62.1','homebrew-brave-${{ runner.os }}-${{ runner.arch }}-stable-v1','runtime-cold-v116','runtime-warm-v116'):
     if token not in workflow: fail('lab cache/profile acceleration missing '+token)
 if errors:
     print('STATIC_CURRENT_FAIL')
     for e in errors: print('-',e)
     sys.exit(1)
-print(f"STATIC_CURRENT_PASS version={manifest['version']} runtime={len(main)+len(isolated)} refs={len(refs)} profiles=2 cached-browsers=on left-sidebar=atomic-top-layer-session-race-isolated single-projects-authority metadata-first serialized-shared-lock-fail-closed-lifecycle-sanitation")
+print(f"STATIC_CURRENT_PASS version={manifest['version']} runtime={len(main)+len(isolated)} refs={len(refs)} profiles=2 cached-browsers=on linux-playwright=containerized left-sidebar=atomic-top-layer-session-race-isolated single-projects-authority metadata-first serialized-shared-lock-fail-closed-lifecycle-sanitation")

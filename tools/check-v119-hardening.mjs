@@ -12,6 +12,7 @@ for(const token of [
   'const candidate=el.closest?.(selector)',
   'const overlap=Math.max(0',
   "candidate.querySelector?.('[class*=\"project-unfurl-row\"]')",
+  "candidate.getAttribute?.(MARK)==='1'&&structuralProjectSurface(candidate)",
   "projectLinks=links.filter(a=>projectChildHref(a.getAttribute('href')))",
   'projectLinks.length>=2',
   'if(projectLinks.length!==1)return false',
@@ -37,9 +38,13 @@ for(const token of [
   "const DATA_LOCK='niakgpt-data-mutation-v100'",
   'pendingRaw=undefined',
   'pendingReplay=false',
+  'runtimeRawSeq=0',
+  'rawSequences=new WeakMap()',
   'ownWriteSignatures',
   'sanitizeCache(rawOverride)',
   'isOwnWrite(rawOverride)',
+  'rememberRuntimeRaw(raw)',
+  'staleSource=source!==undefined&&latestSeq>sourceSeq',
   'source=pendingRaw',
   'runtimeRetryTimer=0',
   'queueRuntimeSanitize',
@@ -57,10 +62,12 @@ for(const token of [
   'get:()=>resumeReady||',
   'if(epoch!==writeEpoch){staleWriteDuringSuspend=true;return value;}',
   'if(suspended){if(!own)hiddenExternal=next;return;}',
+  'if(!event.persisted)markDead();',
   'try{await writeChain;}catch{}',
   'restore=staleWriteDuringSuspend&&deferred',
   'api.ready=resumed'
-])need(cacheBus,token,`cache bus BFCache newest-state invariant missing: ${token}`);
+])need(cacheBus,token,`cache bus BFCache newest-state/subscriber invariant missing: ${token}`);
+forbid(cacheBus,'staleWriteDuringSuspend=false;listeners.clear();','persisted pagehide must preserve cache-bus subscribers until resume');
 
 const authorityGate=read('visual-lab/sidebar-authority-isolation-v119.mjs');
 for(const token of [
@@ -118,7 +125,10 @@ for(const token of [
   'hidden-external-new',
   'g-p-new',
   'new-chat',
+  'persistentSeen',
   'BFCache cache bus resume lost the newest hidden snapshot',
+  'persisted cache subscriber was notified while BFCache-suspended',
+  'persisted cache subscriber did not survive BFCache or receive newest resume state',
   "window.__fireTransition('pagehide',true)",
   "window.__fireTransition('pageshow',true)"
 ])need(lifecycleGate,token,`metadata/cache-bus BFCache lifecycle gate incomplete: ${token}`);
@@ -132,4 +142,4 @@ need(background,"const HARD_ISOLATED_BARRIER='sidebar-metadata-v118.js'",'metada
 need(read('tools/check-runtime.mjs'),"import './check-runtime-syntax.mjs'",'dynamic runtime syntax gate is not part of runtime check');
 need(read('tools/check-runtime.mjs'),"import '../labs/background-boot-barrier-v119.mjs'",'background barrier gate is not part of runtime check');
 
-console.log('V119_HARDENING_PASS actions=serialized authority=structural cachebus=bfcache-newest-state metadata=lossless/fail-closed/lifecycle/concurrency/runtime-retry=guarded');
+console.log('V119_HARDENING_PASS actions=serialized authority=structural cachebus=bfcache-newest-state/subscribers metadata=lossless/fail-closed/lifecycle/concurrency/runtime-retry=guarded');

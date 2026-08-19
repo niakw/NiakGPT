@@ -28,7 +28,6 @@
     const before=projectSnapshotSignature(cache,openPid);cache=next&&typeof next==='object'?next:cache;const after=projectSnapshotSignature(cache,openPid);if(!observedBox)bindBox();if(openPid&&before!==after){drawerDirty=true;schedule(40);}else if(!openPid)schedule(80);
   }
   function setOpen(pid){openPid=pid||'';filter='';drawerDirty=false;try{openPid?sessionStorage.setItem(SESSION_KEY,openPid):sessionStorage.removeItem(SESSION_KEY);}catch{}}
-  function projectHref(pid){return cache.projects?.find(p=>p?.id===pid)?.href||`/g/${pid}/project`;}
   function chatHref(c,pid){return c?.href||`/g/${pid}/c/${c.id}`;}
   function routeNative(href){
     const chatId=cidFromHref(href),projectId=pidFromHref(href);
@@ -47,19 +46,19 @@
 
   function rowFor(anchor){return anchor.closest('.ng96-pin-entry');}
   function wrapAnchor(anchor){
-    if(!(anchor instanceof HTMLElement)||anchor.closest('.ng96-pin-entry'))return rowFor(anchor);
+    if(!(anchor instanceof HTMLElement))return null;
+    const existing=rowFor(anchor);if(existing){existing.querySelector(':scope>.ng96-project-open')?.remove();return existing;}
     const pid=pidFromHref(anchor.getAttribute('href'));if(!pid)return null;
     const entry=document.createElement('div');entry.className='ng96-pin-entry';entry.dataset.pid=pid;
     anchor.parentElement?.insertBefore(entry,anchor);entry.appendChild(anchor);
-    const open=document.createElement('button');open.type='button';open.className='ng96-project-open';open.textContent='↗';open.title='Ouvrir la page complète du Project';open.setAttribute('aria-label','Ouvrir la page complète du Project');entry.appendChild(open);
     return entry;
   }
   function decorateAnchor(anchor){
     const pid=pidFromHref(anchor.getAttribute('href'));if(!pid)return;
     const entry=wrapAnchor(anchor);if(!entry)return;
+    entry.querySelector(':scope>.ng96-project-open')?.remove();
     anchor.dataset.ng96Folder='1';anchor.setAttribute('role','button');anchor.setAttribute('aria-haspopup','true');anchor.setAttribute('aria-controls',drawerId(pid));anchor.setAttribute('aria-expanded',pid===openPid?'true':'false');anchor.title='Afficher les conversations du Project';
     let chevron=anchor.querySelector(':scope > .ng96-chevron');if(!chevron){chevron=document.createElement('em');chevron.className='ng96-chevron';chevron.textContent='›';chevron.setAttribute('aria-hidden','true');anchor.appendChild(chevron);}
-    const open=entry.querySelector('.ng96-project-open');if(open&&!open.dataset.bound){open.dataset.bound='1';open.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();routeNative(projectHref(pid));});}
     if(!anchor.dataset.ng96Bound){
       anchor.dataset.ng96Bound='1';
       anchor.addEventListener('click',event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();event.stopPropagation();toggle(pid,anchor);});
@@ -89,6 +88,7 @@
     renderTimer=0;const box=document.getElementById('ng8-pins');if(!box)return;
     internalWrite=true;
     try{
+      box.querySelectorAll('.ng96-project-open').forEach(button=>button.remove());
       for(const anchor of box.querySelectorAll('a[data-ng8-pin="1"]'))decorateAnchor(anchor);
       if(openPid){
         const anchor=[...box.querySelectorAll('a[data-ng8-pin="1"]')].find(a=>pidFromHref(a.getAttribute('href'))===openPid);

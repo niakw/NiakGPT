@@ -1,4 +1,6 @@
-/* NiakGPT 0.9.49 — OUT conversations + local continuity capsule. */
+/* NiakGPT — OUT conversations + local continuity capsule.
+ * v120 hardening: normal conversation prose can never mark a chat OUT.
+ */
 (() => {
   'use strict';
   if (location.hostname !== 'chatgpt.com' || window.__NIAKGPT_CONTINUITY_100__) return;
@@ -8,18 +10,22 @@
   const STATE_KEY='niakgpt-continuity-v100';
   const PENDING_KEY='niakgpt-continuity-pending-v100';
   const CHAT_SEL='a[href*="/c/"]';
+  const SIGNAL_SEL='[role="alert"],[data-testid*="error" i],[data-testid*="limit" i],[data-testid*="toast" i]';
   const OUT_RX=/(maximum\s+(?:conversation|context|length)|conversation\s+(?:is\s+)?too\s+long|conversation.{0,32}(?:limit|maximum)|maximum\s+context\s+length|context\s+window.{0,30}(?:limit|maximum)|start\s+(?:a\s+)?new\s+chat|continue\s+in\s+(?:a\s+)?new\s+chat|you(?:'|’)ve\s+reached.{0,40}(?:limit|maximum)|conversation\s+trop\s+longue|limite.{0,28}(?:conversation|contexte)|(?:nouveau|nouvelle)\s+(?:chat|conversation).{0,35}(?:continuer|poursuivre)|ce\s+fil.{0,24}(?:plein|limite))/i;
   const MAX_HISTORY=30000;
-  let cache={projects:[],chats:[]}, state={schema:1,out:{}}, scanTimer=0, sidebarObserver=null, mainObserver=null, rpcSeq=0;
+  const EVIDENCE='native-limit-v120';
+  let cache={projects:[],chats:[]}, state={schema:2,out:{}}, scanTimer=0, sidebarObserver=null, mainObserver=null, rpcSeq=0;
 
   const clean=v=>String(v??'').replace(/\r/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
-  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
   const cid=h=>String(h||'').match(/\/c\/([A-Za-z0-9_-]+)/)?.[1]||'';
   const pid=h=>String(h||'').match(/\/g\/(g-p-[A-Za-z0-9_-]+)\/(?:project|c\/)/)?.[1]||'';
   const currentCid=()=>cid(location.pathname);
   const currentPid=()=>pid(location.pathname)||cache.chats?.find?.(c=>c.id===currentCid())?.projectId||'';
   const navRoot=()=>document.querySelector('[data-testid="conversation-sidebar"]')||document.querySelector('[data-testid="sidebar"]')||[...document.querySelectorAll('nav,aside')].find(x=>x.querySelector(CHAT_SEL))||document.querySelector('nav');
-  const editor=()=>document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"]')||[...document.querySelectorAll('textarea,[contenteditable="true"]')].reverse().find(el=>!el.closest('#ng8-coach'));
+  const editor=()=>document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"]')||[...document.querySelectorAll('textarea,[contenteditable="true"]')].reverse().find(el=>!el.closest('#ng8-coach,#ng119-interruption'));
+  const visible=el=>{if(!(el instanceof Element)||!el.isConnected)return false;const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden'&&el.getClientRects().length>0;};
+  const ownNode=el=>el instanceof Element&&!!el.closest('#ng119-interruption,#ng8-pins,#ng8-panel,#ng90-control,#ng100-command,#ng8-coach');
 
   function setEditor(ed,text){
     if(!ed)return false;
@@ -65,20 +71,35 @@
     ].filter(Boolean).join('\n\n');
   }
   async function saveState(){try{await chrome.storage.local.set({[STATE_KEY]:state});}catch{}}
-  function markStored(chatId,entry){if(!chatId)return;state.out[chatId]={...(state.out[chatId]||{}),...entry,out:true,updatedAt:Date.now()};}
-  async function markCurrentOut(reason='limit-detected'){
-    const chatId=currentCid();if(!chatId)return;
+  function migrateState(){
+    let changed=false;state=state&&typeof state==='object'?state:{schema:2,out:{}};state.out=state.out&&typeof state.out==='object'?state.out:{};
+    if(Number(state.schema||0)<2){for(const [id,entry] of Object.entries(state.out)){if(entry?.evidence!==EVIDENCE){delete state.out[id];changed=true;}}state.schema=2;changed=true;}
+    return changed;
+  }
+  function markStored(chatId,entry){if(!chatId)return;state.out[chatId]={...(state.out[chatId]||{}),...entry,out:true,evidence:EVIDENCE,updatedAt:Date.now()};}
+  function trustedSignalNode(el){
+    if(!(el instanceof Element)||!visible(el)||ownNode(el)||el.closest('[data-message-author-role],[data-testid^="conversation-turn"],article'))return false;
+    if(!el.matches(SIGNAL_SEL))return false;
+    const text=clean(`${el.getAttribute?.('aria-label')||''} ${el.getAttribute?.('title')||''} ${el.innerText||el.textContent||''}`).slice(0,1800);
+    if(!text||!OUT_RX.test(text))return false;
+    if(el.matches('[data-testid*="error" i],[data-testid*="limit" i],[data-testid*="toast" i]'))return true;
+    return el.matches('[role="alert"]');
+  }
+  function limitSignal(){
+    const main=document.querySelector('main');if(!main)return null;const nodes=[...main.querySelectorAll(SIGNAL_SEL)];
+    for(let i=nodes.length-1;i>=Math.max(0,nodes.length-12);i--)if(trustedSignalNode(nodes[i]))return nodes[i];
+    return null;
+  }
+  async function markCurrentOut(reason='limit-detected-v120',meta={}){
+    const trusted=meta?.trusted===true&&meta?.evidence===EVIDENCE,signal=limitSignal();
+    if(!trusted&&!signal)return false;
+    const chatId=currentCid();if(!chatId)return false;
     const projectId=currentPid(),history=historyFromDOM();
-    markStored(chatId,{projectId,title:currentTitle(chatId),history,reason,sourceUrl:`${location.origin}/c/${chatId}`});
+    markStored(chatId,{projectId,title:currentTitle(chatId),history,reason,sourceUrl:`${location.origin}/c/${chatId}`,signalText:clean(signal?.innerText||signal?.textContent||'').slice(0,240)});
     await saveState();decorateSidebar();document.documentElement.dataset.ng100Out='1';
-    window.__NIAKGPT_DIAGNOSTICS__?.set('continuité',`OUT · ${currentTitle(chatId).slice(0,48)} · suite disponible`);
+    window.__NIAKGPT_DIAGNOSTICS__?.set('continuité',`OUT · ${currentTitle(chatId).slice(0,48)} · limite native confirmée`);return true;
   }
-  function outSignal(){
-    const main=document.querySelector('main');if(!main)return false;
-    const nodes=main.querySelectorAll('[role="alert"],[data-testid*="error" i],[data-testid*="limit" i],[data-message-author-role="assistant"]');
-    for(let i=Math.max(0,nodes.length-8);i<nodes.length;i++)if(OUT_RX.test(clean(nodes[i].innerText||nodes[i].textContent).slice(0,1800)))return true;
-    return false;
-  }
+  function outSignal(){return !!limitSignal();}
   function decorateLink(link){
     if(!(link instanceof HTMLElement))return;const id=cid(link.getAttribute('href'));if(!id)return;
     const entry=state.out?.[id];
@@ -114,26 +135,24 @@
     }
     p.patched=true;writePending(p);setTimeout(clearPending,1000);
   }
-  function onRoute(){delete document.documentElement.dataset.ng100Out;setTimeout(()=>{decorateSidebar();if(outSignal())markCurrentOut();injectPending();patchNewChat();},180);}
-  function scheduleScan(){clearTimeout(scanTimer);scanTimer=setTimeout(()=>{if(outSignal())markCurrentOut();decorateSidebar();},220);}
+  function onRoute(){delete document.documentElement.dataset.ng100Out;setTimeout(()=>{decorateSidebar();if(outSignal())markCurrentOut('route-native-limit',{trusted:true,evidence:EVIDENCE});injectPending();patchNewChat();},180);}
+  function scheduleScan(){clearTimeout(scanTimer);scanTimer=setTimeout(()=>{if(outSignal())markCurrentOut('scan-native-limit',{trusted:true,evidence:EVIDENCE});decorateSidebar();},220);}
   function bindObservers(){
     const side=navRoot();if(side){sidebarObserver?.disconnect();sidebarObserver=new MutationObserver(()=>decorateSidebar());sidebarObserver.observe(side,{childList:true,subtree:true});}
     const main=document.querySelector('main');if(main){
       mainObserver?.disconnect();
-      // Never observe characterData across an entire long conversation. OUT detection only
-      // needs structural alerts/limit rows plus one check when ChatGPT becomes idle.
       mainObserver=new MutationObserver(records=>{
         for(const r of records)for(const n of r.addedNodes){
           if(!(n instanceof Element))continue;
-          if(n.matches?.('[role="alert"],[data-testid*="error" i],[data-testid*="limit" i]')||n.querySelector?.('[role="alert"],[data-testid*="error" i],[data-testid*="limit" i]')){scheduleScan();return;}
+          if((n.matches?.(SIGNAL_SEL)&&trustedSignalNode(n))||[...n.querySelectorAll?.(SIGNAL_SEL)||[]].some(trustedSignalNode)){scheduleScan();return;}
         }
       });
       mainObserver.observe(main,{childList:true,subtree:true});
     }
   }
   async function init(){
-    try{const got=await chrome.storage.local.get([CACHE_KEY,STATE_KEY]);cache=got[CACHE_KEY]||cache;state=got[STATE_KEY]&&typeof got[STATE_KEY]==='object'?got[STATE_KEY]:state;state.out=state.out||{};}catch{}
-    bindObservers();decorateSidebar();if(outSignal())markCurrentOut();injectPending();patchNewChat();
+    try{const got=await chrome.storage.local.get([CACHE_KEY,STATE_KEY]);cache=got[CACHE_KEY]||cache;state=got[STATE_KEY]&&typeof got[STATE_KEY]==='object'?got[STATE_KEY]:state;if(migrateState())await saveState();}catch{}
+    bindObservers();decorateSidebar();if(outSignal())markCurrentOut('init-native-limit',{trusted:true,evidence:EVIDENCE});injectPending();patchNewChat();
   }
   chrome.storage.onChanged.addListener((changes,area)=>{if(area!=='local')return;if(changes[CACHE_KEY])cache=changes[CACHE_KEY].newValue||cache;if(changes[STATE_KEY]){state=changes[STATE_KEY].newValue||state;state.out=state.out||{};}decorateSidebar();});
   window.addEventListener('popstate',onRoute);if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',onRoute);

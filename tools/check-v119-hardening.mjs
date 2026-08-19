@@ -76,7 +76,18 @@ for(const file of [
 ])if(!fs.existsSync(file))fail(`missing hardening gate ${file}`);
 
 const concurrencyGate=read('visual-lab/sidebar-metadata-concurrency-v119.mjs');
-for(const token of ['race-b-unlocked','g-p-two','outcome.writes>=2','later unlocked cache publication','latest unlocked chat snapshot'])need(concurrencyGate,token,`metadata unlocked concurrency gate incomplete: ${token}`);
+for(const token of [
+  'race-b-unlocked',
+  'g-p-two',
+  'clean-b-unlocked',
+  'g-p-clean-latest',
+  'burst-c-latest',
+  'A→B→C coalescing',
+  'collision-same-at',
+  'same-timestamp external snapshot',
+  'single-dirty',
+  'own-write echo caused an extra sanitation loop'
+])need(concurrencyGate,token,`metadata unlocked concurrency gate incomplete: ${token}`);
 const failureGate=read('visual-lab/sidebar-metadata-failure-v119.mjs');
 need(failureGate,"import('./sidebar-metadata-concurrency-v119.mjs')",'unlocked metadata concurrency gate is not chained after failure coverage');
 

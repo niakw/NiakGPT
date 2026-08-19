@@ -133,16 +133,21 @@
     s.source?.removeAttribute('aria-expanded');s.source?.removeAttribute('aria-busy');
     window.__NIAKGPT_DIAGNOSTICS__?.set('actions-119','PRÊT · menu natif fermé');return true;
   }
+  function closeIfMenusGone(s){
+    if(session!==s||!s.menus.size)return false;
+    if([...s.menus].some(m=>m.isConnected&&isVisible(m)))return false;
+    closeSession({toggleNative:false});return true;
+  }
   function armSession(key,source,trigger){
     closeSession({toggleNative:true});
     const baseline=new Set(visibleMenus()),s={key,source,trigger,geometry:snapshotSource(source),baseline,menus:new Set(),observer:null,timer:0};session=s;
-    s.observer=new MutationObserver(()=>{if(session===s){claimControlled(trigger);claimNewMenus();}});s.observer.observe(document.body,{childList:true,subtree:true});
+    s.observer=new MutationObserver(()=>{
+      if(session!==s)return;claimControlled(trigger);claimNewMenus();
+      if(s.menus.size)queueMicrotask(()=>{if(session===s)closeIfMenusGone(s);});
+    });s.observer.observe(document.body,{childList:true,subtree:true});
     return s;
   }
   async function openViaTrigger(kind,id,source,trigger,token){
-    // Source button may be replaced by a sidebar reconcile after the user's click. The native
-    // trigger/menu session remains valid, so continue from the captured geometry instead of
-    // cancelling a real menu that has already opened.
     if(token!==epoch||!trigger?.isConnected)return false;
     const s=armSession(keyFor(kind,id),source,trigger);if(source?.isConnected)source.setAttribute('aria-expanded','true');
     trigger.click();claimControlled(trigger);
@@ -190,7 +195,7 @@
   document.addEventListener('click',event=>{
     const s=session;if(!s)return;const target=event.target instanceof Element?event.target:null;
     if(target?.closest('[role="menuitem"][aria-haspopup="menu"],[data-radix-menu-sub-trigger]')){setTimeout(()=>{if(session===s)claimNewMenus();},0);setTimeout(()=>{if(session===s)claimNewMenus();},90);return;}
-    if(target&&[...s.menus].some(m=>m.contains(target)))setTimeout(()=>{if(session===s&&![...s.menus].some(m=>m.isConnected&&isVisible(m)))closeSession({toggleNative:false});},180);
+    if(target&&[...s.menus].some(m=>m.contains(target)))setTimeout(()=>{if(session===s)closeIfMenusGone(s);},180);
   },false);
   try{chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY])cache=changes[CACHE_KEY].newValue||cache;});chrome.storage.local.get(CACHE_KEY).then(g=>{cache=g?.[CACHE_KEY]||cache;}).catch(()=>{});}catch{}
   window.addEventListener('popstate',()=>{epoch++;opening=null;closeSession({toggleNative:false});});

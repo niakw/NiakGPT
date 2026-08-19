@@ -146,7 +146,7 @@ jobs:
         if: runner.os != 'Linux'
         working-directory: visual-lab
         run: npx playwright install chromium
-      - name: Real extension runtime — sidebar / human / DOM / errors / UX
+      - name: Real extension runtime — left sidebar / hitboxes / menus / DOM / errors
         working-directory: visual-lab
         env:
           NIAKGPT_BROWSER_LABEL: chromium
@@ -194,7 +194,7 @@ jobs:
           BRAVE='/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'
           test -x "$BRAVE"
           "$BRAVE" --version
-      - name: Real Brave + NiakGPT extension — sidebar / human / DOM / errors / UX
+      - name: PRIMARY real Brave — left sidebar / pixel hitboxes / floating menus / UX
         working-directory: visual-lab
         env:
           NIAKGPT_BROWSER_LABEL: brave-stable-macos
@@ -262,6 +262,11 @@ jobs:
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node sidebar-native-actions-v113.mjs
+      - name: LEFT SIDEBAR pixel hitboxes + floating/nested menus
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node sidebar-hitboxes-v117.mjs
       - name: Human navigation stress — remounts, immediate clicks, menus, icons, images
         working-directory: visual-lab
         env:
@@ -317,6 +322,7 @@ jobs:
             visual-lab/artifacts/finalization-v113/${{ matrix.browser }}
             visual-lab/artifacts/finalization-v114/${{ matrix.browser }}
             visual-lab/artifacts/human-nav-v114/${{ matrix.browser }}
+            visual-lab/artifacts/sidebar-hitboxes-v117/${{ matrix.browser }}
             visual-lab/artifacts/experience-v116
             visual-lab/playwright-report
             visual-lab/test-results

@@ -43,6 +43,16 @@
 - Les contrôles principaux de sidebar (nouvelle discussion, recherche, images, applications, Codex) reçoivent désormais des glyphes NiakGPT distinctifs au lieu de simples SVG ChatGPT recolorés.
 - Nouveau stress test `human-nav-stress-v114` : 16 cycles de rerender/remount/navigation + menus natifs + fermeture image sur Chromium, Firefox et WebKit.
 
+# NiakGPT 0.9.63 — Actions natives, état canonique et non-lus
+
+- Remplace les anciens contrôles de renommage custom par les menus d’actions ChatGPT natifs complets pour Projects et conversations lorsque la ligne native est disponible.
+- Retire `project-pins-v090.js` du runtime afin d’éviter un second propriétaire de synchronisation des Projects.
+- Ajoute une autorité monotone pour les titres et affectations Project afin qu’un cache ancien ou un titre d’onglet obsolète ne remplace plus l’état serveur connu.
+- Rend le fil d’Ariane canonique et entièrement lié : `Accueil > Project > Chat`, sans utiliser `OUT` comme nom de Project.
+- Ajoute l’état non-lu, sa remise à zéro à l’ouverture et le signal immédiat lorsqu’une réponse se termine hors vue.
+- Ajoute `conversation-load-guard-v113.js` pour relâcher les optimisations NiakGPT tant que le contenu natif de la conversation n’est pas encore rendu.
+- Consolide les gates courants et réduit les workflows redondants avant l’ajout de CodeQL.
+
 # NiakGPT 0.9.62 — Finalisation sidebar, continuité, classement et performances
 
 - Le bloc Projects NiakGPT devient réellement autoritaire : détection du doublon natif par structure **et par identité des noms de Projects**, sans dépendre uniquement des classes ou des `href` ChatGPT ; Récents reste intact et le natif revient seulement si `#ng8-pins` disparaît.

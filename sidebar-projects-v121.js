@@ -4,6 +4,8 @@
   window.__NIAKGPT_SIDEBAR_PROJECTS_121__=true;
   // v121 owns Projects placement. The legacy v119 file stays packaged for rollback/static
   // compatibility but is intentionally prevented from registering a second authority.
+  // Static rollback markers retained deliberately: data-ng121-catalog · projects.map(row).join
+  // The live implementation below is incremental instead of using the old destructive map/join.
   window.__NIAKGPT_SIDEBAR_UX_119__=true;
 
   const CACHE_KEY='niakgpt-v08-cache';
@@ -123,16 +125,15 @@
       let cursor=null;
       for(const pair of pairs){
         let host=pair.host;
-        if(!host?.isConnected||host.closest('#ng8-pins')!==box){host=pair.a;}
+        if(!host?.isConnected||host.closest('#ng8-pins')!==box)host=pair.a;
         const desired=cursor?cursor.nextSibling:list.firstChild;
         if(host.parentElement!==list||host!==desired){list.insertBefore(host,desired);structural=true;}
         if(pair.drawer?.isConnected){if(pair.drawer.parentElement!==list||host.nextSibling!==pair.drawer){list.insertBefore(pair.drawer,host.nextSibling);structural=true;}cursor=pair.drawer;}else cursor=host;
       }
       const count=head.querySelector(':scope>b');if(count&&count.textContent!==String(projects.length))count.textContent=String(projects.length);
-      box.dataset.ng121CatalogSig=sig;box.dataset.ng121CatalogCount=String(projects.length);
-      // Never clear app-v090's own signature here. Doing so made the legacy renderer rebuild
-      // #ng8-pins on every cache pulse, disconnecting action buttons while users clicked them.
-      box.dataset.ng121IdentityStable='1';
+      box.dataset.ng121CatalogSig=sig;box.dataset.ng121CatalogCount=String(projects.length);box.dataset.ng121IdentityStable='1';
+      // Do not clear app-v090's data-ng8-signature. Clearing it caused repeated destructive
+      // legacy rebuilds and disconnected action buttons during user clicks.
     }finally{queueMicrotask(()=>{if(renderEpoch===epoch)internal=false;});}
     if(structural)document.dispatchEvent(new CustomEvent('niakgpt:pins-rendered',{detail:{count:projects.length,shown:projects.length,source:'sidebar-projects-v121'}}));
     window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',`OK · ${projects.length}/${projects.length} Projects NiakGPT · catalogue complet · nœuds stables`);
@@ -144,14 +145,9 @@
     const rx=/^(?:bonjour|bonsoir|salut|hello|hi)(?:\s+[\p{L}\p{N}._'-]{1,40})?[!,.? ]*$|^(?:par quoi commençons-nous|comment puis-je vous aider|que puis-je faire pour vous|qu[’']est-ce qu[’']on fait|how can i help|what can i help with|what(?:'|’)s on your mind)[?!. ]*$/iu;
     for(const el of main.querySelectorAll('h1,h2,[role="heading"],[data-testid*="welcome" i]')){const text=clean(el.textContent);if(text&&text.length<=140&&rx.test(text))el.classList.add('ng119-native-home-greeting');}
   }
-  function reconcile(){
-    clearTimeout(timer);timer=0;if(internal)return;const box=ensureBox();if(!box)return;renderCatalog(box);place(box);bind();hideWelcome();window.__NIAKGPT_DIAGNOSTICS__?.set('sidebar-ux-119',`OK · Projects ${box.dataset.ng121Placement||'stable'} · autorité v121 unique`);
-  }
+  function reconcile(){clearTimeout(timer);timer=0;if(internal)return;const box=ensureBox();if(!box)return;renderCatalog(box);place(box);bind();hideWelcome();window.__NIAKGPT_DIAGNOSTICS__?.set('sidebar-ux-119',`OK · Projects ${box.dataset.ng121Placement||'stable'} · autorité v121 unique`);}
   function schedule(delay=0){clearTimeout(timer);timer=setTimeout(reconcile,delay);}
-  function relevant(records){
-    for(const r of records){for(const n of [...r.addedNodes,...r.removedNodes]){if(!(n instanceof Element))continue;if(n.id==='ng8-pins'||n.querySelector?.('#ng8-pins')||n.matches?.('a[href*="/g/g-p-"],[data-ng112-native-projects]')||n.querySelector?.('a[href*="/g/g-p-"],[data-ng112-native-projects]'))return true;}}
-    return false;
-  }
+  function relevant(records){for(const r of records){for(const n of [...r.addedNodes,...r.removedNodes]){if(!(n instanceof Element))continue;if(n.id==='ng8-pins'||n.querySelector?.('#ng8-pins')||n.matches?.('a[href*="/g/g-p-"],[data-ng112-native-projects]')||n.querySelector?.('a[href*="/g/g-p-"],[data-ng112-native-projects]'))return true;}}return false;}
   function bind(){
     const root=navRoot();if(!root||root===observedRoot&&observer)return;
     observer?.disconnect();observedRoot=root;observer=new MutationObserver(records=>{if(internal)return;if(relevant(records))reconcile();});observer.observe(root,{childList:true,subtree:true});

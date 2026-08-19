@@ -38,6 +38,7 @@ for(const [engine,launcher] of Object.entries(engines)){
       const state=await page.evaluate(()=>{const pins=document.getElementById('ng8-pins');return{connected:!!pins?.isConnected,display:pins?getComputedStyle(pins).display:'none',next:pins?.nextElementSibling?.id||'',placement:pins?.dataset.ng119Placement||''};});
       assert(state.connected&&state.display!=='none'&&state.next==='native-projects',`pins missing or moved on ${route}: ${JSON.stringify(state)}`);
     }
+    await page.evaluate(chatId=>{history.pushState({},'',`/c/${chatId}`);dispatchEvent(new PopStateEvent('popstate'));},C1);await page.waitForTimeout(160);
 
     const before=page.url();await page.locator(`#ng8-pins a[href="/g/${P2}/project"]`).click();await page.waitForTimeout(80);assert(page.url()===before,'Project label navigated instead of acting as folder');assert(await page.evaluate(()=>window.__ng119PinToggles)===1,'Project folder click did not propagate to drawer handler');
 

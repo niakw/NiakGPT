@@ -73,6 +73,7 @@ for(const [engine,launcher] of Object.entries(engines)){
     const fallbackAction=page.locator('#ng8-pins .ng113-native-actions-chat');
     await fallbackAction.waitFor({state:'visible'});await fallbackAction.click();
     await page.waitForFunction(()=>document.getElementById('ng113-actions-fallback')?.matches?.(':popover-open'));
+    await page.waitForTimeout(16);
     await page.mouse.click(1100,700);
     await page.waitForFunction(()=>!document.getElementById('ng113-actions-fallback'));
     await page.evaluate(()=>{const m=document.createElement('div');m.id='post-fallback-menu';m.className='menu';m.setAttribute('role','menu');m.style.cssText='left:840px;top:420px';m.innerHTML='<button role="menuitem">Unrelated later menu</button>';document.querySelector('main').appendChild(m);});

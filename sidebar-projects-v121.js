@@ -2,8 +2,8 @@
   'use strict';
   if(location.hostname!=='chatgpt.com'||window.__NIAKGPT_SIDEBAR_PROJECTS_121__)return;
   window.__NIAKGPT_SIDEBAR_PROJECTS_121__=true;
-  // v121 replaces the old placement authority. Keep the old file wired for rollback/static
-  // compatibility, but make it a no-op so two controllers can no longer fight over #ng8-pins.
+  // v121 owns Projects placement. The legacy v119 file stays packaged for rollback/static
+  // compatibility but is intentionally prevented from registering a second authority.
   window.__NIAKGPT_SIDEBAR_UX_119__=true;
 
   const CACHE_KEY='niakgpt-v08-cache';
@@ -12,11 +12,11 @@
   const PROJECT_RX=/\/g\/(g-p-[^/?#]+)(?:\/|$)/i;
   const QUEUE=new Set(['a classer','hors projet / a classer','hors projet/a classer','unclassified','to classify']);
   const PRIMARY_PATH=/^(?:\/?$|\/new(?:\/|$)|\/search(?:\/|$)|\/library(?:\/|$)|\/images?(?:\/|$)|\/apps?(?:\/|$)|\/codex(?:\/|$))/i;
-  let cache={projects:[],chats:[],counts:{}},governance={hiddenProjectIds:[],coreProjectIds:[]},observer=null,observedRoot=null,internal=false,timer=0,renderEpoch=0;
+  let cache={projects:[],chats:[],counts:{}},governance={hiddenProjectIds:[],coreProjectIds:[]};
+  let observer=null,observedRoot=null,internal=false,timer=0,renderEpoch=0;
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-  const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt',"'":'&#39;','"':'&quot;'}[c]));
   const normalizePid=v=>{const s=clean(v),m=s.match(/^g-p-([A-Za-z0-9]+)(?:-.+)?$/);return m?`g-p-${m[1]}`:s;};
   const pidFromHref=h=>normalizePid(String(h||'').match(PROJECT_RX)?.[1]||'');
   const parseTime=v=>{if(typeof v==='number'&&Number.isFinite(v))return v>1e12?v:v*1000;if(typeof v==='string'){const n=Number(v);if(Number.isFinite(n))return n>1e12?n:n*1000;const d=Date.parse(v);return Number.isFinite(d)?d:0;}return 0;};
@@ -34,7 +34,8 @@
   function hasPrimary(scope){return [...scope.querySelectorAll?.('a[href]')||[]].some(a=>PRIMARY_PATH.test(a.getAttribute('href')||''));}
   function nativeProjectSection(){
     const root=navRoot();if(!root)return null;
-    const marked=[...root.querySelectorAll('[data-ng112-native-projects="1"]')].filter(el=>!el.contains(document.getElementById('ng8-pins')));
+    const box=document.getElementById('ng8-pins');
+    const marked=[...root.querySelectorAll('[data-ng112-native-projects="1"]')].filter(el=>!el.contains(box));
     const labels=[...root.querySelectorAll('h1,h2,h3,[role="heading"],span,div,button,a')].filter(el=>!isOwn(el)&&projectLabel(el.getAttribute?.('aria-label')||el.textContent));
     for(const seed of [...labels,...marked]){
       let node=seed;
@@ -82,25 +83,59 @@
   function projectMeta(id){
     let latest=0,count=0;for(const c of cache.chats||[])if(normalizePid(c?.projectId)===id){count++;latest=Math.max(latest,parseTime(c.updated||c.update_time||c.create_time));}
     const direct=Object.entries(cache.counts||{}).find(([key])=>normalizePid(key)===id)?.[1];if(Number.isFinite(Number(direct)))count=Math.max(count,Number(direct));
-    const date=latest?`${String(new Date(latest).getDate()).padStart(2,'0')}/${String(new Date(latest).getMonth()+1).padStart(2,'0')}`:'—';return{count,date,text:`${date}  [${count}]`};
+    const date=latest?`${String(new Date(latest).getDate()).padStart(2,'0')}/${String(new Date(latest).getMonth()+1).padStart(2,'0')}`:'—';return{text:`${date}  [${count}]`};
   }
   function catalogSignature(projects){return JSON.stringify(projects.map(p=>[p.id,p.name,p.href,p.color,p.icon]));}
+  function anchorPid(a){return normalizePid(a?.dataset?.ng121Pid||pidFromHref(a?.getAttribute?.('href')));}
+  function hostFor(a){const row=a?.closest?.('.ng96-pin-entry');return row&&row.closest('#ng8-pins')?row:a;}
+  function drawerFor(host,pid){const next=host?.nextElementSibling;return next?.classList?.contains('ng96-pin-drawer')&&normalizePid(next.dataset.pid)===pid?next:null;}
+  function makeAnchor(p){
+    const a=document.createElement('a');a.dataset.ng8Pin='1';a.dataset.ng121Pid=p.id;a.href=p.href;a.style.setProperty('--ng-project',p.color);
+    const icon=document.createElement('i');icon.textContent=p.icon;const label=document.createElement('span');label.textContent=p.name;const meta=document.createElement('small');meta.className='ng8-project-meta';meta.textContent=projectMeta(p.id).text;
+    a.append(icon,label,meta);return a;
+  }
+  function updateAnchor(a,p){
+    a.dataset.ng8Pin='1';a.dataset.ng121Pid=p.id;if(a.getAttribute('href')!==p.href)a.setAttribute('href',p.href);a.style.setProperty('--ng-project',p.color);
+    let icon=a.querySelector(':scope>i');if(!icon){icon=document.createElement('i');a.prepend(icon);}if(icon.textContent!==p.icon)icon.textContent=p.icon;
+    let label=a.querySelector(':scope>span:not(.ng113-dots)');if(!label){label=document.createElement('span');icon.insertAdjacentElement('afterend',label);}if(label.textContent!==p.name)label.textContent=p.name;
+    let meta=a.querySelector(':scope>small.ng8-project-meta');if(!meta){meta=document.createElement('small');meta.className='ng8-project-meta';a.appendChild(meta);}const text=projectMeta(p.id).text;if(meta.textContent!==text)meta.textContent=text;
+  }
+  function ensureStructure(box){
+    let head=box.querySelector(':scope>.ng8-pin-head');if(!head){head=document.createElement('div');head.className='ng8-pin-head';head.dataset.ng121Catalog='1';head.innerHTML='<span>PROJECTS</span><b>0</b>';box.prepend(head);}else{head.dataset.ng121Catalog='1';if(!head.querySelector(':scope>b')){const b=document.createElement('b');head.appendChild(b);}}
+    let list=box.querySelector(':scope>.ng8-pin-list');if(!list){list=document.createElement('div');list.className='ng8-pin-list';head.insertAdjacentElement('afterend',list);}
+    for(const extra of box.querySelectorAll(':scope>.ng90-project-extras'))extra.remove();
+    return{head,list};
+  }
   function renderCatalog(box){
-    const projects=canonicalProjects(),sig=catalogSignature(projects),currentSig=box.dataset.ng121CatalogSig||'',anchors=[...box.querySelectorAll('a[data-ng8-pin="1"]')];
-    const intact=currentSig===sig&&anchors.length===projects.length&&anchors.every((a,i)=>normalizePid(a.dataset.ng121Pid||pidFromHref(a.getAttribute('href')))===projects[i]?.id);
-    if(!intact){
-      internal=true;const epoch=++renderEpoch;
-      try{
-        const row=p=>{const meta=projectMeta(p.id);return`<a data-ng8-pin="1" data-ng121-pid="${esc(p.id)}" href="${esc(p.href)}" style="--ng-project:${esc(p.color)}"><i>${esc(p.icon)}</i><span>${esc(p.name)}</span><small class="ng8-project-meta">${esc(meta.text)}</small></a>`;};
-        box.innerHTML=`<div class="ng8-pin-head" data-ng121-catalog="1"><span>PROJECTS</span><b>${projects.length}</b></div><div class="ng8-pin-list">${projects.map(row).join('')}</div>`;
-        box.dataset.ng121CatalogSig=sig;box.dataset.ng121CatalogCount=String(projects.length);delete box.dataset.ng8Signature;
-      }finally{queueMicrotask(()=>{if(renderEpoch===epoch)internal=false;});}
-      document.dispatchEvent(new CustomEvent('niakgpt:pins-rendered',{detail:{count:projects.length,shown:projects.length,source:'sidebar-projects-v121'}}));
-    }else{
-      box.querySelector('.ng8-pin-head b')?.replaceChildren(document.createTextNode(String(projects.length)));
-      projects.forEach((p,i)=>{const small=anchors[i]?.querySelector(':scope>small.ng8-project-meta');if(small){const next=projectMeta(p.id).text;if(small.textContent!==next)small.textContent=next;}});
-    }
-    window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',`OK · ${projects.length}/${projects.length} Projects NiakGPT · catalogue complet`);
+    const projects=canonicalProjects(),wanted=new Set(projects.map(p=>p.id)),sig=catalogSignature(projects);let structural=false;
+    internal=true;const epoch=++renderEpoch;
+    try{
+      const {head,list}=ensureStructure(box),existing=new Map();
+      for(const a of box.querySelectorAll('a[data-ng8-pin="1"]')){const id=anchorPid(a);if(id&&!existing.has(id))existing.set(id,a);}
+      const pairs=[];
+      for(const p of projects){
+        let a=existing.get(p.id);if(!a){a=makeAnchor(p);structural=true;}else updateAnchor(a,p);
+        const host=hostFor(a),drawer=host?.isConnected?drawerFor(host,p.id):null;pairs.push({p,a,host,drawer});
+      }
+      for(const [id,a] of existing){
+        if(wanted.has(id))continue;const host=hostFor(a),drawer=drawerFor(host,id);drawer?.remove();host?.remove();structural=true;
+      }
+      let cursor=null;
+      for(const pair of pairs){
+        let host=pair.host;
+        if(!host?.isConnected||host.closest('#ng8-pins')!==box){host=pair.a;}
+        const desired=cursor?cursor.nextSibling:list.firstChild;
+        if(host.parentElement!==list||host!==desired){list.insertBefore(host,desired);structural=true;}
+        if(pair.drawer?.isConnected){if(pair.drawer.parentElement!==list||host.nextSibling!==pair.drawer){list.insertBefore(pair.drawer,host.nextSibling);structural=true;}cursor=pair.drawer;}else cursor=host;
+      }
+      const count=head.querySelector(':scope>b');if(count&&count.textContent!==String(projects.length))count.textContent=String(projects.length);
+      box.dataset.ng121CatalogSig=sig;box.dataset.ng121CatalogCount=String(projects.length);
+      // Never clear app-v090's own signature here. Doing so made the legacy renderer rebuild
+      // #ng8-pins on every cache pulse, disconnecting action buttons while users clicked them.
+      box.dataset.ng121IdentityStable='1';
+    }finally{queueMicrotask(()=>{if(renderEpoch===epoch)internal=false;});}
+    if(structural)document.dispatchEvent(new CustomEvent('niakgpt:pins-rendered',{detail:{count:projects.length,shown:projects.length,source:'sidebar-projects-v121'}}));
+    window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',`OK · ${projects.length}/${projects.length} Projects NiakGPT · catalogue complet · nœuds stables`);
     return projects.length;
   }
   function ensureBox(){const root=navRoot();if(!root)return null;let box=document.getElementById('ng8-pins');if(!box){box=document.createElement('section');box.id='ng8-pins';box.hidden=true;root.appendChild(box);}return box;}
@@ -110,7 +145,7 @@
     for(const el of main.querySelectorAll('h1,h2,[role="heading"],[data-testid*="welcome" i]')){const text=clean(el.textContent);if(text&&text.length<=140&&rx.test(text))el.classList.add('ng119-native-home-greeting');}
   }
   function reconcile(){
-    clearTimeout(timer);timer=0;if(internal)return;const box=ensureBox();if(!box)return;renderCatalog(box);place(box);bind();hideWelcome();window.__NIAKGPT_DIAGNOSTICS__?.set('sidebar-ux-119',`OK · Projects ${box.dataset.ng121Placement||'stable'} · autorité v121`);
+    clearTimeout(timer);timer=0;if(internal)return;const box=ensureBox();if(!box)return;renderCatalog(box);place(box);bind();hideWelcome();window.__NIAKGPT_DIAGNOSTICS__?.set('sidebar-ux-119',`OK · Projects ${box.dataset.ng121Placement||'stable'} · autorité v121 unique`);
   }
   function schedule(delay=0){clearTimeout(timer);timer=setTimeout(reconcile,delay);}
   function relevant(records){
@@ -128,9 +163,7 @@
     reconcile();
   }
 
-  document.addEventListener('click',event=>{
-    if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;const a=event.target instanceof Element?event.target.closest('#ng8-pins a[data-ng8-pin="1"]'):null;if(a)event.preventDefault();
-  },true);
+  document.addEventListener('click',event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;const a=event.target instanceof Element?event.target.closest('#ng8-pins a[data-ng8-pin="1"]'):null;if(a)event.preventDefault();},true);
   document.addEventListener('auxclick',event=>{const a=event.target instanceof Element?event.target.closest('#ng8-pins a[data-ng8-pin="1"]'):null;if(a)event.preventDefault();},true);
   try{chrome.storage.onChanged.addListener((changes,area)=>{if(area!=='local')return;if(changes[CACHE_KEY])cache=changes[CACHE_KEY].newValue||cache;if(changes[GOV_KEY])governance={...governance,...(changes[GOV_KEY].newValue||{})};if(changes[CACHE_KEY]||changes[GOV_KEY])schedule(0);});}catch{}
   document.addEventListener('niakgpt:server-projects-ready',()=>schedule(0));document.addEventListener('niakgpt:server-indexed',()=>schedule(0));document.addEventListener('niakgpt:recovery-complete',()=>schedule(0));

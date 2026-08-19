@@ -12,6 +12,7 @@
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const visible=el=>{if(!(el instanceof Element)||!el.isConnected)return false;const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden'&&el.getClientRects().length>0;};
+  const ownRecoveryNode=el=>el instanceof Element&&(el.id==='ng119-interruption'||!!el.closest('#ng119-interruption'));
   const editor=()=>document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"]')||[...document.querySelectorAll('textarea,[contenteditable="true"]')].reverse().find(el=>!el.closest('#ng8-coach,#ng119-interruption'));
   function setEditor(ed,text){
     if(!ed)return false;try{if('value'in ed){const proto=Object.getPrototypeOf(ed),setter=Object.getOwnPropertyDescriptor(proto,'value')?.set;setter?setter.call(ed,text):ed.value=text;}else{ed.focus();ed.textContent=text;}ed.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:text}));return true;}catch{return false;}
@@ -21,7 +22,7 @@
   function candidateText(el){return clean(el?.innerText||el?.textContent).slice(0,2200);}
   function classifyText(text){if(!text)return'';if(LIMIT_RX.test(text))return'limit';if(VERIFY_RX.test(text))return'verify';if(NETWORK_RX.test(text))return'network';return'';}
   function currentSignal(type=''){
-    const nodes=[...document.querySelectorAll('[role="alert"],[role="status"],[data-testid*="error" i],[data-testid*="limit" i],[data-testid*="toast" i],[data-testid*="challenge" i],iframe[src*="challenge" i],iframe[src*="cloudflare" i]')].filter(visible);
+    const nodes=[...document.querySelectorAll('[role="alert"],[role="status"],[data-testid*="error" i],[data-testid*="limit" i],[data-testid*="toast" i],[data-testid*="challenge" i],iframe[src*="challenge" i],iframe[src*="cloudflare" i]')].filter(el=>visible(el)&&!ownRecoveryNode(el));
     for(const node of nodes){const kind=classifyText(candidateText(node)||node.getAttribute?.('title')||node.getAttribute?.('src')||'');if(kind&&(!type||kind===type))return{kind,node};}
     return null;
   }
@@ -73,16 +74,16 @@
   }
   function scheduleRecovery(delay=240){clearTimeout(timer);timer=setTimeout(()=>{timer=0;tryNativeRecovery();},delay);}
   function inspectNode(node){
-    if(!(node instanceof Element))return;
+    if(!(node instanceof Element)||ownRecoveryNode(node))return;
     const text=candidateText(node);let type=classifyText(text);
-    if(!type){for(const el of node.querySelectorAll?.('[role="alert"],[role="status"],[data-testid*="error" i],[data-testid*="limit" i],[data-testid*="toast" i],[data-testid*="challenge" i]')||[]){type=classifyText(candidateText(el));if(type)break;}}
+    if(!type){for(const el of node.querySelectorAll?.('[role="alert"],[role="status"],[data-testid*="error" i],[data-testid*="limit" i],[data-testid*="toast" i],[data-testid*="challenge" i]')||[]){if(ownRecoveryNode(el))continue;type=classifyText(candidateText(el));if(type)break;}}
     if(type)begin(type,text);
   }
   function scan(){const signal=currentSignal();if(signal)begin(signal.kind,candidateText(signal.node));else if(incident&&['verify','network'].includes(incident.type))scheduleRecovery(120);}
   function bind(){
     observer?.disconnect();observer=new MutationObserver(records=>{
       let structural=false;
-      for(const r of records){if(r.type!=='childList')continue;structural=true;for(const node of r.addedNodes)inspectNode(node);}
+      for(const r of records){if(r.type!=='childList')continue;const external=[...r.addedNodes,...r.removedNodes].some(node=>!(node instanceof Element)||!ownRecoveryNode(node));if(!external)continue;structural=true;for(const node of r.addedNodes)inspectNode(node);}
       if(structural&&incident&&['verify','network'].includes(incident.type))scheduleRecovery(180);
     });observer.observe(document.documentElement,{childList:true,subtree:true});
   }

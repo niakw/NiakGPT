@@ -19,7 +19,9 @@ for(const [engine,launcher] of Object.entries(engines)){
     const html=`<!doctype html><html><head><style>
       *{box-sizing:border-box}body{margin:0;font-family:Arial}
       #left{position:fixed;left:0;top:0;bottom:0;width:310px;padding:10px;background:#111}
-      #left-overlay{position:fixed;left:12px;top:560px;width:280px;height:150px;padding:10px;background:#ddd;color:#111}
+      #left-overlay{position:fixed;left:12px;top:560px;width:280px;height:120px;padding:10px;background:#ddd;color:#111}
+      #left-search{position:fixed;left:14px;top:690px;width:278px;height:100px;padding:10px;background:#ccc;color:#111}
+      #separate-native{position:fixed;left:8px;top:800px;width:292px;height:90px;padding:8px;background:#222;color:#fff}
       #right{position:fixed;right:0;top:0;bottom:0;width:300px;padding:10px;background:#222}
       main{margin:0 320px;padding:20px}
       #native-projects,#recents,#ng8-pins{padding:8px;margin:6px 0;border:1px solid #555}
@@ -33,6 +35,8 @@ for(const [engine,launcher] of Object.entries(engines)){
         <section id="ng8-pins"><a data-ng8-pin="1" href="/g/g-p-one/project"><span>One</span></a><a data-ng8-pin="1" href="/g/g-p-two/project"><span>Two</span></a></section>
       </aside>
       <aside id="left-overlay"><button id="left-unrelated-projects">Projects</button><a href="/help">Help</a></aside>
+      <aside id="left-search"><h3>Search results</h3><a id="search-project-result" href="/g/g-p-one/project">One</a></aside>
+      <aside id="separate-native"><h3>Projects</h3><a href="/g/g-p-one/project">One</a><a href="/g/g-p-two/project">Two</a></aside>
       <main><button id="main-projects">Projects</button></main>
       <aside id="right"><button id="unrelated-projects">Projects</button><a href="/help/projects">Project help</a></aside>
     </body></html>`;
@@ -40,18 +44,22 @@ for(const [engine,launcher] of Object.entries(engines)){
     await page.goto('https://chatgpt.com/',{waitUntil:'domcontentloaded'});
     await page.addStyleTag({content:authorityCss});
     await page.addScriptTag({content:authorityJs});
-    await page.waitForTimeout(120);
+    await page.waitForTimeout(140);
 
     const snapshot=()=>page.evaluate(()=>({
       native:document.getElementById('native-projects')?.getAttribute('data-ng112-native-projects')||'',
+      separateNative:document.getElementById('separate-native')?.getAttribute('data-ng112-native-projects')||'',
       recents:document.getElementById('recents')?.getAttribute('data-ng112-native-projects')||'',
       unrelated:document.getElementById('unrelated-projects')?.getAttribute('data-ng112-native-projects')||'',
       leftUnrelated:document.getElementById('left-unrelated-projects')?.getAttribute('data-ng112-native-projects')||'',
+      searchResult:document.getElementById('search-project-result')?.getAttribute('data-ng112-native-projects')||'',
+      searchHost:document.getElementById('left-search')?.getAttribute('data-ng112-native-projects')||'',
       main:document.getElementById('main-projects')?.getAttribute('data-ng112-native-projects')||'',
       marked:[...document.querySelectorAll('[data-ng112-native-projects="1"]')].map(e=>e.id||e.tagName),
     }));
     let s=await snapshot();
-    assert(s.native==='1'&&!s.recents&&!s.unrelated&&!s.leftUnrelated&&!s.main&&s.marked.length===1,`Projects authority escaped the real left sidebar: ${JSON.stringify(s)}`);
+    assert(s.native==='1'&&s.separateNative==='1',`real native Projects surfaces were not both acquired: ${JSON.stringify(s)}`);
+    assert(!s.recents&&!s.unrelated&&!s.leftUnrelated&&!s.searchResult&&!s.searchHost&&!s.main&&s.marked.length===2,`Projects authority escaped into unrelated/search UI: ${JSON.stringify(s)}`);
 
     await page.evaluate(()=>document.getElementById('ng8-pins').remove());
     await page.waitForTimeout(100);s=await snapshot();
@@ -59,16 +67,16 @@ for(const [engine,launcher] of Object.entries(engines)){
 
     await page.evaluate(()=>{const box=document.createElement('section');box.id='ng8-pins';box.innerHTML='<a data-ng8-pin="1" href="/g/g-p-one/project"><span>One</span></a><a data-ng8-pin="1" href="/g/g-p-two/project"><span>Two</span></a>';document.getElementById('left').appendChild(box);document.dispatchEvent(new CustomEvent('niakgpt:pins-rendered'));});
     await page.waitForTimeout(100);s=await snapshot();
-    assert(s.native==='1'&&!s.unrelated&&!s.leftUnrelated&&s.marked.length===1,`Projects authority did not reacquire only the native left surface: ${JSON.stringify(s)}`);
+    assert(s.native==='1'&&s.separateNative==='1'&&!s.searchHost&&!s.searchResult&&s.marked.length===2,`Projects authority did not reacquire only real Project surfaces: ${JSON.stringify(s)}`);
 
     for(let i=0;i<24;i++){
       await page.evaluate(i=>{const old=document.getElementById('native-projects'),next=old.cloneNode(true);next.dataset.remount=String(i);old.replaceWith(next);},i);
       await page.waitForTimeout(18);
     }
     await page.waitForTimeout(100);s=await snapshot();
-    assert(s.native==='1'&&!s.recents&&!s.unrelated&&!s.leftUnrelated&&!s.main&&s.marked.length===1,`Projects authority drifted after repeated React-style remounts: ${JSON.stringify(s)}`);
+    assert(s.native==='1'&&s.separateNative==='1'&&!s.recents&&!s.unrelated&&!s.leftUnrelated&&!s.searchResult&&!s.searchHost&&!s.main&&s.marked.length===2,`Projects authority drifted after repeated React-style remounts: ${JSON.stringify(s)}`);
 
-    console.log(`${engine} Projects authority left-sidebar isolation/remount/release: PASS`);
+    console.log(`${engine} Projects authority real-root/search-result isolation/remount/release: PASS`);
   }finally{await context.close();await browser.close();}
 }
 console.log(`sidebar-authority-isolation-v119: ${Object.keys(engines).join(',')} PASS`);

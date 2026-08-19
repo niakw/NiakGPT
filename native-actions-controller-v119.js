@@ -81,6 +81,15 @@
     for(const shell of shells){const r=shell.getBoundingClientRect?.();if(!r||r.width<=80||r.left>=innerWidth*.5)continue;right=Math.max(right,r.right);}
     return right;
   }
+  function snapshotSource(source){
+    if(!(source instanceof HTMLElement))return null;const r=source.getBoundingClientRect?.();if(!r)return null;
+    return{rect:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height},sidebarRight:sidebarRight(source)};
+  }
+  function sourceGeometry(){
+    if(!session)return null;const live=session.source instanceof HTMLElement&&session.source.isConnected;
+    if(live){const snap=snapshotSource(session.source);if(snap){session.geometry=snap;return snap;}}
+    return session.geometry||null;
+  }
   function promote(menu,index=0){
     if(!(menu instanceof HTMLElement)||!session||session.baseline.has(menu))return false;
     session.menus.add(menu);
@@ -90,9 +99,9 @@
         menu.showPopover();
       }
     }catch{}
-    const source=session.source;if(!source?.isConnected)return false;
+    const geometry=sourceGeometry(),sr=geometry?.rect;if(!sr)return false;
     const raw=menu.getBoundingClientRect(),width=Math.min(320,Math.max(220,raw.width||240)),height=Math.min(innerHeight-16,Math.max(80,raw.height||260));
-    const base=sidebarRight(source)+8,left=Math.min(Math.max(8,innerWidth-width-8),Math.max(8,base+index*(width+8))),sr=source.getBoundingClientRect(),top=Math.min(Math.max(8,sr.top-4+index*10),Math.max(8,innerHeight-height-8));
+    const base=Math.max(sr.right,geometry?.sidebarRight||0)+8,left=Math.min(Math.max(8,innerWidth-width-8),Math.max(8,base+index*(width+8))),top=Math.min(Math.max(8,sr.top-4+index*10),Math.max(8,innerHeight-height-8));
     menu.classList.add('ng113-native-menu-floating');menu.style.setProperty('--ng113-menu-left',`${left}px`);menu.style.setProperty('--ng113-menu-top',`${top}px`);menu.dataset.ng113Floated='1';menu.dataset.ng113TopLayer=menu.matches?.(':popover-open')?'1':'0';menu.dataset.ng119Owned='1';
     return true;
   }
@@ -126,13 +135,16 @@
   }
   function armSession(key,source,trigger){
     closeSession({toggleNative:true});
-    const baseline=new Set(visibleMenus()),s={key,source,trigger,baseline,menus:new Set(),observer:null,timer:0};session=s;
+    const baseline=new Set(visibleMenus()),s={key,source,trigger,geometry:snapshotSource(source),baseline,menus:new Set(),observer:null,timer:0};session=s;
     s.observer=new MutationObserver(()=>{if(session===s){claimControlled(trigger);claimNewMenus();}});s.observer.observe(document.body,{childList:true,subtree:true});
     return s;
   }
   async function openViaTrigger(kind,id,source,trigger,token){
-    if(token!==epoch||!source?.isConnected||!trigger?.isConnected)return false;
-    const s=armSession(keyFor(kind,id),source,trigger);source.setAttribute('aria-expanded','true');
+    // Source button may be replaced by a sidebar reconcile after the user's click. The native
+    // trigger/menu session remains valid, so continue from the captured geometry instead of
+    // cancelling a real menu that has already opened.
+    if(token!==epoch||!trigger?.isConnected)return false;
+    const s=armSession(keyFor(kind,id),source,trigger);if(source?.isConnected)source.setAttribute('aria-expanded','true');
     trigger.click();claimControlled(trigger);
     for(const wait of [35,70,120,190,300]){
       await sleep(wait);if(token!==epoch||session!==s)return false;claimControlled(trigger);claimNewMenus();if(s.menus.size&&[...s.menus].some(isVisible))return true;

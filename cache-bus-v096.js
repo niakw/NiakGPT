@@ -67,7 +67,7 @@
     subscribe(fn){
       if(typeof fn!=='function'||contextDead||suspended)return()=>{};
       listeners.add(fn);
-      const replay=()=>{if(!contextDead&&!uspended&&listeners.has(fn))fn(value);};
+      const replay=()=>{if(!contextDead&&!suspended&&listeners.has(fn))fn(value);};
       if(resumeReady)resumeReady.then(()=>queueMicrotask(replay));
       else if(loaded)queueMicrotask(replay);
       return()=>listeners.delete(fn);

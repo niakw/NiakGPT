@@ -6,7 +6,7 @@
 
   const CACHE_KEY='niakgpt-v08-cache';
   const OWN='#ng8-pins,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb';
-  let sidebarObserver=null,sidebarNode=null,bootstrapObserver=null,timer=0,stopped=false,sanitizing=false,cacheUnsub=null;
+  let sidebarObserver=null,sidebarNode=null,bootstrapObserver=null,timer=0,stopped=false,cacheUnsub=null,sanitizeTask=null;
 
   const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
   const pidFromHref=h=>String(h||'').match(/\/g\/(g-p-[^/?#]+)(?:\/(?:project|c\/)|[/?#]|$)/i)?.[1]||'';
@@ -70,20 +70,23 @@
     }catch{}
     return bus;
   }
-  async function sanitizeCache(rawOverride){
-    if(stopped||sanitizing)return;
-    try{
-      const bus=wrapCacheBus()||window.__NIAKGPT_CACHE_BUS__;
-      const raw=rawOverride!==undefined?rawOverride:(bus?.__ng118RawGet?await bus.__ng118RawGet():bus?.get?await bus.get():(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]);
-      const cleaned=cleanCache(raw);if(!cleaned)return;
-      sanitizing=true;
-      if(bus?.update)await bus.update(latest=>cleanCache(latest)||latest);
-      else await chrome.storage.local.set({[CACHE_KEY]:cleaned});
-      window.__NIAKGPT_DIAGNOSTICS__?.set('metadata-sidebar','RÉPARÉ · faux Project/date supprimé');
-    }catch(error){
-      const msg=String(error?.message||error||'');
-      if(/Extension context invalidated|context invalidated/i.test(msg))stop();
-    }finally{sanitizing=false;}
+  function sanitizeCache(rawOverride){
+    if(stopped)return Promise.resolve();
+    if(sanitizeTask)return sanitizeTask;
+    sanitizeTask=(async()=>{
+      try{
+        const bus=wrapCacheBus()||window.__NIAKGPT_CACHE_BUS__;
+        const raw=rawOverride!==undefined?rawOverride:(bus?.__ng118RawGet?await bus.__ng118RawGet():bus?.get?await bus.get():(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]);
+        const cleaned=cleanCache(raw);if(!cleaned)return;
+        if(bus?.update)await bus.update(latest=>cleanCache(latest)||latest);
+        else await chrome.storage.local.set({[CACHE_KEY]:cleaned});
+        window.__NIAKGPT_DIAGNOSTICS__?.set('metadata-sidebar','RÉPARÉ · faux Project/date supprimé');
+      }catch(error){
+        const msg=String(error?.message||error||'');
+        if(/Extension context invalidated|context invalidated/i.test(msg))stop();
+      }
+    })().finally(()=>{sanitizeTask=null;});
+    return sanitizeTask;
   }
 
   function repair(){if(stopped)return;bindSidebar();normalizeChatMetadata();sanitizeCache();}
@@ -107,11 +110,11 @@
   }
   async function start(){
     stopped=false;const bus=wrapCacheBus();bootstrap();normalizeChatMetadata();
+    try{await sanitizeCache();}
+    finally{window.__NIAKGPT_METADATA_READY_118__='ready';}
     const rawSubscribe=bus?.__ng118RawSubscribe||null;
     if(rawSubscribe&&!cacheUnsub)cacheUnsub=rawSubscribe(raw=>{sanitizeCache(raw);schedule(8);});
     else if(bus?.subscribe&&!cacheUnsub)cacheUnsub=bus.subscribe(raw=>{sanitizeCache(raw);schedule(8);});
-    try{await sanitizeCache();}
-    finally{window.__NIAKGPT_METADATA_READY_118__='ready';}
     schedule(0);
   }
 

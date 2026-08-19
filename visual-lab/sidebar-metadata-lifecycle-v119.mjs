@@ -3,7 +3,7 @@ import path from 'node:path';
 import { chromium, firefox, webkit } from '@playwright/test';
 
 const ROOT=path.resolve('..');
-const metadataJs=await fs.readFile(path.join(ROOT,'sidebar-metadata-v118.js'),'utf8');
+const [metadataJs,cacheBusJs]=await Promise.all(['sidebar-metadata-v118.js','cache-bus-v096.js'].map(f=>fs.readFile(path.join(ROOT,f),'utf8')));
 const ALL={chromium,firefox,webkit},requested=String(process.env.NIAKGPT_BROWSER||'').trim(),engines=requested?{[requested]:ALL[requested]}:ALL;
 if(requested&&!ALL[requested])throw new Error(`Unsupported NIAKGPT_BROWSER=${requested}`);
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg);};
@@ -44,7 +44,49 @@ for(const [engine,launcher] of Object.entries(engines)){
     assert(outcome.subscriptions===1,`stale/current starts produced a missing or duplicate cache subscription: ${JSON.stringify(outcome)}`);
     assert(!outcome.bad&&outcome.chatProject==='g-p-good',`resumed metadata lifecycle did not finish sanitation: ${JSON.stringify(outcome)}`);
     assert(outcome.events.filter(x=>x==='subscribe').length===1,`stale start rearmed a second subscription after pageshow: ${JSON.stringify(outcome)}`);
-    console.log(`${engine} sidebar metadata pagehide/pageshow epoch lifecycle: PASS`);
+
+    const racePage=await context.newPage();
+    await racePage.addInitScript(()=>{
+      window.__store={'niakgpt-v08-cache':{schema:2,at:1,projects:[{id:'g-p-base',name:'Base',domOnly:false}],chats:[],counts:{},projectChats:{},indexedProjectIds:['g-p-base']}};
+      window.__changeListeners=[];window.__events=[];window.__delaySet=false;
+      const emit=(oldValue,newValue)=>{for(const fn of [...window.__changeListeners])fn({'niakgpt-v08-cache':{oldValue,newValue}},'local');};
+      window.chrome={runtime:{id:'lab'},storage:{local:{
+        get:async key=>({[key]:structuredClone(window.__store[key])}),
+        set:async obj=>{const oldValue=structuredClone(window.__store['niakgpt-v08-cache']);if(window.__delaySet)await new Promise(r=>setTimeout(r,120));window.__store['niakgpt-v08-cache']=structuredClone(obj['niakgpt-v08-cache']);window.__events.push(`own:${window.__store['niakgpt-v08-cache'].at}`);emit(oldValue,window.__store['niakgpt-v08-cache']);}
+      },onChanged:{addListener:fn=>window.__changeListeners.push(fn)}}};
+      window.__externalSet=(raw,label)=>{const oldValue=structuredClone(window.__store['niakgpt-v08-cache']);window.__store['niakgpt-v08-cache']=structuredClone(raw);window.__events.push(`${label}:${raw.at}`);emit(oldValue,raw);};
+      window.__NIAKGPT_DIAGNOSTICS__={set:()=>{}};
+      window.__fireTransition=(type,persisted=true)=>{const event=new Event(type);Object.defineProperty(event,'persisted',{value:persisted});window.dispatchEvent(event);};
+    });
+    await racePage.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html',body:'<!doctype html><html><body><nav data-testid="conversation-sidebar"></nav></body></html>'}));
+    await racePage.goto('https://chatgpt.com/',{waitUntil:'domcontentloaded'});
+    await racePage.evaluate(cacheBusJs);
+    await racePage.evaluate(metadataJs);
+    assert(await racePage.evaluate(()=>window.__NIAKGPT_METADATA_READY_118__==='ready'),'metadata/cache bus race fixture did not become ready');
+    const dirty={schema:2,at:2,projects:[{id:'g-p-base',name:'Base',domOnly:false},{id:'dom-old',name:'Today',domOnly:true}],chats:[],counts:{'dom-old':1},projectChats:{'dom-old':[]},indexedProjectIds:['g-p-base','dom-old']};
+    const newer={schema:2,at:3,projects:[{id:'g-p-base',name:'Base',domOnly:false},{id:'g-p-new',name:'New',domOnly:false}],chats:[{id:'new-chat',title:'New hidden chat',projectId:'g-p-new',href:'/c/new-chat'}],counts:{'g-p-new':1},projectChats:{},indexedProjectIds:['g-p-base','g-p-new']};
+    await racePage.evaluate(({dirty,newer})=>{
+      window.__delaySet=true;
+      window.__externalSet(dirty,'dirty-runtime');
+      setTimeout(()=>window.__fireTransition('pagehide',true),20);
+      setTimeout(()=>window.__externalSet(newer,'hidden-external-new'),40);
+      setTimeout(()=>window.__fireTransition('pageshow',true),50);
+    },{dirty,newer});
+    await racePage.waitForTimeout(520);
+    const race=await racePage.evaluate(()=>({
+      ready:window.__NIAKGPT_METADATA_READY_118__||'',
+      store:window.__store['niakgpt-v08-cache'],
+      peek:window.__NIAKGPT_CACHE_BUS__.peek(),
+      events:window.__events
+    }));
+    const storeIds=(race.store?.projects||[]).map(p=>p.id),peekIds=(race.peek?.projects||[]).map(p=>p.id);
+    assert(race.ready==='ready',`BFCache cache bus resume left metadata unready: ${JSON.stringify(race)}`);
+    assert(storeIds.includes('g-p-new')&&peekIds.includes('g-p-new'),`BFCache cache bus resume lost the newest hidden snapshot: ${JSON.stringify(race)}`);
+    assert((race.store?.chats||[]).some(c=>c.id==='new-chat')&&(race.peek?.chats||[]).some(c=>c.id==='new-chat'),`BFCache cache bus resume lost the newest hidden chat: ${JSON.stringify(race)}`);
+    assert(race.events.some(x=>x==='hidden-external-new:3'),`BFCache race fixture never published the hidden external snapshot: ${JSON.stringify(race)}`);
+    await racePage.close();
+
+    console.log(`${engine} sidebar metadata + cache bus pagehide/pageshow/BFCache newest-state lifecycle: PASS`);
   }finally{await context.close();await browser.close();}
 }
 console.log(`sidebar-metadata-lifecycle-v119: ${Object.keys(engines).join(',')} PASS`);

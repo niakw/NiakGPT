@@ -5,6 +5,7 @@
   window.__NIAKGPT_METADATA_READY_118__='pending';
 
   const CACHE_KEY='niakgpt-v08-cache';
+  const DATA_LOCK='niakgpt-data-mutation-v100';
   const OWN='#ng8-pins,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb';
   let sidebarObserver=null,sidebarNode=null,bootstrapObserver=null,timer=0,stopped=false,cacheUnsub=null,sanitizeTask=null;
 
@@ -70,17 +71,21 @@
     }catch{}
     return bus;
   }
-  function sanitizeCache(rawOverride){
+  function sanitizeCache(){
     if(stopped)return Promise.resolve();
     if(sanitizeTask)return sanitizeTask;
     sanitizeTask=(async()=>{
-      try{
+      const run=async()=>{
         const bus=wrapCacheBus()||window.__NIAKGPT_CACHE_BUS__;
-        const raw=rawOverride!==undefined?rawOverride:(bus?.__ng118RawGet?await bus.__ng118RawGet():bus?.get?await bus.get():(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]);
+        const raw=bus?.__ng118RawGet?await bus.__ng118RawGet():bus?.get?await bus.get():(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY];
         const cleaned=cleanCache(raw);if(!cleaned)return;
         if(bus?.update)await bus.update(latest=>cleanCache(latest)||latest);
         else await chrome.storage.local.set({[CACHE_KEY]:cleaned});
         window.__NIAKGPT_DIAGNOSTICS__?.set('metadata-sidebar','RÉPARÉ · faux Project/date supprimé');
+      };
+      try{
+        if(navigator.locks?.request)await navigator.locks.request(DATA_LOCK,{mode:'exclusive'},run);
+        else await run();
       }catch(error){
         const msg=String(error?.message||error||'');
         if(/Extension context invalidated|context invalidated/i.test(msg))stop();
@@ -108,6 +113,7 @@
     stopped=true;clearTimeout(timer);timer=0;sidebarObserver?.disconnect();bootstrapObserver?.disconnect();sidebarObserver=bootstrapObserver=null;sidebarNode=null;
     try{cacheUnsub?.();}catch{}cacheUnsub=null;
   }
+
   async function start(){
     stopped=false;const bus=wrapCacheBus();bootstrap();normalizeChatMetadata();
     try{await sanitizeCache();}

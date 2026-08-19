@@ -87,7 +87,7 @@
       if(originalGet)bus.get=async()=>cleanRead(await originalGet());
       if(originalPeek)bus.peek=()=>cleanRead(originalPeek());
       if(originalSubscribe)bus.subscribe=fn=>originalSubscribe(raw=>fn(cleanRead(raw)));
-      if(bus.ready&&typeof bus.ready.then==='function')bus.ready=Promise.resolve(bus.ready).then(cleanRead;
+      if(bus.ready&&typeof bus.ready.then==='function')bus.ready=Promise.resolve(bus.ready).then(cleanRead);
     }catch{}
     return bus;
   }

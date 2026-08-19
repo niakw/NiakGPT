@@ -1,8 +1,9 @@
-/* NiakGPT 0.9.70 — stable Projects slot + folder-only Project labels. */
-html:not([data-ng119-pins-ready="1"]) #ng8-pins{visibility:hidden!important;}
-#ng8-pins[data-ng119-placement]{visibility:visible!important;position:relative!important;flex:0 0 auto!important;align-self:stretch!important;width:100%!important;min-width:0!important;max-width:100%!important;transform:none!important;translate:none!important;}
+/* NiakGPT — stable Projects slot + folder-only Project labels. */
+html:not([data-ng121-pins-ready="1"]) #ng8-pins{visibility:hidden!important;}
+#ng8-pins[data-ng121-placement-ready="1"]{visibility:visible!important;position:relative!important;flex:0 0 auto!important;align-self:stretch!important;width:auto!important;min-width:0!important;max-width:100%!important;transform:none!important;translate:none!important;contain:layout style!important;}
+#ng8-pins .ng8-pin-list{max-height:min(52vh,520px)!important;overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain!important;scrollbar-width:thin!important;}
 #ng8-pins a[data-ng8-pin="1"]{text-decoration:none!important;}
 #ng8-pins a[data-ng8-pin="1"]>span{cursor:pointer!important;}
 #ng8-pins .ng96-chat-entry>a[data-ng110-active="1"],#ng8-pins .ng96-chat-entry[data-ng110-active="1"]>a[data-chat]{outline:1px solid color-mix(in srgb,var(--ng8-current-project,#4fc1ff) 78%,#fff 22%)!important;outline-offset:-1px!important;box-shadow:inset 3px 0 var(--ng8-current-project,#4fc1ff)!important;}
-html[data-ng8-running="1"] #ng8-pins[data-ng119-placement],html[data-ng86-activity="waiting"] #ng8-pins[data-ng119-placement],html[data-ng86-activity="thinking"] #ng8-pins[data-ng119-placement],html[data-ng86-activity="executing"] #ng8-pins[data-ng119-placement]{transform:none!important;translate:none!important;}
+html[data-ng8-running="1"] #ng8-pins[data-ng121-placement-ready="1"],html[data-ng86-activity="waiting"] #ng8-pins[data-ng121-placement-ready="1"],html[data-ng86-activity="thinking"] #ng8-pins[data-ng121-placement-ready="1"],html[data-ng86-activity="executing"] #ng8-pins[data-ng121-placement-ready="1"]{transform:none!important;translate:none!important;}
 main .ng119-native-home-greeting,[role="main"] .ng119-native-home-greeting{display:none!important;visibility:hidden!important;pointer-events:none!important;}

@@ -142,6 +142,10 @@
     b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();kind==='project'?openProjectActions(b,id):openChatActions(b,id);},true);
     return b;
   }
+  function ensureChatEntry(a){
+    let entry=a.closest('.ng96-chat-entry');if(entry)return entry;
+    entry=document.createElement('div');entry.className='ng96-chat-entry';entry.dataset.chatEntry=a.dataset.chat||cid(a.getAttribute('href'))||'';a.parentElement?.insertBefore(entry,a);entry.appendChild(a);return entry;
+  }
   function decorate(){
     timer=0;const pins=document.getElementById('ng8-pins');if(!pins)return;
     pins.querySelectorAll('.ng96-project-open').forEach(button=>button.remove());
@@ -149,11 +153,11 @@
       const a=entry.querySelector(':scope>a[data-ng8-pin]'),id=pid(a?.getAttribute('href'));if(!id)continue;
       let b=entry.querySelector(':scope>.ng113-native-actions-project');if(!b)entry.appendChild(actionButton('project',id));else b.dataset.ng113Id=id;
     }
-    for(const a of pins.querySelectorAll('.ng96-folder-list>a[data-chat]')){
-      const id=a.dataset.chat||cid(a.getAttribute('href'));if(!id)continue;
-      let nested=a.querySelector(':scope>.ng113-native-actions-chat');if(nested){a.insertAdjacentElement('afterend',nested);nested.dataset.ng113Id=id;continue;}
-      const sibling=a.nextElementSibling?.matches?.('.ng113-native-actions-chat')?a.nextElementSibling:null;if(sibling){sibling.dataset.ng113Id=id;continue;}
-      a.insertAdjacentElement('afterend',actionButton('chat',id));
+    for(const a of pins.querySelectorAll('.ng96-folder-list a[data-chat]')){
+      const id=a.dataset.chat||cid(a.getAttribute('href'));if(!id)continue;const entry=ensureChatEntry(a);entry.dataset.chatEntry=id;
+      let nested=a.querySelector(':scope>.ng113-native-actions-chat');if(nested){entry.appendChild(nested);nested.dataset.ng113Id=id;}
+      let b=entry.querySelector(':scope>.ng113-native-actions-chat');if(!b)entry.appendChild(actionButton('chat',id));else b.dataset.ng113Id=id;
+      for(const extra of entry.querySelectorAll(':scope>.ng113-native-actions-chat'))if(extra!==b)extra.remove();
     }
   }
   function schedule(delay=15){clearTimeout(timer);timer=setTimeout(decorate,delay);}

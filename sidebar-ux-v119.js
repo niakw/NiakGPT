@@ -51,7 +51,7 @@
       }
       box.dataset.ng119Placement='app-authority';
     }else{
-      fallbackPlace(root,box);box.dataset.ng119Placement='bootstrap-fallback';
+      fallbackPlace(root,box);box.dataset.ng119Placement='projects-slot';
     }
 
     box.hidden=false;box.removeAttribute('aria-hidden');box.dataset.ng121PlacementReady='1';

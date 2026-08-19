@@ -123,19 +123,32 @@
     if(!menuSource)return;
     const menus=visibleMenus();
     clearTimeout(menuArmTimer);
-    if(!menus.length){menuArmTimer=setTimeout(()=>{if(!visibleMenus().length)stopMenuFloat();},350);return;}
+    if(!menus.length){menuArmTimer=setTimeout(()=>{if(!visibleMenus().length)stopMenuFloat();},900);return;}
     menus.forEach((menu,index)=>placeFloatingMenu(menu,menuSource,index));
+  }
+  function hasMenuMutation(records){
+    for(const record of records||[]){
+      for(const node of [...(record.addedNodes||[]),...(record.removedNodes||[])]){
+        if(!(node instanceof Element))continue;
+        if(node.matches?.('[role="menu"],[data-radix-menu-content]')||node.querySelector?.('[role="menu"],[data-radix-menu-content]'))return true;
+      }
+    }
+    return false;
+  }
+  function queueMenuFloat(){
+    if(!menuSource)return;
+    for(const delay of [0,32,90,180,360,700])setTimeout(()=>{if(menuSource)floatVisibleMenus();},delay);
   }
   function armMenuFloat(source){
     if(!(source instanceof HTMLElement))return;menuSource=source;clearTimeout(menuArmTimer);
-    if(!menuObserver){menuObserver=new MutationObserver(()=>queueMicrotask(floatVisibleMenus));menuObserver.observe(document.body,{childList:true,subtree:true});}
-    floatVisibleMenus();
+    if(!menuObserver){menuObserver=new MutationObserver(records=>{if(hasMenuMutation(records))queueMenuFloat();});menuObserver.observe(document.body,{childList:true,subtree:true});}
+    queueMenuFloat();
   }
   async function invokeNativeMenu(row,source){
     if(!row)return false;const restore=stageHidden(row);armMenuFloat(source);
     try{
       fireHover(row);await sleep(90);let b=menuButton(row);if(!b){fireHover(row);await sleep(180);b=menuButton(row);}if(!b)return false;
-      b.click();await sleep(150);if(!visibleMenu())await sleep(180);floatVisibleMenus();
+      b.click();queueMenuFloat();await sleep(150);if(!visibleMenu())await sleep(180);queueMenuFloat();
       return !!visibleMenu();
     }finally{restore();}
   }
@@ -178,7 +191,7 @@
   async function openChatActions(button,chatId){
     let row=nativeChatRow(chatId),ok=await invokeNativeMenu(row,button);
     if(!ok&&chatId===currentCid()){
-      const current=currentConversationMenuButton();if(current){armMenuFloat(button);current.click();await sleep(150);floatVisibleMenus();ok=!!visibleMenu();}
+      const current=currentConversationMenuButton();if(current){armMenuFloat(button);current.click();queueMenuFloat();await sleep(150);queueMenuFloat();ok=!!visibleMenu();}
     }
     if(!ok)fallbackChatMenu(button,chatId);
     window.__NIAKGPT_DIAGNOSTICS__?.set('actions-chat',ok?'OK · menu natif complet':'FALLBACK · actions sûres locales');
@@ -219,8 +232,9 @@
     const kind=button.dataset.ng113Actions,id=clean(button.dataset.ng113Id);if(!id||!['project','chat'].includes(kind))return;
     event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();kind==='project'?openProjectActions(button,id):openChatActions(button,id);
   },true);
-  document.addEventListener('pointerdown',()=>{if(menuSource)setTimeout(floatVisibleMenus,60);},true);
-  document.addEventListener('keydown',event=>{if(menuSource&&(event.key==='Escape'||event.key==='Enter'||event.key===' '))setTimeout(floatVisibleMenus,60);},true);
+  document.addEventListener('pointerdown',()=>{if(menuSource)queueMenuFloat();},true);
+  document.addEventListener('click',()=>{if(menuSource)queueMenuFloat();},true);
+  document.addEventListener('keydown',event=>{if(menuSource&&(event.key==='Escape'||event.key==='Enter'||event.key===' '))queueMenuFloat();},true);
   try{chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY]){cache=changes[CACHE_KEY].newValue||cache;schedule(0);}});}catch{}
   document.addEventListener('niakgpt:folder-rendered',()=>{bind();decorate();});
   document.addEventListener('niakgpt:pins-rendered',()=>{bind();decorate();});

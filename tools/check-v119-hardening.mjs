@@ -103,6 +103,7 @@ forbid(actions,'buttons.at(-1)','unsafe arbitrary native action fallback returne
 
 const background=read('background-v100.js');
 need(background,"const HARD_ISOLATED_BARRIER='sidebar-metadata-v118.js'",'metadata hard bootstrap barrier missing');
+need(read('tools/check-runtime.mjs'),"import './check-runtime-syntax.mjs'",'dynamic runtime syntax gate is not part of runtime check');
 need(read('tools/check-runtime.mjs'),"import '../labs/background-boot-barrier-v119.mjs'",'background barrier gate is not part of runtime check');
 
 console.log('V119_HARDENING_PASS actions=serialized authority=structural metadata=lossless/fail-closed/lifecycle/concurrency/runtime-retry=guarded');

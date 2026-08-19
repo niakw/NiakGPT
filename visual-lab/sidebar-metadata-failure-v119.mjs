@@ -34,3 +34,4 @@ for(const [engine,launcher] of Object.entries(engines)){
   }finally{await context.close();await browser.close();}
 }
 console.log(`sidebar-metadata-failure-v119: ${Object.keys(engines).join(',')} PASS`);
+await import('./sidebar-metadata-lifecycle-v119.mjs');

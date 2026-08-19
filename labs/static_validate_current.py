@@ -25,6 +25,12 @@ missing_runtime=sorted(required-set(isolated))
 if missing_runtime: fail('current runtime missing: '+', '.join(missing_runtime))
 for forbidden in ('project-pins-v090.js','native-rename-v112.js','breadcrumb-v100.js','sidebar-authority-v107.js','sidebar-expando-guard-v108.js'):
     if forbidden in isolated: fail(f'legacy/conflicting runtime still wired: {forbidden}')
+try:
+    metadata_index=isolated.index('sidebar-metadata-v118.js')
+    for consumer in ('cache-guardian-v100.js','recovery-v100.js','server-index-v100.js','project-governance-v090.js','reclassify-v101.js'):
+        if metadata_index>=isolated.index(consumer): fail(f'sidebar metadata must sanitize cache before {consumer}')
+except ValueError as exc:
+    fail(f'metadata-first runtime order incomplete: {exc}')
 refs=set(main+isolated)
 for cs in manifest.get('content_scripts',[]): refs.update(cs.get('js',[])); refs.update(cs.get('css',[]))
 refs.add(manifest.get('background',{}).get('service_worker','')); refs.update((manifest.get('icons') or {}).values()); refs.update((manifest.get('action',{}).get('default_icon') or {}).values())
@@ -116,4 +122,4 @@ if errors:
     print('STATIC_CURRENT_FAIL')
     for e in errors: print('-',e)
     sys.exit(1)
-print(f"STATIC_CURRENT_PASS version={manifest['version']} runtime={len(main)+len(isolated)} refs={len(refs)} profiles=2 cached-browsers=on left-sidebar=atomic-top-layer-session-clean single-projects-authority metadata-split")
+print(f"STATIC_CURRENT_PASS version={manifest['version']} runtime={len(main)+len(isolated)} refs={len(refs)} profiles=2 cached-browsers=on left-sidebar=atomic-top-layer-session-clean single-projects-authority metadata-first")

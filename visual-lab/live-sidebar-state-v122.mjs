@@ -53,14 +53,11 @@ for(const [engine,launcher] of Object.entries(engines)){
     assert(state.legacyOwned===0&&state.absoluteOwned,`recovered catalog re-entered legacy Project observer: ${JSON.stringify(state)}`);
 
     const before=page.url();await page.locator(`#ng8-pins a[data-ng121-pid="${p1}"]`).click();await page.waitForTimeout(180);
-    state=await page.evaluate(()=>({url:location.href,rows:document.querySelectorAll('#ng8-pins .ng96-folder-list a[data-chat]').length,empty:!!document.querySelector('#ng8-pins .ng96-folder-empty'),open:document.querySelector(`#ng8-pins a[data-ng121-pid="${p1}"]`)?.getAttribute('aria-expanded')}));
+    state=await page.evaluate(p1=>({url:location.href,rows:document.querySelectorAll('#ng8-pins .ng96-folder-list a[data-chat]').length,empty:!!document.querySelector('#ng8-pins .ng96-folder-empty'),open:document.querySelector(`#ng8-pins a[data-ng121-pid="${p1}"]`)?.getAttribute('aria-expanded')}),p1);
     assert(state.url===before&&state.rows===12&&!state.empty&&state.open==='true',`canonical Project slug did not open its 12 cached chats: ${JSON.stringify(state)}`);
     const scroll=await page.evaluate(()=>{const list=document.querySelector('#ng8-pins .ng96-folder-list');list.scrollTop=list.scrollHeight;return{client:list.clientHeight,scroll:list.scrollHeight,top:list.scrollTop,last:!!list.querySelector('.ng96-chat-entry:last-child')};});
     assert(scroll.scroll>scroll.client&&scroll.top>0&&scroll.last,`Project chat list is not independently scrollable: ${JSON.stringify(scroll)}`);
 
-    // The real diagnostic had only 30 cached chats for 25 Projects because the deep index was
-    // paused while ChatGPT was active. A Project with no cached rows must therefore hydrate
-    // itself on the user's click instead of showing a dead "Aucune conversation indexée" drawer.
     const hydrated=[101,102,103].map((n,i)=>({id:chatId(n),title:`Hydrated chat ${i+1}`,update_time:(Date.now()-i*1000)/1000}));
     await page.evaluate(({p10,hydrated})=>{
       document.addEventListener('niakgpt:rpc-request',event=>{

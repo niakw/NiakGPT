@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.70",
+  "version": "0.9.69",
   "description": "Workspace power-user local pour ChatGPT : Projects stables, menus natifs fiables, continuité visible et reprise sûre après interruption.",
   "permissions": [
     "storage",

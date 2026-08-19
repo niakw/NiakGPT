@@ -280,7 +280,13 @@
   function schedule(delay=15){clearTimeout(timer);timer=setTimeout(decorate,delay);}
   function bind(){const next=document.getElementById('ng8-pins');if(!next||next===box)return false;observer?.disconnect();box=next;observer=new MutationObserver(()=>schedule(12));observer.observe(box,{childList:true,subtree:true});schedule(0);return true;}
   async function start(){try{cache=(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||cache;}catch{}if(bind())return;boot?.disconnect();boot=new MutationObserver(()=>{if(bind()){boot.disconnect();boot=null;}});boot.observe(document.documentElement,{childList:true,subtree:true});setTimeout(()=>boot?.disconnect(),15000);}
+  function discardDetachedAction(){
+    if(!actionOpening||actionButtonRef?.isConnected)return false;
+    actionEpoch++;actionButtonRef?.removeAttribute('aria-busy');actionButtonRef=null;actionOpening=null;closeFallback();
+    return true;
+  }
   function runAction(button,kind,id){
+    discardDetachedAction();
     if(actionOpening)return actionOpening;
     const token=++actionEpoch;actionButtonRef=button;button.setAttribute('aria-busy','true');
     actionOpening=Promise.resolve(kind==='project'?openProjectActions(button,id,token):openChatActions(button,id,token)).catch(error=>{

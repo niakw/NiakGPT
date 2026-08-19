@@ -7,6 +7,7 @@
   const OWN='#ng8-pins,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb';
   const HIDDEN_RX=/^(ng112-native-projects-authoritative|ng111-native-projects-authoritative|ng110-native-projects-authoritative|ng109-native-projects-authoritative|ng8-native-projects-suppressed|ng8-native-project-link-suppressed|ng8-native-project-chat-suppressed)$/;
   let cache={projects:[],chats:[]},box=null,observer=null,boot=null,timer=0,rpcSeq=0,menuObserver=null,menuSource=null,menuArmTimer=0;
+  const menuHosts=new Set();
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -73,17 +74,42 @@
     const sidebar=source?.closest?.('[data-testid*="sidebar" i],aside,nav')||document.querySelector('[data-testid*="sidebar" i],aside');
     const r=sidebar?.getBoundingClientRect?.();return r&&r.width>80?r.right:Math.max(0,source?.getBoundingClientRect?.().right||0);
   }
+  function clearMenuHosts(){
+    for(const el of menuHosts){el.classList.remove('ng113-menu-host-active','ng113-menu-static-stack-active');}
+    menuHosts.clear();
+  }
+  function exposeMenuHost(menu){
+    let node=menu?.parentElement;
+    while(node&&node!==document.body&&node!==document.documentElement){
+      const s=getComputedStyle(node),overflow=`${s.overflow} ${s.overflowX} ${s.overflowY}`;
+      const sidebarish=node.matches?.('[data-testid*="sidebar" i],aside,nav')||!!node.closest?.('[data-testid*="sidebar" i],aside');
+      const clips=/\b(hidden|clip|auto|scroll)\b/.test(overflow)||s.contain!=='none'||s.clipPath!=='none';
+      const stacks=s.position==='fixed'||s.position==='sticky'||s.zIndex!=='auto'||s.transform!=='none'||s.filter!=='none'||s.perspective!=='none'||s.isolation==='isolate';
+      if(sidebarish||clips||stacks){
+        node.classList.add('ng113-menu-host-active');
+        if(s.position==='static'&&stacks)node.classList.add('ng113-menu-static-stack-active');
+        menuHosts.add(node);
+      }
+      node=node.parentElement;
+    }
+  }
   function placeFloatingMenu(menu,source,index=0){
     if(!(menu instanceof HTMLElement)||!(source instanceof HTMLElement))return;
     const sr=source.getBoundingClientRect(),rawWidth=menu.getBoundingClientRect().width||240,width=Math.min(320,Math.max(220,rawWidth)),base=sidebarRight(source)+8,preferredLeft=base+index*(width+8),maxLeft=Math.max(8,innerWidth-width-8),left=Math.min(maxLeft,Math.max(8,preferredLeft));
     const menuHeight=Math.min(innerHeight-16,Math.max(80,menu.getBoundingClientRect().height||260)),top=Math.min(Math.max(8,sr.top-4+index*10),Math.max(8,innerHeight-menuHeight-8));
     menu.classList.add('ng113-native-menu-floating');menu.style.setProperty('--ng113-menu-left',`${left}px`);menu.style.setProperty('--ng113-menu-top',`${top}px`);menu.dataset.ng113Floated='1';menu.dataset.ng113FloatIndex=String(index);
   }
-  function floatVisibleMenus(){if(!menuSource)return;visibleMenus().forEach((menu,index)=>placeFloatingMenu(menu,menuSource,index));}
+  function floatVisibleMenus(){
+    if(!menuSource){clearMenuHosts();return;}
+    const menus=visibleMenus();
+    if(!menus.length){clearMenuHosts();return;}
+    for(const menu of menus)exposeMenuHost(menu);
+    menus.forEach((menu,index)=>placeFloatingMenu(menu,menuSource,index));
+  }
   function armMenuFloat(source){
     if(!(source instanceof HTMLElement))return;menuSource=source;clearTimeout(menuArmTimer);
     if(!menuObserver){menuObserver=new MutationObserver(()=>queueMicrotask(floatVisibleMenus));menuObserver.observe(document.body,{childList:true,subtree:true});}
-    floatVisibleMenus();menuArmTimer=setTimeout(()=>{if(!visibleMenus().length){menuSource=null;menuObserver?.disconnect();menuObserver=null;}},12000);
+    floatVisibleMenus();menuArmTimer=setTimeout(()=>{if(!visibleMenus().length){menuSource=null;menuObserver?.disconnect();menuObserver=null;clearMenuHosts();}},12000);
   }
   async function invokeNativeMenu(row,source){
     if(!row)return false;const restore=stageHidden(row);armMenuFloat(source);
@@ -116,7 +142,7 @@
       const item=document.createElement('button');item.type='button';item.setAttribute('role','menuitem');item.textContent=p.name||p.id;if(p.id===projectIdForChat(chatId))item.disabled=true;
       item.addEventListener('click',()=>{closeFallback();fallbackMove(chatId,p.id);});menu.appendChild(item);
     }
-    document.body.appendChild(menu);placeFloatingMenu(menu,button,0);
+    document.body.appendChild(menu);armMenuFloat(button);placeFloatingMenu(menu,button,0);
     setTimeout(()=>document.addEventListener('pointerdown',e=>{if(!menu.contains(e.target))closeFallback();},{once:true,capture:true}),0);
   }
 
@@ -168,13 +194,15 @@
     const kind=button.dataset.ng113Actions,id=clean(button.dataset.ng113Id);if(!id||!['project','chat'].includes(kind))return;
     event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();kind==='project'?openProjectActions(button,id):openChatActions(button,id);
   },true);
+  document.addEventListener('pointerdown',()=>{if(menuSource)setTimeout(floatVisibleMenus,80);},true);
+  document.addEventListener('keydown',event=>{if(menuSource&&(event.key==='Escape'||event.key==='Enter'||event.key===' '))setTimeout(floatVisibleMenus,80);},true);
   try{chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY]){cache=changes[CACHE_KEY].newValue||cache;schedule(0);}});}catch{}
   document.addEventListener('niakgpt:folder-rendered',()=>{bind();decorate();});
   document.addEventListener('niakgpt:pins-rendered',()=>{bind();decorate();});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){bind();decorate();}});
   window.addEventListener('popstate',()=>{bind();decorate();});
   if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>{bind();decorate();});
-  window.addEventListener('pagehide',()=>{observer?.disconnect();boot?.disconnect();menuObserver?.disconnect();observer=boot=menuObserver=null;box=null;menuSource=null;closeFallback();});
+  window.addEventListener('pagehide',()=>{observer?.disconnect();boot?.disconnect();menuObserver?.disconnect();observer=boot=menuObserver=null;box=null;menuSource=null;clearMenuHosts();closeFallback();});
   window.addEventListener('pageshow',event=>{if(event.persisted)start();});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();

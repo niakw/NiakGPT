@@ -55,7 +55,7 @@ html[data-ng86-activity="executing"] #ng8-pins[data-ng120-stable-slot]{
 }
 main [data-ng120-welcome="1"]{display:none!important;}
 
-/* Native menus stay native; only their geometry is corrected. */
+/* Native menus stay native; only their geometry/top-layer presentation is corrected. */
 .ng120-actions-stage{
   display:block!important;
   visibility:hidden!important;
@@ -86,5 +86,6 @@ main [data-ng120-welcome="1"]{display:none!important;}
   opacity:1!important;
   pointer-events:auto!important;
 }
+.ng120-native-menu::backdrop{background:transparent!important;pointer-events:none!important;}
 #ng113-actions-fallback{display:none!important;}
 @media(max-width:760px){#ng8-pins .ng96-folder-list{max-height:min(52dvh,430px)!important;}}

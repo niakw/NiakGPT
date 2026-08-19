@@ -51,6 +51,45 @@ jobs:
       - name: Packaging exclusion check
         run: node tools/package-extension.mjs
 
+  experience-linux:
+    name: experience · ubuntu-latest · ${{ matrix.browser }}
+    needs: static-runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      options: --ipc=host
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      HOME: /root
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: visual-lab/package-lock.json
+      - name: Install lab dependencies
+        working-directory: visual-lab
+        run: npm ci --no-audit --no-fund
+      - name: Human / DOM / errors / UX / remount / anti-churn
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node experience-gate-v116.mjs
+      - name: Upload cross-platform evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: niakgpt-experience-ubuntu-latest-${{ matrix.browser }}
+          path: visual-lab/artifacts/experience-v116
+          if-no-files-found: warn
+          retention-days: 14
+
   experience-crossplatform:
     name: experience · ${{ matrix.os }} · ${{ matrix.browser }}
     needs: static-runtime
@@ -59,7 +98,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [windows-latest, macos-latest]
         browser: [chromium, firefox, webkit]
     steps:
       - uses: actions/checkout@v4
@@ -78,17 +117,7 @@ jobs:
       - name: Install lab dependencies
         working-directory: visual-lab
         run: npm ci --no-audit --no-fund
-      - name: Install browser on Linux
-        if: runner.os == 'Linux'
-        shell: bash
-        working-directory: visual-lab
-        run: |
-          # Let Playwright/apt finish as one process tree. A shell timeout used to leave
-          # apt-get alive, then the retry collided with its dpkg lock. The job timeout
-          # above remains the hard upper bound for a genuinely stuck runner.
-          npx playwright install --with-deps ${{ matrix.browser }}
-      - name: Install browser on Windows or macOS
-        if: runner.os != 'Linux'
+      - name: Install browser
         working-directory: visual-lab
         run: npx playwright install ${{ matrix.browser }}
       - name: Human / DOM / errors / UX / remount / anti-churn
@@ -105,6 +134,44 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  extension-runtime-linux:
+    name: extension runtime · ubuntu-latest · chromium
+    needs: static-runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      options: --ipc=host
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      HOME: /root
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: visual-lab/package-lock.json
+      - name: Install lab dependencies
+        working-directory: visual-lab
+        run: npm ci --no-audit --no-fund
+      - name: Real extension runtime — left sidebar / hitboxes / menus / DOM / errors
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER_LABEL: chromium
+          NIAKGPT_PROFILE: ${{ inputs.profile || 'runtime-cold-v116' }}
+        run: npx playwright test tests/sidebar-runtime-v116.spec.js --workers=1 --reporter=line
+      - name: Upload real-runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: niakgpt-extension-runtime-ubuntu-latest-chromium
+          path: |
+            visual-lab/playwright-report
+            visual-lab/test-results
+          if-no-files-found: warn
+          retention-days: 14
+
   extension-runtime-crossos:
     name: extension runtime · ${{ matrix.os }} · chromium
     needs: static-runtime
@@ -113,7 +180,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -131,14 +198,7 @@ jobs:
       - name: Install lab dependencies
         working-directory: visual-lab
         run: npm ci --no-audit --no-fund
-      - name: Install Chromium on Linux
-        if: runner.os == 'Linux'
-        shell: bash
-        working-directory: visual-lab
-        run: |
-          npx playwright install --with-deps chromium
-      - name: Install Chromium on Windows or macOS
-        if: runner.os != 'Linux'
+      - name: Install Chromium
         working-directory: visual-lab
         run: npx playwright install chromium
       - name: Real extension runtime — left sidebar / hitboxes / menus / DOM / errors
@@ -230,6 +290,12 @@ jobs:
     needs: static-runtime
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      options: --ipc=host
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      HOME: /root
     strategy:
       fail-fast: false
       matrix:
@@ -241,23 +307,9 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: visual-lab/package-lock.json
-      - name: Restore Playwright browser cache
-        uses: actions/cache@v4
-        with:
-          path: .cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ matrix.browser }}-1.62.1-${{ hashFiles('visual-lab/package-lock.json') }}
-          restore-keys: |
-            playwright-${{ runner.os }}-${{ matrix.browser }}-1.62.1-
       - name: Install lab dependencies
         working-directory: visual-lab
         run: npm ci --no-audit --no-fund
-      - name: Install ${{ matrix.browser }}
-        working-directory: visual-lab
-        run: |
-          # Do not wrap Playwright's apt subprocess in a shell timeout/retry. If apt is
-          # slow, let it finish; otherwise the orphaned first attempt can lock dpkg and
-          # make the retry fail immediately. The 30-minute job timeout is the guardrail.
-          npx playwright install --with-deps ${{ matrix.browser }}
       - name: Baseline finalization DOM and screenshots
         working-directory: visual-lab
         env:

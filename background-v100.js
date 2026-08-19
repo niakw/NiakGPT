@@ -27,8 +27,7 @@ const ISOLATED_RUNTIME=[
   'reclassify-deep-v112.js',
   'locale-fr-v101.js',
   'sidebar-icons-v114.js',
-  'sidebar-authority-v107.js',
-  'sidebar-expando-guard-v108.js',
+  'sidebar-metadata-v118.js',
   'sidebar-projects-authority-v112.js',
   'sidebar-host-v090.js',
   'performance-guard-v112.js',
@@ -102,7 +101,7 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
     const errors=[];
     for(const file of MAIN_RUNTIME){const failure=await injectOne(tabId,frameId,file,'MAIN');if(failure)errors.push(failure);}
     for(const file of ISOLATED_RUNTIME){const failure=await injectOne(tabId,frameId,file,'ISOLATED');if(failure)errors.push(failure);}
-    const coreFailed=errors.some(item=>item.includes(':app-v090.js:')||item.includes(':pin-folders-v096.js:')||item.includes(':project-state-selfheal-v102.js:')||item.includes(':project-assignment-selfheal-v103.js:')||item.includes(':sidebar-projects-authority-v112.js:')||item.includes(':chat-state-authority-v113.js:')||item.includes(':native-actions-v113.js:'));
+    const coreFailed=errors.some(item=>item.includes(':app-v090.js:')||item.includes(':pin-folders-v096.js:')||item.includes(':project-state-selfheal-v102.js:')||item.includes(':project-assignment-selfheal-v103.js:')||item.includes(':sidebar-projects-authority-v112.js:')||item.includes(':sidebar-metadata-v118.js:')||item.includes(':chat-state-authority-v113.js:')||item.includes(':native-actions-v113.js:'));
     sendResponse({ok:!coreFailed,errors});
   })().catch(error=>sendResponse({ok:false,errors:[`bootstrap:${String(error?.message||error)}`]}));
   return true;

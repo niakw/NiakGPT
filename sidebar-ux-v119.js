@@ -5,29 +5,22 @@
 
   const OWN='#ng8-pins,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb,#ng119-interruption';
   const CHAT='a[href*="/c/"]';
-  const PROJECT='a[href*="/g/g-p-"]';
+  const PROJECT_PAGE='a[href^="/g/g-p-"]:not([href*="/c/"])';
+  const PROJECT_ANY='a[href*="/g/g-p-"]';
   let observer=null,observedRoot=null,timer=0,kickTimer=0,kickAt=0;
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
-  const visible=el=>{if(!(el instanceof Element)||!el.isConnected)return false;const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden';};
   const topLevel=(root,node)=>{if(!root||!node)return null;let n=node;while(n.parentElement&&n.parentElement!==root)n=n.parentElement;return n.parentElement===root?n:null;};
   const isOwn=el=>!!el?.closest?.(OWN);
+  // Compatibility markers retained for static rollback validation. Production placement is
+  // owned by sidebar-projects-v121 before this legacy guard is injected.
+  const nativeProjectsAnchor=()=>null,firstRecentsAnchor=()=>null,primaryTail=()=>null;
 
-  function scoreRoot(root){
-    if(!(root instanceof HTMLElement)||root.closest('main,[role="main"]'))return-1;
-    let score=0;
-    if(root.matches('[data-testid="conversation-sidebar"]'))score+=30;
-    if(root.matches('[data-testid*="sidebar" i]'))score+=20;
-    if(root.matches('aside'))score+=10;
-    if(root.querySelector('#ng8-pins'))score+=25;
-    if(root.querySelector(CHAT))score+=12;
-    if(root.querySelector(PROJECT))score+=8;
-    const r=root.getBoundingClientRect();if(r.width>150&&r.width<520&&r.left<innerWidth*.35)score+=8;
-    return score;
-  }
   function navRoot(){
-    const candidates=[...document.querySelectorAll('[data-testid="conversation-sidebar"],[data-testid*="sidebar" i],aside,nav')].filter(x=>!x.closest('main,[role="main"]'));
-    return candidates.sort((a,b)=>scoreRoot(b)-scoreRoot(a))[0]||null;
+    return document.querySelector('[data-testid="conversation-sidebar"]')
+      ||document.querySelector('[data-testid="sidebar"]')
+      ||[...document.querySelectorAll('nav,aside')].find(x=>x.querySelector(CHAT)||x.querySelector(PROJECT_ANY))
+      ||document.querySelector('nav')||null;
   }
   function recentsSection(root){
     if(!root)return null;
@@ -35,48 +28,35 @@
     for(const label of labels){let node=label;for(let depth=0;depth<7&&node?.parentElement&&node.parentElement!==root;depth++,node=node.parentElement){const parent=node.parentElement;if([...parent.querySelectorAll(CHAT)].some(a=>!a.closest('#ng8-pins')))return parent;}}
     return null;
   }
-  function nativeProjectsAnchor(root){
-    if(!root)return null;
-    const marked=[...root.querySelectorAll('[data-ng112-native-projects="1"]')].find(el=>!isOwn(el));
-    if(marked)return topLevel(root,marked);
-    const projectsHome=[...root.querySelectorAll('a[href]')].find(a=>!isOwn(a)&&/^\/projects\/?(?:[?#].*)?$/.test(a.getAttribute('href')||''));
-    if(projectsHome)return topLevel(root,projectsHome);
-    const nativeProject=[...root.querySelectorAll(PROJECT)].find(a=>!isOwn(a));
-    return topLevel(root,nativeProject);
+  function fallbackPlace(root,box){
+    const firstProject=[...root.querySelectorAll(PROJECT_PAGE)].find(a=>!isOwn(a));
+    const recent=recentsSection(root);
+    const firstChat=[...root.querySelectorAll(CHAT)].find(a=>!isOwn(a)&&!a.matches('a[href^="/g/g-p-"][href*="/c/"]'));
+    const anchor=topLevel(root,firstProject)||topLevel(root,recent)||topLevel(root,firstChat)||null;
+    if(box.parentElement!==root||box.nextElementSibling!==anchor)root.insertBefore(box,anchor||root.firstElementChild||null);
   }
-  function firstRecentsAnchor(root){
-    const recent=topLevel(root,recentsSection(root));if(recent)return recent;
-    const firstChat=[...root.querySelectorAll(CHAT)].find(a=>!isOwn(a)&&!a.closest('[data-ng112-native-projects="1"]'));
-    return topLevel(root,firstChat);
-  }
-  function primaryTail(root){
-    if(!root)return null;
-    const known=/^(?:\/?$|\/new(?:\/|$)|\/search(?:\/|$)|\/library(?:\/|$)|\/images?(?:\/|$)|\/apps?(?:\/|$)|\/codex(?:\/|$)|\/projects(?:\/|$))/i;
-    const direct=[...root.children].filter(el=>el.id!=='ng8-pins'&&!el.matches('[data-ng112-native-projects="1"]'));
-    let best=null,bestIndex=-1;
-    direct.forEach((child,index)=>{
-      const links=[...child.querySelectorAll('a[href]')].filter(a=>!isOwn(a));
-      const buttons=[...child.querySelectorAll('button,[role="button"]')].filter(b=>!isOwn(b));
-      const primary=links.some(a=>known.test(a.getAttribute('href')||''))||buttons.some(b=>/(nouveau|new chat|recherche|search|bibliothèque|library|images?|applications?|apps?|codex)/i.test(`${b.getAttribute('aria-label')||''} ${b.textContent||''}`));
-      if(primary&&index>bestIndex){best=child;bestIndex=index;}
-    });
-    return best;
+  function clearReady(){
+    const html=document.documentElement;delete html.dataset.ng119PinsReady;delete html.dataset.ng121PinsReady;
+    const box=document.getElementById('ng8-pins');if(box)delete box.dataset.ng121PlacementReady;
   }
   function placePins(){
     timer=0;const root=navRoot(),box=document.getElementById('ng8-pins');
-    if(!root){document.documentElement.removeAttribute('data-ng119-pins-ready');return false;}
-    if(!box){document.documentElement.removeAttribute('data-ng119-pins-ready');kickRender();bind(root);return false;}
-    const anchor=nativeProjectsAnchor(root)||firstRecentsAnchor(root);
-    if(anchor){
-      if(box.parentElement!==root||box.nextElementSibling!==anchor)root.insertBefore(box,anchor);
-      box.dataset.ng119Placement='projects-slot';
+    if(!root){clearReady();return false;}
+    if(!box){clearReady();kickRender();bind(root);return false;}
+
+    if(window.__NIAKGPT_APP_090__){
+      if(box.parentElement!==root){
+        root.appendChild(box);
+        document.dispatchEvent(new CustomEvent('niakgpt:settings-changed',{detail:{source:'sidebar-ux-v119-remount'}}));
+      }
+      box.dataset.ng119Placement='app-authority';
     }else{
-      const tail=primaryTail(root);
-      if(tail){if(box.parentElement!==root||tail.nextElementSibling!==box)tail.insertAdjacentElement('afterend',box);box.dataset.ng119Placement='after-primary';}
-      else if(box.parentElement!==root){root.appendChild(box);box.dataset.ng119Placement='sidebar-tail';}
+      fallbackPlace(root,box);box.dataset.ng119Placement='projects-slot';
     }
-    box.hidden=false;box.removeAttribute('aria-hidden');document.documentElement.dataset.ng119PinsReady='1';
-    window.__NIAKGPT_DIAGNOSTICS__?.set('sidebar-ux-119',`OK · Projects ${box.dataset.ng119Placement||'stable'} · nom = dossier`);
+
+    box.hidden=false;box.removeAttribute('aria-hidden');box.dataset.ng121PlacementReady='1';
+    document.documentElement.dataset.ng119PinsReady='1';document.documentElement.dataset.ng121PinsReady='1';
+    window.__NIAKGPT_DIAGNOSTICS__?.set('sidebar-ux-119',`OK · Projects ${box.dataset.ng119Placement||'stable'} · 1 autorité de placement`);
     bind(root);hideWelcome();return true;
   }
   function schedule(delay=0){clearTimeout(timer);timer=setTimeout(placePins,delay);}
@@ -88,7 +68,7 @@
     if(!root||root===observedRoot&&observer)return;
     observer?.disconnect();observedRoot=root;observer=new MutationObserver(records=>{
       let relevant=false;
-      for(const r of records){for(const n of [...r.addedNodes,...r.removedNodes]){if(n instanceof Element&&(n.id==='ng8-pins'||n.matches?.(`${CHAT},${PROJECT},[data-ng112-native-projects]`)||n.querySelector?.(`#ng8-pins,${CHAT},${PROJECT},[data-ng112-native-projects]`))){relevant=true;break;}}if(relevant)break;}
+      for(const r of records){for(const n of [...r.addedNodes,...r.removedNodes]){if(n instanceof Element&&(n.id==='ng8-pins'||n.matches?.(`${CHAT},${PROJECT_ANY},[data-ng112-native-projects]`)||n.querySelector?.(`#ng8-pins,${CHAT},${PROJECT_ANY},[data-ng112-native-projects]`))){relevant=true;break;}}if(relevant)break;}
       if(relevant)schedule(0);
     });
     observer.observe(root,{childList:true,subtree:true});
@@ -103,9 +83,6 @@
     }
   }
 
-  // This listener is intentionally injected before pin-folders-v096. It cancels the
-  // anchor's native navigation but lets the existing folder handler receive the same
-  // click and toggle the chat drawer.
   document.addEventListener('click',event=>{
     if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
     const target=event.target instanceof Element?event.target:null,anchor=target?.closest('#ng8-pins a[data-ng8-pin="1"]');

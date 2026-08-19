@@ -34,11 +34,25 @@
     const label=sanitizeProjectLabel(native?.textContent||native?.getAttribute('aria-label')||'');
     return label&&!badProjectLabel(label)?label:'Project';
   }
+  function linkTitle(link){
+    if(!(link instanceof HTMLElement))return'';const clone=link.cloneNode(true);
+    clone.querySelectorAll('time,.ng8-chat-date,.ng8-chat-project,.ng85-manual-lock,.ng100-out-badge,.ng100-continue,.ng113-native-actions,.ng113-dots').forEach(x=>x.remove());
+    return clean(clone.querySelector('.ng110-chat-title,.truncate span,span')?.textContent||clone.textContent||link.getAttribute('aria-label')||'');
+  }
+  function activeUiTitle(id){
+    if(!id||id!==cidFromPath())return'';
+    const links=[...document.querySelectorAll('a[href*="/c/"],#ng8-pins a[data-chat]')].filter(a=>(a.dataset.chat===id||(a.getAttribute('href')||'').includes(id)));
+    const active=links.find(a=>a.getAttribute('aria-current')==='page'||a.dataset.ng110Active==='1'||a.closest('.ng96-chat-entry')?.dataset.ng110Active==='1');
+    const title=linkTitle(active);return /^(?:out|conversation|new chat|nouveau chat)$/i.test(title)?'':title;
+  }
   function chatTitle(id,pName=''){
-    const canonical=clean(canonicalChat(id)?.title);if(canonical&&!/^(conversation|new chat|nouveau chat)$/i.test(canonical))return canonical;
+    const canonical=clean(canonicalChat(id)?.title),active=activeUiTitle(id);
+    // The live sidebar is a stronger signal when the cached canonical title has drifted into
+    // the Project name itself (the exact failure visible in the user's production diagnostic).
+    if(active&&(!canonical||/^(conversation|new chat|nouveau chat)$/i.test(canonical)||norm(canonical)===norm(pName)))return active;
+    if(canonical&&!/^(conversation|new chat|nouveau chat)$/i.test(canonical))return canonical;
     const native=[...document.querySelectorAll('a[href*="/c/"]')].find(a=>(a.getAttribute('href')||'').includes(id));
-    let fromDom='';if(native){const clone=native.cloneNode(true);clone.querySelectorAll('.ng8-chat-date,.ng8-chat-project,.ng85-manual-lock,.ng100-out-badge,.ng100-continue').forEach(x=>x.remove());fromDom=clean(clone.querySelector('.truncate span')?.textContent||clone.textContent||native.getAttribute('aria-label')||'');}
-    if(fromDom&&!/^out$/i.test(fromDom))return fromDom;
+    const fromDom=linkTitle(native);if(fromDom&&!/^out$/i.test(fromDom))return fromDom;
     let title=clean(titleContext().chat);if(pName){const rx=new RegExp(`^${pName.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\s*[-–—|·:]\\s*`,'i');title=title.replace(rx,'');}
     return title||'Conversation';
   }

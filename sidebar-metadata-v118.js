@@ -7,8 +7,8 @@
   const CACHE_KEY='niakgpt-v08-cache';
   const DATA_LOCK='niakgpt-data-mutation-v100';
   const OWN='#ng8-pins,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb';
-  let sidebarObserver=null,sidebarNode=null,bootstrapObserver=null,timer=0,stopped=false,cacheUnsub=null,sanitizeTask=null,lifecycleEpoch=0,pendingRaw=undefined,pendingReplay=false,runtimeRetryTimer=0;
-  const ownWriteSignatures=new Set();
+  let sidebarObserver=null,sidebarNode=null,bootstrapObserver=null,timer=0,stopped=false,cacheUnsub=null,sanitizeTask=null,lifecycleEpoch=0,pendingRaw=undefined,pendingReplay=false,runtimeRetryTimer=0,runtimeRawSeq=0;
+  const ownWriteSignatures=new Set(),rawSequences=new WeakMap();
 
   const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
   const pidFromHref=h=>String(h||'').match(/\/g\/(g-p-[^/?#]+)(?:\/(?:project|c\/)|[/?#]|$)/i)?.[1]||'';
@@ -87,7 +87,7 @@
       if(originalGet)bus.get=async()=>cleanRead(await originalGet());
       if(originalPeek)bus.peek=()=>cleanRead(originalPeek());
       if(originalSubscribe)bus.subscribe=fn=>originalSubscribe(raw=>fn(cleanRead(raw)));
-      if(bus.ready&&typeof bus.ready.then==='function')bus.ready=Promise.resolve(bus.ready).then(cleanRead);
+      if(bus.ready&&typeof bus.ready.then==='function')bus.ready=Promise.resolve(bus.ready).then(cleanRead;
     }catch{}
     return bus;
   }
@@ -100,6 +100,11 @@
     const signature=ownWriteSignature(raw);if(!signature)return;
     ownWriteSignatures.add(signature);setTimeout(()=>ownWriteSignatures.delete(signature),10000);
   }
+  const rawSequence=raw=>raw&&typeof raw==='object'?Number(rawSequences.get(raw)||0):0;
+  function rememberRuntimeRaw(raw){
+    if(!raw||typeof raw!=='object'||isOwnWrite(raw))return rawSequence(raw);
+    const seq=++runtimeRawSeq;rawSequences.set(raw,seq);return seq;
+  }
   function sanitizeCache(rawOverride){
     if(stopped)return Promise.resolve({ok:false,stopped:true,error:new Error('metadata_stopped')});
     if(rawOverride!==undefined&&isOwnWrite(rawOverride))return sanitizeTask||Promise.resolve({ok:true,own:true});
@@ -108,7 +113,7 @@
       return sanitizeTask;
     }
     sanitizeTask=(async()=>{
-      let source=rawOverride,replay=false;
+      let source=rawOverride,replay=false,sourceSeq=rawSequence(rawOverride);
       try{
         for(;;){
           const run=async()=>{
@@ -116,7 +121,8 @@
             const raw=source!==undefined?source:(bus?.__ng118RawGet?await bus.__ng118RawGet():bus?.get?await bus.get():(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]);
             const cleaned=cleanCache(raw),target=cleaned||(replay&&raw&&typeof raw==='object'?raw:null);if(!target)return;
             if(bus?.update)await bus.update(latest=>{
-              const next=source!==undefined||replay?target:(cleanCache(latest)||latest);
+              const latestSeq=rawSequence(latest),staleSource=source!==undefined&&latestSeq>sourceSeq;
+              const next=staleSource?(cleanCache(latest)||latest):(source!==undefined||replay?target:(cleanCache(latest)||latest));
               rememberOwnWrite(next);return next;
             });
             else{rememberOwnWrite(target);await chrome.storage.local.set({[CACHE_KEY]:target});}
@@ -125,7 +131,7 @@
           if(navigator.locks?.request)await navigator.locks.request(DATA_LOCK,{mode:'exclusive'},run);
           else await run();
           if(pendingRaw===undefined)break;
-          source=pendingRaw;pendingRaw=undefined;replay=pendingReplay;pendingReplay=false;
+          source=pendingRaw;sourceSeq=rawSequence(source);pendingRaw=undefined;replay=pendingReplay;pendingReplay=false;
         }
         return{ok:true};
       }catch(error){
@@ -142,7 +148,7 @@
   }
 
   function queueRuntimeSanitize(raw){
-    const epoch=lifecycleEpoch;
+    const epoch=lifecycleEpoch;rememberRuntimeRaw(raw);
     sanitizeCache(raw).then(result=>{
       if(result?.ok){clearTimeout(runtimeRetryTimer);runtimeRetryTimer=0;return;}
       if(stopped||epoch!==lifecycleEpoch||window.__NIAKGPT_METADATA_READY_118__!=='ready')return;

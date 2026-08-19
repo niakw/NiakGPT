@@ -51,8 +51,8 @@ if 'MAX_PER_RUN=2' not in deep or 'MAX_HEAVY=1' not in deep: fail('deep classifi
 actions=(ROOT/'native-actions-v113.js').read_text(encoding='utf-8')
 if 'invokeNativeMenu' not in actions or 'fallbackMove' not in actions: fail('native action/fallback move path missing')
 if 'data-ng112-native-projects' not in actions: fail('native actions do not stage passive Projects marks')
-for token in ('placeFloatingMenu','ng113-native-menu-floating','ensureChatEntry','ng96-chat-entry'):
-    if token not in actions: fail('left-sidebar action geometry missing '+token)
+for token in ('placeFloatingMenu','ng113-native-menu-floating','ensureChatEntry','ng96-chat-entry','showPopover','ng113TopLayer'):
+    if token not in actions: fail('left-sidebar action geometry/top-layer missing '+token)
 state=(ROOT/'chat-state-authority-v113.js').read_text(encoding='utf-8')
 if 'iu>pu' not in state or 'iu===pu' not in state: fail('monotonic title authority missing')
 bread=(ROOT/'breadcrumb-v113.js').read_text(encoding='utf-8')
@@ -87,7 +87,7 @@ if (profile_dir/'runtime-warm-v116.json').exists():
     warm=json.loads((profile_dir/'runtime-warm-v116.json').read_text(encoding='utf-8'))
     if 'niakgpt-v08-cache' not in warm.get('storageLocal',{}): fail('warm profile cache seed missing')
 runtime_text=runtime_gate.read_text(encoding='utf-8')
-for token in ('NIAKGPT_PROFILE','runtime-cold-v116','PROFILE.storageLocal','saved profile','Project row has two exclusive hitboxes','Chat actions menu also floats outside sidebar','atomic chat/action rows'):
+for token in ('NIAKGPT_PROFILE','runtime-cold-v116','PROFILE.storageLocal','saved profile','Project row has two exclusive hitboxes','Chat actions menu is also a real top-layer overlay','atomic chat/action rows'):
     if token not in runtime_text: fail('saved runtime/sidebar UX integration missing '+token)
 workflow=(ROOT/'.github/workflows/current-finalization.yml').read_text(encoding='utf-8')
 for token in ('ubuntu-latest, windows-latest, macos-latest','chromium, firefox, webkit','Human / DOM / errors / UX / remount / anti-churn','experience-gate-v116.mjs','PRIMARY · macOS · Brave stable · real extension','NIAKGPT_HEADLESS: \'0\'','sidebar-hitboxes-v117.mjs','LEFT SIDEBAR pixel hitboxes'):
@@ -98,4 +98,4 @@ if errors:
     print('STATIC_CURRENT_FAIL')
     for e in errors: print('-',e)
     sys.exit(1)
-print(f"STATIC_CURRENT_PASS version={manifest['version']} runtime={len(main)+len(isolated)} refs={len(refs)} profiles=2 cached-browsers=on left-sidebar=atomic")
+print(f"STATIC_CURRENT_PASS version={manifest['version']} runtime={len(main)+len(isolated)} refs={len(refs)} profiles=2 cached-browsers=on left-sidebar=atomic-top-layer")

@@ -20,7 +20,7 @@ if manifest.get('permissions')!=['storage','scripting']: fail('permissions drift
 if manifest.get('host_permissions')!=['https://chatgpt.com/*']: fail('host permissions drift')
 main=runtime('MAIN_RUNTIME'); isolated=runtime('ISOLATED_RUNTIME')
 if main!=['page-bridge.js']: fail(f'MAIN_RUNTIME={main!r}')
-required={'sidebar-metadata-v118.js','sidebar-projects-authority-v112.js','home-layout-v112.js','analysis-bridge-v112.js','reclassify-deep-v112.js','matrix-guardian-v112.js','performance-guard-v112.js','turn-headers-v112.js','continuity-v112.js','chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','native-actions-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','sidebar-ux-v119.js','native-actions-controller-v119.js','interruption-guard-v119.js'}
+required={'sidebar-metadata-v118.js','sidebar-projects-authority-v112.js','sidebar-projects-v121.js','home-layout-v112.js','analysis-bridge-v112.js','reclassify-deep-v112.js','matrix-guardian-v112.js','performance-guard-v112.js','turn-headers-v112.js','continuity-v112.js','chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','native-actions-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','sidebar-ux-v119.js','pin-folders-v096.js','native-actions-controller-v119.js','interruption-guard-v119.js'}
 missing_runtime=sorted(required-set(isolated))
 if missing_runtime: fail('current runtime missing: '+', '.join(missing_runtime))
 for forbidden in ('project-pins-v090.js','native-rename-v112.js','breadcrumb-v100.js','sidebar-authority-v107.js','sidebar-expando-guard-v108.js'):
@@ -29,6 +29,7 @@ try:
     metadata_index=isolated.index('sidebar-metadata-v118.js')
     for consumer in ('cache-guardian-v100.js','recovery-v100.js','server-index-v100.js','project-governance-v090.js','reclassify-v101.js'):
         if metadata_index>=isolated.index(consumer): fail(f'sidebar metadata must sanitize cache before {consumer}')
+    if isolated.index('sidebar-projects-v121.js')>=isolated.index('sidebar-ux-v119.js'): fail('v121 Projects authority must disable legacy v119 before it loads')
     if isolated.index('sidebar-ux-v119.js')>=isolated.index('pin-folders-v096.js'): fail('sidebar UX guard must register before pin folder click handlers')
     if isolated.index('native-actions-controller-v119.js')>=isolated.index('native-actions-v113.js'): fail('native-only action controller must register before v113 production click handler')
     if isolated.index('interruption-guard-v119.js')<=isolated.index('continuity-v112.js'): fail('interruption guard must load after continuity capture handler')
@@ -64,12 +65,17 @@ for token in ('placeFloatingMenu','ng113-native-menu-floating','ensureChatEntry'
     if token not in actions: fail('left-sidebar action lifecycle/session/race cleanup missing '+token)
 if 'buttons.at(-1)' in actions: fail('native action can click arbitrary last native button')
 controller=(ROOT/'native-actions-controller-v119.js').read_text(encoding='utf-8')
-for token in ('resolveNativeProjectRow','showMoreButton','closeSession','session?.key===key','opening?.key===key','aucun fallback custom','currentConversationMenuButton','stopImmediatePropagation','ng119Owned'):
+for token in ('normalizePid','resolveNativeProjectRow','showMoreButton','closeSession','session?.key===key','opening?.key===key','aucun fallback custom','currentConversationMenuButton','stopImmediatePropagation','ng119Owned'):
     if token not in controller: fail('native-only reliable actions controller incomplete '+token)
 if 'fallbackChatMenu(' in controller or 'fallbackMove(' in controller: fail('v119 production controller reintroduced custom chat action fallback')
+catalog=(ROOT/'sidebar-projects-v121.js').read_text(encoding='utf-8')
+for token in ('window.__NIAKGPT_SIDEBAR_UX_119__=true','canonicalProjects','renderCatalog','catalogue complet','ng121PinsReady','ng121PlacementReady','nativeProjectSection','primaryTail','data-ng121-catalog','projects.map(row).join','MutationObserver'):
+    if token not in catalog: fail('v121 complete/stable Projects catalog authority incomplete '+token)
+for forbidden in ('slice(0,8)','setInterval('):
+    if forbidden in catalog: fail('v121 Projects catalog must not truncate/poll '+forbidden)
 sidebar_ux=(ROOT/'sidebar-ux-v119.js').read_text(encoding='utf-8')
-for token in ('nativeProjectsAnchor','firstRecentsAnchor','primaryTail','ng119PinsReady','event.preventDefault();','niakgpt:settings-changed','ng119-native-home-greeting'):
-    if token not in sidebar_ux: fail('stable sidebar placement/folder-only UX incomplete '+token)
+for token in ('ng121PinsReady','ng121PlacementReady','event.preventDefault();','niakgpt:settings-changed','ng119-native-home-greeting'):
+    if token not in sidebar_ux: fail('v119 rollback/readiness compatibility incomplete '+token)
 continuity=(ROOT/'continuity-v112.js').read_text(encoding='utf-8')
 for token in ('recommendProject','PROJECT RECOMMANDÉ PAR NIAKGPT','recommendedProjectId','exactProject:data.exactProject','recommendationScore'):
     if token not in continuity: fail('OUT continuity recommendation path incomplete '+token)
@@ -109,13 +115,14 @@ if 'suppressNativeProjects' in legacy106 or "classList.add('ng8-native-project" 
 if 'clearLegacyProjectMarks' not in legacy106: fail('legacy Projects classes are not cleaned once during v106 migration')
 if '.ng8-native-project' in legacy_css: fail('legacy Projects suppression CSS is still active outside v112 authority')
 folders=(ROOT/'pin-folders-v096.js').read_text(encoding='utf-8')
-for token in ('drawerDirty','cooperativeNode','existing.previousElementSibling===entry','ng96-chat-entry'):
-    if token not in folders: fail('pin idle-stability/atomic-row guard missing '+token)
+for token in ('drawerDirty','cooperativeNode','existing.previousElementSibling===entry','ng96-chat-entry','hydrateProject','publishProjectChats','bridgeBusy','niakgpt:activity-changed','Chargement des conversations'):
+    if token not in folders: fail('pin idle-stability/atomic-row/on-demand hydration guard missing '+token)
+if 'ensureFullProjectInventory' in folders: fail('pin-folders competes with v121 catalog ownership')
 if "createElement('button');open.type='button';open.className='ng96-project-open'" in folders: fail('obsolete Project open-page button recreated')
 chatux=(ROOT/'project-chat-ux-v110.js').read_text(encoding='utf-8')
 if 'ng110ChatRow' not in chatux: fail('chat state is not mirrored to atomic rows')
-experience=ROOT/'visual-lab/experience-gate-v116.mjs'; runtime_gate=ROOT/'visual-lab/tests/sidebar-runtime-v116.spec.js'; hitbox_gate=ROOT/'visual-lab/sidebar-hitboxes-v117.mjs'; session_gate=ROOT/'visual-lab/native-menu-session-v118.mjs'; action_race_gate=ROOT/'visual-lab/native-action-races-v119.mjs'; authority_isolation_gate=ROOT/'visual-lab/sidebar-authority-isolation-v119.mjs'; metadata_gate=ROOT/'visual-lab/sidebar-metadata-v118.mjs'; metadata_failure_gate=ROOT/'visual-lab/sidebar-metadata-failure-v119.mjs'; metadata_lifecycle_gate=ROOT/'visual-lab/sidebar-metadata-lifecycle-v119.mjs'; recovery_gate=ROOT/'visual-lab/sidebar-recovery-v119.mjs'; live_gate=ROOT/'visual-lab/live-ui-regressions-v114.mjs'
-for path,label in ((experience,'cross-platform human DOM error UX gate'),(runtime_gate,'real extension runtime gate'),(hitbox_gate,'left-sidebar hitbox gate'),(session_gate,'native menu session cleanup gate'),(action_race_gate,'native action race gate'),(authority_isolation_gate,'Projects authority isolation gate'),(metadata_gate,'sidebar metadata-only gate'),(metadata_failure_gate,'metadata failure barrier gate'),(metadata_lifecycle_gate,'metadata lifecycle gate'),(recovery_gate,'sidebar/interruption recovery gate')):
+experience=ROOT/'visual-lab/experience-gate-v116.mjs'; runtime_gate=ROOT/'visual-lab/tests/sidebar-runtime-v116.spec.js'; hitbox_gate=ROOT/'visual-lab/sidebar-hitboxes-v117.mjs'; session_gate=ROOT/'visual-lab/native-menu-session-v118.mjs'; action_race_gate=ROOT/'visual-lab/native-action-races-v119.mjs'; authority_isolation_gate=ROOT/'visual-lab/sidebar-authority-isolation-v119.mjs'; metadata_gate=ROOT/'visual-lab/sidebar-metadata-v118.mjs'; metadata_failure_gate=ROOT/'visual-lab/sidebar-metadata-failure-v119.mjs'; metadata_lifecycle_gate=ROOT/'visual-lab/sidebar-metadata-lifecycle-v119.mjs'; recovery_gate=ROOT/'visual-lab/sidebar-recovery-v119.mjs'; live_gate=ROOT/'visual-lab/live-ui-regressions-v114.mjs'; false_positive_gate=ROOT/'visual-lab/false-positive-signals-v121.mjs'; live_sidebar_gate=ROOT/'visual-lab/live-sidebar-state-v122.mjs'
+for path,label in ((experience,'cross-platform human DOM error UX gate'),(runtime_gate,'real extension runtime gate'),(hitbox_gate,'left-sidebar hitbox gate'),(session_gate,'native menu session cleanup gate'),(action_race_gate,'native action race gate'),(authority_isolation_gate,'Projects authority isolation gate'),(metadata_gate,'sidebar metadata-only gate'),(metadata_failure_gate,'metadata failure barrier gate'),(metadata_lifecycle_gate,'metadata lifecycle gate'),(recovery_gate,'sidebar/interruption recovery gate'),(false_positive_gate,'live false-positive gate'),(live_sidebar_gate,'live screenshot sidebar gate')):
     if not path.exists(): fail(label+' missing')
 if hitbox_gate.exists():
     hitbox_text=hitbox_gate.read_text(encoding='utf-8')
@@ -140,6 +147,13 @@ if metadata_lifecycle_gate.exists():
     lifecycle_text=metadata_lifecycle_gate.read_text(encoding='utf-8')
     for token in ("outcome.hidden.ready==='stopped'",'outcome.subscriptions===1',"filter(x=>x==='subscribe').length===1",'pageshow'):
         if token not in lifecycle_text: fail('metadata page lifecycle epoch coverage incomplete '+token)
+if live_sidebar_gate.exists():
+    live_sidebar_text=live_sidebar_gate.read_text(encoding='utf-8')
+    for token in ('length:25','badFrames===0','state.count===25','state.rows===12','Hydrated chat','state.cached===3','ng113-native-actions-project','ng113-actions-fallback'):
+        if token not in live_sidebar_text: fail('live screenshot/sidebar/hydration coverage incomplete '+token)
+package_text=(ROOT/'visual-lab/package.json').read_text(encoding='utf-8')
+for token in ('false-positive-signals-v121.mjs','live-sidebar-state-v122.mjs','user-reported-regressions-v120.mjs'):
+    if token not in package_text: fail('live user regression gate not chained into current tests '+token)
 profile_dir=ROOT/'visual-lab/profiles'
 for name,mode in (('runtime-cold-v116','cold'),('runtime-warm-v116','warm')):
     p=profile_dir/f'{name}.json'
@@ -168,4 +182,4 @@ if errors:
     print('STATIC_CURRENT_FAIL')
     for e in errors: print('-',e)
     sys.exit(1)
-print(f"STATIC_CURRENT_PASS version={manifest['version']} runtime={len(main)+len(isolated)} refs={len(refs)} profiles=2 cached-browsers=on linux-playwright=containerized left-sidebar=stable-folder-native-only-recovery single-projects-authority metadata-first serialized-shared-lock-fail-closed-lifecycle-sanitation")
+print(f"STATIC_CURRENT_PASS version={manifest['version']} runtime={len(main)+len(isolated)} refs={len(refs)} profiles=2 cached-browsers=on linux-playwright=containerized left-sidebar=v121-complete-stable-folder-native-only-on-demand-hydration single-projects-authority metadata-first serialized-shared-lock-fail-closed-lifecycle-sanitation")

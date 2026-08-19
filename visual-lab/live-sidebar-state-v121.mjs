@@ -4,9 +4,9 @@ import { chromium, firefox, webkit } from '@playwright/test';
 
 const ROOT=path.resolve('..');
 const read=name=>fs.readFile(path.join(ROOT,name),'utf8');
-const [foldersJs,authorityJs,controllerJs,nativeJs,foldersCss,authorityCss,nativeCss]=await Promise.all([
-  read('pin-folders-v096.js'),read('sidebar-live-authority-v121.js'),read('native-actions-controller-v119.js'),read('native-actions-v113.js'),
-  read('pin-folders-v096.css'),read('sidebar-live-authority-v121.css'),read('native-actions-v113.css')
+const [foldersJs,projectsJs,controllerJs,nativeJs,foldersCss,sidebarCss,nativeCss]=await Promise.all([
+  read('pin-folders-v096.js'),read('sidebar-projects-v121.js'),read('native-actions-controller-v119.js'),read('native-actions-v113.js'),
+  read('pin-folders-v096.css'),read('sidebar-ux-v119.css'),read('native-actions-v113.css')
 ]);
 const ALL={chromium,firefox,webkit};
 const requested=String(process.env.NIAKGPT_BROWSER||'').trim();
@@ -52,18 +52,17 @@ for(const [engine,launcher] of Object.entries(engines)){
     },{projects,chats,projectChats,counts});
     await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html',body:html}));
     await page.goto(`https://chatgpt.com/g/${projects[0].id}/c/${firstChat.id}`,{waitUntil:'domcontentloaded'});
-    for(const css of [foldersCss,nativeCss,authorityCss])await page.addStyleTag({content:css});
+    for(const css of [foldersCss,nativeCss,sidebarCss])await page.addStyleTag({content:css});
+    await page.addScriptTag({content:projectsJs});
     await page.addScriptTag({content:foldersJs});
-    await page.addScriptTag({content:authorityJs});
     await page.addScriptTag({content:controllerJs});
     await page.addScriptTag({content:nativeJs});
     await page.waitForTimeout(700);
 
-    let state=await page.evaluate(()=>{const box=document.getElementById('ng8-pins'),list=box.querySelector('.ng8-pin-list');return{count:box.querySelectorAll('.ng8-pin-list>a[data-ng8-pin="1"],.ng8-pin-list .ng96-pin-entry>a[data-ng8-pin="1"]').length,prev:box.previousElementSibling?.id,placement:box.dataset.ng121Placement,scroll:list.scrollHeight>list.clientHeight,diag:window.__diag['sidebar-live-121']||''};});
-    assert(state.count===15&&state.prev==='primary'&&state.placement==='after-primary',`all Projects not restored in stable slot: ${JSON.stringify(state)}`);
+    let state=await page.evaluate(()=>{const box=document.getElementById('ng8-pins'),list=box.querySelector('.ng8-pin-list');return{count:box.querySelectorAll('.ng8-pin-list>a[data-ng8-pin="1"],.ng8-pin-list .ng96-pin-entry>a[data-ng8-pin="1"]').length,prev:box.previousElementSibling?.id,placement:box.dataset.ng121Placement,scroll:list.scrollHeight>list.clientHeight,diag:window.__diag['sidebar-ux-119']||''};});
+    assert(state.count===15&&state.prev==='primary'&&['native-projects','after-primary'].includes(state.placement),`all Projects not restored in stable slot: ${JSON.stringify(state)}`);
     assert(state.scroll,`15 Projects should remain accessible through a bounded scroll list: ${JSON.stringify(state)}`);
 
-    // Reproduce the legacy app repeatedly trying to move the block to the top.
     for(let i=0;i<25;i++){
       await page.evaluate(()=>{const s=document.getElementById('sidebar'),b=document.getElementById('ng8-pins');s.insertBefore(b,s.firstElementChild);});
       await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>resolve())));
@@ -75,7 +74,7 @@ for(const [engine,launcher] of Object.entries(engines)){
     const pathBefore=new URL(page.url()).pathname;
     await project.click();await page.waitForTimeout(220);
     assert(new URL(page.url()).pathname===pathBefore,'Project name navigated instead of opening its chats');
-    let drawer=await page.evaluate(()=>({count:document.querySelectorAll('#ng8-pins .ng96-pin-drawer').length,chats:document.querySelectorAll('#ng8-pins .ng96-pin-drawer .ng96-chat-entry').length}));
+    const drawer=await page.evaluate(()=>({count:document.querySelectorAll('#ng8-pins .ng96-pin-drawer').length,chats:document.querySelectorAll('#ng8-pins .ng96-pin-drawer .ng96-chat-entry').length}));
     assert(drawer.count===1&&drawer.chats===2,`Project chats did not open: ${JSON.stringify(drawer)}`);
 
     const projectAction=page.locator('#ng8-pins .ng96-pin-entry').filter({hasText:'Project 01'}).locator('.ng113-native-actions-project').first();

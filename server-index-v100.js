@@ -7,7 +7,7 @@
   const LOCK_NAME='niakgpt-data-mutation-v100';
   const FRESH_MS=30*60*1000;
   const PROJECT_FRESH_MS=10*60*1000;
-  let busy=false,timer=0,rpcSeq=0,partialRetries=0,pendingDeep=false;
+  let busy=false,timer=0,timerDue=0,rpcSeq=0,partialRetries=0,pendingDeep=false,pendingForce=false;
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const parseTime=v=>{if(typeof v==='number'&&Number.isFinite(v))return v>1e12?v:v*1000;if(typeof v==='string'){const n=Number(v);if(Number.isFinite(n))return n>1e12?n:n*1000;const d=Date.parse(v);return Number.isFinite(d)?d:0;}return 0;};
@@ -93,9 +93,14 @@
     return polluted||!last||Date.now()-last>FRESH_MS||server===0||((raw.chats||[]).length>5&&dated===0);
   }
   async function indexNow(force=false){
-    if(busy||!projectReady())return;busy=true;
+    if(force)pendingForce=true;
+    if(busy||!projectReady()){
+      if(pendingForce)schedule(300,true);
+      return;
+    }
+    const runForce=force||pendingForce;pendingForce=false;busy=true;
     try{
-      let before=await readCache();if(!needsIndex(before,force)){diagnostic(`OK · index serveur récent · ${(before.projects||[]).filter(p=>String(p?.id||'').startsWith('g-p-')&&!p.domOnly).length} Projects`);return;}
+      let before=await readCache();if(!needsIndex(before,runForce)){diagnostic(`OK · index serveur récent · ${(before.projects||[]).filter(p=>String(p?.id||'').startsWith('g-p-')&&!p.domOnly).length} Projects`);return;}
       const cachedProjects=(before.projects||[]).filter(p=>String(p?.id||'').startsWith('g-p-')&&!p.domOnly);
       const inventoryFresh=Number(before.projectInventoryAt||0)>0&&Date.now()-Number(before.projectInventoryAt)<PROJECT_FRESH_MS&&cachedProjects.length>0;
       let projects=cachedProjects;
@@ -127,7 +132,6 @@
       }
       diagnostic('INDEX · conversations générales');
       try{for(const c of await fetchGeneral()){seenIds.add(c.id);const old=chats.get(c.id)||{},projectId=c.projectId||old.projectId||'';chats.set(c.id,{...old,...c,projectId,updated:Math.max(parseTime(old.updated),c.updated||0),snippet:c.snippet||old.snippet||''});}}catch(error){if(['paused','rate-limited'].includes(String(error?.message)))throw error;failures++;}
-      const freshProjectIds=new Set(projects.map(p=>p.id));
       // Never treat one undocumented API inventory as destructive truth. ChatGPT can return
       // a short/partial Project or conversation page under load without an explicit error.
       // Preserve previously known server Projects/chats and only enrich/overwrite records
@@ -161,19 +165,37 @@
         partialRetries=0;diagnostic(`OK · ${projects.length} Projects · ${chats.size} chats · ${dated} datés`);
         document.dispatchEvent(new CustomEvent('niakgpt:server-indexed',{detail:{projects:projects.length,chats:chats.size,dated,failures:0}}));
       }
-    }catch(error){if(String(error?.message)==='paused'){pendingDeep=true;diagnostic('PAUSE · reprise événementielle à la prochaine fenêtre disponible');}else if(String(error?.message)==='rate-limited'){diagnostic('PAUSE · limite API ChatGPT · reprise automatique');}else diagnostic(`ERREUR · ${String(error?.message||error).slice(0,100)}`);}finally{busy=false;}
+    }catch(error){
+      if(String(error?.message)==='paused'){pendingDeep=true;diagnostic('PAUSE · reprise événementielle à la prochaine fenêtre disponible');}
+      else if(String(error?.message)==='rate-limited'){diagnostic('PAUSE · limite API ChatGPT · reprise automatique');}
+      else diagnostic(`ERREUR · ${String(error?.message||error).slice(0,100)}`);
+    }finally{
+      busy=false;
+      if(pendingForce)schedule(120,true);
+    }
   }
   async function locked(force=false){
-    if(!projectReady())return;
-    if(navigator.locks?.request){
-      let acquired=false;
-      await navigator.locks.request(LOCK_NAME,{mode:'exclusive',ifAvailable:true},async lock=>{if(!lock)return;acquired=true;await indexNow(force);});
-      if(!acquired&&projectReady())schedule(500,force);
+    if(force)pendingForce=true;
+    if(!projectReady()){
+      if(pendingForce)schedule(300,true);
       return;
     }
-    return indexNow(force);
+    const runForce=force||pendingForce;pendingForce=false;
+    if(navigator.locks?.request){
+      let acquired=false;
+      await navigator.locks.request(LOCK_NAME,{mode:'exclusive',ifAvailable:true},async lock=>{if(!lock)return;acquired=true;await indexNow(runForce);});
+      if(!acquired){if(runForce)pendingForce=true;schedule(500,runForce);}
+      return;
+    }
+    return indexNow(runForce);
   }
-  function schedule(delay=900,force=false){clearTimeout(timer);timer=setTimeout(()=>locked(force),delay);}
+  function schedule(delay=900,force=false){
+    if(force)pendingForce=true;
+    const due=Date.now()+Math.max(0,Number(delay)||0);
+    if(timer&&timerDue&&timerDue<=due)return;
+    clearTimeout(timer);timerDue=due;
+    timer=setTimeout(()=>{timer=0;timerDue=0;const runForce=pendingForce;locked(runForce);},Math.max(0,due-Date.now()));
+  }
   document.addEventListener('niakgpt:cache-guard-ready',()=>schedule(40,true));document.addEventListener('niakgpt:force-server-index',()=>schedule(0,true));
   document.addEventListener('niakgpt:recovery-complete',()=>schedule(250,true));
   document.addEventListener('niakgpt:tab-role-changed',()=>schedule(500,false));

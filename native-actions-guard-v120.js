@@ -51,14 +51,30 @@
     const ids=clean(trigger?.getAttribute?.('aria-controls')).split(/\s+/).filter(Boolean);
     for(const id of ids){const el=document.getElementById(id);if(outsideOwn(el)&&visible(el))return el;}return null;
   }
+  function promoteNative(menu){
+    if(!(menu instanceof HTMLElement))return false;
+    try{
+      if(typeof menu.showPopover!=='function')return false;
+      if(!menu.hasAttribute('popover')){menu.setAttribute('popover','manual');menu.dataset.ng120PopoverOwned='1';}
+      if(!menu.matches(':popover-open'))menu.showPopover();
+      if(!menu.matches(':popover-open'))return false;
+      menu.dataset.ng113TopLayer='1';menu.dataset.ng113Floated='1';return true;
+    }catch{return false;}
+  }
   function place(menu,index=0){
     if(!(menu instanceof HTMLElement)||!session?.source?.isConnected)return;
+    promoteNative(menu);
     const sr=session.source.getBoundingClientRect(),side=session.source.closest('[data-testid*="sidebar" i],aside,nav')||document.querySelector('[data-testid*="sidebar" i],aside,nav'),rr=side?.getBoundingClientRect(),w=Math.min(330,Math.max(220,menu.getBoundingClientRect().width||250)),h=Math.min(innerHeight-16,Math.max(80,menu.getBoundingClientRect().height||250));
     let left=Math.max((rr?.right||sr.right)+8,8)+index*(w+8);if(left+w>innerWidth-8)left=Math.max(8,(rr?.right||sr.right)-w-8-index*(w+8));
     const top=Math.min(Math.max(8,sr.top-4+index*10),Math.max(8,innerHeight-h-8));
     menu.classList.add('ng120-native-menu');menu.style.setProperty('--ng120-menu-left',`${left}px`);menu.style.setProperty('--ng120-menu-top',`${top}px`);menu.dataset.ng120Native='1';session.menus.add(menu);
   }
-  function cleanupMenu(menu){if(!(menu instanceof HTMLElement))return;menu.classList.remove('ng120-native-menu');menu.style.removeProperty('--ng120-menu-left');menu.style.removeProperty('--ng120-menu-top');delete menu.dataset.ng120Native;}
+  function cleanupMenu(menu){
+    if(!(menu instanceof HTMLElement))return;
+    try{if(menu.matches?.(':popover-open'))menu.hidePopover();}catch{}
+    if(menu.dataset.ng120PopoverOwned==='1'){menu.removeAttribute('popover');delete menu.dataset.ng120PopoverOwned;}
+    menu.classList.remove('ng120-native-menu');menu.style.removeProperty('--ng120-menu-left');menu.style.removeProperty('--ng120-menu-top');delete menu.dataset.ng120Native;delete menu.dataset.ng113TopLayer;delete menu.dataset.ng113Floated;
+  }
   function stopObserver(){observer?.disconnect();observer=null;clearTimeout(closeTimer);closeTimer=0;}
   function finishSession(){
     stopObserver();if(!session)return;for(const menu of session.menus)cleanupMenu(menu);session.restore?.();session=null;

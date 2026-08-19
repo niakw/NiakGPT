@@ -10,13 +10,14 @@
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-  const pid=h=>String(h||'').match(/\/g\/(g-p-[^/?#]+)/i)?.[1]||'';
+  const normalizePid=v=>{const s=clean(v),m=s.match(/^g-p-([A-Za-z0-9]+)(?:-.+)?$/);return m?`g-p-${m[1]}`:s;};
+  const pid=h=>normalizePid(String(h||'').match(/\/g\/(g-p-[^/?#]+)/i)?.[1]||'');
   const cid=h=>String(h||'').match(/\/c\/([A-Za-z0-9_-]+)/)?.[1]||'';
   const currentCid=()=>cid(location.pathname);
   const outsideOwn=el=>!!el&&!el.closest?.(OWN);
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-  const projectName=id=>clean(cache.projects?.find(p=>p?.id===id)?.name)||'';
-  const keyFor=(kind,id)=>`${kind}:${id}`;
+  const projectName=id=>clean(cache.projects?.find(p=>normalizePid(p?.id)===normalizePid(id))?.name)||'';
+  const keyFor=(kind,id)=>`${kind}:${kind==='project'?normalizePid(id):id}`;
   const isVisible=el=>{if(!(el instanceof HTMLElement)||!el.isConnected)return false;const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden';};
 
   function menuButton(row){
@@ -26,7 +27,8 @@
       ||(buttons.filter(b=>!clean(b.textContent)&&!!b.querySelector('svg')).length===1?buttons.filter(b=>!clean(b.textContent)&&!!b.querySelector('svg'))[0]:null);
   }
   function directProjectRow(projectId,name){
-    const links=[...document.querySelectorAll(`a[href*="/g/${CSS.escape(projectId)}/"]`)].filter(outsideOwn);
+    projectId=normalizePid(projectId);
+    const links=[...document.querySelectorAll('a[href*="/g/g-p-"]')].filter(a=>outsideOwn(a)&&pid(a.getAttribute('href'))===projectId);
     if(links.length)return links[0].closest('[data-sidebar-item="true"],[class*="project-unfurl-row"],li')||links[0];
     const target=norm(name);if(!target)return null;
     for(const el of document.querySelectorAll('nav a,nav button,nav [role="link"],nav [role="button"],aside a,aside button,[data-testid*="sidebar" i] a,[data-testid*="sidebar" i] button')){
@@ -57,12 +59,12 @@
     return [...scope.querySelectorAll('button,[role="button"],a')].find(el=>/^(afficher|voir) plus$|^show more$/i.test(clean(el.textContent||el.getAttribute('aria-label'))))||null;
   }
   async function resolveNativeProjectRow(projectId,name){
-    let row=directProjectRow(projectId,name);if(row)return row;
+    projectId=normalizePid(projectId);let row=directProjectRow(projectId,name);if(row)return row;
     const surfaces=[...document.querySelectorAll('[data-ng112-native-projects="1"]')].filter(outsideOwn);
     if(!surfaces.length)return null;
     const restores=surfaces.map(stage);
     try{
-      for(let attempt=0;attempt<5;attempt++){
+      for(let attempt=0;attempt<7;attempt++){
         row=directProjectRow(projectId,name);if(row)return row;
         const more=surfaces.map(showMoreButton).find(Boolean);if(!more)break;
         more.click();await sleep(110+attempt*35);
@@ -131,11 +133,11 @@
     closeSession({toggleNative:false});return false;
   }
   async function openProject(source,id,token){
-    const row=await resolveNativeProjectRow(id,projectName(id));if(token!==epoch)return false;
+    id=normalizePid(id);const row=await resolveNativeProjectRow(id,projectName(id));if(token!==epoch)return false;
     if(!row){window.__NIAKGPT_DIAGNOSTICS__?.set('actions-project','INDISPONIBLE · ligne native Project non rendue');return false;}
     const restore=stage(row);
     try{
-      row.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));await sleep(55);const trigger=menuButton(row);if(!trigger)return false;
+      row.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));await sleep(55);const trigger=menuButton(row);if(!trigger){window.__NIAKGPT_DIAGNOSTICS__?.set('actions-project','INDISPONIBLE · bouton natif Project non rendu');return false;}
       const ok=await openViaTrigger('project',id,source,trigger,token);window.__NIAKGPT_DIAGNOSTICS__?.set('actions-project',ok?'OK · menu ChatGPT natif':'INDISPONIBLE · menu natif Project');return ok;
     }finally{restore();}
   }
@@ -148,15 +150,13 @@
     try{const ok=await openViaTrigger('chat',id,source,trigger,token);window.__NIAKGPT_DIAGNOSTICS__?.set('actions-chat',ok?'OK · menu ChatGPT natif':'INDISPONIBLE · menu natif chat');return ok;}finally{restore();}
   }
   function activate(button,kind,id){
-    const key=keyFor(kind,id);
+    if(kind==='project')id=normalizePid(id);const key=keyFor(kind,id);
     if(session?.key===key){epoch++;opening=null;closeSession({toggleNative:true});return Promise.resolve(false);}
     if(opening?.key===key){epoch++;opening=null;closeSession({toggleNative:true});button.removeAttribute('aria-busy');window.__NIAKGPT_DIAGNOSTICS__?.set('actions-119','PRÊT · ouverture annulée');return Promise.resolve(false);}
     if(session)closeSession({toggleNative:true});
     const token=++epoch;button.setAttribute('aria-busy','true');const task=Promise.resolve(kind==='project'?openProject(button,id,token):openChat(button,id,token)).catch(error=>{console.warn('[NiakGPT native controller v119]',error);if(token===epoch)closeSession({toggleNative:false});return false;}).finally(()=>{button.removeAttribute('aria-busy');if(opening?.token===token)opening=null;});opening={key,token,promise:task};return task;
   }
 
-  // Registered before native-actions-v113: v113 still owns decoration and its tested
-  // session primitives, while v119 owns production clicks and enforces native-only UX.
   document.addEventListener('click',event=>{
     if(event.button!==0)return;const target=event.target instanceof Element?event.target:null,button=target?.closest('#ng8-pins .ng113-native-actions');if(!(button instanceof HTMLButtonElement))return;
     const kind=button.dataset.ng113Actions,id=clean(button.dataset.ng113Id);if(!id||!['project','chat'].includes(kind))return;

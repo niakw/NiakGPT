@@ -7,7 +7,7 @@
   const CACHE_KEY='niakgpt-v08-cache';
   const DATA_LOCK='niakgpt-data-mutation-v100';
   const OWN='#ng8-pins,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb';
-  let sidebarObserver=null,sidebarNode=null,bootstrapObserver=null,timer=0,stopped=false,cacheUnsub=null,sanitizeTask=null;
+  let sidebarObserver=null,sidebarNode=null,bootstrapObserver=null,timer=0,stopped=false,cacheUnsub=null,sanitizeTask=null,lifecycleEpoch=0;
 
   const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
   const pidFromHref=h=>String(h||'').match(/\/g\/(g-p-[^/?#]+)(?:\/(?:project|c\/)|[/?#]|$)/i)?.[1]||'';
@@ -132,20 +132,21 @@
     setTimeout(()=>{bootstrapObserver?.disconnect();bootstrapObserver=null;},15000);
   }
   function stop(){
-    stopped=true;clearTimeout(timer);timer=0;sidebarObserver?.disconnect();bootstrapObserver?.disconnect();sidebarObserver=bootstrapObserver=null;sidebarNode=null;
+    stopped=true;lifecycleEpoch++;window.__NIAKGPT_METADATA_READY_118__='stopped';clearTimeout(timer);timer=0;sidebarObserver?.disconnect();bootstrapObserver?.disconnect();sidebarObserver=bootstrapObserver=null;sidebarNode=null;
     try{cacheUnsub?.();}catch{}cacheUnsub=null;
   }
 
   async function start(){
-    stopped=false;const bus=wrapCacheBus();bootstrap();normalizeChatMetadata();
-    let result=await sanitizeCache();
-    if(!result?.ok&&!stopped){await new Promise(resolve=>setTimeout(resolve,80));result=await sanitizeCache();}
+    const epoch=++lifecycleEpoch;stopped=false;window.__NIAKGPT_METADATA_READY_118__='pending';const current=()=>!stopped&&epoch===lifecycleEpoch;
+    const bus=wrapCacheBus();bootstrap();normalizeChatMetadata();
+    let result=await sanitizeCache();if(!current())return;
+    if(!result?.ok){await new Promise(resolve=>setTimeout(resolve,80));if(!current())return;result=await sanitizeCache();if(!current())return;}
     if(!result?.ok){window.__NIAKGPT_METADATA_READY_118__='error';throw result?.error||new Error('metadata_sanitize_failed');}
-    window.__NIAKGPT_METADATA_READY_118__='ready';
+    if(!current())return;window.__NIAKGPT_METADATA_READY_118__='ready';
     const rawSubscribe=bus?.__ng118RawSubscribe||null;
     if(rawSubscribe&&!cacheUnsub)cacheUnsub=rawSubscribe(raw=>{sanitizeCache(raw);schedule(8);});
     else if(bus?.subscribe&&!cacheUnsub)cacheUnsub=bus.subscribe(raw=>{sanitizeCache(raw);schedule(8);});
-    schedule(0);
+    if(current())schedule(0);
   }
 
   document.addEventListener('niakgpt:pins-rendered',()=>schedule(0));

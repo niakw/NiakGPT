@@ -14,8 +14,8 @@ for(const [engine,launcher] of Object.entries(engines)){
   const page=await context.newPage();
   try{
     await page.addInitScript(()=>{
-      const GOOD='g-p-good',REALDATE='g-p-date-real',BAD='dom-p-date1708',CID='11111111-1111-4111-8111-111111111111';
-      window.__labRaw={schema:2,at:1,projects:[{id:GOOD,name:'Studio',href:`/g/${GOOD}/project`,domOnly:false},{id:REALDATE,name:'Today',href:`/g/${REALDATE}/project`,domOnly:true},{id:BAD,name:'17/08',href:`/c/${CID}`,domOnly:true}],chats:[{id:CID,title:'Chat test',projectId:BAD,href:`/g/${GOOD}/c/${CID}`,updated:1}],counts:{[GOOD]:1,[REALDATE]:0,[BAD]:1},projectChats:{[REALDATE]:[],[BAD]:[]},indexedProjectIds:[GOOD,REALDATE,BAD]};
+      const GOOD='g-p-good',REALDATE='g-p-date-real',BAD='dom-p-date1708',NESTED='dom-p-nested-date',CID='11111111-1111-4111-8111-111111111111',CID2='22222222-2222-4222-8222-222222222222';
+      window.__labRaw={schema:2,at:1,projects:[{id:GOOD,name:'Studio',href:`/g/${GOOD}/project`,domOnly:false},{id:REALDATE,name:'Today',href:`/g/${REALDATE}/project`,domOnly:true},{id:BAD,name:'17/08',href:`/c/${CID}`,domOnly:true},{id:NESTED,name:'Yesterday',href:`/g/${GOOD}/c/${CID2}`,domOnly:true}],chats:[{id:CID,title:'Chat test',projectId:BAD,href:`/g/${GOOD}/c/${CID}`,updated:1}],counts:{[GOOD]:1,[REALDATE]:0,[BAD]:1,[NESTED]:1},projectChats:{[REALDATE]:[],[BAD]:[],[NESTED]:[]},indexedProjectIds:[GOOD,REALDATE,BAD,NESTED]};
       window.__subs=[];window.__subscribeSnapshots=[];window.__raceEvents=[];
       const publish=(next,label='publish')=>{window.__labRaw=structuredClone(next);window.__raceEvents.push(`${label}:${(window.__labRaw.projects||[]).map(p=>p.id).join(',')}`);for(const sub of [...window.__subs])sub(window.__labRaw);};
       window.__publishLabRaw=publish;
@@ -36,15 +36,16 @@ for(const [engine,launcher] of Object.entries(engines)){
     await page.evaluate(metadataJs);
     const injectionMs=Date.now()-started;
     await page.waitForTimeout(20);
-    const state=await page.evaluate(()=>({ready:window.__NIAKGPT_METADATA_READY_118__||'',nativeDisplay:getComputedStyle(document.getElementById('native-projects')).display,nativeClasses:[...document.getElementById('native-projects').classList],dateTag:document.querySelector('#chat .ng8-chat-date')?.tagName||'',fakeBadge:!!document.querySelector('#chat .ng8-chat-project'),badProjects:(window.__labRaw.projects||[]).filter(p=>p.id==='dom-p-date1708').length,realDateProject:(window.__labRaw.projects||[]).find(p=>p.id==='g-p-date-real')||null,realDateCount:Object.prototype.hasOwnProperty.call(window.__labRaw.counts||{},'g-p-date-real'),realDateIndexed:(window.__labRaw.indexedProjectIds||[]).includes('g-p-date-real'),chatProject:(window.__labRaw.chats||[]).find(c=>c.id==='11111111-1111-4111-8111-111111111111')?.projectId||'',badCount:Object.prototype.hasOwnProperty.call(window.__labRaw.counts||{},'dom-p-date1708'),badIndexed:(window.__labRaw.indexedProjectIds||[]).includes('dom-p-date1708'),authorityMarks:document.querySelectorAll('[data-ng112-native-projects],.ng107-native-project-row,.ng107-native-project-cluster,.ng108-native-project-expando,.ng8-native-project-link-suppressed').length,subscribeSnapshots:window.__subscribeSnapshots}));
+    const state=await page.evaluate(()=>({ready:window.__NIAKGPT_METADATA_READY_118__||'',nativeDisplay:getComputedStyle(document.getElementById('native-projects')).display,nativeClasses:[...document.getElementById('native-projects').classList],dateTag:document.querySelector('#chat .ng8-chat-date')?.tagName||'',fakeBadge:!!document.querySelector('#chat .ng8-chat-project'),badProjects:(window.__labRaw.projects||[]).filter(p=>p.id==='dom-p-date1708').length,nestedGhosts:(window.__labRaw.projects||[]).filter(p=>p.id==='dom-p-nested-date').length,realDateProject:(window.__labRaw.projects||[]).find(p=>p.id==='g-p-date-real')||null,realDateCount:Object.prototype.hasOwnProperty.call(window.__labRaw.counts||{},'g-p-date-real'),realDateIndexed:(window.__labRaw.indexedProjectIds||[]).includes('g-p-date-real'),chatProject:(window.__labRaw.chats||[]).find(c=>c.id==='11111111-1111-4111-8111-111111111111')?.projectId||'',badCount:Object.prototype.hasOwnProperty.call(window.__labRaw.counts||{},'dom-p-date1708'),nestedCount:Object.prototype.hasOwnProperty.call(window.__labRaw.counts||{},'dom-p-nested-date'),badIndexed:(window.__labRaw.indexedProjectIds||[]).includes('dom-p-date1708'),nestedIndexed:(window.__labRaw.indexedProjectIds||[]).includes('dom-p-nested-date'),authorityMarks:document.querySelectorAll('[data-ng112-native-projects],.ng107-native-project-row,.ng107-native-project-cluster,.ng108-native-project-expando,.ng8-native-project-link-suppressed').length,subscribeSnapshots:window.__subscribeSnapshots}));
     assert(injectionMs>=140,`async metadata injection returned before delayed read+write sanitation completed (${injectionMs}ms)`);
     assert(state.ready==='ready',`metadata injection resolved before readiness: ${JSON.stringify(state)}`);
-    assert(state.subscribeSnapshots.length>=1&&!state.subscribeSnapshots[0].includes('dom-p-date1708'),`cache subscription was armed before initial sanitation completed: ${JSON.stringify(state.subscribeSnapshots)}`);
+    assert(state.subscribeSnapshots.length>=1&&!state.subscribeSnapshots[0].includes('dom-p-date1708')&&!state.subscribeSnapshots[0].includes('dom-p-nested-date'),`cache subscription was armed before initial sanitation completed: ${JSON.stringify(state.subscribeSnapshots)}`);
     assert(state.nativeDisplay!=='none',`metadata module suppressed native Projects: ${JSON.stringify(state)}`);
     assert(state.authorityMarks===0,`metadata module created authority marks: ${JSON.stringify(state)}`);
     assert(state.dateTag==='TIME','date metadata was not normalized to <time>');
     assert(!state.fakeBadge,'date-shaped fake Project badge survived');
     assert(state.badProjects===0&&!state.badCount&&!state.badIndexed,'date-shaped ghost Project survived cache cleanup');
+    assert(state.nestedGhosts===0&&!state.nestedCount&&!state.nestedIndexed,`date ghost nested under a canonical Project chat survived cache cleanup: ${JSON.stringify(state)}`);
     assert(state.realDateProject?.name==='Today'&&state.realDateCount&&state.realDateIndexed,`canonical date-named Project was deleted as a ghost: ${JSON.stringify(state)}`);
     assert(state.chatProject==='g-p-good',`chat Project recovery failed: ${JSON.stringify(state)}`);
 
@@ -60,7 +61,7 @@ for(const [engine,launcher] of Object.entries(engines)){
     const race=await page.evaluate(()=>({ids:(window.__labRaw.projects||[]).map(p=>p.id),events:window.__raceEvents}));
     assert(race.ids.includes('g-p-two'),`metadata sanitation overwrote a later lock-coordinated cache publication: ${JSON.stringify(race)}`);
     assert(!race.ids.includes('dom-race-b'),`later lock-coordinated dirty cache was not sanitized: ${JSON.stringify(race)}`);
-    console.log(`${engine} sidebar metadata read+write barrier + canonical date-name + shared-lock race: PASS · ${injectionMs}ms`);
+    console.log(`${engine} sidebar metadata read+write barrier + canonical/embedded date ghosts + shared-lock race: PASS · ${injectionMs}ms`);
   }finally{await context.close();await browser.close();}
 }
 console.log(`sidebar-metadata-v118: ${Object.keys(engines).join(',')} PASS`);

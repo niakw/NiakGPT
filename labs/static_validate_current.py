@@ -57,8 +57,8 @@ if 'MAX_PER_RUN=2' not in deep or 'MAX_HEAVY=1' not in deep: fail('deep classifi
 actions=(ROOT/'native-actions-v113.js').read_text(encoding='utf-8')
 if 'invokeNativeMenu' not in actions or 'fallbackMove' not in actions: fail('native action/fallback move path missing')
 if 'data-ng112-native-projects' not in actions: fail('native actions do not stage passive Projects marks')
-for token in ('placeFloatingMenu','ng113-native-menu-floating','ensureChatEntry','ng96-chat-entry','showPopover','ng113TopLayer','menuBaseline','menuSession','sessionVisibleMenus','resetFloatingMenu','fallbackOutsideHandler'):
-    if token not in actions: fail('left-sidebar action geometry/session cleanup missing '+token)
+for token in ('placeFloatingMenu','ng113-native-menu-floating','ensureChatEntry','ng96-chat-entry','showPopover','ng113TopLayer','menuBaseline','menuSession','sessionVisibleMenus','resetFloatingMenu','fallbackOutsideHandler','actionEpoch','actionOpening','claimTriggerMenu','aria-busy'):
+    if token not in actions: fail('left-sidebar action geometry/session/race cleanup missing '+token)
 state=(ROOT/'chat-state-authority-v113.js').read_text(encoding='utf-8')
 if 'iu>pu' not in state or 'iu===pu' not in state: fail('monotonic title authority missing')
 bread=(ROOT/'breadcrumb-v113.js').read_text(encoding='utf-8')
@@ -71,13 +71,15 @@ for forbidden in ('attributes:true','attributeFilter:','classList.add(HIDE)',"se
 projects_css=(ROOT/'sidebar-projects-authority-v112.css').read_text(encoding='utf-8')
 if '[data-ng112-native-projects="1"]' not in projects_css: fail('passive Projects CSS marker missing')
 metadata=(ROOT/'sidebar-metadata-v118.js').read_text(encoding='utf-8')
-for token in ('normalizeChatMetadata','cleanCache','wrapCacheBus','sanitizeCache','sanitizeTask','childList:true',"const DATA_LOCK='niakgpt-data-mutation-v100'",'navigator.locks?.request','await navigator.locks.request(DATA_LOCK'):
-    if token not in metadata: fail('sidebar metadata hygiene/shared-lock serialization incomplete '+token)
+for token in ('normalizeChatMetadata','cleanCache','wrapCacheBus','sanitizeCache','sanitizeTask','childList:true',"const DATA_LOCK='niakgpt-data-mutation-v100'",'navigator.locks?.request','await navigator.locks.request(DATA_LOCK','return{ok:false,error};',"window.__NIAKGPT_METADATA_READY_118__='error'",'let result=await sanitizeCache();','result=await sanitizeCache();'):
+    if token not in metadata: fail('sidebar metadata hygiene/shared-lock/fail-closed serialization incomplete '+token)
 for forbidden in ('suppressNativeProjects','ng107-native-project','ng108-native-project','data-ng112-native-projects','attributes:true','attributeFilter:'):
     if forbidden in metadata: fail('metadata module reintroduced Projects authority/churn '+forbidden)
-initial_sanitize=metadata.find('try{await sanitizeCache();}')
+initial_sanitize=metadata.find('let result=await sanitizeCache();')
+retry_sanitize=metadata.find('result=await sanitizeCache();',initial_sanitize+1)
 subscription_arm=metadata.find('const rawSubscribe=')
-if initial_sanitize<0 or subscription_arm<0 or initial_sanitize>=subscription_arm: fail('metadata subscription is armed before initial sanitation barrier')
+if initial_sanitize<0 or retry_sanitize<0 or subscription_arm<0 or initial_sanitize>=subscription_arm or retry_sanitize>=subscription_arm: fail('metadata subscription is armed before bounded initial sanitation barrier')
+if "if(!result?.ok){window.__NIAKGPT_METADATA_READY_118__='error';throw" not in metadata: fail('metadata does not fail closed after bounded sanitation retry')
 metadata_css=(ROOT/'sidebar-metadata-v118.css').read_text(encoding='utf-8')
 if 'time.ng8-chat-date' not in metadata_css or 'native-project' in metadata_css: fail('metadata CSS drift or Projects suppression leak')
 legacy104=(ROOT/'live-fixes-v104.js').read_text(encoding='utf-8')
@@ -93,20 +95,25 @@ for token in ('drawerDirty','cooperativeNode','existing.previousElementSibling==
 if "createElement('button');open.type='button';open.className='ng96-project-open'" in folders: fail('obsolete open-page button recreated')
 chatux=(ROOT/'project-chat-ux-v110.js').read_text(encoding='utf-8')
 if 'ng110ChatRow' not in chatux: fail('chat state is not mirrored to atomic rows')
-experience=ROOT/'visual-lab/experience-gate-v116.mjs'; runtime_gate=ROOT/'visual-lab/tests/sidebar-runtime-v116.spec.js'; hitbox_gate=ROOT/'visual-lab/sidebar-hitboxes-v117.mjs'; session_gate=ROOT/'visual-lab/native-menu-session-v118.mjs'; action_race_gate=ROOT/'visual-lab/native-action-races-v119.mjs'; metadata_gate=ROOT/'visual-lab/sidebar-metadata-v118.mjs'; live_gate=ROOT/'visual-lab/live-ui-regressions-v114.mjs'
+experience=ROOT/'visual-lab/experience-gate-v116.mjs'; runtime_gate=ROOT/'visual-lab/tests/sidebar-runtime-v116.spec.js'; hitbox_gate=ROOT/'visual-lab/sidebar-hitboxes-v117.mjs'; session_gate=ROOT/'visual-lab/native-menu-session-v118.mjs'; action_race_gate=ROOT/'visual-lab/native-action-races-v119.mjs'; metadata_gate=ROOT/'visual-lab/sidebar-metadata-v118.mjs'; metadata_failure_gate=ROOT/'visual-lab/sidebar-metadata-failure-v119.mjs'; live_gate=ROOT/'visual-lab/live-ui-regressions-v114.mjs'
 if not experience.exists(): fail('cross-platform human DOM error UX gate missing')
 if not runtime_gate.exists(): fail('real extension runtime gate missing')
 if not hitbox_gate.exists(): fail('left-sidebar hitbox gate missing')
 if not session_gate.exists(): fail('native menu session cleanup gate missing')
 if not action_race_gate.exists(): fail('native action race gate missing')
 if not metadata_gate.exists(): fail('sidebar metadata-only gate missing')
+if not metadata_failure_gate.exists(): fail('metadata failure barrier gate missing')
 if hitbox_gate.exists() and "import('./native-menu-session-v118.mjs')" not in hitbox_gate.read_text(encoding='utf-8'): fail('native menu cleanup gate is not chained into cross-engine sidebar validation')
 if session_gate.exists() and "import('./native-action-races-v119.mjs')" not in session_gate.read_text(encoding='utf-8'): fail('native action race gate is not chained into cross-engine menu validation')
 if live_gate.exists() and "import('./sidebar-metadata-v118.mjs')" not in live_gate.read_text(encoding='utf-8'): fail('metadata-only gate is not chained into cross-engine live UI validation')
 if metadata_gate.exists():
     metadata_gate_text=metadata_gate.read_text(encoding='utf-8')
-    for token in ('g-p-two','dom-race-b',"navigator.locks.request('niakgpt-data-mutation-v100'",'metadata sanitation overwrote a later lock-coordinated cache publication'):
-        if token not in metadata_gate_text: fail('metadata shared-lock race regression coverage incomplete '+token)
+    for token in ('g-p-two','dom-race-b',"navigator.locks.request('niakgpt-data-mutation-v100'",'metadata sanitation overwrote a later lock-coordinated cache publication',"import('./sidebar-metadata-failure-v119.mjs')"):
+        if token not in metadata_gate_text: fail('metadata shared-lock/failure race regression coverage incomplete '+token)
+if metadata_failure_gate.exists():
+    failure_text=metadata_failure_gate.read_text(encoding='utf-8')
+    for token in ('forced_write_failure',"outcome.ready==='error'",'outcome.subscriptions===0','outcome.writes>=2'):
+        if token not in failure_text: fail('metadata persistence failure barrier coverage incomplete '+token)
 profile_dir=ROOT/'visual-lab/profiles'
 for name,mode in (('runtime-cold-v116','cold'),('runtime-warm-v116','warm')):
     p=profile_dir/f'{name}.json'
@@ -131,4 +138,4 @@ if errors:
     print('STATIC_CURRENT_FAIL')
     for e in errors: print('-',e)
     sys.exit(1)
-print(f"STATIC_CURRENT_PASS version={manifest['version']} runtime={len(main)+len(isolated)} refs={len(refs)} profiles=2 cached-browsers=on left-sidebar=atomic-top-layer-session-clean single-projects-authority metadata-first serialized-initial-and-shared-lock-sanitation")
+print(f"STATIC_CURRENT_PASS version={manifest['version']} runtime={len(main)+len(isolated)} refs={len(refs)} profiles=2 cached-browsers=on left-sidebar=atomic-top-layer-session-clean single-projects-authority metadata-first serialized-shared-lock-fail-closed-sanitation")

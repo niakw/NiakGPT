@@ -9,9 +9,12 @@
   const currentCid=()=>cid(location.pathname);
   function decorateLink(link){
     if(!(link instanceof HTMLElement))return;const chatId=link.dataset.chat||cid(link.getAttribute('href'));if(!chatId)return;
+    const row=link.closest('.ng96-chat-entry');
     link.dataset.ng110Chat='1';const titleEl=link.querySelector(':scope>span,.ng96-chat-title,span');if(titleEl)titleEl.classList.add('ng110-chat-title');
-    if(chatId===currentCid()){link.dataset.ng110Active='1';link.setAttribute('aria-current','page');}else{delete link.dataset.ng110Active;link.removeAttribute('aria-current');}
-    if(outState?.out?.[chatId])link.dataset.ng110Out='1';else delete link.dataset.ng110Out;
+    const active=chatId===currentCid(),out=!!outState?.out?.[chatId];
+    if(active){link.dataset.ng110Active='1';link.setAttribute('aria-current','page');}else{delete link.dataset.ng110Active;link.removeAttribute('aria-current');}
+    if(out)link.dataset.ng110Out='1';else delete link.dataset.ng110Out;
+    if(row){row.dataset.ng110ChatRow='1';if(active)row.dataset.ng110Active='1';else delete row.dataset.ng110Active;if(out)row.dataset.ng110Out='1';else delete row.dataset.ng110Out;}
   }
   function render(){timer=0;if(stopped)return;const box=document.getElementById('ng8-pins');if(!box)return;for(const link of box.querySelectorAll('.ng96-folder-list a[data-chat]'))decorateLink(link);}
   function schedule(delay=18){if(stopped)return;clearTimeout(timer);timer=setTimeout(render,delay);}

@@ -11,12 +11,25 @@
 
   const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
   const pidFromHref=h=>String(h||'').match(/\/g\/(g-p-[^/?#]+)(?:\/(?:project|c\/)|[/?#]|$)/i)?.[1]||'';
+  const cidFromHref=h=>String(h||'').match(/\/c\/([A-Za-z0-9_-]+)/)?.[1]||'';
   const isDateLike=v=>{
     const s=norm(v).replace(/^dernier(?:e)?\s+(?:echange|activité|activite)\s*:?\s*/,'');
     return /^(?:aujourd'hui|aujourdhui|hier|today|yesterday|\d{1,2}:\d{2}|\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?(?:\s+[·-]?\s*\d{1,2}:\d{2})?)$/.test(s);
   };
   const sidebarRoot=()=>document.querySelector('[data-testid="conversation-sidebar"],[data-testid="sidebar"]')||document.querySelector('nav');
   const outsideOwn=el=>!!el&&!el.closest(OWN);
+  function rawCacheSnapshot(){
+    const bus=window.__NIAKGPT_CACHE_BUS__;
+    try{return bus?.__ng118RawPeek?bus.__ng118RawPeek():bus?.peek?bus.peek():null;}catch{return null;}
+  }
+  function isCanonicalProjectBadge(link,badge){
+    const raw=rawCacheSnapshot();if(!raw)return false;
+    let projectId=pidFromHref(link?.getAttribute?.('href')||'');
+    if(!projectId){const chatId=cidFromHref(link?.getAttribute?.('href')||'');projectId=String((raw.chats||[]).find(c=>String(c?.id||'')===chatId)?.projectId||'');}
+    if(!projectId.startsWith('g-p-'))return false;
+    const project=(raw.projects||[]).find(p=>String(p?.id||'')===projectId);
+    return !!project&&norm(project.name)===norm(badge?.textContent);
+  }
 
   function replaceDateNode(node){
     if(!(node instanceof HTMLElement)||node.tagName==='TIME')return node;
@@ -31,7 +44,7 @@
       if(!outsideOwn(link))continue;
       for(const date of link.querySelectorAll(':scope > .ng8-chat-date'))if(isDateLike(date.textContent))replaceDateNode(date);
       for(const badge of link.querySelectorAll(':scope > .ng8-chat-project')){
-        if(!isDateLike(badge.textContent))continue;
+        if(!isDateLike(badge.textContent)||isCanonicalProjectBadge(link,badge))continue;
         badge.dataset.ng118InvalidProject='1';badge.remove();
       }
     }

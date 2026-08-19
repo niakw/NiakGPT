@@ -50,6 +50,12 @@ jobs:
           grep -qx 'sidebar-metadata-v118.js' /tmp/niakgpt-package-files.txt
           grep -qx 'sidebar-metadata-v118.css' /tmp/niakgpt-package-files.txt
           grep -qx 'sidebar-projects-authority-v112.js' /tmp/niakgpt-package-files.txt
+          for doc in README.md LICENSE PRIVACY.md SECURITY.md CHANGELOG.md; do
+            grep -qx "$doc" /tmp/niakgpt-package-files.txt || {
+              echo "Required release document missing from ZIP: $doc"
+              exit 1
+            }
+          done
           for forbidden in \
             'app-v08-safe.js' \
             'project-governance-v085.js' \

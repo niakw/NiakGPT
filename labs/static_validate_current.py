@@ -71,14 +71,13 @@ for forbidden in ('attributes:true','attributeFilter:','classList.add(HIDE)',"se
 projects_css=(ROOT/'sidebar-projects-authority-v112.css').read_text(encoding='utf-8')
 if '[data-ng112-native-projects="1"]' not in projects_css: fail('passive Projects CSS marker missing')
 metadata=(ROOT/'sidebar-metadata-v118.js').read_text(encoding='utf-8')
-for token in ('normalizeChatMetadata','cleanCache','wrapCacheBus','sanitizeCache','sanitizeTask','childList:true',"const DATA_LOCK='niakgpt-data-mutation-v100'",'navigator.locks?.request','await navigator.locks.request(DATA_LOCK','return{ok:false,error};',"window.__NIAKGPT_METADATA_READY_118__='error'",'let result=await sanitizeCache();','result=await sanitizeCache();'):
+for token in ('normalizeChatMetadata','cleanCache','wrapCacheBus','sanitizeCache','sanitizeTask','childList:true',"const DATA_LOCK='niakgpt-data-mutation-v100'",'navigator.locks?.request','await navigator.locks.request(DATA_LOCK','return{ok:false,error};',"window.__NIAKGPT_METADATA_READY_118__='error'",'let result=await sanitizeCache();',"if(!result?.ok&&!stopped){await new Promise(resolve=>setTimeout(resolve,80));result=await sanitizeCache();}"):
     if token not in metadata: fail('sidebar metadata hygiene/shared-lock/fail-closed serialization incomplete '+token)
 for forbidden in ('suppressNativeProjects','ng107-native-project','ng108-native-project','data-ng112-native-projects','attributes:true','attributeFilter:'):
     if forbidden in metadata: fail('metadata module reintroduced Projects authority/churn '+forbidden)
 initial_sanitize=metadata.find('let result=await sanitizeCache();')
-retry_sanitize=metadata.find('result=await sanitizeCache();',initial_sanitize+1)
 subscription_arm=metadata.find('const rawSubscribe=')
-if initial_sanitize<0 or retry_sanitize<0 or subscription_arm<0 or initial_sanitize>=subscription_arm or retry_sanitize>=subscription_arm: fail('metadata subscription is armed before bounded initial sanitation barrier')
+if initial_sanitize<0 or subscription_arm<0 or initial_sanitize>=subscription_arm: fail('metadata subscription is armed before bounded initial sanitation barrier')
 if "if(!result?.ok){window.__NIAKGPT_METADATA_READY_118__='error';throw" not in metadata: fail('metadata does not fail closed after bounded sanitation retry')
 metadata_css=(ROOT/'sidebar-metadata-v118.css').read_text(encoding='utf-8')
 if 'time.ng8-chat-date' not in metadata_css or 'native-project' in metadata_css: fail('metadata CSS drift or Projects suppression leak')

@@ -4,8 +4,9 @@
   window.__NIAKGPT_PROJECTS_AUTHORITY_112__=true;
 
   const OWN='#ng8-pins,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb';
-  const HIDE='ng112-native-projects-authoritative';
-  let rootObserver=null,timer=0,stopped=false;
+  const MARK='data-ng112-native-projects';
+  const LEGACY='ng112-native-projects-authoritative';
+  let observer=null,timer=0,stopped=false,observedRoots=[];
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -20,10 +21,10 @@
 
   function sharesSidebarShell(el){
     if(!el||!outsideOwn(el)||inMain(el))return false;
-    if(el.closest('nav,aside,[data-testid*="sidebar" i],[class*="sidebar" i]'))return true;
+    if(el.closest('aside,nav,[data-testid*="sidebar" i],[class*="sidebar" i]'))return true;
     const own=ownProjects();if(!own)return false;
     let node=own.parentElement;
-    for(let depth=0;depth<9&&node&&node!==document.body&&node!==document.documentElement;depth++,node=node.parentElement){if(node.contains(el))return true;}
+    for(let depth=0;depth<7&&node&&node!==document.body&&node!==document.documentElement;depth++,node=node.parentElement){if(node.contains(el))return true;}
     return false;
   }
   function managedNames(){
@@ -70,71 +71,86 @@
     }
     return hosts;
   }
+  function pruneTargets(items){
+    const list=[...new Set(items)].filter(el=>el&&outsideOwn(el)&&sharesSidebarShell(el)&&!el.contains(ownProjects()));
+    return list.filter(el=>!list.some(other=>other!==el&&other.contains(el)));
+  }
   function nativeTargets(){
     const found=new Set(),names=managedNames();
-    const childLinks=[...document.querySelectorAll('a[href*="/g/g-p-"]')].filter(sharesSidebarShell);
-    for(const link of childLinks){const row=rowTarget(link);if(row)found.add(row);const host=nearestProjectHost(link);if(host)found.add(host);}
+    for(const link of document.querySelectorAll('a[href*="/g/g-p-"]')){if(!sharesSidebarShell(link))continue;const row=rowTarget(link);if(row)found.add(row);const host=nearestProjectHost(link);if(host)found.add(host);}
     for(const host of identityHosts())found.add(host);
     for(const link of document.querySelectorAll('a[href]')){if(!sharesSidebarShell(link)||!projectHomeHref(link.getAttribute('href')))continue;const row=rowTarget(link);if(row)found.add(row);}
-    for(const el of document.querySelectorAll('h1,h2,h3,[role="heading"],button,[role="button"],a,[aria-label],span')){
+    for(const el of document.querySelectorAll('h1,h2,h3,[role="heading"],button,[role="button"],a,[aria-label],span,div')){
       if(!sharesSidebarShell(el))continue;
       const label=norm(el.getAttribute?.('aria-label')||el.textContent);
       if(projectLabel(label)){
-        const host=nearestProjectHost(el);if(host)found.add(host);else{const target=rowTarget(el);if(target)found.add(target);}
-        continue;
+        const host=nearestProjectHost(el);if(host)found.add(host);else{const target=rowTarget(el);if(target)found.add(target);}continue;
       }
-      if(showMoreLabel(label)){
-        const host=nearestProjectHost(el);if(host)found.add(host);
-        continue;
-      }
+      if(showMoreLabel(label)){const host=nearestProjectHost(el);if(host)found.add(host);continue;}
       if(names.size&&names.has(label)){
         const host=nearestProjectHost(el);if(host){found.add(host);continue;}
         const hasProjectIdentity=projectChildHref(el.getAttribute?.('href'))||!!el.closest?.('[class*="project-unfurl-row"]');
         if(hasProjectIdentity){const target=rowTarget(el);if(target)found.add(target);}
       }
     }
-    return [...found].filter(el=>el&&outsideOwn(el)&&sharesSidebarShell(el)&&!el.contains(ownProjects()));
+    return pruneTargets(found);
+  }
+  function clearLegacyMarks(){
+    for(const el of document.querySelectorAll('.'+LEGACY)){el.classList.remove(LEGACY);el.removeAttribute('aria-hidden');}
   }
   function release(){
-    for(const el of document.querySelectorAll('.'+HIDE)){el.classList.remove(HIDE);el.removeAttribute('data-ng112-native-projects');el.removeAttribute('aria-hidden');}
+    for(const el of document.querySelectorAll(`[${MARK}="1"]`))el.removeAttribute(MARK);
     window.__NIAKGPT_DIAGNOSTICS__?.set('projects-authority','FALLBACK · bloc NiakGPT absent');
   }
   function apply(){
     timer=0;if(stopped)return false;
-    if(!ownReady()){release();return false;}
-    const targets=nativeTargets();
-    for(const target of targets){target.classList.add(HIDE);target.dataset.ng112NativeProjects='1';target.setAttribute('aria-hidden','true');}
-    for(const old of document.querySelectorAll('.'+HIDE))if(!targets.includes(old)){old.classList.remove(HIDE);old.removeAttribute('data-ng112-native-projects');old.removeAttribute('aria-hidden');}
+    if(!ownReady()){release();bindObservers();return false;}
+    const targets=nativeTargets(),targetSet=new Set(targets);
+    for(const target of targets)if(target.getAttribute(MARK)!=='1')target.setAttribute(MARK,'1');
+    for(const old of document.querySelectorAll(`[${MARK}="1"]`))if(!targetSet.has(old))old.removeAttribute(MARK);
     window.__NIAKGPT_DIAGNOSTICS__?.set('projects-authority',targets.length?`OK · ${targets.length} surface(s) Projects native(s) masquée(s)`:'ERREUR · Projects natifs non localisés');
+    bindObservers();
     return targets.length>0;
   }
-  function schedule(delay=8){if(stopped)return;clearTimeout(timer);timer=setTimeout(apply,delay);}
+  function schedule(delay=12){if(stopped)return;clearTimeout(timer);timer=setTimeout(apply,delay);}
   function relevantNode(node){
     if(!(node instanceof Element))return false;
-    if(node.id==='ng8-pins'||node.matches?.('a[href*="/g/g-p-"],a[href="/projects"],[class*="project-unfurl-row"],[class*="sidebar-expando-section"]'))return true;
+    if(node.id==='ng8-pins'||node.matches?.('a[href*="/g/g-p-"],a[href="/projects"],[class*="project-unfurl-row"],[class*="sidebar-expando-section"],aside,nav,[data-testid*="sidebar" i]'))return true;
     if(node.querySelector?.('#ng8-pins,a[href*="/g/g-p-"],a[href="/projects"],[class*="project-unfurl-row"],[class*="sidebar-expando-section"]'))return true;
     const label=clean(node.getAttribute?.('aria-label')||node.textContent);return label.length<80&&(projectLabel(label)||showMoreLabel(label));
   }
   function relevantMutation(records){
-    for(const r of records){
-      if(r.type==='attributes'){
-        const t=r.target;if(t instanceof Element&&!t.classList.contains(HIDE)&&relevantNode(t))return true;
-        continue;
-      }
-      for(const n of [...r.addedNodes,...r.removedNodes])if(relevantNode(n))return true;
-    }
+    for(const r of records)for(const n of [...r.addedNodes,...r.removedNodes])if(relevantNode(n))return true;
     return false;
   }
-  function start(){
-    stopped=false;apply();rootObserver?.disconnect();rootObserver=new MutationObserver(records=>{if(relevantMutation(records))schedule(4);});
-    rootObserver.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['href','aria-label','hidden','class']});
+  function watchRoots(){
+    const roots=new Set(),own=ownProjects();
+    if(own){
+      const shell=own.closest('aside,[data-testid*="sidebar" i],[class*="sidebar" i]');if(shell)roots.add(shell);
+      if(own.parentElement&&own.parentElement!==document.body)roots.add(own.parentElement);
+      if(own.parentElement?.parentElement&&own.parentElement.parentElement!==document.body)roots.add(own.parentElement.parentElement);
+    }
+    for(const root of document.querySelectorAll('aside,nav,[data-testid*="sidebar" i],[class*="sidebar" i]')){
+      if(inMain(root))continue;
+      if(root.contains(own)||root.querySelector('a[href="/projects"],a[href*="/g/g-p-"],[class*="project-unfurl-row"]'))roots.add(root);
+    }
+    return [...roots].filter(r=>r&&r.isConnected&&!inMain(r));
   }
-  function stop(){stopped=true;clearTimeout(timer);timer=0;rootObserver?.disconnect();rootObserver=null;}
+  function bindObservers(){
+    const roots=watchRoots();
+    if(roots.length===observedRoots.length&&roots.every((r,i)=>r===observedRoots[i])&&observer)return;
+    observer?.disconnect();observedRoots=roots;observer=new MutationObserver(records=>{if(relevantMutation(records))schedule(8);});
+    for(const root of roots){observer.observe(root,{childList:true,subtree:true});if(root.parentElement&&!roots.includes(root.parentElement))observer.observe(root.parentElement,{childList:true,subtree:false});}
+  }
+  function start(){
+    stopped=false;clearLegacyMarks();bindObservers();apply();
+  }
+  function stop(){stopped=true;clearTimeout(timer);timer=0;observer?.disconnect();observer=null;observedRoots=[];}
   document.addEventListener('niakgpt:pins-rendered',()=>apply());
-  document.addEventListener('niakgpt:recovery-complete',()=>schedule(4));
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden)apply();});
-  window.addEventListener('popstate',()=>apply());
-  if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>apply());
+  document.addEventListener('niakgpt:recovery-complete',()=>schedule(12));
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden){bindObservers();apply();}});
+  window.addEventListener('popstate',()=>{bindObservers();apply();});
+  if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>{bindObservers();apply();});
   window.addEventListener('pagehide',stop);
   window.addEventListener('pageshow',event=>{if(event.persisted)start();});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();

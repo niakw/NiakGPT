@@ -52,7 +52,7 @@
   function stageHidden(row){
     const staged=[];let node=row;
     while(node&&node!==document.body){
-      const hidden=[...(node.classList||[])].some(c=>HIDDEN_RX.test(c));
+      const hidden=[...(node.classList||[])].some(c=>HIDDEN_RX.test(c))||node.getAttribute?.('data-ng112-native-projects')==='1';
       if(hidden){node.classList.add('ng113-actions-staging');staged.push(node);}node=node.parentElement;
     }
     if(row&&!staged.includes(row)){row.classList.add('ng113-actions-staging-leaf');staged.push(row);}

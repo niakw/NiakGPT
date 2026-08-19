@@ -1,0 +1,43 @@
+{
+  "name": "runtime-warm-v116",
+  "purpose": "Fast UX/DOM profile. Reuses stable NiakGPT settings and a fresh cache when server indexing is not the subject under test.",
+  "browser": {
+    "viewport": { "width": 1440, "height": 900 },
+    "colorScheme": "dark",
+    "reducedMotion": "reduce"
+  },
+  "storageLocal": {
+    "niakgpt-onboarding-v100": {
+      "status": "done",
+      "version": "__CURRENT_VERSION__",
+      "at": "__NOW__"
+    },
+    "niakgpt-v08-cache": {
+      "schema": 2,
+      "at": "__NOW__",
+      "projectInventoryAt": "__NOW__",
+      "serverIndexedAt": "__NOW__",
+      "projects": [
+        { "id": "g-p-aaaaaaaaaaaaaaaa", "name": "Studio", "href": "/g/g-p-aaaaaaaaaaaaaaaa/project", "domOnly": false },
+        { "id": "g-p-bbbbbbbbbbbbbbbb", "name": "Research Lab", "href": "/g/g-p-bbbbbbbbbbbbbbbb/project", "domOnly": false }
+      ],
+      "chats": [
+        { "id": "11111111-1111-4111-8111-111111111111", "title": "Runtime integration test", "projectId": "g-p-aaaaaaaaaaaaaaaa", "updated": "__NOW__" },
+        { "id": "22222222-2222-4222-8222-222222222222", "title": "Second conversation", "projectId": "g-p-aaaaaaaaaaaaaaaa", "updated": "__NOW_MINUS_1000__" }
+      ],
+      "counts": {
+        "g-p-aaaaaaaaaaaaaaaa": 2,
+        "g-p-bbbbbbbbbbbbbbbb": 0
+      },
+      "indexedProjectIds": [
+        "g-p-aaaaaaaaaaaaaaaa",
+        "g-p-bbbbbbbbbbbbbbbb"
+      ]
+    },
+    "niakgpt-lab-profile-v116": {
+      "name": "runtime-warm-v116",
+      "mode": "warm",
+      "saved": true
+    }
+  }
+}

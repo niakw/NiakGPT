@@ -1,0 +1,21 @@
+{
+  "name": "runtime-cold-v116",
+  "purpose": "Bootstrap/indexing/profile used when the test must exercise real startup and progressive server indexing.",
+  "browser": {
+    "viewport": { "width": 1440, "height": 900 },
+    "colorScheme": "dark",
+    "reducedMotion": "reduce"
+  },
+  "storageLocal": {
+    "niakgpt-onboarding-v100": {
+      "status": "done",
+      "version": "__CURRENT_VERSION__",
+      "at": "__NOW__"
+    },
+    "niakgpt-lab-profile-v116": {
+      "name": "runtime-cold-v116",
+      "mode": "cold",
+      "saved": true
+    }
+  }
+}

@@ -1,2 +1,4 @@
-/* NiakGPT 0.9.62 — authoritative native Projects suppression, identity fallback included. */
-.ng112-native-projects-authoritative{display:none!important;visibility:hidden!important;pointer-events:none!important;}
+/* NiakGPT 0.9.66 — passive authoritative native Projects suppression. */
+[data-ng112-native-projects="1"]{display:none!important;visibility:hidden!important;pointer-events:none!important;}
+/* Native action staging temporarily exposes an already-marked native row/host off-screen. */
+[data-ng112-native-projects="1"].ng113-actions-staging{display:block!important;visibility:hidden!important;pointer-events:none!important;}

@@ -10,9 +10,21 @@ on:
       - 'labs/**'
       - '.github/workflows/current-finalization.yml'
   workflow_dispatch:
+    inputs:
+      profile:
+        description: Lab profile to reuse for extension runtime checks
+        required: false
+        default: runtime-cold-v116
+        type: choice
+        options:
+          - runtime-cold-v116
+          - runtime-warm-v116
 
 permissions:
   contents: read
+
+env:
+  PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.cache/ms-playwright
 
 concurrency:
   group: niakgpt-current-finalization-${{ github.ref }}
@@ -39,8 +51,171 @@ jobs:
       - name: Packaging exclusion check
         run: node tools/package-extension.mjs
 
+  experience-crossplatform:
+    name: experience · ${{ matrix.os }} · ${{ matrix.browser }}
+    needs: static-runtime
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: visual-lab/package-lock.json
+      - name: Restore Playwright browser cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ matrix.browser }}-1.62.1-${{ hashFiles('visual-lab/package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-${{ matrix.browser }}-1.62.1-
+      - name: Install lab dependencies
+        working-directory: visual-lab
+        run: npm ci --no-audit --no-fund
+      - name: Install browser on Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        working-directory: visual-lab
+        run: |
+          timeout 420s npx playwright install --with-deps ${{ matrix.browser }} || {
+            echo "First Playwright install attempt failed or timed out; retrying once"
+            sleep 8
+            timeout 420s npx playwright install --with-deps ${{ matrix.browser }}
+          }
+      - name: Install browser on Windows or macOS
+        if: runner.os != 'Linux'
+        working-directory: visual-lab
+        run: npx playwright install ${{ matrix.browser }}
+      - name: Human / DOM / errors / UX / remount / anti-churn
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node experience-gate-v116.mjs
+      - name: Upload cross-platform evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: niakgpt-experience-${{ matrix.os }}-${{ matrix.browser }}
+          path: visual-lab/artifacts/experience-v116
+          if-no-files-found: warn
+          retention-days: 14
+
+  extension-runtime-crossos:
+    name: extension runtime · ${{ matrix.os }} · chromium
+    needs: static-runtime
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: visual-lab/package-lock.json
+      - name: Restore Playwright Chromium cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/ms-playwright
+          key: playwright-${{ runner.os }}-chromium-1.62.1-${{ hashFiles('visual-lab/package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-chromium-1.62.1-
+      - name: Install lab dependencies
+        working-directory: visual-lab
+        run: npm ci --no-audit --no-fund
+      - name: Install Chromium on Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        working-directory: visual-lab
+        run: |
+          timeout 420s npx playwright install --with-deps chromium || {
+            echo "First Chromium install attempt failed or timed out; retrying once"
+            sleep 8
+            timeout 420s npx playwright install --with-deps chromium
+          }
+      - name: Install Chromium on Windows or macOS
+        if: runner.os != 'Linux'
+        working-directory: visual-lab
+        run: npx playwright install chromium
+      - name: Real extension runtime — sidebar / human / DOM / errors / UX
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER_LABEL: chromium
+          NIAKGPT_PROFILE: ${{ inputs.profile || 'runtime-cold-v116' }}
+        run: npx playwright test tests/sidebar-runtime-v116.spec.js --workers=1 --reporter=line
+      - name: Upload real-runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: niakgpt-extension-runtime-${{ matrix.os }}-chromium
+          path: |
+            visual-lab/playwright-report
+            visual-lab/test-results
+          if-no-files-found: warn
+          retention-days: 14
+
+  macos-brave-runtime:
+    name: PRIMARY · macOS · Brave stable · real extension
+    needs: static-runtime
+    runs-on: macos-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: visual-lab/package-lock.json
+      - name: Restore Homebrew Brave download cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/Homebrew/downloads
+            ~/Library/Caches/Homebrew/api
+          key: homebrew-brave-${{ runner.os }}-${{ runner.arch }}-stable-v1
+          restore-keys: |
+            homebrew-brave-${{ runner.os }}-${{ runner.arch }}-
+      - name: Install lab dependencies
+        working-directory: visual-lab
+        run: npm ci --no-audit --no-fund
+      - name: Install Brave stable
+        shell: bash
+        run: |
+          brew install --cask brave-browser
+          BRAVE='/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'
+          test -x "$BRAVE"
+          "$BRAVE" --version
+      - name: Real Brave + NiakGPT extension — sidebar / human / DOM / errors / UX
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER_LABEL: brave-stable-macos
+          NIAKGPT_EXECUTABLE_PATH: /Applications/Brave Browser.app/Contents/MacOS/Brave Browser
+          NIAKGPT_HEADLESS: '0'
+          NIAKGPT_PROFILE: ${{ inputs.profile || 'runtime-cold-v116' }}
+        run: npx playwright test tests/sidebar-runtime-v116.spec.js --workers=1 --reporter=line
+      - name: Upload Brave evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: niakgpt-primary-macos-brave
+          path: |
+            visual-lab/playwright-report
+            visual-lab/test-results
+          if-no-files-found: warn
+          retention-days: 14
+
   visual-dom-crossengine:
-    name: current finalization · ${{ matrix.browser }}
+    name: deep linux · ${{ matrix.browser }}
+    needs: static-runtime
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -54,6 +229,13 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: visual-lab/package-lock.json
+      - name: Restore Playwright browser cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ matrix.browser }}-1.62.1-${{ hashFiles('visual-lab/package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-${{ matrix.browser }}-1.62.1-
       - name: Install lab dependencies
         working-directory: visual-lab
         run: npm ci --no-audit --no-fund
@@ -90,6 +272,11 @@ jobs:
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node sidebar-real-shape-v115.mjs
+      - name: Passive authority + unrelated ChatGPT churn
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node experience-gate-v116.mjs
       - name: Live image viewer and native Projects regressions
         working-directory: visual-lab
         env:
@@ -117,17 +304,20 @@ jobs:
       - name: Runtime and multi-tab diagnostics
         if: matrix.browser == 'chromium'
         working-directory: visual-lab
-        run: npx playwright test tests/runtime-current-v105.spec.js tests/multitab-failover-v097.spec.js --workers=1 --reporter=line
+        env:
+          NIAKGPT_PROFILE: runtime-cold-v116
+        run: npx playwright test tests/runtime-current-v105.spec.js tests/multitab-failover-v097.spec.js tests/sidebar-runtime-v116.spec.js --workers=1 --reporter=line
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: niakgpt-current-${{ matrix.browser }}-dom-visual
+          name: niakgpt-deep-linux-${{ matrix.browser }}-dom-visual
           path: |
             visual-lab/artifacts/finalization-v112/${{ matrix.browser }}
             visual-lab/artifacts/finalization-v113/${{ matrix.browser }}
             visual-lab/artifacts/finalization-v114/${{ matrix.browser }}
             visual-lab/artifacts/human-nav-v114/${{ matrix.browser }}
+            visual-lab/artifacts/experience-v116
             visual-lab/playwright-report
             visual-lab/test-results
           if-no-files-found: warn

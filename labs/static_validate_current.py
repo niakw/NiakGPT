@@ -15,7 +15,7 @@ def runtime(name):
     return re.findall(r"['\"]([^'\"]+\.js)['\"]",match.group(1))
 
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if manifest.get('version')!='0.9.66': fail(f"version={manifest.get('version')}")
+if manifest.get('version')!='0.9.67': fail(f"version={manifest.get('version')}")
 if manifest.get('permissions')!=['storage','scripting']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*']: fail('host permissions drift')
 
@@ -59,6 +59,8 @@ if 'MAX_PER_RUN=2' not in deep or 'MAX_HEAVY=1' not in deep: fail('deep classifi
 actions=(ROOT/'native-actions-v113.js').read_text(encoding='utf-8')
 if 'invokeNativeMenu' not in actions or 'fallbackMove' not in actions: fail('native action/fallback move path missing')
 if 'data-ng112-native-projects' not in actions: fail('native actions do not stage passive Projects marks')
+for token in ('placeFloatingMenu','ng113-native-menu-floating','insertAdjacentElement(\'afterend\',actionButton(\'chat\''):
+    if token not in actions: fail('left-sidebar action geometry missing '+token)
 state=(ROOT/'chat-state-authority-v113.js').read_text(encoding='utf-8')
 if 'iu>pu' not in state or 'iu===pu' not in state: fail('monotonic title authority missing')
 bread=(ROOT/'breadcrumb-v113.js').read_text(encoding='utf-8')
@@ -75,11 +77,14 @@ if '[data-ng112-native-projects="1"]' not in projects_css: fail('passive Project
 folders=(ROOT/'pin-folders-v096.js').read_text(encoding='utf-8')
 for token in ('drawerDirty','cooperativeNode','existing.previousElementSibling===entry'):
     if token not in folders: fail('pin idle-stability guard missing '+token)
+if "createElement('button');open.type='button';open.className='ng96-project-open'" in folders: fail('obsolete Project open-page button recreated')
 
 experience=ROOT/'visual-lab/experience-gate-v116.mjs'
 runtime_gate=ROOT/'visual-lab/tests/sidebar-runtime-v116.spec.js'
+hitbox_gate=ROOT/'visual-lab/sidebar-hitboxes-v117.mjs'
 if not experience.exists(): fail('cross-platform human DOM error UX gate missing')
 if not runtime_gate.exists(): fail('real extension runtime gate missing')
+if not hitbox_gate.exists(): fail('left-sidebar hitbox gate missing')
 
 # Reusable profiles: cold keeps startup/indexing honest; warm skips irrelevant bootstrap for UX-only runs.
 profile_dir=ROOT/'visual-lab/profiles'
@@ -101,11 +106,11 @@ if (profile_dir/'runtime-warm-v116.json').exists():
     if 'niakgpt-v08-cache' not in warm.get('storageLocal',{}): fail('warm profile cache seed missing')
 
 runtime_text=runtime_gate.read_text(encoding='utf-8')
-for token in ('NIAKGPT_PROFILE','runtime-cold-v116','PROFILE.storageLocal','saved profile'):
-    if token not in runtime_text: fail('saved runtime profile integration missing '+token)
+for token in ('NIAKGPT_PROFILE','runtime-cold-v116','PROFILE.storageLocal','saved profile','Project row has two exclusive hitboxes','Chat actions menu also floats outside sidebar'):
+    if token not in runtime_text: fail('saved runtime/sidebar UX integration missing '+token)
 
 workflow=(ROOT/'.github/workflows/current-finalization.yml').read_text(encoding='utf-8')
-for token in ('ubuntu-latest, windows-latest, macos-latest','chromium, firefox, webkit','Human / DOM / errors / UX / remount / anti-churn','experience-gate-v116.mjs','PRIMARY · macOS · Brave stable · real extension','NIAKGPT_HEADLESS: \'0\''):
+for token in ('ubuntu-latest, windows-latest, macos-latest','chromium, firefox, webkit','Human / DOM / errors / UX / remount / anti-churn','experience-gate-v116.mjs','PRIMARY · macOS · Brave stable · real extension','NIAKGPT_HEADLESS: \'0\'','sidebar-hitboxes-v117.mjs','LEFT SIDEBAR pixel hitboxes'):
     if token not in workflow: fail('cross-platform experience matrix missing '+token)
 for token in ('PLAYWRIGHT_BROWSERS_PATH','actions/cache@v4','playwright-${{ runner.os }}-${{ matrix.browser }}-1.62.1','homebrew-brave-${{ runner.os }}-${{ runner.arch }}','runtime-cold-v116','runtime-warm-v116'):
     if token not in workflow: fail('lab cache/profile acceleration missing '+token)
@@ -114,4 +119,4 @@ if errors:
     print('STATIC_CURRENT_FAIL')
     for e in errors: print('-',e)
     sys.exit(1)
-print(f"STATIC_CURRENT_PASS version={manifest['version']} runtime={len(main)+len(isolated)} refs={len(refs)} profiles=2 cached-browsers=on")
+print(f"STATIC_CURRENT_PASS version={manifest['version']} runtime={len(main)+len(isolated)} refs={len(refs)} profiles=2 cached-browsers=on left-sidebar=locked")

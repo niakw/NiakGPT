@@ -1,7 +1,8 @@
-(() => {
+(async() => {
   'use strict';
   if(location.hostname!=='chatgpt.com'||window.__NIAKGPT_SIDEBAR_METADATA_118__)return;
   window.__NIAKGPT_SIDEBAR_METADATA_118__=true;
+  window.__NIAKGPT_METADATA_READY_118__='pending';
 
   const CACHE_KEY='niakgpt-v08-cache';
   const OWN='#ng8-pins,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb';
@@ -104,12 +105,14 @@
     stopped=true;clearTimeout(timer);timer=0;sidebarObserver?.disconnect();bootstrapObserver?.disconnect();sidebarObserver=bootstrapObserver=null;sidebarNode=null;
     try{cacheUnsub?.();}catch{}cacheUnsub=null;
   }
-  function start(){
+  async function start(){
     stopped=false;const bus=wrapCacheBus();bootstrap();normalizeChatMetadata();
     const rawSubscribe=bus?.__ng118RawSubscribe||null;
     if(rawSubscribe&&!cacheUnsub)cacheUnsub=rawSubscribe(raw=>{sanitizeCache(raw);schedule(8);});
     else if(bus?.subscribe&&!cacheUnsub)cacheUnsub=bus.subscribe(raw=>{sanitizeCache(raw);schedule(8);});
-    sanitizeCache();schedule(0);
+    try{await sanitizeCache();}
+    finally{window.__NIAKGPT_METADATA_READY_118__='ready';}
+    schedule(0);
   }
 
   document.addEventListener('niakgpt:pins-rendered',()=>schedule(0));
@@ -118,5 +121,6 @@
   if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>schedule(20));
   window.addEventListener('pagehide',stop);
   window.addEventListener('pageshow',event=>{if(event.persisted)start();});
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+  if(document.readyState==='loading')await new Promise(resolve=>document.addEventListener('DOMContentLoaded',resolve,{once:true}));
+  await start();
 })();

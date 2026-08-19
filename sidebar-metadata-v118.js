@@ -7,7 +7,8 @@
   const CACHE_KEY='niakgpt-v08-cache';
   const DATA_LOCK='niakgpt-data-mutation-v100';
   const OWN='#ng8-pins,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb';
-  let sidebarObserver=null,sidebarNode=null,bootstrapObserver=null,timer=0,stopped=false,cacheUnsub=null,sanitizeTask=null,lifecycleEpoch=0;
+  let sidebarObserver=null,sidebarNode=null,bootstrapObserver=null,timer=0,stopped=false,cacheUnsub=null,sanitizeTask=null,lifecycleEpoch=0,pendingRaw=undefined,pendingReplay=false;
+  const ownWriteSignatures=new Set();
 
   const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
   const pidFromHref=h=>String(h||'').match(/\/g\/(g-p-[^/?#]+)(?:\/(?:project|c\/)|[/?#]|$)/i)?.[1]||'';
@@ -90,23 +91,45 @@
     }catch{}
     return bus;
   }
-  function sanitizeCache(){
+  const ownWriteSignature=raw=>{
+    if(!raw||typeof raw!=='object')return '';
+    try{return JSON.stringify(raw);}catch{return '';}
+  };
+  const isOwnWrite=raw=>{const signature=ownWriteSignature(raw);return !!signature&&ownWriteSignatures.has(signature);};
+  function rememberOwnWrite(raw){
+    const signature=ownWriteSignature(raw);if(!signature)return;
+    ownWriteSignatures.add(signature);setTimeout(()=>ownWriteSignatures.delete(signature),10000);
+  }
+  function sanitizeCache(rawOverride){
     if(stopped)return Promise.resolve({ok:false,stopped:true,error:new Error('metadata_stopped')});
-    if(sanitizeTask)return sanitizeTask;
+    if(rawOverride!==undefined&&isOwnWrite(rawOverride))return sanitizeTask||Promise.resolve({ok:true,own:true});
+    if(sanitizeTask){
+      if(rawOverride!==undefined){pendingRaw=rawOverride;pendingReplay=true;}
+      return sanitizeTask;
+    }
     sanitizeTask=(async()=>{
-      const run=async()=>{
-        const bus=wrapCacheBus()||window.__NIAKGPT_CACHE_BUS__;
-        const raw=bus?.__ng118RawGet?await bus.__ng118RawGet():bus?.get?await bus.get():(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY];
-        const cleaned=cleanCache(raw);if(!cleaned)return;
-        if(bus?.update)await bus.update(latest=>cleanCache(latest)||latest);
-        else await chrome.storage.local.set({[CACHE_KEY]:cleaned});
-        window.__NIAKGPT_DIAGNOSTICS__?.set('metadata-sidebar','RÉPARÉ · faux Project/date supprimé');
-      };
+      let source=rawOverride,replay=false;
       try{
-        if(navigator.locks?.request)await navigator.locks.request(DATA_LOCK,{mode:'exclusive'},run);
-        else await run();
+        for(;;){
+          const run=async()=>{
+            const bus=wrapCacheBus()||window.__NIAKGPT_CACHE_BUS__;
+            const raw=source!==undefined?source:(bus?.__ng118RawGet?await bus.__ng118RawGet():bus?.get?await bus.get():(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]);
+            const cleaned=cleanCache(raw),target=cleaned||(replay&&raw&&typeof raw==='object'?raw:null);if(!target)return;
+            if(bus?.update)await bus.update(latest=>{
+              const next=source!==undefined||replay?target:(cleanCache(latest)||latest);
+              rememberOwnWrite(next);return next;
+            });
+            else{rememberOwnWrite(target);await chrome.storage.local.set({[CACHE_KEY]:target});}
+            window.__NIAKGPT_DIAGNOSTICS__?.set('metadata-sidebar','RÉPARÉ · faux Project/date supprimé');
+          };
+          if(navigator.locks?.request)await navigator.locks.request(DATA_LOCK,{mode:'exclusive'},run);
+          else await run();
+          if(pendingRaw===undefined)break;
+          source=pendingRaw;pendingRaw=undefined;replay=pendingReplay;pendingReplay=false;
+        }
         return{ok:true};
       }catch(error){
+        pendingRaw=undefined;pendingReplay=false;
         const msg=String(error?.message||error||'');
         if(/Extension context invalidated|context invalidated/i.test(msg))stop();
         window.__NIAKGPT_DIAGNOSTICS__?.set('metadata-sidebar',`ERREUR · sanitation cache · ${msg.slice(0,120)}`);
@@ -132,7 +155,7 @@
     setTimeout(()=>{bootstrapObserver?.disconnect();bootstrapObserver=null;},15000);
   }
   function stop(){
-    stopped=true;lifecycleEpoch++;window.__NIAKGPT_METADATA_READY_118__='stopped';clearTimeout(timer);timer=0;sidebarObserver?.disconnect();bootstrapObserver?.disconnect();sidebarObserver=bootstrapObserver=null;sidebarNode=null;
+    stopped=true;lifecycleEpoch++;pendingRaw=undefined;pendingReplay=false;window.__NIAKGPT_METADATA_READY_118__='stopped';clearTimeout(timer);timer=0;sidebarObserver?.disconnect();bootstrapObserver?.disconnect();sidebarObserver=bootstrapObserver=null;sidebarNode=null;
     try{cacheUnsub?.();}catch{}cacheUnsub=null;
   }
 

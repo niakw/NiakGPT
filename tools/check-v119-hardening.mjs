@@ -33,8 +33,14 @@ for(const token of [
   'lifecycleEpoch=0',
   "window.__NIAKGPT_METADATA_READY_118__='stopped'",
   "window.__NIAKGPT_METADATA_READY_118__='error'",
-  "const DATA_LOCK='niakgpt-data-mutation-v100'"
-])need(metadata,token,`metadata data-integrity/lifecycle invariant missing: ${token}`);
+  "const DATA_LOCK='niakgpt-data-mutation-v100'",
+  'pendingRaw=undefined',
+  'pendingReplay=false',
+  'ownWriteSignatures',
+  'sanitizeCache(rawOverride)',
+  'isOwnWrite(rawOverride)',
+  'source=pendingRaw'
+])need(metadata,token,`metadata data-integrity/lifecycle/concurrency invariant missing: ${token}`);
 forbid(metadata,"const canonical=id.startsWith('g-p-')||!!pidFromHref(p?.href||'')",'date ghost can be incorrectly legitimized by another Project in its href');
 
 const authorityGate=read('visual-lab/sidebar-authority-isolation-v119.mjs');
@@ -64,9 +70,15 @@ for(const file of [
   'visual-lab/native-action-races-v119.mjs',
   'visual-lab/sidebar-authority-isolation-v119.mjs',
   'visual-lab/sidebar-metadata-failure-v119.mjs',
+  'visual-lab/sidebar-metadata-concurrency-v119.mjs',
   'visual-lab/sidebar-metadata-lifecycle-v119.mjs',
   'labs/background-boot-barrier-v119.mjs'
 ])if(!fs.existsSync(file))fail(`missing hardening gate ${file}`);
+
+const concurrencyGate=read('visual-lab/sidebar-metadata-concurrency-v119.mjs');
+for(const token of ['race-b-unlocked','g-p-two','outcome.writes>=2','later unlocked cache publication','latest unlocked chat snapshot'])need(concurrencyGate,token,`metadata unlocked concurrency gate incomplete: ${token}`);
+const failureGate=read('visual-lab/sidebar-metadata-failure-v119.mjs');
+need(failureGate,"import('./sidebar-metadata-concurrency-v119.mjs')",'unlocked metadata concurrency gate is not chained after failure coverage');
 
 const actions=read('native-actions-v113.js');
 for(const token of ['actionEpoch','actionOpening','actionCurrent','claimTriggerMenu','menuStrict','source.isConnected'])need(actions,token,`native-action race guard missing ${token}`);
@@ -76,4 +88,4 @@ const background=read('background-v100.js');
 need(background,"const HARD_ISOLATED_BARRIER='sidebar-metadata-v118.js'",'metadata hard bootstrap barrier missing');
 need(read('tools/check-runtime.mjs'),"import '../labs/background-boot-barrier-v119.mjs'",'background barrier gate is not part of runtime check');
 
-console.log('V119_HARDENING_PASS actions=serialized authority=structural metadata=lossless/fail-closed lifecycle=guarded');
+console.log('V119_HARDENING_PASS actions=serialized authority=structural metadata=lossless/fail-closed/lifecycle/concurrency=guarded');

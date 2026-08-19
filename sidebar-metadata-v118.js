@@ -54,13 +54,19 @@
     if(!raw||typeof raw!=='object')return null;
     const projects=Array.isArray(raw.projects)?raw.projects:[],badIds=new Set(projects.filter(p=>{const id=String(p?.id||'');const canonical=id.startsWith('g-p-');return p?.domOnly&&isDateLike(p?.name)&&!canonical;}).map(p=>String(p.id||'')).filter(Boolean));
     if(!badIds.size)return null;
-    const cleanedProjects=projects.filter(p=>!badIds.has(String(p?.id||'')));
+    const cleanedProjects=projects.filter(p=>!badIds.has(String(p?.id||''))),recoveries=[];
     const cleanedChats=(Array.isArray(raw.chats)?raw.chats:[]).map(c=>{
       if(!badIds.has(String(c?.projectId||'')))return c;
-      const recovered=pidFromHref(c?.href||'');return{...c,projectId:recovered||''};
+      const recovered=pidFromHref(c?.href||''),next={...c,projectId:recovered||''};if(recovered)recoveries.push(next);return next;
     });
     const counts={...(raw.counts||{})};for(const id of badIds)delete counts[id];
     const projectChats={...(raw.projectChats||{})};for(const id of badIds)delete projectChats[id];
+    for(const chat of recoveries){
+      const projectId=String(chat.projectId||'');if(!projectId)continue;
+      const existing=Array.isArray(projectChats[projectId])?projectChats[projectId]:[];
+      if(existing.length){const list=[...existing],at=list.findIndex(c=>String(c?.id||'')===String(chat.id||''));if(at>=0)list[at]={...list[at],...chat};else list.push(chat);projectChats[projectId]=list;}
+      const known=cleanedChats.filter(c=>String(c?.projectId||'')===projectId).length;counts[projectId]=Math.max(Number(counts[projectId])||0,known);
+    }
     const indexed=(Array.isArray(raw.indexedProjectIds)?raw.indexedProjectIds:[]).filter(id=>!badIds.has(String(id)));
     return{...raw,at:Date.now(),projects:cleanedProjects,chats:cleanedChats,counts,projectChats,indexedProjectIds:indexed};
   }

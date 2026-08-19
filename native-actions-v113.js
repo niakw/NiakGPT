@@ -164,6 +164,7 @@
   function bind(){const next=document.getElementById('ng8-pins');if(!next||next===box)return false;observer?.disconnect();box=next;observer=new MutationObserver(()=>schedule(12));observer.observe(box,{childList:true,subtree:true});schedule(0);return true;}
   async function start(){try{cache=(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||cache;}catch{}if(bind())return;boot?.disconnect();boot=new MutationObserver(()=>{if(bind()){boot.disconnect();boot=null;}});boot.observe(document.documentElement,{childList:true,subtree:true});setTimeout(()=>boot?.disconnect(),15000);}
   try{chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY]){cache=changes[CACHE_KEY].newValue||cache;schedule(0);}});}catch{}
+  document.addEventListener('niakgpt:folder-rendered',()=>{bind();decorate();});
   document.addEventListener('niakgpt:pins-rendered',()=>{bind();decorate();});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){bind();decorate();}});
   window.addEventListener('popstate',()=>{bind();decorate();});

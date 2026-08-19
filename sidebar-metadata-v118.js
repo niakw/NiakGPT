@@ -7,7 +7,7 @@
   const CACHE_KEY='niakgpt-v08-cache';
   const DATA_LOCK='niakgpt-data-mutation-v100';
   const OWN='#ng8-pins,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb';
-  let sidebarObserver=null,sidebarNode=null,bootstrapObserver=null,timer=0,stopped=false,cacheUnsub=null,sanitizeTask=null,lifecycleEpoch=0,pendingRaw=undefined,pendingReplay=false;
+  let sidebarObserver=null,sidebarNode=null,bootstrapObserver=null,timer=0,stopped=false,cacheUnsub=null,sanitizeTask=null,lifecycleEpoch=0,pendingRaw=undefined,pendingReplay=false,runtimeRetryTimer=0;
   const ownWriteSignatures=new Set();
 
   const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
@@ -139,6 +139,19 @@
     return sanitizeTask;
   }
 
+  function queueRuntimeSanitize(raw){
+    const epoch=lifecycleEpoch;
+    sanitizeCache(raw).then(result=>{
+      if(result?.ok){clearTimeout(runtimeRetryTimer);runtimeRetryTimer=0;return;}
+      if(stopped||epoch!==lifecycleEpoch||window.__NIAKGPT_METADATA_READY_118__!=='ready')return;
+      clearTimeout(runtimeRetryTimer);runtimeRetryTimer=setTimeout(()=>{
+        runtimeRetryTimer=0;
+        if(stopped||epoch!==lifecycleEpoch||window.__NIAKGPT_METADATA_READY_118__!=='ready')return;
+        sanitizeCache();
+      },80);
+    });
+    schedule(8);
+  }
   function repair(){if(stopped)return;bindSidebar();normalizeChatMetadata();sanitizeCache();}
   function schedule(delay=24){if(stopped)return;clearTimeout(timer);timer=setTimeout(()=>{timer=0;repair();},delay);}
   function bindSidebar(){
@@ -155,7 +168,7 @@
     setTimeout(()=>{bootstrapObserver?.disconnect();bootstrapObserver=null;},15000);
   }
   function stop(){
-    stopped=true;lifecycleEpoch++;pendingRaw=undefined;pendingReplay=false;window.__NIAKGPT_METADATA_READY_118__='stopped';clearTimeout(timer);timer=0;sidebarObserver?.disconnect();bootstrapObserver?.disconnect();sidebarObserver=bootstrapObserver=null;sidebarNode=null;
+    stopped=true;lifecycleEpoch++;pendingRaw=undefined;pendingReplay=false;window.__NIAKGPT_METADATA_READY_118__='stopped';clearTimeout(timer);timer=0;clearTimeout(runtimeRetryTimer);runtimeRetryTimer=0;sidebarObserver?.disconnect();bootstrapObserver?.disconnect();sidebarObserver=bootstrapObserver=null;sidebarNode=null;
     try{cacheUnsub?.();}catch{}cacheUnsub=null;
   }
 
@@ -167,8 +180,8 @@
     if(!result?.ok){window.__NIAKGPT_METADATA_READY_118__='error';throw result?.error||new Error('metadata_sanitize_failed');}
     if(!current())return;window.__NIAKGPT_METADATA_READY_118__='ready';
     const rawSubscribe=bus?.__ng118RawSubscribe||null;
-    if(rawSubscribe&&!cacheUnsub)cacheUnsub=rawSubscribe(raw=>{sanitizeCache(raw);schedule(8);});
-    else if(bus?.subscribe&&!cacheUnsub)cacheUnsub=bus.subscribe(raw=>{sanitizeCache(raw);schedule(8);});
+    if(rawSubscribe&&!cacheUnsub)cacheUnsub=rawSubscribe(queueRuntimeSanitize);
+    else if(bus?.subscribe&&!cacheUnsub)cacheUnsub=bus.subscribe(queueRuntimeSanitize);
     if(current())schedule(0);
   }
 

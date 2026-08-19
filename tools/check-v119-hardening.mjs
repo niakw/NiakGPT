@@ -39,8 +39,11 @@ for(const token of [
   'ownWriteSignatures',
   'sanitizeCache(rawOverride)',
   'isOwnWrite(rawOverride)',
-  'source=pendingRaw'
-])need(metadata,token,`metadata data-integrity/lifecycle/concurrency invariant missing: ${token}`);
+  'source=pendingRaw',
+  'runtimeRetryTimer=0',
+  'queueRuntimeSanitize',
+  'rawSubscribe(queueRuntimeSanitize)'
+])need(metadata,token,`metadata data-integrity/lifecycle/concurrency/runtime-retry invariant missing: ${token}`);
 forbid(metadata,"const canonical=id.startsWith('g-p-')||!!pidFromHref(p?.href||'')",'date ghost can be incorrectly legitimized by another Project in its href');
 
 const authorityGate=read('visual-lab/sidebar-authority-isolation-v119.mjs');
@@ -86,8 +89,11 @@ for(const token of [
   'collision-same-at',
   'same-timestamp external snapshot',
   'single-dirty',
-  'own-write echo caused an extra sanitation loop'
-])need(concurrencyGate,token,`metadata unlocked concurrency gate incomplete: ${token}`);
+  'own-write echo caused an extra sanitation loop',
+  'slow_runtime_write_failure',
+  'dom-runtime-failure',
+  'bounded deferred retry'
+])need(concurrencyGate,token,`metadata unlocked concurrency/runtime-retry gate incomplete: ${token}`);
 const failureGate=read('visual-lab/sidebar-metadata-failure-v119.mjs');
 need(failureGate,"import('./sidebar-metadata-concurrency-v119.mjs')",'unlocked metadata concurrency gate is not chained after failure coverage');
 
@@ -99,4 +105,4 @@ const background=read('background-v100.js');
 need(background,"const HARD_ISOLATED_BARRIER='sidebar-metadata-v118.js'",'metadata hard bootstrap barrier missing');
 need(read('tools/check-runtime.mjs'),"import '../labs/background-boot-barrier-v119.mjs'",'background barrier gate is not part of runtime check');
 
-console.log('V119_HARDENING_PASS actions=serialized authority=structural metadata=lossless/fail-closed/lifecycle/concurrency=guarded');
+console.log('V119_HARDENING_PASS actions=serialized authority=structural metadata=lossless/fail-closed/lifecycle/concurrency/runtime-retry=guarded');

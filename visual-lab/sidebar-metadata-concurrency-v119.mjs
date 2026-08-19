@@ -9,11 +9,11 @@ if(requested&&!ALL[requested])throw new Error(`Unsupported NIAKGPT_BROWSER=${req
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg);};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
-async function makePage(browser,{collision=false}={}){
+async function makePage(browser,{collision=false,slowFailure=false}={}){
   const page=await browser.newPage({viewport:{width:1280,height:820},colorScheme:'dark'});
-  await page.addInitScript(collision=>{
+  await page.addInitScript(({collision,slowFailure})=>{
     window.__raw={schema:2,at:1,projects:[{id:'g-p-good',name:'Studio',domOnly:false}],chats:[],counts:{},projectChats:{},indexedProjectIds:['g-p-good']};
-    window.__subs=[];window.__writes=0;window.__events=[];window.__collision=collision;
+    window.__subs=[];window.__writes=0;window.__events=[];window.__diag=[];window.__collision=collision;window.__slowFailure=slowFailure;
     window.__publish=(next,label='external')=>{
       window.__raw=structuredClone(next);window.__events.push(`${label}:${window.__raw.at}`);
       for(const fn of [...window.__subs])fn(window.__raw);
@@ -24,6 +24,7 @@ async function makePage(browser,{collision=false}={}){
       async update(fn){
         const next=await fn(window.__raw)||window.__raw;
         window.__events.push(`update:start:${next.at}`);
+        if(window.__slowFailure){window.__slowFailure=false;await new Promise(r=>setTimeout(r,100));throw new Error('slow_runtime_write_failure');}
         if(window.__collision&&window.__writes===0){
           const sameAt={...structuredClone(next),projects:[{id:'g-p-good',name:'Studio',domOnly:false},{id:'g-p-collision',name:'Collision',domOnly:false}],chats:[{id:'cx',title:'same timestamp',projectId:'g-p-collision',href:'/c/cx'}],counts:{'g-p-collision':1},projectChats:{},indexedProjectIds:['g-p-good','g-p-collision']};
           setTimeout(()=>window.__publish(sameAt,'collision-same-at'),20);
@@ -37,8 +38,8 @@ async function makePage(browser,{collision=false}={}){
       subscribe(fn){window.__subs.push(fn);queueMicrotask(()=>fn(window.__raw));return()=>{window.__subs=window.__subs.filter(x=>x!==fn);};}
     };
     window.chrome={storage:{local:{get:async()=>({'niakgpt-v08-cache':window.__raw}),set:async obj=>{window.__raw=structuredClone(obj['niakgpt-v08-cache']);window.__writes++;}},onChanged:{addListener:()=>{}}}};
-    window.__NIAKGPT_DIAGNOSTICS__={set:()=>{}};
-  },collision);
+    window.__NIAKGPT_DIAGNOSTICS__={set:(key,value)=>window.__diag.push(`${key}:${value}`)};
+  },{collision,slowFailure});
   await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html',body:'<!doctype html><html><body><nav data-testid="conversation-sidebar"></nav></body></html>'}));
   await page.goto('https://chatgpt.com/',{waitUntil:'domcontentloaded'});
   await page.evaluate(metadataJs);
@@ -87,6 +88,14 @@ for(const [engine,launcher] of Object.entries(engines)){
       await page.close();
     }
     {
+      const page=await makePage(browser,{slowFailure:true});
+      await page.evaluate(a=>window.__publish(a,'slow-runtime-failure'),dirty(2,'dom-runtime-failure'));
+      await sleep(560);
+      const o=await page.evaluate(()=>({ids:window.__raw.projects.map(p=>p.id),writes:window.__writes,ready:window.__NIAKGPT_METADATA_READY_118__,diag:window.__diag}));
+      assert(o.ready==='ready'&&!o.ids.includes('dom-runtime-failure')&&o.writes===1&&o.diag.some(v=>v.includes('slow_runtime_write_failure')),`slow post-boot sanitation failure did not receive one bounded deferred retry: ${JSON.stringify(o)}`);
+      await page.close();
+    }
+    {
       const page=await makePage(browser);
       await page.evaluate(a=>window.__publish(a,'single-dirty'),dirty(2,'dom-single'));
       await sleep(420);
@@ -94,7 +103,7 @@ for(const [engine,launcher] of Object.entries(engines)){
       assert(o.ids.length===1&&o.ids[0]==='g-p-good'&&o.writes===1,`metadata own-write echo caused an extra sanitation loop: ${JSON.stringify(o)}`);
       await page.close();
     }
-    console.log(`${engine} sidebar metadata unlocked concurrency/clean replay/burst/signature/no-loop: PASS`);
+    console.log(`${engine} sidebar metadata unlocked concurrency/clean replay/burst/signature/runtime-retry/no-loop: PASS`);
   }finally{await browser.close();}
 }
 console.log(`sidebar-metadata-concurrency-v119: ${Object.keys(engines).join(',')} PASS`);

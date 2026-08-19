@@ -3,9 +3,9 @@
 #ng8-pins .ng113-native-actions{display:grid!important;place-items:center!important;width:32px!important;height:32px!important;min-width:32px!important;min-height:32px!important;padding:0!important;margin:0!important;border:1px solid #2f4050!important;border-radius:7px!important;background:#0d1720!important;color:#91a5b7!important;cursor:pointer!important;z-index:7!important;touch-action:manipulation!important;}
 #ng8-pins .ng113-native-actions svg{width:16px!important;height:16px!important;fill:currentColor!important;display:block!important;pointer-events:none!important;}
 #ng8-pins .ng113-native-actions:hover,#ng8-pins .ng113-native-actions:focus-visible{background:#172632!important;color:#fff!important;border-color:#4fc1ff!important;outline:none!important;box-shadow:0 0 0 1px rgba(79,193,255,.12)!important;}
-#ng8-pins .ng96-folder-list>.ng113-native-actions-chat{grid-column:2!important;position:relative!important;right:auto!important;top:auto!important;transform:none!important;width:32px!important;height:30px!important;border-radius:6px!important;align-self:center!important;}
-#ng8-pins .ng96-folder-list>a[data-chat]>.ng113-native-actions-chat{display:none!important;}
-#ng8-pins .ng96-folder-list>a[data-chat]::after{content:none!important;display:none!important;}
+#ng8-pins .ng96-chat-entry>.ng113-native-actions-chat{grid-column:2!important;position:relative!important;right:auto!important;top:auto!important;transform:none!important;width:32px!important;height:30px!important;border-radius:6px!important;align-self:center!important;justify-self:end!important;}
+#ng8-pins .ng96-chat-entry>a[data-chat]>.ng113-native-actions-chat{display:none!important;}
+#ng8-pins .ng96-chat-entry>a[data-chat]::after{content:none!important;display:none!important;}
 .ng113-actions-staging{display:block!important;visibility:hidden!important;position:fixed!important;left:-12000px!important;top:0!important;width:340px!important;height:auto!important;max-height:650px!important;opacity:0!important;pointer-events:none!important;overflow:visible!important;}
 .ng113-actions-staging-leaf{visibility:hidden!important;opacity:0!important;}
 .ng113-native-menu-floating{position:fixed!important;left:var(--ng113-menu-left,320px)!important;top:var(--ng113-menu-top,80px)!important;right:auto!important;bottom:auto!important;z-index:2147483646!important;max-width:min(320px,calc(100vw - 16px))!important;max-height:calc(100vh - 16px)!important;overflow:auto!important;transform:none!important;translate:none!important;}

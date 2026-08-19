@@ -192,10 +192,10 @@
   }
   function closeFallback(){
     clearFallbackDismiss();const menu=document.getElementById('ng113-actions-fallback');
-    if(!menu)return;
+    if(!menu){stopMenuFloat();return;}
     try{if(menu.matches?.(':popover-open'))menu.hidePopover();}catch{}
     if(menu.dataset.ng113PopoverOwned==='1')menu.removeAttribute('popover');
-    resetFloatingMenu(menu);promotedMenus.delete(menu);menuSession.delete(menu);menu.remove();
+    resetFloatingMenu(menu);promotedMenus.delete(menu);menuSession.delete(menu);menu.remove();stopMenuFloat();
   }
   async function fallbackRename(chatId){
     const old=chatTitle(chatId),next=clean(window.prompt('Renommer la conversation',old));if(!next||next===old)return;
@@ -231,7 +231,7 @@
   async function openChatActions(button,chatId){
     let row=nativeChatRow(chatId),ok=await invokeNativeMenu(row,button);
     if(!ok&&chatId===currentCid()){
-      const current=currentConversationMenuButton();if(current){armMenuFloat(button);current.click();queueMenuFloat();await sleep(150);queueMenuFloat();ok=!!visibleMenu();}
+      const current=currentConversationMenuButton();if(current){armMenuFloat(button);current.click();queueMenuFloat();await sleep(150);queueMenuFloat();ok=!!visibleMenu();if(!ok)stopMenuFloat();}
     }
     if(!ok)fallbackChatMenu(button,chatId);
     window.__NIAKGPT_DIAGNOSTICS__?.set('actions-chat',ok?'OK · menu natif complet':'FALLBACK · actions sûres locales');

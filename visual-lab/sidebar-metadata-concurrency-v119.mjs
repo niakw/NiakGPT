@@ -28,7 +28,7 @@ async function makePage(browser,{collision=false}={}){
           const sameAt={...structuredClone(next),projects:[{id:'g-p-good',name:'Studio',domOnly:false},{id:'g-p-collision',name:'Collision',domOnly:false}],chats:[{id:'cx',title:'same timestamp',projectId:'g-p-collision',href:'/c/cx'}],counts:{'g-p-collision':1},projectChats:{},indexedProjectIds:['g-p-good','g-p-collision']};
           setTimeout(()=>window.__publish(sameAt,'collision-same-at'),20);
         }
-        await sleep(100);
+        await new Promise(r=>setTimeout(r,100));
         window.__raw=structuredClone(next);window.__writes++;
         window.__events.push(`update:end:${next.at}`);
         for(const sub of [...window.__subs])sub(window.__raw);

@@ -13,9 +13,6 @@
   const topLevel=(root,node)=>{if(!root||!node)return null;let n=node;while(n.parentElement&&n.parentElement!==root)n=n.parentElement;return n.parentElement===root?n:null;};
   const isOwn=el=>!!el?.closest?.(OWN);
 
-  // Keep the same root selection as app-v090. 0.9.69 had two different sidebar-root
-  // heuristics; when ChatGPT exposed nested sidebar shells they could literally move
-  // #ng8-pins back and forth between two parents.
   function navRoot(){
     return document.querySelector('[data-testid="conversation-sidebar"]')
       ||document.querySelector('[data-testid="sidebar"]')
@@ -29,26 +26,23 @@
     return null;
   }
   function fallbackPlace(root,box){
-    // This path exists only before app-v090 has mounted. Once app-v090 is live it is the
-    // single placement authority; sidebar-ux must never fight its DOM move.
     const firstProject=[...root.querySelectorAll(PROJECT_PAGE)].find(a=>!isOwn(a));
     const recent=recentsSection(root);
     const firstChat=[...root.querySelectorAll(CHAT)].find(a=>!isOwn(a)&&!a.matches('a[href^="/g/g-p-"][href*="/c/"]'));
     const anchor=topLevel(root,firstProject)||topLevel(root,recent)||topLevel(root,firstChat)||null;
     if(box.parentElement!==root||box.nextElementSibling!==anchor)root.insertBefore(box,anchor||root.firstElementChild||null);
   }
+  function clearReady(){
+    const html=document.documentElement;delete html.dataset.ng119PinsReady;delete html.dataset.ng121PinsReady;
+    const box=document.getElementById('ng8-pins');if(box)delete box.dataset.ng121PlacementReady;
+  }
   function placePins(){
     timer=0;const root=navRoot(),box=document.getElementById('ng8-pins');
-    if(!root){document.documentElement.removeAttribute('data-ng119-pins-ready');return false;}
-    if(!box){document.documentElement.removeAttribute('data-ng119-pins-ready');kickRender();bind(root);return false;}
+    if(!root){clearReady();return false;}
+    if(!box){clearReady();kickRender();bind(root);return false;}
 
-    // app-v090 creates/renders the Project block and already owns its native Projects slot.
-    // The old v119 code also moved the same node, causing the live "bloc pin qui saute".
-    // From now on, once app-v090 exists, v119 only verifies/observes the placement.
     if(window.__NIAKGPT_APP_090__){
       if(box.parentElement!==root){
-        // A React remount can temporarily detach the node. Reattach once, then let app-v090
-        // choose its exact sibling on its next synchronous render.
         root.appendChild(box);
         document.dispatchEvent(new CustomEvent('niakgpt:settings-changed',{detail:{source:'sidebar-ux-v119-remount'}}));
       }
@@ -57,7 +51,8 @@
       fallbackPlace(root,box);box.dataset.ng119Placement='bootstrap-fallback';
     }
 
-    box.hidden=false;box.removeAttribute('aria-hidden');document.documentElement.dataset.ng119PinsReady='1';
+    box.hidden=false;box.removeAttribute('aria-hidden');box.dataset.ng121PlacementReady='1';
+    document.documentElement.dataset.ng119PinsReady='1';document.documentElement.dataset.ng121PinsReady='1';
     window.__NIAKGPT_DIAGNOSTICS__?.set('sidebar-ux-119',`OK · Projects ${box.dataset.ng119Placement||'stable'} · 1 autorité de placement`);
     bind(root);hideWelcome();return true;
   }
@@ -85,8 +80,6 @@
     }
   }
 
-  // The Project name is a folder toggle, never a navigation target. This capture listener
-  // only cancels native navigation; pin-folders-v096 receives the same click afterwards.
   document.addEventListener('click',event=>{
     if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
     const target=event.target instanceof Element?event.target:null,anchor=target?.closest('#ng8-pins a[data-ng8-pin="1"]');

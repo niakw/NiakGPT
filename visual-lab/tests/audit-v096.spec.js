@@ -65,7 +65,9 @@ test('pinned Project opens an instant local folder instead of navigating away',a
     await expect(drawer).toContainText('Runtime integration test');
     await expect(drawer).toContainText('Second conversation');
     await expect(drawer.locator('[data-chat]')).toHaveCount(2);
-    await expect(pin.locator('xpath=..').locator('.ng96-project-open')).toBeVisible();
+    const entry=pin.locator('xpath=..');
+    await expect(entry.locator('.ng96-project-open')).toHaveCount(0);
+    await expect(entry.locator('.ng113-native-actions-project')).toBeVisible();
   }finally{await rt.close();}
 });
 

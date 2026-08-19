@@ -1,10 +1,13 @@
-/* NiakGPT 0.9.63 — stable Project chat rows, state only; actions are owned by native-actions-v113. */
+/* NiakGPT 0.9.67 — stable Project chat rows; actions remain separate hitboxes. */
 #ng8-pins .ng96-folder-list{display:flex!important;flex-direction:column!important;}
-#ng8-pins .ng96-folder-list>a[data-ng110-chat="1"]{position:relative!important;order:0!important;grid-template-columns:minmax(0,1fr) 42px!important;padding-right:39px!important;overflow:hidden!important;isolation:isolate!important;}
-#ng8-pins .ng96-folder-list>a[data-ng110-chat="1"]>.ng110-chat-title{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;display:block!important;}
-#ng8-pins .ng96-folder-list>a[data-ng110-chat="1"]>time{width:42px!important;min-width:42px!important;max-width:42px!important;overflow:hidden!important;text-align:right!important;white-space:nowrap!important;}
-#ng8-pins .ng96-folder-list>a[data-ng110-active="1"]{color:#fff!important;font-weight:650!important;background:rgba(79,193,255,.13)!important;box-shadow:inset 2px 0 var(--ng8-current-project,#4fc1ff)!important;}
-#ng8-pins .ng96-folder-list>a[data-ng110-active="1"]>time{color:#9edfff!important;}
-#ng8-pins .ng96-folder-list>a[data-ng110-out="1"]{order:9999!important;opacity:.9!important;color:#e4b9bd!important;background:linear-gradient(90deg,rgba(241,76,76,.11),rgba(30,12,14,.34))!important;box-shadow:inset 2px 0 rgba(241,76,76,.82)!important;}
-#ng8-pins .ng96-folder-list>a[data-ng110-out="1"]::before{content:"OUT";position:absolute;right:36px;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;justify-content:center;min-width:25px;padding:2px 4px;border:1px solid rgba(241,76,76,.58);border-radius:3px;background:#2b1114;color:#ff8d8d;font:800 8px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.08em;white-space:nowrap;pointer-events:none;z-index:3;}
+#ng8-pins .ng96-folder-list>.ng96-chat-entry{position:relative!important;order:0!important;flex:0 0 auto!important;min-width:0!important;width:100%!important;}
+#ng8-pins .ng96-chat-entry>a[data-ng110-chat="1"]{position:relative!important;grid-template-columns:minmax(0,1fr) 42px!important;overflow:hidden!important;isolation:isolate!important;}
+#ng8-pins .ng96-chat-entry>a[data-ng110-chat="1"]>.ng110-chat-title{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;display:block!important;}
+#ng8-pins .ng96-chat-entry>a[data-ng110-chat="1"]>time{width:42px!important;min-width:42px!important;max-width:42px!important;overflow:hidden!important;text-align:right!important;white-space:nowrap!important;}
+#ng8-pins .ng96-chat-entry>a[data-ng110-active="1"]{color:#fff!important;font-weight:650!important;background:rgba(79,193,255,.13)!important;box-shadow:inset 2px 0 var(--ng8-current-project,#4fc1ff)!important;}
+#ng8-pins .ng96-chat-entry>a[data-ng110-active="1"]>time{color:#9edfff!important;}
+#ng8-pins .ng96-folder-list>.ng96-chat-entry[data-ng110-out="1"]{order:9999!important;}
+#ng8-pins .ng96-chat-entry>a[data-ng110-out="1"]{opacity:.9!important;color:#e4b9bd!important;background:linear-gradient(90deg,rgba(241,76,76,.11),rgba(30,12,14,.34))!important;box-shadow:inset 2px 0 rgba(241,76,76,.82)!important;}
+#ng8-pins .ng96-chat-entry>a[data-ng110-out="1"]::before{content:"OUT";position:absolute;right:4px;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;justify-content:center;min-width:25px;padding:2px 4px;border:1px solid rgba(241,76,76,.58);border-radius:3px;background:#2b1114;color:#ff8d8d;font:800 8px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.08em;white-space:nowrap;pointer-events:none;z-index:3;}
+#ng8-pins .ng96-chat-entry>a[data-ng110-out="1"]>time{visibility:hidden!important;}
 #ng8-pins .ng96-pin-drawer .ng100-out-badge,#ng8-pins .ng96-pin-drawer .ng100-continue{display:none!important;}

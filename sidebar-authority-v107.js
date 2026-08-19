@@ -7,6 +7,7 @@
   const OWN='#ng8-pins,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb';
   const PROJECT_HREF='a[href*="/g/"]';
   const CHAT_HREF='a[href*="/c/"]';
+  const ACTION_SURFACE='[role="menu"],[data-radix-menu-content],[data-radix-popper-content-wrapper]';
   const CLASSES=['ng107-native-project-row','ng107-native-project-cluster','ng107-native-project-label','ng107-native-project-more'];
   let sidebarObserver=null,sidebarNode=null,bootstrapObserver=null,timer=0,stopped=false,sanitizing=false,cacheUnsub=null;
 
@@ -24,6 +25,9 @@
   };
   const sidebarRoot=()=>document.querySelector('[data-testid="conversation-sidebar"],[data-testid="sidebar"]')||document.querySelector('nav');
   const outsideOwn=el=>!!el&&!el.closest(OWN);
+  // Native action menus can legitimately contain Project names (for example the
+  // "Déplacer vers" submenu). They are transient controls, never sidebar Project rows.
+  const inActionSurface=el=>!!el?.closest?.(ACTION_SURFACE);
   const managedPins=()=>document.getElementById('ng8-pins');
   const managedReady=()=>{const box=managedPins();return !!(box&&box.isConnected&&!box.hidden&&box.querySelector('a[data-ng8-pin="1"],a[href*="/g/g-p-"]'));};
 
@@ -45,7 +49,7 @@
     return [...new Set(out)];
   }
   function matchesManaged(el,names){
-    if(!names.size||!outsideOwn(el))return false;
+    if(!names.size||!outsideOwn(el)||inActionSurface(el))return false;
     const href=String(el.getAttribute?.('href')||'');if(isChatHref(href))return false;
     for(const label of labelVariants(el))for(const name of names){
       if(label===name)return true;
@@ -54,47 +58,56 @@
     return false;
   }
   function genericChatCount(host){
-    return [...(host?.querySelectorAll?.(CHAT_HREF)||[])].filter(a=>outsideOwn(a)&&!/\/g\//i.test(String(a.getAttribute('href')||''))).length;
+    return [...(host?.querySelectorAll?.(CHAT_HREF)||[])].filter(a=>outsideOwn(a)&&!inActionSurface(a)&&!/\/g\//i.test(String(a.getAttribute('href')||''))).length;
   }
   function projectChildCount(host){
-    return [...(host?.querySelectorAll?.(CHAT_HREF)||[])].filter(a=>outsideOwn(a)&&isProjectChildHref(a.getAttribute('href'))).length;
+    return [...(host?.querySelectorAll?.(CHAT_HREF)||[])].filter(a=>outsideOwn(a)&&!inActionSurface(a)&&isProjectChildHref(a.getAttribute('href'))).length;
   }
   function hasProjectHeading(host){
-    return [...(host?.querySelectorAll?.('h1,h2,h3,[role="heading"],div,span')||[])].some(el=>outsideOwn(el)&&/^(projets?|projects?)$/.test(norm(el.textContent)));
+    return [...(host?.querySelectorAll?.('h1,h2,h3,[role="heading"],div,span')||[])].some(el=>outsideOwn(el)&&!inActionSurface(el)&&/^(projets?|projects?)$/.test(norm(el.textContent)));
   }
   function hasLocalMore(host){
-    return [...(host?.querySelectorAll?.('button,a,[role="button"]')||[])].some(el=>outsideOwn(el)&&/^(afficher plus|show more|voir plus)$/.test(norm(el.textContent||el.getAttribute('aria-label'))));
+    return [...(host?.querySelectorAll?.('button,a,[role="button"]')||[])].some(el=>outsideOwn(el)&&!inActionSurface(el)&&/^(afficher plus|show more|voir plus)$/.test(norm(el.textContent||el.getAttribute('aria-label'))));
   }
   function rowHost(el,names){
-    if(!(el instanceof Element))return null;
+    if(!(el instanceof Element)||inActionSurface(el))return null;
     let host=el.closest('li,[role="listitem"],[data-sidebar-item="true"]')||el;
     if(host.contains(managedPins()))host=el;
     for(let i=0;i<3;i++){
-      const parent=host.parentElement;if(!parent||parent===sidebarRoot()||parent.contains(managedPins()))break;
+      const parent=host.parentElement;if(!parent||parent===sidebarRoot()||parent.contains(managedPins())||inActionSurface(parent))break;
       const interactive=parent.querySelectorAll('a,button,[role="link"],[role="button"]').length;
-      const matches=[...parent.querySelectorAll('a,button,[role="link"],[role="button"]')].filter(x=>matchesManaged(x,names)||isProjectHref(x.getAttribute?.('href'))).length;
+      const matches=[...parent.querySelectorAll('a,button,[role="link"],[role="button"]')].filter(x=>matchesManaged(x,names)||(!inActionSurface(x)&&isProjectHref(x.getAttribute?.('href')))).length;
       if(matches===1&&genericChatCount(parent)===0&&interactive<=4)host=parent;else break;
     }
     return host;
   }
   function plainRowHost(el){
-    if(!(el instanceof Element))return null;
+    if(!(el instanceof Element)||inActionSurface(el))return null;
     const host=el.closest('li,[role="listitem"],[data-sidebar-item="true"]');
-    return host&&!host.contains(managedPins())?host:el;
+    return host&&!host.contains(managedPins())&&!inActionSurface(host)?host:el;
   }
 
   function release(nav){
     for(const el of nav?.querySelectorAll?.('.'+CLASSES.join(',.'))||[])el.classList.remove(...CLASSES);
     window.__NIAKGPT_DIAGNOSTICS__?.set('projects-natifs','FALLBACK · liste NiakGPT indisponible');
   }
+  function releaseActionSurfaces(nav){
+    for(const surface of nav?.querySelectorAll?.(ACTION_SURFACE)||[]){
+      surface.classList.remove(...CLASSES);
+      for(const el of surface.querySelectorAll('.'+CLASSES.join(',.')))el.classList.remove(...CLASSES);
+    }
+  }
 
   function suppressNativeProjects(){
     const nav=sidebarRoot();if(!nav)return false;
+    // A menu may have been marked by an older pass before it became an action surface.
+    // Release those marks synchronously so a newly opened submenu cannot stay display:none.
+    releaseActionSurfaces(nav);
     if(!managedReady()){release(nav);return false;}
     const names=managedNames(),projectCandidates=new Set(),childCandidates=new Set();
 
     for(const a of nav.querySelectorAll(PROJECT_HREF)){
-      if(!outsideOwn(a))continue;
+      if(!outsideOwn(a)||inActionSurface(a))continue;
       const href=String(a.getAttribute('href')||'');
       if(isProjectHref(href))projectCandidates.add(a);
       else if(isProjectChildHref(href))childCandidates.add(a);
@@ -112,7 +125,7 @@
     for(const row of projectRows){
       let node=row.parentElement;
       for(let depth=0;depth<7&&node&&node!==nav;depth++,node=node.parentElement){
-        if(node.contains(managedPins()))continue;
+        if(node.contains(managedPins())||inActionSurface(node))continue;
         const contained=projectRows.filter(r=>node.contains(r)).length;
         if(!contained||genericChatCount(node)!==0)continue;
         // One Project is enough when the container also exposes its child chats, heading or
@@ -126,17 +139,17 @@
     for(const cluster of clusterList)cluster.classList.add('ng107-native-project-cluster');
 
     for(const label of nav.querySelectorAll('h1,h2,h3,[role="heading"],div,span')){
-      if(!outsideOwn(label))continue;
+      if(!outsideOwn(label)||inActionSurface(label))continue;
       const t=norm(label.textContent);if(/^(projets?|projects?)$/.test(t))label.classList.add('ng107-native-project-label');
     }
     for(const more of nav.querySelectorAll('button,a,[role="button"]')){
-      if(!outsideOwn(more)||!/^(afficher plus|show more|voir plus)$/.test(norm(more.textContent||more.getAttribute('aria-label'))))continue;
+      if(!outsideOwn(more)||inActionSurface(more)||!/^(afficher plus|show more|voir plus)$/.test(norm(more.textContent||more.getAttribute('aria-label'))))continue;
       if(more.closest('.ng107-native-project-cluster')){more.classList.add('ng107-native-project-more');continue;}
       let host=more.parentElement,projectContext=false;
       for(let depth=0;depth<5&&host&&host!==nav;depth++,host=host.parentElement){
-        if(host.contains(managedPins()))break;
+        if(host.contains(managedPins())||inActionSurface(host))break;
         const hasRow=projectRows.some(r=>host.contains(r));
-        const hasManaged=[...host.querySelectorAll('a,button,[role="link"],[role="button"]')].some(x=>matchesManaged(x,names)||isProjectHref(x.getAttribute?.('href')));
+        const hasManaged=[...host.querySelectorAll('a,button,[role="link"],[role="button"]')].some(x=>matchesManaged(x,names)||(!inActionSurface(x)&&isProjectHref(x.getAttribute?.('href'))));
         if((hasRow||hasManaged)&&genericChatCount(host)===0){projectContext=true;break;}
       }
       if(projectContext)more.classList.add('ng107-native-project-more');

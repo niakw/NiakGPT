@@ -15,7 +15,7 @@
   const QUEUE=new Set(['a classer','hors projet / a classer','hors projet/a classer','unclassified','to classify']);
   const PRIMARY_PATH=/^(?:\/?$|\/new(?:\/|$)|\/search(?:\/|$)|\/library(?:\/|$)|\/images?(?:\/|$)|\/apps?(?:\/|$)|\/codex(?:\/|$))/i;
   let cache={projects:[],chats:[],counts:{}},governance={hiddenProjectIds:[],coreProjectIds:[]};
-  let observer=null,observedRoot=null,internal=false,timer=0,renderEpoch=0;
+  let observer=null,observedRoot=null,internal=false,timer=0,renderEpoch=0,lastPinFocus=null,lastPinFocusAt=0;
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -68,18 +68,23 @@
     }
     if(!best)return null;let node=best;while(node.parentElement&&node.parentElement!==root&&node.parentElement.getBoundingClientRect().width<520)node=node.parentElement;return node;
   }
+  function restoreFocusedPin(box,moved){
+    if(!moved||!(lastPinFocus instanceof HTMLElement)||!lastPinFocus.isConnected||!box.contains(lastPinFocus))return;
+    if(performance.now()-lastPinFocusAt>1600||document.activeElement===lastPinFocus)return;
+    try{lastPinFocus.focus({preventScroll:true});}catch{try{lastPinFocus.focus();}catch{}}
+  }
   function place(box){
-    const root=navRoot();if(!root||!box)return false;
+    const root=navRoot();if(!root||!box)return false;let moved=false;
     const section=nativeProjectSection();
     if(section?.parentElement){
-      if(box.parentElement!==section.parentElement||box.nextElementSibling!==section)section.parentElement.insertBefore(box,section);
+      if(box.parentElement!==section.parentElement||box.nextElementSibling!==section){section.parentElement.insertBefore(box,section);moved=true;}
       box.dataset.ng121Placement='native-projects';box.dataset.ng119Placement='projects-slot-v121';
     }else{
       const tail=primaryTail();
-      if(tail?.parentElement){if(box.parentElement!==tail.parentElement||tail.nextElementSibling!==box)tail.insertAdjacentElement('afterend',box);box.dataset.ng121Placement='after-primary';box.dataset.ng119Placement='after-primary-v121';}
-      else if(box.parentElement!==root){root.appendChild(box);box.dataset.ng121Placement='sidebar-tail';box.dataset.ng119Placement='sidebar-tail-v121';}
+      if(tail?.parentElement){if(box.parentElement!==tail.parentElement||tail.nextElementSibling!==box){tail.insertAdjacentElement('afterend',box);moved=true;}box.dataset.ng121Placement='after-primary';box.dataset.ng119Placement='after-primary-v121';}
+      else if(box.parentElement!==root){root.appendChild(box);moved=true;box.dataset.ng121Placement='sidebar-tail';box.dataset.ng119Placement='sidebar-tail-v121';}
     }
-    box.hidden=false;box.removeAttribute('aria-hidden');box.dataset.ng121PlacementReady='1';document.documentElement.dataset.ng121PinsReady='1';document.documentElement.dataset.ng119PinsReady='1';return true;
+    box.hidden=false;box.removeAttribute('aria-hidden');box.dataset.ng121PlacementReady='1';document.documentElement.dataset.ng121PinsReady='1';document.documentElement.dataset.ng119PinsReady='1';restoreFocusedPin(box,moved);return true;
   }
 
   function canonicalProjects(){
@@ -169,6 +174,8 @@
     reconcile();
   }
 
+  document.addEventListener('focusin',event=>{const target=event.target instanceof HTMLElement?event.target:null;if(target?.closest('#ng8-pins')){lastPinFocus=target;lastPinFocusAt=performance.now();}else if(target&&target!==document.body&&target!==document.documentElement){lastPinFocus=null;lastPinFocusAt=0;}},true);
+  document.addEventListener('focusout',event=>{const target=event.target instanceof HTMLElement?event.target:null;if(target?.closest('#ng8-pins')&&(!event.relatedTarget||event.relatedTarget===document.body||event.relatedTarget===document.documentElement)){lastPinFocus=target;lastPinFocusAt=performance.now();}},true);
   document.addEventListener('click',event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;const a=event.target instanceof Element?event.target.closest('#ng8-pins a[data-ng8-pin="1"]'):null;if(a)event.preventDefault();},true);
   document.addEventListener('auxclick',event=>{const a=event.target instanceof Element?event.target.closest('#ng8-pins a[data-ng8-pin="1"]'):null;if(a)event.preventDefault();},true);
   try{chrome.storage.onChanged.addListener((changes,area)=>{if(area!=='local')return;if(changes[CACHE_KEY])cache=changes[CACHE_KEY].newValue||cache;if(changes[GOV_KEY])governance={...governance,...(changes[GOV_KEY].newValue||{})};if(changes[CACHE_KEY]||changes[GOV_KEY])schedule(0);});}catch{}

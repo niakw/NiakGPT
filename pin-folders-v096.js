@@ -23,8 +23,25 @@
   const fmt=ms=>{if(!ms)return'—';const d=new Date(ms),now=new Date(),base=`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;return d.getFullYear()===now.getFullYear()?base:`${base}/${String(d.getFullYear()).slice(-2)}`;};
   const drawerId=pid=>`ng96-folder-${String(pid||'').replace(/[^A-Za-z0-9_-]/g,'')}`;
 
+  function mergedProjectChats(raw,pid){
+    if(!pid)return[];
+    const map=new Map();
+    const add=(c,assumePid='')=>{
+      if(!c?.id)return;
+      const old=map.get(c.id)||{},oldTime=parseTime(old.updated||old.update_time||old.create_time),nextTime=parseTime(c.updated||c.update_time||c.create_time),newer=nextTime>=oldTime;
+      const merged=newer?{...old,...c}:{...c,...old};
+      merged.projectId=c.projectId||old.projectId||assumePid||pid;
+      merged.updated=Math.max(oldTime,nextTime);
+      if(!merged.title)merged.title=old.title||c.title||'Conversation';
+      map.set(c.id,merged);
+    };
+    const direct=Array.isArray(raw?.projectChats?.[pid])?raw.projectChats[pid]:[];
+    for(const c of direct)add(c,pid);
+    for(const c of raw?.chats||[])if(c?.projectId===pid)add(c,pid);
+    return[...map.values()].sort((a,b)=>(b.updated||0)-(a.updated||0)||String(a.title||'').localeCompare(String(b.title||''),'fr'));
+  }
   function projectSnapshotSignature(raw,pid){
-    if(!pid)return'';const chats=(raw?.chats||[]).filter(c=>c?.projectId===pid).map(c=>[c.id,c.updated||c.update_time||0,c.title||'']);return JSON.stringify([raw?.counts?.[pid]??null,chats]);
+    if(!pid)return'';const chats=mergedProjectChats(raw,pid).map(c=>[c.id,c.updated||c.update_time||0,c.title||'']);return JSON.stringify([raw?.counts?.[pid]??null,chats]);
   }
   function acceptCache(next){
     const before=projectSnapshotSignature(cache,openPid);cache=next&&typeof next==='object'?next:cache;const after=projectSnapshotSignature(cache,openPid);if(!observedBox)bindBox();if(openPid&&before!==after){drawerDirty=true;schedule(40);}else if(!openPid)schedule(80);
@@ -39,13 +56,7 @@
     if(native instanceof HTMLElement){native.click();return;}
     location.assign(href);
   }
-  function chatsFor(pid){
-    const direct=Array.isArray(cache.projectChats?.[pid])?cache.projectChats[pid]:[];
-    const source=direct.length?direct:(cache.chats||[]).filter(c=>c?.projectId===pid);
-    const map=new Map();
-    for(const c of source){if(!c?.id)continue;const old=map.get(c.id)||{},updated=Math.max(parseTime(old.updated||old.update_time),parseTime(c.updated||c.update_time||c.create_time));map.set(c.id,{...old,...c,updated});}
-    return [...map.values()].sort((a,b)=>(b.updated||0)-(a.updated||0)||String(a.title||'').localeCompare(String(b.title||''),'fr'));
-  }
+  function chatsFor(pid){return mergedProjectChats(cache,pid);}
   function ensureProjectIndex(pid){
     if(!pid)return;
     const listed=chatsFor(pid).length,rawExpected=cache.counts?.[pid],expected=Number(rawExpected),indexed=Array.isArray(cache.indexedProjectIds)&&cache.indexedProjectIds.includes(pid);

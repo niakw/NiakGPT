@@ -18,14 +18,30 @@
   const showMoreLabel=v=>/^(afficher|voir) plus$|^show more$/.test(norm(v));
   const projectHomeHref=href=>{const raw=String(href||'').trim();if(/^\/projects\/?(?:[?#].*)?$/.test(raw))return true;try{const u=new URL(raw,location.href);return u.origin===location.origin&&/^\/projects\/?$/.test(u.pathname);}catch{return false;}};
   const projectChildHref=href=>/\/g\/g-p-[^/?#]+(?:\/|$)/i.test(String(href||''));
+  function structuralProjectSurface(candidate){
+    if(!candidate)return false;
+    if(candidate.querySelector?.('[class*="project-unfurl-row"]'))return true;
+    const links=[...candidate.querySelectorAll?.('a[href]')||[]],projectLinks=links.filter(a=>projectChildHref(a.getAttribute('href')));
+    if(links.some(a=>projectHomeHref(a.getAttribute('href')))||projectLinks.length>=2)return true;
+    if(projectLinks.length!==1)return false;
+    return [...candidate.querySelectorAll?.('h1,h2,h3,[role="heading"],button,[role="button"],[aria-label]')||[]].some(node=>projectLabel(node.textContent)||projectLabel(node.getAttribute?.('aria-label'))||showMoreLabel(node.textContent||node.getAttribute?.('aria-label')));
+  }
 
   function sharesSidebarShell(el){
     if(!el||!outsideOwn(el)||inMain(el))return false;
-    if(el.closest('aside,nav,[data-testid*="sidebar" i],[class*="sidebar" i]'))return true;
     const own=ownProjects();if(!own)return false;
+    const selector='aside,nav,[data-testid*="sidebar" i],[class*="sidebar" i]';
+    const shell=own.closest(selector);if(shell&&(shell===el||shell.contains(el)))return true;
     let node=own.parentElement;
     for(let depth=0;depth<7&&node&&node!==document.body&&node!==document.documentElement;depth++,node=node.parentElement){if(node.contains(el))return true;}
-    return false;
+    const candidate=el.closest?.(selector);if(!shell||!candidate||candidate===shell)return false;
+    if(candidate.getAttribute?.(MARK)==='1'&&structuralProjectSurface(candidate))return true;
+    const sr=shell.getBoundingClientRect?.(),cr=candidate.getBoundingClientRect?.();if(!sr||!cr)return false;
+    const maxWidth=Math.min(520,innerWidth*.48);if(sr.width<80||cr.width<40||sr.width>maxWidth||cr.width>maxWidth)return false;
+    if(sr.left>innerWidth*.42||cr.left>innerWidth*.42)return false;
+    const overlap=Math.max(0,Math.min(sr.right,cr.right)-Math.max(sr.left,cr.left));
+    if(overlap<Math.min(sr.width,cr.width)*.55||Math.abs(sr.left-cr.left)>64)return false;
+    return structuralProjectSurface(candidate);
   }
   function managedNames(){
     const box=ownProjects(),names=new Set();if(!box)return names;
@@ -95,13 +111,8 @@
     }
     return pruneTargets(found);
   }
-  function clearLegacyMarks(){
-    for(const el of document.querySelectorAll('.'+LEGACY)){el.classList.remove(LEGACY);el.removeAttribute('aria-hidden');}
-  }
-  function release(){
-    for(const el of document.querySelectorAll(`[${MARK}="1"]`))el.removeAttribute(MARK);
-    window.__NIAKGPT_DIAGNOSTICS__?.set('projects-authority','FALLBACK · bloc NiakGPT absent');
-  }
+  function clearLegacyMarks(){for(const el of document.querySelectorAll('.'+LEGACY)){el.classList.remove(LEGACY);el.removeAttribute('aria-hidden');}}
+  function release(){for(const el of document.querySelectorAll(`[${MARK}="1"]`))el.removeAttribute(MARK);window.__NIAKGPT_DIAGNOSTICS__?.set('projects-authority','FALLBACK · bloc NiakGPT absent');}
   function apply(){
     timer=0;if(stopped)return false;
     if(!ownReady()){release();bindObservers();return false;}
@@ -109,8 +120,7 @@
     for(const target of targets)if(target.getAttribute(MARK)!=='1')target.setAttribute(MARK,'1');
     for(const old of document.querySelectorAll(`[${MARK}="1"]`))if(!targetSet.has(old))old.removeAttribute(MARK);
     window.__NIAKGPT_DIAGNOSTICS__?.set('projects-authority',targets.length?`OK · ${targets.length} surface(s) Projects native(s) masquée(s)`:'ERREUR · Projects natifs non localisés');
-    bindObservers();
-    return targets.length>0;
+    bindObservers();return targets.length>0;
   }
   function schedule(delay=12){if(stopped)return;clearTimeout(timer);timer=setTimeout(apply,delay);}
   function relevantNode(node){
@@ -119,10 +129,7 @@
     if(node.querySelector?.('#ng8-pins,a[href*="/g/g-p-"],a[href="/projects"],[class*="project-unfurl-row"],[class*="sidebar-expando-section"]'))return true;
     const label=clean(node.getAttribute?.('aria-label')||node.textContent);return label.length<80&&(projectLabel(label)||showMoreLabel(label));
   }
-  function relevantMutation(records){
-    for(const r of records)for(const n of [...r.addedNodes,...r.removedNodes])if(relevantNode(n))return true;
-    return false;
-  }
+  function relevantMutation(records){for(const r of records)for(const n of [...r.addedNodes,...r.removedNodes])if(relevantNode(n))return true;return false;}
   function watchRoots(){
     const roots=new Set(),own=ownProjects();
     if(own){
@@ -142,9 +149,7 @@
     observer?.disconnect();observedRoots=roots;observer=new MutationObserver(records=>{if(relevantMutation(records))schedule(8);});
     for(const root of roots){observer.observe(root,{childList:true,subtree:true});if(root.parentElement&&!roots.includes(root.parentElement))observer.observe(root.parentElement,{childList:true,subtree:false});}
   }
-  function start(){
-    stopped=false;clearLegacyMarks();bindObservers();apply();
-  }
+  function start(){stopped=false;clearLegacyMarks();bindObservers();apply();}
   function stop(){stopped=true;clearTimeout(timer);timer=0;observer?.disconnect();observer=null;observedRoots=[];}
   document.addEventListener('niakgpt:pins-rendered',()=>apply());
   document.addEventListener('niakgpt:recovery-complete',()=>schedule(12));

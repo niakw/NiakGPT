@@ -37,6 +37,7 @@ for(const [engine,launcher] of Object.entries(engines)){
     assert(before.nativeDisplay==='none','native Projects block not hidden');assert(before.projectButtons===3&&before.chatButtons===1,'managed action buttons missing');assert(before.recents!=='none','Recents hidden');
     await page.locator('.ng113-native-actions-project').first().click();await page.waitForFunction(()=>document.querySelector('[role=menu][data-kind="project"]'),null,{timeout:1800});let projectMenu=await page.evaluate(()=>{const m=document.querySelector('[role=menu][data-kind="project"]');return{kind:m?.dataset.kind||'',items:[...(m?.querySelectorAll('[role=menuitem]')||[])].map(x=>x.textContent||'')}});
     assert(projectMenu.kind==='project'&&projectMenu.items.length>=3&&projectMenu.items.some(x=>/modifier/i.test(x)),'full native Project menu not opened');
+    await page.waitForFunction(()=>!document.querySelector('.ng113-native-actions-project')?.hasAttribute('aria-busy'),null,{timeout:1800});
     await page.evaluate(()=>document.querySelectorAll('[role=menu]').forEach(x=>x.remove()));
     await page.locator('.ng113-native-actions-chat').click();await page.waitForFunction(()=>document.querySelector('[role=menu][data-kind="chat"]'),null,{timeout:1800});let chatMenu=await page.evaluate(()=>{const m=document.querySelector('[role=menu][data-kind="chat"]');return{kind:m?.dataset.kind||'',items:[...(m?.querySelectorAll('[role=menuitem]')||[])].map(x=>x.textContent||'')}});
     console.log(`${engine} chat native menu: ${JSON.stringify(chatMenu)}`);

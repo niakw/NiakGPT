@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: niakgpt-check-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -43,10 +47,24 @@ jobs:
           unzip -Z1 "$ZIP" > /tmp/niakgpt-package-files.txt
           grep -qx 'manifest.json' /tmp/niakgpt-package-files.txt
           grep -qx 'background-v100.js' /tmp/niakgpt-package-files.txt
+          grep -qx 'sidebar-metadata-v118.js' /tmp/niakgpt-package-files.txt
+          grep -qx 'sidebar-metadata-v118.css' /tmp/niakgpt-package-files.txt
+          grep -qx 'sidebar-projects-authority-v112.js' /tmp/niakgpt-package-files.txt
+          for doc in README.md LICENSE PRIVACY.md SECURITY.md CHANGELOG.md; do
+            grep -qx "$doc" /tmp/niakgpt-package-files.txt || {
+              echo "Required release document missing from ZIP: $doc"
+              exit 1
+            }
+          done
           for forbidden in \
             'app-v08-safe.js' \
             'project-governance-v085.js' \
             'project-pins-v085.js' \
+            'project-pins-v090.js' \
+            'sidebar-authority-v107.js' \
+            'sidebar-authority-v107.css' \
+            'sidebar-expando-guard-v108.js' \
+            'sidebar-expando-guard-v108.css' \
             'multitab-v083.js' \
             'chronology-v081.js' \
             'polish-v081.js' \

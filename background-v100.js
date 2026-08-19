@@ -1,6 +1,7 @@
 'use strict';
 
 const INSTALL_META='niakgpt-install-meta-v100';
+const HARD_ISOLATED_BARRIER='sidebar-metadata-v118.js';
 
 const MAIN_RUNTIME=[
   'page-bridge.js'
@@ -12,6 +13,7 @@ const ISOLATED_RUNTIME=[
   'control-center-v090.js',
   'cache-bus-v096.js',
   'diagnostic-bus-v096.js',
+  'sidebar-metadata-v118.js',
   'cache-guardian-v100.js',
   'recovery-v100.js',
   'server-index-v100.js',
@@ -27,8 +29,6 @@ const ISOLATED_RUNTIME=[
   'reclassify-deep-v112.js',
   'locale-fr-v101.js',
   'sidebar-icons-v114.js',
-  'sidebar-authority-v107.js',
-  'sidebar-expando-guard-v108.js',
   'sidebar-projects-authority-v112.js',
   'sidebar-host-v090.js',
   'performance-guard-v112.js',
@@ -100,9 +100,20 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
   if(!Number.isInteger(tabId)){sendResponse({ok:false,errors:['missing_tab_id']});return;}
   (async()=>{
     const errors=[];
-    for(const file of MAIN_RUNTIME){const failure=await injectOne(tabId,frameId,file,'MAIN');if(failure)errors.push(failure);}
-    for(const file of ISOLATED_RUNTIME){const failure=await injectOne(tabId,frameId,file,'ISOLATED');if(failure)errors.push(failure);}
-    const coreFailed=errors.some(item=>item.includes(':app-v090.js:')||item.includes(':pin-folders-v096.js:')||item.includes(':project-state-selfheal-v102.js:')||item.includes(':project-assignment-selfheal-v103.js:')||item.includes(':sidebar-projects-authority-v112.js:')||item.includes(':chat-state-authority-v113.js:')||item.includes(':native-actions-v113.js:'));
+    let bootBlocked=false;
+    for(const file of MAIN_RUNTIME){
+      const failure=await injectOne(tabId,frameId,file,'MAIN');
+      if(failure){errors.push(failure);bootBlocked=true;break;}
+    }
+    if(!bootBlocked){
+      for(const file of ISOLATED_RUNTIME){
+        const failure=await injectOne(tabId,frameId,file,'ISOLATED');
+        if(!failure)continue;
+        errors.push(failure);
+        if(file===HARD_ISOLATED_BARRIER){bootBlocked=true;break;}
+      }
+    }
+    const coreFailed=bootBlocked||errors.some(item=>item.includes(':app-v090.js:')||item.includes(':pin-folders-v096.js:')||item.includes(':project-state-selfheal-v102.js:')||item.includes(':project-assignment-selfheal-v103.js:')||item.includes(':sidebar-projects-authority-v112.js:')||item.includes(':sidebar-metadata-v118.js:')||item.includes(':chat-state-authority-v113.js:')||item.includes(':native-actions-v113.js:'));
     sendResponse({ok:!coreFailed,errors});
   })().catch(error=>sendResponse({ok:false,errors:[`bootstrap:${String(error?.message||error)}`]}));
   return true;

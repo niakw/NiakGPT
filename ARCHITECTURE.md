@@ -1,6 +1,6 @@
 # Architecture de NiakGPT
 
-NiakGPT est une extension Chrome/Chromium locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture privilégie trois propriétés : **faible coût runtime**, **priorité explicite à l’utilisateur**, et **dégradation sûre lorsque ChatGPT change**.
+NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.68 privilégie quatre propriétés : **faible coût runtime**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
 
 ## Périmètre
 
@@ -16,160 +16,208 @@ Aucun serveur NiakGPT n’est requis. Les caches, réglages, états de gouvernan
 
 ### MAIN world
 
-Les scripts MAIN doivent rester très petits. Ils existent uniquement lorsque l’intégration exige le même contexte JavaScript que l’application ChatGPT :
+Le monde MAIN est volontairement réduit à :
 
-- bridge RPC vers les endpoints internes autorisés ;
-- détection d’un déplacement Project effectué par l’utilisateur ;
-- signal réseau d’activité d’une génération ;
-- cache chaud des réponses de conversation.
+```text
+page-bridge.js
+```
 
-Ces scripts ne doivent pas construire l’interface NiakGPT.
+Son rôle est borné aux intégrations qui exigent le même contexte JavaScript que l’application ChatGPT : bridge RPC gouverné, observation des mutations réseau utiles et signaux strictement nécessaires aux modules isolés.
+
+**Invariant : NiakGPT ne remplace pas globalement `window.fetch`.** L’ancien hotcache/intercepteur global n’est pas réactivé.
 
 ### Isolated world
 
 Le reste du produit vit dans le monde isolé :
 
-- UI et direction artistique ;
-- Quick Open et Command Palette ;
+- cache bus et garde de cache ;
+- sanitation metadata ;
+- index Projects et gouvernance ;
+- classement / reclassement ;
+- sidebar, pins, drawers et actions ;
+- navigation, fil d’Ariane et continuité ;
+- activité, panneaux natifs et visualiseur ;
+- gros fils et performance ;
 - coordination multi-onglets ;
-- Project Governance ;
-- pins natifs ;
-- chronologie ;
-- coach ;
-- sommaire ;
-- Control Center ;
-- profils de workspace ;
-- onboarding ;
-- états visuels.
+- profils, Control Center, coach et diagnostics.
 
-## Invariant 1 — pas de polling global permanent
+Les fichiers sont injectés séquentiellement par `background-v100.js` après le boot gate.
 
-Les modules applicatifs ne doivent pas rescanner périodiquement tout le DOM « au cas où ».
+## Invariant 1 — sanitation du cache avant les consommateurs
 
-Préférer, dans cet ordre :
+L’ordre de démarrage critique est :
 
-1. événement réseau déjà observé ;
-2. changement `chrome.storage.local` ;
-3. `BroadcastChannel` ;
-4. navigation SPA ;
-5. mutation ciblée du conteneur concerné ;
-6. travail différé avec `requestIdleCallback` ou `setTimeout` ponctuel.
+```text
+cache-bus-v096.js
+→ diagnostic-bus-v096.js
+→ sidebar-metadata-v118.js
+→ cache-guardian-v100.js
+→ recovery-v100.js
+→ server-index-v100.js
+→ gouvernance / reclassement
+→ UI
+```
 
-Un timer récurrent n’est acceptable que pour maintenir un état réellement temporel/distribué, par exemple un heartbeat de coordination d’onglets. Même dans ce cas, il ne doit pas déclencher de scan large du DOM.
+`sidebar-metadata-v118.js` est une IIFE async. Sa première sanitation du cache est attendue avant la fin de son injection. Comme l’injecteur attend chaque `chrome.scripting.executeScript`, les consommateurs suivants ne doivent jamais démarrer sur le snapshot sale que ce module sait reconnaître.
 
-## Invariant 2 — un seul WORKER entre onglets
+Le module metadata peut :
 
-Lorsqu’un utilisateur ouvre plusieurs onglets ChatGPT :
+- convertir une date de sidebar en élément `<time>` ;
+- supprimer un faux badge Project qui est en réalité une date ;
+- supprimer du cache un pseudo-Project `domOnly` dont le nom est une date ;
+- réparer l’affectation d’un chat depuis son `href` canonique ;
+- exposer aux abonnés du cache bus une vue nettoyée.
 
-- un seul onglet devient `WORKER` ;
-- les autres sont `CLIENT` ;
-- les clients utilisent les caches partagés ;
-- indexation, auto-resync et synchronisation native ne doivent pas être multipliées par le nombre d’onglets ;
-- un WORKER chargé par un gros fil peut céder son rôle ;
-- Safe Mode doit également céder le rôle WORKER.
+Il **ne doit jamais** masquer Projects, ajouter les marqueurs de l’autorité Projects, observer les attributs de toute la sidebar ou réintroduire les anciennes classes `ng107/ng108`.
 
-`navigator.locks` est utilisé lorsqu’il est disponible, avec fallback local.
+## Invariant 2 — une seule autorité de visibilité Projects
 
-## Invariant 3 — manuel > automatique
+`sidebar-projects-authority-v112.js` est l’unique propriétaire de la visibilité des Projects natifs.
 
-Un déplacement de conversation effectué avec l’interface native de ChatGPT est une décision utilisateur.
+Quand `#ng8-pins` existe et est sain, l’autorité reconnaît les surfaces Projects natives par :
 
-Le flux attendu est :
+- structure de sidebar ;
+- lien `/projects` ;
+- liens `/g/g-p-*` ;
+- libellés `Projets / Projects` ;
+- identité de plusieurs Projects réellement gérés par `#ng8-pins` ;
+- remounts/rerenders de roots frères ou séparés.
 
-1. détecter le PATCH natif ;
-2. relire la conversation côté serveur ;
-3. vérifier le `gizmo_id` réellement appliqué ;
-4. enregistrer un verrou local persistant ;
-5. afficher un cadenas ;
-6. exclure cette conversation de tout reclassement automatique.
+Elle utilise le marqueur passif :
 
-Le verrou ne disparaît que par action explicite de l’utilisateur.
+```text
+data-ng112-native-projects="1"
+```
 
-Un déplacement vers **Hors projet** est également une décision manuelle valide.
+Le CSS courant masque ce marqueur. L’autorité ne réécrit pas en boucle les classes natives, ne pose pas `aria-hidden` et n’observe pas les attributs globaux.
 
-## Invariant 4 — aucune réussite supposée après un PATCH
+Les anciens propriétaires `sidebar-authority-v107.js` et `sidebar-expando-guard-v108.js` restent uniquement comme régressions historiques. Ils ne sont ni injectés ni empaquetés. `live-fixes-v104.js` gère les panneaux natifs ; `live-fixes-v106.js` gère le contexte Project et retire ponctuellement les anciennes marques de migration, sans devenir une autorité concurrente.
 
-Les endpoints internes de ChatGPT sont non documentés. Une réponse HTTP atypique ne prouve pas nécessairement qu’une opération a échoué ou réussi.
-
-Pour les déplacements Project, **la relecture GET est la source de vérité**.
-
-## Invariant 5 — ne jamais inventer un cursor
-
-Les conversations d’un Project utilisent une pagination avec cursor opaque.
-
-- première page : aucun cursor ajouté ;
-- pages suivantes : uniquement le cursor réellement retourné par le backend ;
-- ne jamais fabriquer `cursor=0` ;
-- le `limit` doit rester conservateur ;
-- un fallback compatible est autorisé si le backend rejette une variante avec `422`.
-
-## Invariant 6 — un seul host Projects géré
+## Invariant 3 — un seul host Projects géré
 
 Il ne doit exister qu’un seul `#ng8-pins`.
 
 Le host doit :
 
-- être situé **dans** la sidebar native ;
+- vivre dans la sidebar native ;
 - être réutilisé à chaque redraw ;
-- supprimer les doublons historiques s’ils sont détectés ;
+- supprimer les doublons historiques ;
 - ne jamais être inséré à côté du `<nav>` par erreur.
 
-`sidebar-host-v090.js` défend cet invariant.
+`sidebar-host-v090.js` défend cet invariant. `pin-folders-v096.js` transforme chaque Project épinglé en dossier dépliable sans créer un second système Projects.
 
-## Invariant 7 — activité auto-résiliente
+## Invariant 4 — hitboxes atomiques
 
-Les content scripts démarrent à `document_start`. Le `<body>` peut donc ne pas encore exister.
+Chaque ligne Project possède deux zones exclusives :
 
-Toute boucle de suivi d’état doit :
+- le Project/drawer ;
+- son bouton d’actions `…`.
 
-- tolérer l’absence temporaire du body/main ;
-- utiliser `document.documentElement` comme dernier fallback ;
-- capturer une exception DOM ponctuelle ;
-- toujours reprogrammer son prochain tick dans un `finally` ;
-- ne jamais rester définitivement bloquée sur `CHARGEMENT` à cause d’une exception de bootstrap.
+Chaque conversation dans un drawer utilise `.ng96-chat-entry` avec :
 
-## Cache chaud
+- un lien conversation ;
+- un bouton d’actions frère ;
+- aucun bouton interactif imbriqué dans le lien ;
+- aucune superposition de hitboxes.
 
-Le cache de conversations est distinct de l’index Projects/chats.
+Le layout est mesuré par pixel (`getBoundingClientRect`, `elementFromPoint`) dans les gates courants.
 
-Objectifs :
+## Invariant 5 — menus natifs par session
 
-- rendre immédiatement une conversation récemment chargée ;
-- éviter de refaire un gros GET si la version connue est inchangée ;
-- dédupliquer un même GET entre plusieurs onglets ;
-- marquer un fil `DIRTY` après nouvelle activité ;
-- limiter la taille et la durée de vie.
+`native-actions-v113.js` privilégie le vrai menu ChatGPT lorsque la ligne native est disponible.
 
-Le cache chaud n’invente pas un endpoint delta qui n’existe pas.
+Pour éviter les collisions :
 
-## Project Governance
+1. une action NiakGPT photographie les menus déjà visibles ;
+2. ces menus constituent la baseline et ne doivent jamais être déplacés ;
+3. seuls les menus nouvellement visibles appartiennent à la session courante ;
+4. le menu et ses sous-menus peuvent être promus via Popover dans le top layer ;
+5. à la fermeture, NiakGPT retire toute propriété qu’il possède : Popover, top-layer dataset, classe flottante, variables de position et index ;
+6. si React réutilise le même nœud, celui-ci doit donc reprendre sa géométrie native ;
+7. un échec d’ouverture ou la fermeture du fallback termine immédiatement la session afin qu’aucun timer tardif ne capture un menu sans rapport.
 
-La gouvernance conserve une structure principale par identifiants de Projects, jamais par noms personnels codés dans le dépôt.
+Le fallback conversation est limité aux actions sûres nécessaires lorsque la ligne native n’existe pas.
 
-Le nettoyage suit une politique conservatrice :
+## Invariant 6 — pas de polling global permanent
 
-- doublon exact → Project canonique ;
-- reliquat générique + forte confiance → Project principal ;
-- faible confiance → Hors projet / À classer ;
-- chat verrouillé manuellement → aucune modification ;
-- aucun DELETE serveur de Project basé sur une hypothèse d’API.
+Les modules applicatifs ne doivent pas rescanner périodiquement tout le DOM « au cas où ».
 
-Les anciens Projects vidés peuvent être masqués localement et désépinglés.
+Préférer :
 
-## Safe Mode
+1. événement réseau déjà observé ;
+2. changement `chrome.storage.local` / cache bus ;
+3. `BroadcastChannel` ;
+4. navigation SPA ;
+5. mutation ciblée du conteneur concerné ;
+6. travail différé ponctuel avec `requestIdleCallback` ou `setTimeout`.
 
-Safe Mode est une dégradation volontaire, pas un simple thème visuel.
+Un timer récurrent n’est acceptable que pour un état réellement temporel/distribué et ne doit jamais déclencher de scan large du DOM.
 
-Il doit réellement suspendre le travail non essentiel :
+## Invariant 7 — un seul WORKER entre onglets
 
-- Matrix ;
-- coach ;
-- animations ;
-- pins natifs ;
-- auto-resync ;
-- rôle WORKER.
+Lorsqu’un utilisateur ouvre plusieurs onglets ChatGPT :
 
-Les fonctions essentielles — composer, lecture, navigation et interface native — restent disponibles.
+- un seul onglet devient `WORKER` ;
+- les autres restent `CLIENT` ;
+- les CLIENT réutilisent les caches partagés ;
+- indexation et traitements lourds ne doivent pas être multipliés ;
+- un WORKER chargé par un gros fil peut céder son rôle ;
+- Safe Mode doit également céder le rôle WORKER.
+
+`navigator.locks` est utilisé lorsqu’il est disponible, avec fallback local et coordination `BroadcastChannel`.
+
+## Invariant 8 — manuel > automatique
+
+Un déplacement de conversation réalisé via l’interface native de ChatGPT est une décision utilisateur.
+
+Le flux attendu :
+
+1. détecter la mutation native fiable ;
+2. vérifier la destination serveur quand le chemin l’autorise ;
+3. enregistrer un verrou local persistant ;
+4. exclure la conversation du reclassement automatique ;
+5. ne lever le verrou que par action explicite.
+
+Un déplacement vers **Hors projet** est valide.
+
+`continuity-exact` est également prioritaire sur le recommender normal.
+
+## Invariant 9 — aucune réussite supposée après une mutation
+
+Les endpoints internes de ChatGPT sont non documentés. Une réponse HTTP atypique ne suffit pas toujours à prouver le résultat métier.
+
+Les chemins sensibles doivent privilégier une confirmation de l’état réel, puis synchroniser le cache local.
+
+## Invariant 10 — ne jamais inventer un cursor
+
+Les conversations d’un Project utilisent une pagination opaque :
+
+- première page sans cursor ajouté ;
+- pages suivantes uniquement avec le cursor réellement renvoyé ;
+- jamais de `cursor=0` fabriqué ;
+- `limit` conservateur et fallback compatible si nécessaire.
+
+## Cache et high-water marks
+
+`cache-bus-v096.js` sérialise les écritures locales et publie l’état aux abonnés. `cache-guardian-v100.js` protège contre un effondrement brutal du nombre de Projects/chats/dates et peut restaurer un état de référence.
+
+C’est précisément pour éviter qu’un faux Project-date ne soit enregistré comme high-water mark que la barrière metadata s’exécute avant le garde de cache.
+
+Les modules qui enrichissent ou réparent le cache doivent conserver les données historiques utiles lors d’une réponse serveur partielle.
+
+## Gros fils
+
+La priorité reste la fluidité du runtime natif :
+
+- historique froid ;
+- queue récente bornée (`COLD_KEEP=44`) ;
+- `content-visibility` / containment ;
+- Matrix et décorations réduites pendant l’activité lourde ;
+- traitements incrémentaux ;
+- reprise via `requestIdleCallback` ;
+- `conversation-load-guard-v113.js` qui relâche les optimisations tant que les tours natifs ne sont pas rendus.
+
+`reclassify-deep-v112.js` reste strictement borné : peu de chats par cycle, un seul cas lourd simultané, extrait limité et suspension pendant la génération/429.
 
 ## États d’activité
 
@@ -184,45 +232,46 @@ executing
 error
 ```
 
-Ils servent de source de vérité commune pour :
+Ils pilotent la ligne du chat, le Project, la barre basse, les suspensions de travaux et la coordination multi-onglets.
 
-- la ligne du chat ;
-- le Project ;
-- la barre basse ;
-- la suspension de certains travaux ;
-- la coordination multi-onglets.
+## Panneaux natifs
 
-## Stockage
+`live-fixes-v104.js` ne possède plus Projects. Il détecte et adapte uniquement les panneaux Activité / Réflexion / Sources / Outputs pour les maintenir lisibles à gauche du rail NiakGPT sans réserver inutilement la largeur du chat.
 
-Principales catégories :
+Le visualiseur image conserve un contrôle de fermeture dédié lorsque l’overlay natif le nécessite.
 
-- `chrome.storage.local` : préférences, index, gouvernance, verrous, lifecycle ;
-- IndexedDB : cache chaud de conversations ;
-- `localStorage` : miroirs de démarrage rapide et coordination locale lorsque nécessaire.
+## Safe Mode
 
-La distinction est importante : **la décision fresh install / update ne doit pas dépendre de données de page susceptibles d’être créées pendant le même chargement**. Le lifecycle de l’extension est la source de vérité.
+Safe Mode est une dégradation volontaire :
+
+- Matrix ;
+- coach ;
+- animations ;
+- travaux non essentiels ;
+- rôle WORKER ;
+
+peuvent être suspendus, tandis que composer, lecture, navigation et interface native restent disponibles.
 
 ## Tests comme partie de l’architecture
 
-NiakGPT utilise plusieurs niveaux de QA :
+Une modification architecturale n’est considérée terminée que si le niveau de preuve correspondant existe.
 
-1. invariants de source/manifest ;
-2. syntaxe JavaScript ;
-3. Visual Lab déterministe ;
-4. extension réellement chargée en unpacked dans Chromium sur un `chatgpt.com` mocké ;
-5. packaging minimal ;
-6. Public Quality Gate sur un commit précis.
+La 0.9.68 utilise notamment :
 
-Une modification architecturale n’est considérée terminée que lorsque le niveau de test correspondant existe et passe.
+1. `tools/check-hydration-v100.mjs` — invariants runtime et ordre de boot ;
+2. `labs/static_validate_current.py` — syntaxe, manifest, package/runtime, propriétaires uniques ;
+3. `sidebar-hitboxes-v117` — géométrie et hit testing ;
+4. `native-menu-session-v118` — isolation, cleanup, réutilisation DOM et fermeture fallback ;
+5. `sidebar-metadata-v118` — sanitation metadata/cache et barrière async mesurée ;
+6. `live-ui-regressions-v114` — autorité Projects + preview image + metadata ;
+7. `experience-gate-v116` et stress/remounts ;
+8. tests Chromium / Firefox / WebKit ;
+9. extension MV3 réellement chargée sur Chromium Ubuntu / Windows / macOS ;
+10. gate prioritaire Brave stable réel sur macOS ;
+11. packaging propre et Public Quality Gate sur `main`.
+
+Les anciens labs restent disponibles pour les régressions historiques, même lorsque leurs anciens modules ne font plus partie du runtime de production.
 
 ## Dépendance à ChatGPT
 
-NiakGPT s’appuie sur le DOM et sur des endpoints internes de ChatGPT. Cette dépendance reste intrinsèquement fragile.
-
-La stratégie n’est pas de prétendre éliminer ce risque, mais de :
-
-- limiter les hypothèses ;
-- vérifier les opérations sensibles ;
-- centraliser les sélecteurs critiques ;
-- échouer sans corruption lorsqu’une hypothèse devient fausse ;
-- disposer d’un banc de reproduction rapide.
+NiakGPT s’appuie sur le DOM et certains endpoints internes de ChatGPT. Cette dépendance reste intrinsèquement fragile. La réponse architecturale est donc : propriétaires uniques, mutations minimales, fallback natif, tests sur remounts réels et garde-fous qui échouent bruyamment plutôt que d’empiler de nouveaux overrides concurrents.

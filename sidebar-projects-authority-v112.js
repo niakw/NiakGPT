@@ -31,7 +31,9 @@
     const maxWidth=Math.min(520,innerWidth*.48);if(sr.width<80||cr.width<40||sr.width>maxWidth||cr.width>maxWidth)return false;
     if(sr.left>innerWidth*.42||cr.left>innerWidth*.42)return false;
     const overlap=Math.max(0,Math.min(sr.right,cr.right)-Math.max(sr.left,cr.left));
-    return overlap>=Math.min(sr.width,cr.width)*.55&&Math.abs(sr.left-cr.left)<=64;
+    if(overlap<Math.min(sr.width,cr.width)*.55||Math.abs(sr.left-cr.left)>64)return false;
+    const evidence=candidate.querySelector?.('a[href="/projects"],a[href*="/g/g-p-"],[class*="project-unfurl-row"]');
+    return !!evidence;
   }
   function managedNames(){
     const box=ownProjects(),names=new Set();if(!box)return names;
@@ -101,13 +103,8 @@
     }
     return pruneTargets(found);
   }
-  function clearLegacyMarks(){
-    for(const el of document.querySelectorAll('.'+LEGACY)){el.classList.remove(LEGACY);el.removeAttribute('aria-hidden');}
-  }
-  function release(){
-    for(const el of document.querySelectorAll(`[${MARK}="1"]`))el.removeAttribute(MARK);
-    window.__NIAKGPT_DIAGNOSTICS__?.set('projects-authority','FALLBACK · bloc NiakGPT absent');
-  }
+  function clearLegacyMarks(){for(const el of document.querySelectorAll('.'+LEGACY)){el.classList.remove(LEGACY);el.removeAttribute('aria-hidden');}}
+  function release(){for(const el of document.querySelectorAll(`[${MARK}="1"]`))el.removeAttribute(MARK);window.__NIAKGPT_DIAGNOSTICS__?.set('projects-authority','FALLBACK · bloc NiakGPT absent');}
   function apply(){
     timer=0;if(stopped)return false;
     if(!ownReady()){release();bindObservers();return false;}
@@ -115,8 +112,7 @@
     for(const target of targets)if(target.getAttribute(MARK)!=='1')target.setAttribute(MARK,'1');
     for(const old of document.querySelectorAll(`[${MARK}="1"]`))if(!targetSet.has(old))old.removeAttribute(MARK);
     window.__NIAKGPT_DIAGNOSTICS__?.set('projects-authority',targets.length?`OK · ${targets.length} surface(s) Projects native(s) masquée(s)`:'ERREUR · Projects natifs non localisés');
-    bindObservers();
-    return targets.length>0;
+    bindObservers();return targets.length>0;
   }
   function schedule(delay=12){if(stopped)return;clearTimeout(timer);timer=setTimeout(apply,delay);}
   function relevantNode(node){
@@ -125,10 +121,7 @@
     if(node.querySelector?.('#ng8-pins,a[href*="/g/g-p-"],a[href="/projects"],[class*="project-unfurl-row"],[class*="sidebar-expando-section"]'))return true;
     const label=clean(node.getAttribute?.('aria-label')||node.textContent);return label.length<80&&(projectLabel(label)||showMoreLabel(label));
   }
-  function relevantMutation(records){
-    for(const r of records)for(const n of [...r.addedNodes,...r.removedNodes])if(relevantNode(n))return true;
-    return false;
-  }
+  function relevantMutation(records){for(const r of records)for(const n of [...r.addedNodes,...r.removedNodes])if(relevantNode(n))return true;return false;}
   function watchRoots(){
     const roots=new Set(),own=ownProjects();
     if(own){

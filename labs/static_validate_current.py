@@ -105,8 +105,8 @@ if action_race_gate.exists() and "import('./sidebar-authority-isolation-v119.mjs
 if live_gate.exists() and "import('./sidebar-metadata-v118.mjs')" not in live_gate.read_text(encoding='utf-8'): fail('metadata-only gate is not chained into cross-engine live UI validation')
 if authority_isolation_gate.exists():
     authority_text=authority_isolation_gate.read_text(encoding='utf-8')
-    for token in ('unrelated-projects','main-projects','marked.length===1','24','did not release native surfaces'):
-        if token not in authority_text: fail('Projects authority cross-aside/remount isolation coverage incomplete '+token)
+    for token in ('unrelated-projects','main-projects','search-project-result','separate-native','marked.length===2','24','did not release native surfaces'):
+        if token not in authority_text: fail('Projects authority real-root/search-result/remount isolation coverage incomplete '+token)
 if metadata_gate.exists():
     metadata_gate_text=metadata_gate.read_text(encoding='utf-8')
     for token in ('g-p-two','dom-race-b',"navigator.locks.request('niakgpt-data-mutation-v100'",'metadata sanitation overwrote a later lock-coordinated cache publication',"import('./sidebar-metadata-failure-v119.mjs')"):

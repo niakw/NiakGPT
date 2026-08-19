@@ -55,7 +55,8 @@ html[data-ng86-activity="executing"] #ng8-pins[data-ng120-stable-slot]{
 }
 main [data-ng120-welcome="1"]{display:none!important;}
 
-/* Native menus stay native; only their geometry/top-layer presentation is corrected. */
+/* Native menus stay native. v113 owns staging, top-layer promotion and exact geometry;
+   v120 only tags them for regression coverage and guards close/fallback behavior. */
 .ng120-actions-stage{
   display:block!important;
   visibility:hidden!important;
@@ -85,6 +86,11 @@ main [data-ng120-welcome="1"]{display:none!important;}
   visibility:visible!important;
   opacity:1!important;
   pointer-events:auto!important;
+}
+.ng113-native-menu-floating.ng120-native-menu{
+  left:var(--ng113-menu-left,320px)!important;
+  top:var(--ng113-menu-top,80px)!important;
+  max-width:min(320px,calc(100vw - 16px))!important;
 }
 .ng120-native-menu::backdrop{background:transparent!important;pointer-events:none!important;}
 #ng113-actions-fallback{display:none!important;}

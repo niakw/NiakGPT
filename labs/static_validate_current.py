@@ -71,8 +71,8 @@ for forbidden in ('attributes:true','attributeFilter:','classList.add(HIDE)',"se
 projects_css=(ROOT/'sidebar-projects-authority-v112.css').read_text(encoding='utf-8')
 if '[data-ng112-native-projects="1"]' not in projects_css: fail('passive Projects CSS marker missing')
 metadata=(ROOT/'sidebar-metadata-v118.js').read_text(encoding='utf-8')
-for token in ('normalizeChatMetadata','cleanCache','wrapCacheBus','sanitizeCache','sanitizeTask','childList:true'):
-    if token not in metadata: fail('sidebar metadata hygiene incomplete '+token)
+for token in ('normalizeChatMetadata','cleanCache','wrapCacheBus','sanitizeCache','sanitizeTask','childList:true',"const DATA_LOCK='niakgpt-data-mutation-v100'",'navigator.locks?.request','await navigator.locks.request(DATA_LOCK'):
+    if token not in metadata: fail('sidebar metadata hygiene/shared-lock serialization incomplete '+token)
 for forbidden in ('suppressNativeProjects','ng107-native-project','ng108-native-project','data-ng112-native-projects','attributes:true','attributeFilter:'):
     if forbidden in metadata: fail('metadata module reintroduced Projects authority/churn '+forbidden)
 initial_sanitize=metadata.find('try{await sanitizeCache();}')
@@ -93,14 +93,20 @@ for token in ('drawerDirty','cooperativeNode','existing.previousElementSibling==
 if "createElement('button');open.type='button';open.className='ng96-project-open'" in folders: fail('obsolete open-page button recreated')
 chatux=(ROOT/'project-chat-ux-v110.js').read_text(encoding='utf-8')
 if 'ng110ChatRow' not in chatux: fail('chat state is not mirrored to atomic rows')
-experience=ROOT/'visual-lab/experience-gate-v116.mjs'; runtime_gate=ROOT/'visual-lab/tests/sidebar-runtime-v116.spec.js'; hitbox_gate=ROOT/'visual-lab/sidebar-hitboxes-v117.mjs'; session_gate=ROOT/'visual-lab/native-menu-session-v118.mjs'; metadata_gate=ROOT/'visual-lab/sidebar-metadata-v118.mjs'; live_gate=ROOT/'visual-lab/live-ui-regressions-v114.mjs'
+experience=ROOT/'visual-lab/experience-gate-v116.mjs'; runtime_gate=ROOT/'visual-lab/tests/sidebar-runtime-v116.spec.js'; hitbox_gate=ROOT/'visual-lab/sidebar-hitboxes-v117.mjs'; session_gate=ROOT/'visual-lab/native-menu-session-v118.mjs'; action_race_gate=ROOT/'visual-lab/native-action-races-v119.mjs'; metadata_gate=ROOT/'visual-lab/sidebar-metadata-v118.mjs'; live_gate=ROOT/'visual-lab/live-ui-regressions-v114.mjs'
 if not experience.exists(): fail('cross-platform human DOM error UX gate missing')
 if not runtime_gate.exists(): fail('real extension runtime gate missing')
 if not hitbox_gate.exists(): fail('left-sidebar hitbox gate missing')
 if not session_gate.exists(): fail('native menu session cleanup gate missing')
+if not action_race_gate.exists(): fail('native action race gate missing')
 if not metadata_gate.exists(): fail('sidebar metadata-only gate missing')
 if hitbox_gate.exists() and "import('./native-menu-session-v118.mjs')" not in hitbox_gate.read_text(encoding='utf-8'): fail('native menu cleanup gate is not chained into cross-engine sidebar validation')
+if session_gate.exists() and "import('./native-action-races-v119.mjs')" not in session_gate.read_text(encoding='utf-8'): fail('native action race gate is not chained into cross-engine menu validation')
 if live_gate.exists() and "import('./sidebar-metadata-v118.mjs')" not in live_gate.read_text(encoding='utf-8'): fail('metadata-only gate is not chained into cross-engine live UI validation')
+if metadata_gate.exists():
+    metadata_gate_text=metadata_gate.read_text(encoding='utf-8')
+    for token in ('g-p-two','dom-race-b',"navigator.locks.request('niakgpt-data-mutation-v100'",'metadata sanitation overwrote a later lock-coordinated cache publication'):
+        if token not in metadata_gate_text: fail('metadata shared-lock race regression coverage incomplete '+token)
 profile_dir=ROOT/'visual-lab/profiles'
 for name,mode in (('runtime-cold-v116','cold'),('runtime-warm-v116','warm')):
     p=profile_dir/f'{name}.json'
@@ -119,10 +125,10 @@ for token in ('NIAKGPT_PROFILE','runtime-cold-v116','PROFILE.storageLocal','save
 workflow=(ROOT/'.github/workflows/current-finalization.yml').read_text(encoding='utf-8')
 for token in ('ubuntu-latest, windows-latest, macos-latest','chromium, firefox, webkit','Human / DOM / errors / UX / remount / anti-churn','experience-gate-v116.mjs','sidebar-hitboxes-v117.mjs','LEFT SIDEBAR pixel hitboxes','PRIMARY real Brave — left sidebar'):
     if token not in workflow: fail('cross-platform experience matrix missing '+token)
-for token in ('PLAYWRIGHT_BROWSERS_PATH','actions/cache@v4','playwright-${{ runner.os }}-${{ matrix.browser }}-1.62.1','homebrew-brave-${{ runner.os }}-${{ runner.arch }}','runtime-cold-v116','runtime-warm-v116'):
+for token in ('PLAYWRIGHT_BROWSERS_PATH','actions/cache@v4','playwright-${{ runner.os }}-${{ matrix.browser }}-1.62.1','homebrew-brave-${{ runner.os }}-${{ runner.arch }}-stable-v1','runtime-cold-v116','runtime-warm-v116'):
     if token not in workflow: fail('lab cache/profile acceleration missing '+token)
 if errors:
     print('STATIC_CURRENT_FAIL')
     for e in errors: print('-',e)
     sys.exit(1)
-print(f"STATIC_CURRENT_PASS version={manifest['version']} runtime={len(main)+len(isolated)} refs={len(refs)} profiles=2 cached-browsers=on left-sidebar=atomic-top-layer-session-clean single-projects-authority metadata-first serialized-initial-sanitation")
+print(f"STATIC_CURRENT_PASS version={manifest['version']} runtime={len(main)+len(isolated)} refs={len(refs)} profiles=2 cached-browsers=on left-sidebar=atomic-top-layer-session-clean single-projects-authority metadata-first serialized-initial-and-shared-lock-sanitation")

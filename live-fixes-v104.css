@@ -1,10 +1,4 @@
-/* NiakGPT 0.9.54+ — live ChatGPT regression fixes from authenticated UI. */
-.ng8-native-projects-suppressed,
-a.ng8-native-project-link-suppressed,
-a.ng8-native-project-chat-suppressed,
-.ng8-native-project-label-suppressed,
-.ng8-native-project-more-suppressed{display:none!important}
-
+/* NiakGPT 0.9.68 — authenticated live UI fixes; Projects suppression belongs to v112 authority. */
 #ng8-pins>.ng8-pin-head>a.ng106-projects-home{
   display:inline-flex!important;align-items:center!important;min-width:0!important;padding:0!important;margin:0!important;
   color:inherit!important;text-decoration:none!important;font:inherit!important;letter-spacing:inherit!important;cursor:pointer!important;

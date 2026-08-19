@@ -19,6 +19,7 @@ for(const [engine,launcher] of Object.entries(engines)){
     const html=`<!doctype html><html><head><style>
       *{box-sizing:border-box}body{margin:0;font-family:Arial}
       #left{position:fixed;left:0;top:0;bottom:0;width:310px;padding:10px;background:#111}
+      #left-overlay{position:fixed;left:12px;top:560px;width:280px;height:150px;padding:10px;background:#ddd;color:#111}
       #right{position:fixed;right:0;top:0;bottom:0;width:300px;padding:10px;background:#222}
       main{margin:0 320px;padding:20px}
       #native-projects,#recents,#ng8-pins{padding:8px;margin:6px 0;border:1px solid #555}
@@ -31,6 +32,7 @@ for(const [engine,launcher] of Object.entries(engines)){
         <section id="recents"><h3>Récents</h3><a href="/c/c1">Recent chat</a></section>
         <section id="ng8-pins"><a data-ng8-pin="1" href="/g/g-p-one/project"><span>One</span></a><a data-ng8-pin="1" href="/g/g-p-two/project"><span>Two</span></a></section>
       </aside>
+      <aside id="left-overlay"><button id="left-unrelated-projects">Projects</button><a href="/help">Help</a></aside>
       <main><button id="main-projects">Projects</button></main>
       <aside id="right"><button id="unrelated-projects">Projects</button><a href="/help/projects">Project help</a></aside>
     </body></html>`;
@@ -44,11 +46,12 @@ for(const [engine,launcher] of Object.entries(engines)){
       native:document.getElementById('native-projects')?.getAttribute('data-ng112-native-projects')||'',
       recents:document.getElementById('recents')?.getAttribute('data-ng112-native-projects')||'',
       unrelated:document.getElementById('unrelated-projects')?.getAttribute('data-ng112-native-projects')||'',
+      leftUnrelated:document.getElementById('left-unrelated-projects')?.getAttribute('data-ng112-native-projects')||'',
       main:document.getElementById('main-projects')?.getAttribute('data-ng112-native-projects')||'',
       marked:[...document.querySelectorAll('[data-ng112-native-projects="1"]')].map(e=>e.id||e.tagName),
     }));
     let s=await snapshot();
-    assert(s.native==='1'&&!s.recents&&!s.unrelated&&!s.main&&s.marked.length===1,`Projects authority escaped the left sidebar: ${JSON.stringify(s)}`);
+    assert(s.native==='1'&&!s.recents&&!s.unrelated&&!s.leftUnrelated&&!s.main&&s.marked.length===1,`Projects authority escaped the real left sidebar: ${JSON.stringify(s)}`);
 
     await page.evaluate(()=>document.getElementById('ng8-pins').remove());
     await page.waitForTimeout(100);s=await snapshot();
@@ -56,14 +59,14 @@ for(const [engine,launcher] of Object.entries(engines)){
 
     await page.evaluate(()=>{const box=document.createElement('section');box.id='ng8-pins';box.innerHTML='<a data-ng8-pin="1" href="/g/g-p-one/project"><span>One</span></a><a data-ng8-pin="1" href="/g/g-p-two/project"><span>Two</span></a>';document.getElementById('left').appendChild(box);document.dispatchEvent(new CustomEvent('niakgpt:pins-rendered'));});
     await page.waitForTimeout(100);s=await snapshot();
-    assert(s.native==='1'&&!s.unrelated&&s.marked.length===1,`Projects authority did not reacquire only the native left surface: ${JSON.stringify(s)}`);
+    assert(s.native==='1'&&!s.unrelated&&!s.leftUnrelated&&s.marked.length===1,`Projects authority did not reacquire only the native left surface: ${JSON.stringify(s)}`);
 
     for(let i=0;i<24;i++){
       await page.evaluate(i=>{const old=document.getElementById('native-projects'),next=old.cloneNode(true);next.dataset.remount=String(i);old.replaceWith(next);},i);
       await page.waitForTimeout(18);
     }
     await page.waitForTimeout(100);s=await snapshot();
-    assert(s.native==='1'&&!s.recents&&!s.unrelated&&!s.main&&s.marked.length===1,`Projects authority drifted after repeated React-style remounts: ${JSON.stringify(s)}`);
+    assert(s.native==='1'&&!s.recents&&!s.unrelated&&!s.leftUnrelated&&!s.main&&s.marked.length===1,`Projects authority drifted after repeated React-style remounts: ${JSON.stringify(s)}`);
 
     console.log(`${engine} Projects authority left-sidebar isolation/remount/release: PASS`);
   }finally{await context.close();await browser.close();}

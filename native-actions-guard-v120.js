@@ -11,6 +11,10 @@
   const actionOf=target=>target instanceof Element?target.closest('#ng8-pins .ng113-native-actions'):null;
   const openMenus=()=>[...document.querySelectorAll(FLOAT)].filter(visible);
 
+  function tagFloats(root=document){
+    if(root instanceof Element&&root.matches?.(FLOAT))root.classList.add('ng120-native-menu');
+    for(const menu of root.querySelectorAll?.(FLOAT)||[])menu.classList.add('ng120-native-menu');
+  }
   function closeNativeMenus(){
     const menus=openMenus();
     if(!menus.length)return false;
@@ -34,8 +38,8 @@
     for(const delay of [0,30,90,180,360,650,1000])setTimeout(()=>enforceFocus(lease),delay);
   }
 
-  // Capture only the "second click closes" case. First click deliberately falls through
-  // to native-actions-v113, the cross-engine proven owner of native row staging + Popover promotion.
+  // First click deliberately falls through to native-actions-v113, the proven owner of
+  // native row staging and browser top-layer Popover promotion. Only a second click closes.
   document.addEventListener('click',event=>{
     if(event.button!==0)return;const button=actionOf(event.target);if(!(button instanceof HTMLButtonElement))return;
     if(openMenus().length){event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();closeNativeMenus();button.removeAttribute('aria-busy');setTimeout(()=>armFocus(button),40);}
@@ -47,14 +51,17 @@
   document.addEventListener('focusout',event=>{const action=actionOf(event.target);if(action&&!openMenus().length)armFocus(action);},true);
 
   observer=new MutationObserver(records=>{
-    for(const record of records)for(const node of record.addedNodes){
-      if(!(node instanceof Element))continue;
-      if(node.matches?.(FALLBACK)){node.remove();continue;}
-      const fallback=node.querySelector?.(FALLBACK);if(fallback)fallback.remove();
+    for(const record of records){
+      const target=record.target instanceof Element?record.target:null;if(target)tagFloats(target);
+      for(const node of record.addedNodes){
+        if(!(node instanceof Element))continue;
+        if(node.matches?.(FALLBACK)){node.remove();continue;}
+        const fallback=node.querySelector?.(FALLBACK);if(fallback)fallback.remove();tagFloats(node);
+      }
     }
   });
-  observer.observe(document.documentElement,{childList:true,subtree:true});
-  removeFallback();
+  observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
+  removeFallback();tagFloats();
 
   window.addEventListener('popstate',()=>{focusLease=null;closeNativeMenus();});
   if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>{focusLease=null;closeNativeMenus();});

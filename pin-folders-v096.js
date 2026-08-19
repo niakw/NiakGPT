@@ -73,11 +73,12 @@
     anchor.setAttribute('aria-expanded','true');
     const all=chatsFor(pid),q=norm(filter),shown=q?all.filter(c=>norm(`${c.title||''} ${c.snippet||''}`).includes(q)):all;
     const drawer=document.createElement('div');drawer.className='ng96-pin-drawer';drawer.id=drawerId(pid);drawer.dataset.pid=pid;drawer.setAttribute('role','region');drawer.setAttribute('aria-label','Conversations du Project');
-    drawer.innerHTML=`${all.length>8?`<div class="ng96-folder-search"><input type="search" value="${esc(filter)}" placeholder="Filtrer ${all.length} conversations…" aria-label="Filtrer les conversations du Project"></div>`:''}<div class="ng96-folder-list">${shown.length?shown.slice(0,160).map(c=>`<a data-chat="${esc(c.id)}" href="${esc(chatHref(c,pid))}" title="${esc(c.title||'Conversation')}"><span>${esc(c.title||'Conversation sans titre')}</span><time>${fmt(c.updated)}</time></a>`).join(''):'<div class="ng96-folder-empty">Aucune conversation indexée</div>'}</div>${all.length>160?`<small class="ng96-folder-limit">160 / ${all.length} affichées · utilise la recherche</small>`:''}`;
+    const rows=shown.slice(0,160).map(c=>`<div class="ng96-chat-entry" data-chat-entry="${esc(c.id)}"><a data-chat="${esc(c.id)}" href="${esc(chatHref(c,pid))}" title="${esc(c.title||'Conversation')}"><span>${esc(c.title||'Conversation sans titre')}</span><time>${fmt(c.updated)}</time></a></div>`).join('');
+    drawer.innerHTML=`${all.length>8?`<div class="ng96-folder-search"><input type="search" value="${esc(filter)}" placeholder="Filtrer ${all.length} conversations…" aria-label="Filtrer les conversations du Project"></div>`:''}<div class="ng96-folder-list">${shown.length?rows:'<div class="ng96-folder-empty">Aucune conversation indexée</div>'}</div>${all.length>160?`<small class="ng96-folder-limit">160 / ${all.length} affichées · utilise la recherche</small>`:''}`;
     entry.insertAdjacentElement('afterend',drawer);drawerDirty=false;
     drawer.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();setOpen('');closeDrawers();anchor.focus();}});
     const input=drawer.querySelector('input');if(input){input.addEventListener('input',()=>{filter=input.value;renderDrawer(pid,anchor);requestAnimationFrame(()=>{const next=document.querySelector(`#${CSS.escape(drawerId(pid))} input`);if(next){next.focus();next.setSelectionRange(next.value.length,next.value.length);}});});}
-    drawer.querySelectorAll('a[data-chat]').forEach(link=>link.addEventListener('click',event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;const c=all.find(x=>x.id===link.dataset.chat);if(!c)return;event.preventDefault();event.stopPropagation();routeNative(link.getAttribute('href')||chatHref(c,pid));}));
+    drawer.querySelectorAll('.ng96-chat-entry>a[data-chat]').forEach(link=>link.addEventListener('click',event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;const c=all.find(x=>x.id===link.dataset.chat);if(!c)return;event.preventDefault();event.stopPropagation();routeNative(link.getAttribute('href')||chatHref(c,pid));}));
   }
   function toggle(pid,anchor){
     if(openPid===pid){setOpen('');closeDrawers();return;}
@@ -97,7 +98,7 @@
     }finally{queueMicrotask(()=>{internalWrite=false;});}
   }
   function schedule(delay=30){clearTimeout(renderTimer);renderTimer=setTimeout(rehydrate,delay);}
-  function cooperativeNode(n){return n instanceof Element&&!!n.closest?.('.ng96-pin-drawer,.ng96-pin-entry,.ng113-native-actions,#ng113-actions-fallback');}
+  function cooperativeNode(n){return n instanceof Element&&!!n.closest?.('.ng96-pin-drawer,.ng96-pin-entry,.ng96-chat-entry,.ng113-native-actions,#ng113-actions-fallback');}
   function bindBox(){
     const box=document.getElementById('ng8-pins');if(!box||box===observedBox)return false;
     observer?.disconnect();observedBox=box;observer=new MutationObserver(records=>{if(internalWrite)return;const external=records.some(r=>[...r.addedNodes,...r.removedNodes].some(n=>n instanceof Element&&!cooperativeNode(n)));if(external)schedule(20);});observer.observe(box,{childList:true,subtree:true});schedule(0);return true;

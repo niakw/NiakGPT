@@ -83,11 +83,10 @@ jobs:
         shell: bash
         working-directory: visual-lab
         run: |
-          timeout 420s npx playwright install --with-deps ${{ matrix.browser }} || {
-            echo "First Playwright install attempt failed or timed out; retrying once"
-            sleep 8
-            timeout 420s npx playwright install --with-deps ${{ matrix.browser }}
-          }
+          # Let Playwright/apt finish as one process tree. A shell timeout used to leave
+          # apt-get alive, then the retry collided with its dpkg lock. The job timeout
+          # above remains the hard upper bound for a genuinely stuck runner.
+          npx playwright install --with-deps ${{ matrix.browser }}
       - name: Install browser on Windows or macOS
         if: runner.os != 'Linux'
         working-directory: visual-lab
@@ -137,11 +136,7 @@ jobs:
         shell: bash
         working-directory: visual-lab
         run: |
-          timeout 420s npx playwright install --with-deps chromium || {
-            echo "First Chromium install attempt failed or timed out; retrying once"
-            sleep 8
-            timeout 420s npx playwright install --with-deps chromium
-          }
+          npx playwright install --with-deps chromium
       - name: Install Chromium on Windows or macOS
         if: runner.os != 'Linux'
         working-directory: visual-lab
@@ -259,11 +254,10 @@ jobs:
       - name: Install ${{ matrix.browser }}
         working-directory: visual-lab
         run: |
-          timeout 420s npx playwright install --with-deps ${{ matrix.browser }} || {
-            echo "First Playwright install attempt failed or timed out; retrying once"
-            sleep 8
-            timeout 420s npx playwright install --with-deps ${{ matrix.browser }}
-          }
+          # Do not wrap Playwright's apt subprocess in a shell timeout/retry. If apt is
+          # slow, let it finish; otherwise the orphaned first attempt can lock dpkg and
+          # make the retry fail immediately. The 30-minute job timeout is the guardrail.
+          npx playwright install --with-deps ${{ matrix.browser }}
       - name: Baseline finalization DOM and screenshots
         working-directory: visual-lab
         env:

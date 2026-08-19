@@ -68,7 +68,31 @@ for(const [engine,launcher] of Object.entries(engines)){
     const reopened=await page.evaluate(()=>{const e=document.getElementById('native-action-menu'),r=e.getBoundingClientRect();return{floated:e.dataset.ng113Floated==='1',topLayer:e.dataset.ng113TopLayer==='1',left:r.left};});
     assert(reopened.floated&&reopened.topLayer&&reopened.left>=314,`reused native menu did not promote cleanly a second time: ${JSON.stringify(reopened)}`);
 
-    console.log(`${engine} native menu session isolation/cleanup/reuse: PASS`);
+    // Fallback session must die at the exact close, not 900 ms later. Otherwise a
+    // completely unrelated menu appearing just after dismissal can be captured by a
+    // delayed queueMenuFloat timer.
+    await page.evaluate(()=>{document.getElementById('native-action-menu').style.display='none';});
+    await page.waitForTimeout(1050);
+    await page.evaluate(()=>{
+      const id='33333333-3333-4333-8333-333333333333';
+      const list=document.createElement('div');list.className='ng96-folder-list';
+      const entry=document.createElement('div');entry.className='ng96-chat-entry';
+      const a=document.createElement('a');a.dataset.chat=id;a.href=`/g/g-p-studio/c/${id}`;a.textContent='Fallback chat';
+      entry.appendChild(a);list.appendChild(entry);document.getElementById('ng8-pins').appendChild(list);
+    });
+    const fallbackAction=page.locator('#ng8-pins .ng113-native-actions-chat');
+    await fallbackAction.waitFor({state:'visible'});await fallbackAction.click();
+    await page.waitForFunction(()=>document.getElementById('ng113-actions-fallback')?.matches?.(':popover-open'));
+    await page.mouse.click(1100,700);
+    await page.waitForFunction(()=>!document.getElementById('ng113-actions-fallback'));
+    await page.evaluate(()=>{
+      const m=document.createElement('div');m.id='post-fallback-menu';m.className='menu';m.setAttribute('role','menu');m.style.cssText='left:840px;top:420px';m.innerHTML='<button role="menuitem">Unrelated later menu</button>';document.querySelector('main').appendChild(m);
+    });
+    await page.waitForTimeout(220);
+    const afterFallback=await page.evaluate(()=>{const m=document.getElementById('post-fallback-menu'),r=m.getBoundingClientRect();return{floated:m.dataset.ng113Floated==='1',topLayer:m.dataset.ng113TopLayer==='1',popover:m.matches?.(':popover-open')||false,left:r.left,top:r.top};});
+    assert(!afterFallback.floated&&!afterFallback.topLayer&&!afterFallback.popover&&afterFallback.left>=830,`closed fallback session captured a later unrelated menu: ${JSON.stringify(afterFallback)}`);
+
+    console.log(`${engine} native menu session isolation/cleanup/reuse/fallback-close: PASS`);
   }finally{
     await context.close();
     await browser.close();

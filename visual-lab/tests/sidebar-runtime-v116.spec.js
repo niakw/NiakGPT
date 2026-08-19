@@ -34,13 +34,15 @@ async function extensionWorker(context){return context.serviceWorkers().find(w=>
 async function closeRuntime(context,dir){
   const braveMac=BROWSER_LABEL.includes('brave')&&process.platform==='darwin';
   if(braveMac){
-    for(const page of context.pages())await Promise.race([page.close({runBeforeUnload:false}).catch(()=>{}),sleep(250)]);
-    const patterns=['/Applications/Brave Browser.app/Contents/MacOS/Brave Browser','Brave Browser Helper'];
+    // Headed Brave on the macOS hosted runner can leave Playwright close() promises
+    // pending after the test has already passed. Kill the isolated profile process
+    // directly instead: browser disconnect then releases Playwright's transport,
+    // without a dangling context/page close promise keeping the worker alive.
     for(const signal of ['-TERM','-KILL']){
-      for(const pattern of patterns)try{execFileSync('/usr/bin/pkill',[signal,'-f',pattern],{stdio:'ignore'});}catch{}
-      await sleep(signal==='-TERM'?350:180);
+      for(const pattern of [dir,'Brave Browser Helper'])try{execFileSync('/usr/bin/pkill',[signal,'-f',pattern],{stdio:'ignore'});}catch{}
+      await sleep(signal==='-TERM'?450:220);
     }
-    await Promise.race([context.close().catch(()=>{}),sleep(1500)]);
+    await sleep(250);
   }else await context.close().catch(()=>{});
   fs.rmSync(dir,{recursive:true,force:true});
 }

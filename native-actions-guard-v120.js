@@ -82,6 +82,7 @@
   function finishSession(){
     stopObserver();if(!session)return;for(const menu of session.menus)cleanupMenu(menu);session.restore?.();session=null;
   }
+  function visibleSession(){return!!session&&[...session.menus].some(visible);}
   async function closeSession(){
     if(!session)return;const old=session,token=++epoch;
     for(const menu of old.menus)try{menu.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',code:'Escape',bubbles:true,cancelable:true}));}catch{}
@@ -93,11 +94,11 @@
   function watchMenus(token){
     observer?.disconnect();observer=new MutationObserver(()=>{
       if(!session||session.token!==token)return;const all=menus().filter(m=>!session.baseline.has(m));all.forEach((m,i)=>queuePlace(m,i,token));
-      clearTimeout(closeTimer);closeTimer=setTimeout(()=>{if(session?.token===token&&session.menus.size&&![...session.menus].some(visible))finishSession();},850);
+      clearTimeout(closeTimer);closeTimer=setTimeout(()=>{if(session?.token===token&&session.menus.size&&!visibleSession())finishSession();},850);
     });observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['style','hidden','aria-hidden','data-state']});
   }
   async function openNative(source,kind,id){
-    if(session?.source===source&&[...session.menus].some(visible)){await closeSession();return true;}
+    if(session?.source===source&&visibleSession()){await closeSession();return true;}
     if(session)await closeSession();const token=++epoch;
     let row=kind==='project'?nativeProjectRow(id):nativeChatRow(id),restore=()=>{};let trigger=null;
     if(row){restore=stage(row);fireHover(row);await sleep(70);trigger=menuButton(row);if(!trigger){fireHover(row);await sleep(120);trigger=menuButton(row);}}
@@ -112,14 +113,20 @@
     finishSession();window.__NIAKGPT_DIAGNOSTICS__?.set(`actions-${kind}`,'ERREUR · menu natif non ouvert');return false;
   }
   function managedAction(el){return el instanceof Element?el.closest('#ng8-pins .ng113-native-actions'):null;}
-  function armFocusLease(el){if(!(el instanceof HTMLElement)||session)return;focusLease={el,until:Date.now()+1300};}
+  function enforceFocus(lease){
+    if(focusLease!==lease||Date.now()>lease.until||Date.now()-lastIntentAt<180||!lease.el.isConnected)return;
+    if(visibleSession())return;
+    if(session)finishSession();
+    if(document.activeElement!==lease.el)try{lease.el.focus({preventScroll:true});}catch{lease.el.focus();}
+  }
+  function armFocusLease(el){
+    if(!(el instanceof HTMLElement))return;if(visibleSession())return;if(session)finishSession();
+    const lease={el,until:Date.now()+1400};focusLease=lease;
+    for(const delay of [0,24,70,150,300,520,850,1200])setTimeout(()=>enforceFocus(lease),delay);
+  }
   function releaseOrRestoreFocus(el){
-    const lease=focusLease;if(!lease||lease.el!==el||session||Date.now()>lease.until){if(lease?.el===el)focusLease=null;return;}
-    if(Date.now()-lastIntentAt<180){focusLease=null;return;}
-    setTimeout(()=>{
-      if(focusLease!==lease||session||Date.now()>lease.until||Date.now()-lastIntentAt<180||!el.isConnected)return;
-      if(document.activeElement!==el)try{el.focus({preventScroll:true});}catch{el.focus();}
-    },0);
+    let lease=focusLease;if(!lease||lease.el!==el){if(!visibleSession()){if(session)finishSession();lease={el,until:Date.now()+1400};focusLease=lease;}else return;}
+    if(Date.now()-lastIntentAt<180){focusLease=null;return;}setTimeout(()=>enforceFocus(lease),0);
   }
 
   document.addEventListener('click',event=>{
@@ -129,7 +136,7 @@
     button.setAttribute('aria-busy','true');openNative(button,kind,id).catch(()=>false).finally(()=>button.removeAttribute('aria-busy'));
   },true);
   document.addEventListener('pointerdown',event=>{
-    lastIntentAt=Date.now();if(!session)return;const t=event.target instanceof Element?event.target:null;if(t?.closest('#ng8-pins .ng113-native-actions')||[...session.menus].some(m=>m.contains(t)))return;setTimeout(()=>{if(session&&![...session.menus].some(visible))finishSession();},80);
+    lastIntentAt=Date.now();if(!session)return;const t=event.target instanceof Element?event.target:null;if(t?.closest('#ng8-pins .ng113-native-actions')||[...session.menus].some(m=>m.contains(t)))return;setTimeout(()=>{if(session&&!visibleSession())finishSession();},80);
   },true);
   document.addEventListener('keydown',event=>{if(['Tab','Enter',' ','Escape','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(event.key))lastIntentAt=Date.now();},true);
   document.addEventListener('focusin',event=>{const action=managedAction(event.target);if(action)armFocusLease(action);else if(focusLease&&Date.now()-lastIntentAt<180)focusLease=null;},true);

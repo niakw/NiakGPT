@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.67",
-  "description": "Workspace power-user local pour ChatGPT : sidebar Projects stable, zones cliquables nettes, menus flottants, titres canoniques et gros fils optimisés.",
+  "version": "0.9.68",
+  "description": "Workspace power-user local pour ChatGPT : sidebar Projects stable, zones cliquables nettes, menus natifs isolés/restaurés, titres canoniques et gros fils optimisés.",
   "permissions": [
     "storage",
     "scripting"

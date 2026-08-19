@@ -6,14 +6,18 @@
   let breadcrumbObserver=null,statusObserver=null,globalObserver=null;
   let breadcrumbNode=null,statusNode=null,timer=0,suspended=false;
 
+  const LEGACY_PROJECT_CLASSES=[
+    'ng8-native-projects-suppressed','ng8-native-project-link-suppressed','ng8-native-project-chat-suppressed','ng8-native-project-label-suppressed','ng8-native-project-more-suppressed',
+    'ng107-native-project-row','ng107-native-project-cluster','ng107-native-project-label','ng107-native-project-more',
+    'ng108-native-project-expando','ng112-native-projects-authoritative'
+  ];
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const pidFromHref=h=>String(h||'').match(/\/g\/(g-p-[^/?#]+)/i)?.[1]||'';
 
   function clearLegacyProjectMarks(){
-    for(const el of document.querySelectorAll('.ng8-native-projects-suppressed,.ng8-native-project-link-suppressed,.ng8-native-project-chat-suppressed,.ng8-native-project-label-suppressed,.ng8-native-project-more-suppressed')){
-      el.classList.remove('ng8-native-projects-suppressed','ng8-native-project-link-suppressed','ng8-native-project-chat-suppressed','ng8-native-project-label-suppressed','ng8-native-project-more-suppressed');
-    }
+    const selector=LEGACY_PROJECT_CLASSES.map(name=>'.'+name).join(',');
+    for(const el of document.querySelectorAll(selector))el.classList.remove(...LEGACY_PROJECT_CLASSES);
   }
 
   function breadcrumbContext(){
@@ -47,6 +51,7 @@
 
   function repair(){
     if(suspended)return;
+    clearLegacyProjectMarks();
     bindTargets();
     syncStatusProject();
   }

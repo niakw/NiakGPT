@@ -32,8 +32,11 @@
     if(sr.left>innerWidth*.42||cr.left>innerWidth*.42)return false;
     const overlap=Math.max(0,Math.min(sr.right,cr.right)-Math.max(sr.left,cr.left));
     if(overlap<Math.min(sr.width,cr.width)*.55||Math.abs(sr.left-cr.left)>64)return false;
-    const evidence=candidate.querySelector?.('a[href="/projects"],a[href*="/g/g-p-"],[class*="project-unfurl-row"]');
-    return !!evidence;
+    if(candidate.querySelector?.('[class*="project-unfurl-row"]'))return true;
+    const links=[...candidate.querySelectorAll?.('a[href]')||[]],projectLinks=links.filter(a=>projectChildHref(a.getAttribute('href')));
+    if(links.some(a=>projectHomeHref(a.getAttribute('href')))||projectLinks.length>=2)return true;
+    if(projectLinks.length!==1)return false;
+    return [...candidate.querySelectorAll?.('h1,h2,h3,[role="heading"],button,[role="button"],[aria-label]')||[]].some(node=>projectLabel(node.textContent)||projectLabel(node.getAttribute?.('aria-label'))||showMoreLabel(node.textContent||node.getAttribute?.('aria-label')));
   }
   function managedNames(){
     const box=ownProjects(),names=new Set();if(!box)return names;

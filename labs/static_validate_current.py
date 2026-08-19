@@ -59,7 +59,7 @@ if 'MAX_PER_RUN=2' not in deep or 'MAX_HEAVY=1' not in deep: fail('deep classifi
 actions=(ROOT/'native-actions-v113.js').read_text(encoding='utf-8')
 if 'invokeNativeMenu' not in actions or 'fallbackMove' not in actions: fail('native action/fallback move path missing')
 if 'data-ng112-native-projects' not in actions: fail('native actions do not stage passive Projects marks')
-for token in ('placeFloatingMenu','ng113-native-menu-floating','insertAdjacentElement(\'afterend\',actionButton(\'chat\''):
+for token in ('placeFloatingMenu','ng113-native-menu-floating',"insertAdjacentElement('afterend',actionButton('chat',id))"):
     if token not in actions: fail('left-sidebar action geometry missing '+token)
 state=(ROOT/'chat-state-authority-v113.js').read_text(encoding='utf-8')
 if 'iu>pu' not in state or 'iu===pu' not in state: fail('monotonic title authority missing')

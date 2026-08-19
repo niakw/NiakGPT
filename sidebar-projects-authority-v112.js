@@ -21,11 +21,17 @@
 
   function sharesSidebarShell(el){
     if(!el||!outsideOwn(el)||inMain(el))return false;
-    if(el.closest('aside,nav,[data-testid*="sidebar" i],[class*="sidebar" i]'))return true;
     const own=ownProjects();if(!own)return false;
+    const selector='aside,nav,[data-testid*="sidebar" i],[class*="sidebar" i]';
+    const shell=own.closest(selector);if(shell&&(shell===el||shell.contains(el)))return true;
     let node=own.parentElement;
     for(let depth=0;depth<7&&node&&node!==document.body&&node!==document.documentElement;depth++,node=node.parentElement){if(node.contains(el))return true;}
-    return false;
+    const candidate=el.closest?.(selector);if(!shell||!candidate||candidate===shell)return false;
+    const sr=shell.getBoundingClientRect?.(),cr=candidate.getBoundingClientRect?.();if(!sr||!cr)return false;
+    const maxWidth=Math.min(520,innerWidth*.48);if(sr.width<80||cr.width<40||sr.width>maxWidth||cr.width>maxWidth)return false;
+    if(sr.left>innerWidth*.42||cr.left>innerWidth*.42)return false;
+    const overlap=Math.max(0,Math.min(sr.right,cr.right)-Math.max(sr.left,cr.left));
+    return overlap>=Math.min(sr.width,cr.width)*.55&&Math.abs(sr.left-cr.left)<=64;
   }
   function managedNames(){
     const box=ownProjects(),names=new Set();if(!box)return names;
@@ -142,9 +148,7 @@
     observer?.disconnect();observedRoots=roots;observer=new MutationObserver(records=>{if(relevantMutation(records))schedule(8);});
     for(const root of roots){observer.observe(root,{childList:true,subtree:true});if(root.parentElement&&!roots.includes(root.parentElement))observer.observe(root.parentElement,{childList:true,subtree:false});}
   }
-  function start(){
-    stopped=false;clearLegacyMarks();bindObservers();apply();
-  }
+  function start(){stopped=false;clearLegacyMarks();bindObservers();apply();}
   function stop(){stopped=true;clearTimeout(timer);timer=0;observer?.disconnect();observer=null;observedRoots=[];}
   document.addEventListener('niakgpt:pins-rendered',()=>apply());
   document.addEventListener('niakgpt:recovery-complete',()=>schedule(12));

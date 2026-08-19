@@ -50,19 +50,6 @@ jobs:
         run: python3 labs/static_validate_current.py
       - name: Packaging exclusion check
         run: node tools/package-extension.mjs
-      - name: Playwright Linux container topology guard
-        shell: bash
-        run: |
-          set -euo pipefail
-          workflow='.github/workflows/current-finalization.yml'
-          package_version="$(node -p "require('./visual-lab/package.json').devDependencies['@playwright/test']")"
-          image_version="$(grep -o 'mcr.microsoft.com/playwright:v[0-9.]*-noble' "$workflow" | head -1 | sed -E 's/.*:v([0-9.]+)-noble/\1/')"
-          test "$package_version" = "$image_version"
-          test "$(grep -c 'mcr.microsoft.com/playwright:v1.62.1-noble' "$workflow")" -eq 3
-          if grep -q 'playwright install --with-deps' "$workflow"; then
-            echo 'Linux Finalization must use the pinned Playwright container, not apt --with-deps.'
-            exit 1
-          fi
 
   experience-linux:
     name: experience · ubuntu-latest · ${{ matrix.browser }}

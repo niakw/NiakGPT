@@ -178,11 +178,11 @@
     queueMenuFloat();
   }
   async function invokeNativeMenu(row,source){
-    if(!row)return false;const restore=stageHidden(row);armMenuFloat(source);
+    if(!row){stopMenuFloat();return false;}const restore=stageHidden(row);armMenuFloat(source);
     try{
-      fireHover(row);await sleep(90);let b=menuButton(row);if(!b){fireHover(row);await sleep(180);b=menuButton(row);}if(!b)return false;
+      fireHover(row);await sleep(90);let b=menuButton(row);if(!b){fireHover(row);await sleep(180);b=menuButton(row);}if(!b){stopMenuFloat();return false;}
       b.click();queueMenuFloat();await sleep(150);if(!visibleMenu())await sleep(180);queueMenuFloat();
-      return !!visibleMenu();
+      const ok=!!visibleMenu();if(!ok)stopMenuFloat();return ok;
     }finally{restore();}
   }
 

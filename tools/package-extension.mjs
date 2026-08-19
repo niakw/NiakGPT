@@ -24,7 +24,7 @@ for(const file of files){
 for(const required of [
   'boot-gate-v100.js','page-bridge.js','browser-compat-v102.js','lifecycle-guard-v104.js','multitab-v090.js',
   'governance-adapter-v105.js','project-governance-v090.js','app-v090.js','project-state-selfheal-v102.js','project-assignment-selfheal-v103.js',
-  'sidebar-authority-v107.js','sidebar-authority-v107.css','sidebar-projects-authority-v112.js','sidebar-projects-authority-v112.css',
+  'sidebar-metadata-v118.js','sidebar-metadata-v118.css','sidebar-projects-authority-v112.js','sidebar-projects-authority-v112.css',
   'analysis-bridge-v112.js','reclassify-deep-v112.js','performance-guard-v112.js','performance-guard-v112.css','home-layout-v112.js','home-layout-v112.css',
   'matrix-guardian-v112.js','matrix-guardian-v112.css','turn-headers-v112.js','continuity-v112.js','native-da-v112.css','sidebar-icons-v114.js','sidebar-icons-v114.css','cache-bus-v096.js',
   'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','chat-attention-v113.css','native-actions-v113.js','native-actions-v113.css','conversation-load-guard-v113.js',
@@ -32,8 +32,8 @@ for(const required of [
 ])if(!fs.existsSync(path.join(build,required)))throw new Error(`Runtime omitted from ZIP: ${required}`);
 for(const dead of [
   'app-v08-safe.js','project-governance-v085.js','project-pins-v085.js','project-pins-v090.js','boot-watchdog-v099.js','hotcache-main-v084.js',
-  'activity-main-v087.js','manual-lock-main-v085.js','sidebar-projects-authority-v109.js','sidebar-projects-authority-v110.js','sidebar-projects-authority-v111.js',
-  'native-rename-v112.js','native-rename-v112.css','breadcrumb-v100.js'
+  'activity-main-v087.js','manual-lock-main-v085.js','sidebar-authority-v107.js','sidebar-authority-v107.css','sidebar-expando-guard-v108.js','sidebar-expando-guard-v108.css',
+  'sidebar-projects-authority-v109.js','sidebar-projects-authority-v110.js','sidebar-projects-authority-v111.js','native-rename-v112.js','native-rename-v112.css','breadcrumb-v100.js'
 ])if(fs.existsSync(path.join(build,dead)))throw new Error(`Legacy runtime in ZIP: ${dead}`);
 
 execFileSync('zip',['-qr',zip,'.'],{cwd:build,stdio:'inherit'});

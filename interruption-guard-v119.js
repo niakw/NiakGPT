@@ -8,7 +8,7 @@
   const SIGNAL_SEL='[role="alert"],[role="status"],[data-testid*="error" i],[data-testid*="limit" i],[data-testid*="toast" i],[data-testid*="challenge" i],iframe[src*="challenge" i],iframe[src*="cloudflare" i]';
   const LIMIT_RX=/(maximum\s+(?:conversation|context|length)|conversation\s+(?:is\s+)?too\s+long|conversation.{0,36}(?:limit|maximum)|maximum\s+context\s+length|context\s+window.{0,32}(?:limit|maximum)|start\s+(?:a\s+)?new\s+chat|continue\s+in\s+(?:a\s+)?new\s+chat|you(?:'|’)ve\s+reached.{0,44}(?:limit|maximum)|conversation\s+trop\s+longue|limite.{0,32}(?:conversation|contexte)|(?:nouveau|nouvelle)\s+(?:chat|conversation).{0,40}(?:continuer|poursuivre)|ce\s+fil.{0,28}(?:plein|limite))/i;
   const VERIFY_RX=/(vérification\s+en\s+cours|verification\s+in\s+progress|checking\s+your\s+browser|verify\s+(?:you|that\s+you)\s+are\s+human|vérifiez\s+que\s+vous\s+êtes\s+humain|cloudflare\s+(?:verification|challenge)|challenge\s+in\s+progress)/i;
-  const NETWORK_RX=/(connexion\s+(?:perdue|interrompue)|connection\s+(?:lost|interrupted)|network\s+error|erreur\s+réseau|disconnected|déconnecté|websocket.{0,24}(?:error|closed|failed)|reconnecting|reconnexion\s+en\s+cours)/i;
+  const NETWORK_RX=/(connexion\s+(?:perdue|interrompue)|connection\s+(?:lost|interrupted)|network\s+error|erreur\s+réseau|disconnected|déconnecté|websocket.{0,24}(?:error|closed|failed)|reconnecting|reconnexion\s+en\s+cours|failed\s+to\s+fetch|fetch\s+failed|something\s+went\s+wrong|there\s+was\s+an\s+error\s+(?:generating|processing)|une\s+erreur\s+est\s+survenue|erreur\s+lors\s+de\s+la\s+(?:génération|generation)|impossible\s+de\s+générer|unable\s+to\s+generate)/i;
   const RETRY_RX=/(réessayer|reessayer|retry|régénérer|regenerer|regenerate|continuer\s+la\s+génération|continue\s+generating|resume\s+generating)/i;
   let observer=null,timer=0,incident=readIncident(),marking=false;
 
@@ -125,7 +125,8 @@
 
   document.addEventListener('click',event=>{
     const b=event.target instanceof Element?event.target.closest('#ng119-interruption .ng100-continue'):null;if(!b)return;
-    setTimeout(()=>clearBar(),0);
+    event.preventDefault();const chatId=incident?.chatId||String(location.pathname).match(/\/c\/([A-Za-z0-9_-]+)/)?.[1]||'';
+    if(chatId)window.__NIAKGPT_CONTINUITY__?.continueFrom?.(chatId);setTimeout(()=>clearBar(),0);
   },false);
   window.addEventListener('online',()=>{if(incident?.type==='network')scheduleRecovery(80);});
   window.addEventListener('offline',()=>begin('network','browser offline'));

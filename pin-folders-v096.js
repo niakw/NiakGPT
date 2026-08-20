@@ -33,7 +33,7 @@
     return new Promise(resolve=>{const t=setTimeout(()=>{off();resolve({ok:false,status:0,error:'rpc_timeout'});},timeout),h=e=>{if(e.detail?.id!==id)return;off();resolve(e.detail);},off=()=>{clearTimeout(t);document.removeEventListener('niakgpt:rpc-response',h);};document.addEventListener('niakgpt:rpc-response',h);document.dispatchEvent(new CustomEvent('niakgpt:rpc-request',{detail:{id,path,method:'GET'}}));});
   }
   function projectSnapshotSignature(raw,pid){
-    if(!pid)return'';const chats=(raw?.chats||[]).filter(c=>normalizePid(c?.projectId)===pid).map(c=>[c.id,c.updated||c.update_time||0,c.title||'']);return JSON.stringify([raw?.counts?.[pid]??null,chats]);
+    if(!pid)return'';const chats=(raw?.chats||[]).filter(c=>normalizePid(c?.projectId)===pid).map(c=>[c.id,c.title||'',normalizePid(c.projectId||pid)]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])));return JSON.stringify([raw?.counts?.[pid]??null,chats]);
   }
   function acceptCache(next){
     const before=projectSnapshotSignature(cache,openPid);cache=next&&typeof next==='object'?next:cache;const after=projectSnapshotSignature(cache,openPid);if(!observedBox)bindBox();if(openPid&&before!==after){drawerDirty=true;schedule(20);}else if(!openPid)schedule(40);
@@ -55,7 +55,7 @@
     pid=normalizePid(pid);
     let direct=[];
     for(const [key,list] of Object.entries(cache.projectChats||{}))if(normalizePid(key)===pid&&Array.isArray(list))direct.push(...list);
-    const source=direct.length?direct:(cache.chats||[]).filter(c=>normalizePid(c?.projectId)===pid);
+    const source=[...(cache.chats||[]).filter(c=>normalizePid(c?.projectId)===pid),...direct];
     const map=new Map();
     for(const c of source){if(!c?.id)continue;const old=map.get(c.id)||{},updated=Math.max(parseTime(old.updated||old.update_time),parseTime(c.updated||c.update_time||c.create_time));map.set(c.id,{...old,...c,projectId:pid,updated});}
     return [...map.values()].sort((a,b)=>(b.updated||0)-(a.updated||0)||String(a.title||'').localeCompare(String(b.title||''),'fr'));
@@ -117,7 +117,7 @@
   function closeDrawers(){for(const d of document.querySelectorAll('#ng8-pins .ng96-pin-drawer'))d.remove();document.querySelectorAll(PIN_SEL).forEach(a=>a.setAttribute('aria-expanded','false'));}
   function emptyMessage(pid){const state=loadState.get(pid);if(state==='loading')return'Chargement des conversations…';if(state==='waiting')return'En attente de la fin de la réponse ChatGPT…';if(state==='error')return'Chargement impossible · reclique pour réessayer';if(state==='ready-empty')return'Aucune conversation dans ce Project';return'Chargement des conversations…';}
   function renderDrawer(pid,anchor){
-    pid=normalizePid(pid);closeDrawers();if(!pid||!anchor)return;
+    pid=normalizePid(pid);const outer=document.querySelector('#ng8-pins>.ng8-pin-list'),outerScroll=outer?.scrollTop||0,previous=document.getElementById(drawerId(pid)),innerScroll=previous?.querySelector('.ng96-folder-list')?.scrollTop||0;closeDrawers();if(!pid||!anchor)return;
     const entry=rowFor(anchor);if(!entry)return;
     anchor.setAttribute('aria-expanded','true');
     const all=chatsFor(pid),q=norm(filter),shown=q?all.filter(c=>norm(`${c.title||''} ${c.snippet||''}`).includes(q)):all;
@@ -125,6 +125,7 @@
     const rows=shown.slice(0,160).map(c=>`<div class="ng96-chat-entry" data-chat-entry="${esc(c.id)}"><a data-chat="${esc(c.id)}" href="${esc(chatHref(c,pid))}" title="${esc(c.title||'Conversation')}"><span>${esc(c.title||'Conversation sans titre')}</span><time>${fmt(c.updated)}</time></a>${actionMarkup(c.id)}</div>`).join('');
     drawer.innerHTML=`${all.length>8?`<div class="ng96-folder-search"><input type="search" value="${esc(filter)}" placeholder="Filtrer ${all.length} conversations…" aria-label="Filtrer les conversations du Project"></div>`:''}<div class="ng96-folder-list">${shown.length?rows:`<div class="ng96-folder-empty">${esc(emptyMessage(pid))}</div>`}</div>${all.length>160?`<small class="ng96-folder-limit">160 / ${all.length} affichées · utilise la recherche</small>`:''}`;
     entry.insertAdjacentElement('afterend',drawer);drawerDirty=false;
+    if(outer&&outer.scrollTop!==outerScroll)outer.scrollTop=outerScroll;const restoredList=drawer.querySelector('.ng96-folder-list');if(restoredList&&innerScroll)restoredList.scrollTop=Math.min(innerScroll,Math.max(0,restoredList.scrollHeight-restoredList.clientHeight));
     drawer.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();setOpen('');closeDrawers();anchor.focus();}});
     const input=drawer.querySelector('input');if(input){input.addEventListener('input',()=>{filter=input.value;renderDrawer(pid,anchor);requestAnimationFrame(()=>{const next=document.querySelector(`#${CSS.escape(drawerId(pid))} input`);if(next){next.focus();next.setSelectionRange(next.value.length,next.value.length);}});});}
     drawer.querySelectorAll('.ng96-chat-entry>a[data-chat]').forEach(link=>link.addEventListener('click',event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;const c=all.find(x=>x.id===link.dataset.chat);if(!c)return;event.preventDefault();event.stopPropagation();routeNative(link.getAttribute('href')||chatHref(c,pid));}));
@@ -167,6 +168,7 @@
     Promise.resolve(chrome.storage.local.get(CACHE_KEY)).then(result=>acceptCache(result?.[CACHE_KEY]||{})).catch(()=>{});
   }
   document.addEventListener('niakgpt:pins-rendered',()=>{bindBox();rehydrate();});
+  document.addEventListener('niakgpt:hydrate-project',event=>{const pid=normalizePid(event.detail?.projectId||'');if(!pid)return;loadState.delete(pid);if(openPid===pid){drawerDirty=true;schedule(0);}hydrateProject(pid);});
   document.addEventListener('niakgpt:activity-changed',event=>{if(event.detail?.active===false){for(const [pid,state] of loadState)if(state==='waiting')hydrateProject(pid);}});
   document.addEventListener('niakgpt:rate-limit-cleared',()=>{for(const [pid,state] of loadState)if(state==='waiting')hydrateProject(pid);});
   window.addEventListener('online',()=>{for(const [pid,state] of loadState)if(state==='waiting'||state==='error'){loadState.delete(pid);if(openPid===pid)hydrateProject(pid);}});

@@ -15,12 +15,12 @@ def runtime(name):
     return re.findall(r"['\"]([^'\"]+\.js)['\"]",match.group(1))
 
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if manifest.get('version')!='0.9.69': fail(f"version={manifest.get('version')}")
+if manifest.get('version')!='0.9.70': fail(f"version={manifest.get('version')}")
 if manifest.get('permissions')!=['storage','scripting']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*']: fail('host permissions drift')
 main=runtime('MAIN_RUNTIME'); isolated=runtime('ISOLATED_RUNTIME')
 if main!=['page-bridge.js']: fail(f'MAIN_RUNTIME={main!r}')
-required={'sidebar-metadata-v118.js','sidebar-projects-authority-v112.js','sidebar-projects-v121.js','home-layout-v112.js','analysis-bridge-v112.js','reclassify-deep-v112.js','matrix-guardian-v112.js','performance-guard-v112.js','turn-headers-v112.js','continuity-v112.js','chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','native-actions-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','sidebar-ux-v119.js','pin-folders-v096.js','native-actions-controller-v119.js','interruption-guard-v119.js'}
+required={'sidebar-metadata-v118.js','sidebar-projects-authority-v112.js','sidebar-projects-v121.js','home-layout-v112.js','analysis-bridge-v112.js','reclassify-deep-v112.js','matrix-guardian-v112.js','performance-guard-v112.js','turn-headers-v112.js','continuity-v112.js','chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','sidebar-ux-v119.js','pin-folders-v096.js','sidebar-actions-v123.js','interruption-guard-v119.js'}
 missing_runtime=sorted(required-set(isolated))
 if missing_runtime: fail('current runtime missing: '+', '.join(missing_runtime))
 for forbidden in ('project-pins-v090.js','native-rename-v112.js','breadcrumb-v100.js','sidebar-authority-v107.js','sidebar-expando-guard-v108.js'):
@@ -31,7 +31,8 @@ try:
         if metadata_index>=isolated.index(consumer): fail(f'sidebar metadata must sanitize cache before {consumer}')
     if isolated.index('sidebar-projects-v121.js')>=isolated.index('sidebar-ux-v119.js'): fail('v121 Projects authority must disable legacy v119 before it loads')
     if isolated.index('sidebar-ux-v119.js')>=isolated.index('pin-folders-v096.js'): fail('sidebar UX guard must register before pin folder click handlers')
-    if isolated.index('native-actions-controller-v119.js')>=isolated.index('native-actions-v113.js'): fail('native-only action controller must register before v113 production click handler')
+    if 'native-actions-controller-v119.js' in isolated or 'native-actions-v113.js' in isolated: fail('legacy dual native action owners are still wired')
+    if isolated.index('sidebar-actions-v123.js')<=isolated.index('pin-folders-v096.js'): fail('custom action owner must load after folder rows exist')
     if isolated.index('interruption-guard-v119.js')<=isolated.index('continuity-v112.js'): fail('interruption guard must load after continuity capture handler')
 except ValueError as exc:
     fail(f'runtime order incomplete: {exc}')
@@ -50,7 +51,7 @@ all_runtime='\n'.join((ROOT/f).read_text(encoding='utf-8') for f in main+isolate
 if 'setInterval(' in '\n'.join((ROOT/f).read_text(encoding='utf-8') for f in isolated if f!='retro-loader-v097.js'): fail('permanent polling in isolated runtime')
 if re.search(r'window\.fetch\s*=|globalThis\.fetch\s*=',all_runtime): fail('runtime replaces global fetch')
 manifest_text=json.dumps(manifest)
-for required_css in ('sidebar-metadata-v118.css','sidebar-projects-authority-v112.css','home-layout-v112.css','matrix-guardian-v112.css','performance-guard-v112.css','native-da-v112.css','sidebar-icons-v114.css','native-actions-v113.css','chat-attention-v113.css','sidebar-ux-v119.css','interruption-guard-v119.css'):
+for required_css in ('sidebar-metadata-v118.css','sidebar-projects-authority-v112.css','home-layout-v112.css','matrix-guardian-v112.css','performance-guard-v112.css','native-da-v112.css','sidebar-icons-v114.css','native-actions-v113.css','sidebar-actions-v123.css','chat-attention-v113.css','sidebar-ux-v119.css','interruption-guard-v119.css'):
     if required_css not in manifest_text: fail(f'missing CSS {required_css}')
 for forbidden_css in ('native-rename-v112.css','sidebar-authority-v107.css','sidebar-expando-guard-v108.css','sidebar-projects-authority-v111.css','sidebar-projects-authority-v110.css','sidebar-projects-authority-v109.css'):
     if forbidden_css in manifest_text: fail(f'old CSS wired: {forbidden_css}')
@@ -58,18 +59,13 @@ perf=(ROOT/'performance-guard-v112.js').read_text(encoding='utf-8')
 if 'COLD_KEEP=44' not in perf or 'requestIdleCallback' not in perf: fail('long-thread cold-history budget drift')
 deep=(ROOT/'reclassify-deep-v112.js').read_text(encoding='utf-8')
 if 'MAX_PER_RUN=2' not in deep or 'MAX_HEAVY=1' not in deep: fail('deep classification budget drift')
-actions=(ROOT/'native-actions-v113.js').read_text(encoding='utf-8')
-if 'invokeNativeMenu' not in actions or 'fallbackMove' not in actions: fail('v113 tested action primitives missing')
-if 'data-ng112-native-projects' not in actions: fail('native actions do not stage passive Projects marks')
-for token in ('placeFloatingMenu','ng113-native-menu-floating','ensureChatEntry','ng96-chat-entry','showPopover','ng113TopLayer','menuBaseline','menuSession','sessionVisibleMenus','resetFloatingMenu','fallbackOutsideHandler','actionEpoch','actionOpening','actionCurrent','claimTriggerMenu','menuStrict','aria-busy',"b.getAttribute('aria-haspopup')==='menu'",'source.isConnected'):
-    if token not in actions: fail('left-sidebar action lifecycle/session/race cleanup missing '+token)
-if 'buttons.at(-1)' in actions: fail('native action can click arbitrary last native button')
-controller=(ROOT/'native-actions-controller-v119.js').read_text(encoding='utf-8')
-for token in ('normalizePid','resolveNativeProjectRow','showMoreButton','closeSession','session?.key===key','opening?.key===key','aucun fallback custom','currentConversationMenuButton','stopImmediatePropagation','ng119Owned'):
-    if token not in controller: fail('native-only reliable actions controller incomplete '+token)
-if 'fallbackChatMenu(' in controller or 'fallbackMove(' in controller: fail('v119 production controller reintroduced custom chat action fallback')
+actions=(ROOT/'sidebar-actions-v123.js').read_text(encoding='utf-8')
+for token in ('ng123-action-menu','ng123-rename-dialog','data-ng123-action','openMenu','state?.button===button','renameChat','moveChat','nativeProjectRename','exactProjectRow','/project','Hors projet','niakgpt:hydrate-project','stopImmediatePropagation'):
+    if token not in actions: fail('single-owner custom sidebar action lifecycle incomplete '+token)
+for forbidden in ('native-actions-controller-v119.js','native-actions-v113.js'):
+    if forbidden in isolated: fail('legacy action owner wired '+forbidden)
 catalog=(ROOT/'sidebar-projects-v121.js').read_text(encoding='utf-8')
-for token in ('window.__NIAKGPT_SIDEBAR_UX_119__=true','canonicalProjects','renderCatalog','catalogue complet','ng121PinsReady','ng121PlacementReady','nativeProjectSection','primaryTail','data-ng121-catalog','projects.map(row).join','MutationObserver'):
+for token in ('window.__NIAKGPT_SIDEBAR_UX_119__=true','canonicalProjects','renderCatalog','catalogue complet','ng121PinsReady','ng121PlacementReady','nativeProjectSection','primaryTail','data-ng121-catalog','projects.map(row).join','MutationObserver','sessionOrder','armBootstrap','projectScroll','drawerScroll','niakgpt:sidebar-projects-reconcile'):
     if token not in catalog: fail('v121 complete/stable Projects catalog authority incomplete '+token)
 for forbidden in ('slice(0,8)','setInterval('):
     if forbidden in catalog: fail('v121 Projects catalog must not truncate/poll '+forbidden)
@@ -80,7 +76,7 @@ continuity=(ROOT/'continuity-v112.js').read_text(encoding='utf-8')
 for token in ('recommendProject','PROJECT RECOMMANDÉ PAR NIAKGPT','recommendedProjectId','exactProject:data.exactProject','recommendationScore'):
     if token not in continuity: fail('OUT continuity recommendation path incomplete '+token)
 interrupt=(ROOT/'interruption-guard-v119.js').read_text(encoding='utf-8')
-for token in ('LIMIT_RX','VERIFY_RX','NETWORK_RX','nativeRetry','markCurrentOut','ng100-continue','tryNativeRecovery','incident.retried','resumePrompt'):
+for token in ('LIMIT_RX','VERIFY_RX','NETWORK_RX','nativeRetry','markCurrentOut','ng100-continue','tryNativeRecovery','incident.retried','resumePrompt','continueFrom?.(chatId)','failed\s+to\s+fetch'):
     if token not in interrupt: fail('bounded interruption recovery incomplete '+token)
 for forbidden in ('setInterval(','location.reload(','challenge.click(','iframe.click('):
     if forbidden in interrupt: fail('interruption guard attempts unsafe/unbounded recovery '+forbidden)
@@ -115,7 +111,7 @@ if 'suppressNativeProjects' in legacy106 or "classList.add('ng8-native-project" 
 if 'clearLegacyProjectMarks' not in legacy106: fail('legacy Projects classes are not cleaned once during v106 migration')
 if '.ng8-native-project' in legacy_css: fail('legacy Projects suppression CSS is still active outside v112 authority')
 folders=(ROOT/'pin-folders-v096.js').read_text(encoding='utf-8')
-for token in ('drawerDirty','cooperativeNode','existing.previousElementSibling===entry','ng96-chat-entry','hydrateProject','publishProjectChats','bridgeBusy','niakgpt:activity-changed','Chargement des conversations'):
+for token in ('drawerDirty','cooperativeNode','existing.previousElementSibling===entry','ng96-chat-entry','hydrateProject','publishProjectChats','bridgeBusy','niakgpt:activity-changed','Chargement des conversations','innerScroll','outerScroll','niakgpt:hydrate-project'):
     if token not in folders: fail('pin idle-stability/atomic-row/on-demand hydration guard missing '+token)
 if 'ensureFullProjectInventory' in folders: fail('pin-folders competes with v121 catalog ownership')
 if "createElement('button');open.type='button';open.className='ng96-project-open'" in folders: fail('obsolete Project open-page button recreated')

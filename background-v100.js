@@ -36,8 +36,7 @@ const ISOLATED_RUNTIME=[
   'sidebar-ux-v119.js',
   'pin-folders-v096.js',
   'app-v090.js',
-  'native-actions-controller-v119.js',
-  'native-actions-v113.js',
+  'sidebar-actions-v123.js',
   'home-layout-v112.js',
   'matrix-guardian-v112.js',
   'turn-headers-v112.js',
@@ -117,7 +116,7 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
         if(file===HARD_ISOLATED_BARRIER){bootBlocked=true;break;}
       }
     }
-    const coreFailed=bootBlocked||errors.some(item=>item.includes(':app-v090.js:')||item.includes(':pin-folders-v096.js:')||item.includes(':project-state-selfheal-v102.js:')||item.includes(':project-assignment-selfheal-v103.js:')||item.includes(':sidebar-projects-authority-v112.js:')||item.includes(':sidebar-projects-v121.js:')||item.includes(':sidebar-metadata-v118.js:')||item.includes(':chat-state-authority-v113.js:')||item.includes(':sidebar-ux-v119.js:')||item.includes(':native-actions-controller-v119.js:')||item.includes(':native-actions-v113.js:')||item.includes(':interruption-guard-v119.js:'));
+    const coreFailed=bootBlocked||errors.some(item=>item.includes(':app-v090.js:')||item.includes(':pin-folders-v096.js:')||item.includes(':project-state-selfheal-v102.js:')||item.includes(':project-assignment-selfheal-v103.js:')||item.includes(':sidebar-projects-authority-v112.js:')||item.includes(':sidebar-projects-v121.js:')||item.includes(':sidebar-metadata-v118.js:')||item.includes(':chat-state-authority-v113.js:')||item.includes(':sidebar-ux-v119.js:')||item.includes(':sidebar-actions-v123.js:')||item.includes(':interruption-guard-v119.js:'));
     sendResponse({ok:!coreFailed,errors});
   })().catch(error=>sendResponse({ok:false,errors:[`bootstrap:${String(error?.message||error)}`]}));
   return true;

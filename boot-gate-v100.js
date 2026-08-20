@@ -6,6 +6,8 @@
   const captured=[];
   const CONTINUITY_PENDING_KEY='niakgpt-continuity-pending-v100';
   const CONTINUITY_STORE_KEY='niakgpt-continuity-pending-v124';
+  const CONTINUITY_LOCK_KEY='niakgpt-continuity-project-lock-v124';
+  const PIN_OPEN_KEY='niakgpt-open-pin-folder-v096';
   let safeToMutate=false;
   const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   const message=value=>String(value?.message||value?.reason?.message||value?.reason||value||'Erreur inconnue').replace(/\s+/g,' ').slice(0,260);
@@ -46,12 +48,36 @@
     const fast=pendingFromSession();if(fast)return fast;
     try{const p=(await chrome.storage.local.get(CONTINUITY_STORE_KEY))[CONTINUITY_STORE_KEY]||null;if(!p||Date.now()-Number(p.createdAt||0)>30*60*1000)return null;try{sessionStorage.setItem(CONTINUITY_PENDING_KEY,JSON.stringify(p));}catch{}return p;}catch(error){remember('CONTINUITY-STORE',error);return null;}
   }
+  async function consumePendingBeforeInjection(pending){
+    if(!pending)return false;
+    const lock={schema:1,chatId:pending.chatId||'',projectId:pending.projectId||'',projectName:pending.projectName||'',chatName:pending.chatName||'',exactProject:pending.exactProject!==false&&!!pending.projectId,createdAt:Number(pending.createdAt||Date.now()),consumedAt:Date.now(),sourceUrl:pending.sourceUrl||''};
+    try{
+      if(lock.projectId){await chrome.storage.local.set({[CONTINUITY_LOCK_KEY]:lock});try{sessionStorage.setItem(PIN_OPEN_KEY,lock.projectId);}catch{}}
+      // The capsule must not become observable before both durable and page-local
+      // injection records are gone. This removes the navigation race where a fast
+      // next route could replay the same capsule into an unrelated draft.
+      await chrome.storage.local.remove(CONTINUITY_STORE_KEY);
+      try{sessionStorage.removeItem(CONTINUITY_PENDING_KEY);}catch{}
+      return true;
+    }catch(error){
+      try{sessionStorage.setItem(CONTINUITY_PENDING_KEY,JSON.stringify(pending));}catch{}
+      remember('CONTINUITY-CONSUME',error);
+      return false;
+    }
+  }
   async function restorePendingContinuity(timeout=7000){
     const pending=await pendingContinuity();if(!pending?.capsule)return false;
     const started=performance.now();
     while(performance.now()-started<timeout){
       const ed=continuityEditor();
-      if(ed){const current=editorText(ed);if(current.includes('CONTINUITÉ NIAKGPT'))return true;const text=current?`${pending.capsule}\n\nBROUILLON PRÉSERVÉ AVANT CONTINUITÉ\n${current}`:pending.capsule;if(setEditor(ed,text))return true;}
+      if(ed){
+        const current=editorText(ed);
+        if(current.includes('CONTINUITÉ NIAKGPT')){if(await consumePendingBeforeInjection(pending))return true;}
+        else{
+          const text=current?`${pending.capsule}\n\nBROUILLON PRÉSERVÉ AVANT CONTINUITÉ\n${current}`:pending.capsule;
+          if(await consumePendingBeforeInjection(pending)&&setEditor(ed,text))return true;
+        }
+      }
       await sleep(80);
     }
     return false;
@@ -136,8 +162,8 @@
   async function start(){
     await waitLoad();
     await waitForChatShell();
-    // Continuity is a navigation-critical, no-network operation. Restore it before the
-    // deliberate hydration/quiet delay used by the rest of NiakGPT's runtime bootstrap.
+    // Continuity is navigation-critical. Its pending record is durably consumed before
+    // the capsule becomes visible, so an immediate subsequent route cannot replay it.
     await restorePendingContinuity();
     await sleep(2500);
     await waitForQuiet();

@@ -58,7 +58,7 @@ test('0.9.71 native project/chat/file-picker UX contracts',async({page})=>{
   });
 
   await test.step('Browse fallback triggers the real composer file input without touching drag/drop',async()=>{
-    await page.evaluate(()=>{const m=document.createElement('div');m.id='attach-menu';m.setAttribute('role','menu');m.innerHTML='<button id="browse" role="menuitem">Parcourir</button>';document.body.appendChild(m);});
+    await page.evaluate(()=>{const m=document.createElement('div');m.id='attach-menu';m.setAttribute('role','menu');m.style.cssText='position:fixed;left:360px;top:260px;z-index:2147483000;background:#111;padding:8px';m.innerHTML='<button id="browse" role="menuitem">Parcourir</button>';document.body.appendChild(m);});
     await page.locator('#browse').click();await expect.poll(()=>page.evaluate(()=>window.__fileClicks)).toBeGreaterThan(0);
   });
 

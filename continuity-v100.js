@@ -122,7 +122,12 @@
   function clearPending(){try{sessionStorage.removeItem(PENDING_KEY);}catch{}}
   function injectPending(attempt=0){
     const p=readPending();if(!p)return;const ed=editor();
-    if(ed&&clean('value'in ed?ed.value:ed.innerText||ed.textContent)===''&&setEditor(ed,p.capsule)){document.documentElement.dataset.ng100Continuity='ready';window.__NIAKGPT_DIAGNOSTICS__?.set('continuité','PRÊT · capsule injectée · aucun envoi automatique');return;}
+    if(ed){
+      const current=clean('value'in ed?ed.value:ed.innerText||ed.textContent);
+      if(current.includes('CONTINUITÉ NIAKGPT')){document.documentElement.dataset.ng100Continuity='ready';return;}
+      const text=current?`${p.capsule}\n\nBROUILLON PRÉSERVÉ AVANT CONTINUITÉ\n${current}`:p.capsule;
+      if(setEditor(ed,text)){document.documentElement.dataset.ng100Continuity='ready';window.__NIAKGPT_DIAGNOSTICS__?.set('continuité',current?'PRÊT · capsule injectée + brouillon préservé · aucun envoi automatique':'PRÊT · capsule injectée · aucun envoi automatique');return;}
+    }
     if(attempt<12)setTimeout(()=>injectPending(attempt+1),Math.min(1200,180+attempt*90));
   }
   async function patchNewChat(attempt=0){

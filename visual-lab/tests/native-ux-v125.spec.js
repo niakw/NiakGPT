@@ -29,7 +29,7 @@ async function base(page){
     window.__opened=[];window.open=(url)=>{window.__opened.push(String(url));return null;};
     window.__settingsOpened=0;
     document.getElementById('native-project-more').addEventListener('click',()=>{
-      document.querySelector('#native-project-menu')?.remove();const m=document.createElement('div');m.id='native-project-menu';m.setAttribute('role','menu');m.innerHTML='<button role="menuitem">Renommer</button><button id="native-project-settings" role="menuitem">Modifier le projet</button>';document.body.appendChild(m);m.querySelector('#native-project-settings').addEventListener('click',()=>window.__settingsOpened++);
+      document.querySelector('#native-project-menu')?.remove();const m=document.createElement('div');m.id='native-project-menu';m.setAttribute('role','menu');m.style.cssText='position:fixed;left:330px;top:160px;z-index:2147483000;background:#111;padding:8px';m.innerHTML='<button role="menuitem">Renommer</button><button id="native-project-settings" role="menuitem">Modifier le projet</button>';document.body.appendChild(m);m.querySelector('#native-project-settings').addEventListener('click',()=>window.__settingsOpened++);
     });
     window.__fileClicks=0;document.getElementById('composer-file').addEventListener('click',()=>window.__fileClicks++,true);
   });
@@ -53,7 +53,7 @@ test('0.9.71 native project/chat/file-picker UX contracts',async({page})=>{
   });
 
   await test.step('Project menu contains Paramètres du projet and invokes exact native project action',async()=>{
-    await page.evaluate(({PID})=>{const m=document.createElement('div');m.id='ng123-action-menu';m.dataset.kind='project';m.dataset.id=PID;m.innerHTML='<strong>Studio</strong><button role="menuitem">Renommer…</button>';document.body.appendChild(m);},{PID});
+    await page.evaluate(({PID})=>{const m=document.createElement('div');m.id='ng123-action-menu';m.dataset.kind='project';m.dataset.id=PID;m.style.cssText='position:fixed;left:330px;top:80px;z-index:2147483000;background:#111;padding:8px';m.innerHTML='<strong>Studio</strong><button role="menuitem">Renommer…</button>';document.body.appendChild(m);},{PID});
     const item=page.getByRole('menuitem',{name:'Paramètres du projet'});await expect(item).toBeVisible();await item.click();await expect.poll(()=>page.evaluate(()=>window.__settingsOpened)).toBe(1);
   });
 

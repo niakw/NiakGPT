@@ -36,7 +36,7 @@
 
   function closeMenu({focus=false}={}){
     const old=state;state=null;document.getElementById('ng123-action-menu')?.remove();
-    document.querySelectorAll('#ng8-pins .ng123-action-open').forEach(b=>{b.classList.remove('ng123-action-open');b.setAttribute('aria-expanded','false');});
+    document.querySelectorAll('#ng8-pins .ng123-action-open').forEach(b=>{b.classList.remove('ng123-action-open');b.setAttribute('aria-expanded','false');b.removeAttribute('aria-controls');});
     if(focus&&old?.button?.isConnected)old.button.focus({preventScroll:true});
   }
   function positionMenu(menu,button){
@@ -44,7 +44,9 @@
     let left=Math.max(r.right+8,safeLeft);if(left+w>innerWidth-8)left=Math.max(safeLeft,innerWidth-w-8);const top=Math.min(Math.max(8,r.top-5),Math.max(8,innerHeight-h-8));
     menu.style.left=`${left}px`;menu.style.top=`${top}px`;menu.style.maxWidth=`${Math.max(180,innerWidth-left-8)}px`;menu.style.maxHeight=`${Math.max(120,innerHeight-top-8)}px`;
   }
-  function makeButton(text,action,{danger=false}={}){const b=document.createElement('button');b.type='button';b.setAttribute('role','menuitem');b.textContent=text;if(danger)b.dataset.danger='1';b.addEventListener('click',action);return b;}
+  function makeButton(text,action,{danger=false}={}){const b=document.createElement('button');b.type='button';b.setAttribute('role','menuitem');b.tabIndex=-1;b.textContent=text;if(danger)b.dataset.danger='1';b.addEventListener('click',action);return b;}
+  function menuItems(root){return [...(root?.querySelectorAll?.('[role="menuitem"]')||[])].filter(x=>x instanceof HTMLElement&&!x.disabled&&visible(x));}
+  function focusMenuItem(root,last=false){const items=menuItems(root),item=last?items.at(-1):items[0];item?.focus({preventScroll:true});return item||null;}
 
   async function renameChat(id,next){
     const old=chatTitle(id);next=clean(next);if(!next||next===old)return true;
@@ -82,28 +84,28 @@
     }catch{return false;}finally{restore();}
   }
 
-  function renameDialog(kind,id){
-    document.getElementById('ng123-rename-dialog')?.remove();const current=kind==='project'?projectName(id):chatTitle(id),overlay=document.createElement('div');overlay.id='ng123-rename-dialog';overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.innerHTML=`<form><strong>Renommer ${kind==='project'?'le Project':'la conversation'}</strong><input maxlength="160" autocomplete="off"><div><button type="button" data-cancel>ANNULER</button><button type="submit" data-save>ENREGISTRER</button></div><small aria-live="polite"></small></form>`;document.body.appendChild(overlay);const input=overlay.querySelector('input'),status=overlay.querySelector('small'),form=overlay.querySelector('form');input.value=current;input.select();
-    const close=()=>{overlay.remove();};overlay.querySelector('[data-cancel]').addEventListener('click',close);overlay.addEventListener('mousedown',e=>{if(e.target===overlay)close();});overlay.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();close();}});
+  function renameDialog(kind,id,returnTo=null){
+    document.getElementById('ng123-rename-dialog')?.remove();const current=kind==='project'?projectName(id):chatTitle(id),previous=returnTo instanceof HTMLElement?returnTo:document.activeElement,overlay=document.createElement('div');overlay.id='ng123-rename-dialog';overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-labelledby','ng123-rename-title');overlay.innerHTML=`<form><strong id="ng123-rename-title">Renommer ${kind==='project'?'le Project':'la conversation'}</strong><input maxlength="160" autocomplete="off" aria-label="Nouveau nom"><div><button type="button" data-cancel>ANNULER</button><button type="submit" data-save>ENREGISTRER</button></div><small aria-live="polite"></small></form>`;document.body.appendChild(overlay);const input=overlay.querySelector('input'),status=overlay.querySelector('small'),form=overlay.querySelector('form');input.value=current;
+    const close=({focus=true}={})=>{overlay.remove();if(focus&&previous instanceof HTMLElement&&previous.isConnected)previous.focus({preventScroll:true});};overlay.querySelector('[data-cancel]').addEventListener('click',()=>close());overlay.addEventListener('mousedown',e=>{if(e.target===overlay)close();});overlay.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();close();return;}if(e.key!=='Tab')return;const tabs=[...overlay.querySelectorAll('input,button')].filter(x=>!x.disabled&&visible(x));if(!tabs.length)return;const first=tabs[0],last=tabs.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}});queueMicrotask(()=>{input.focus({preventScroll:true});input.select();});
     form.addEventListener('submit',async e=>{e.preventDefault();const next=clean(input.value);if(!next||next===current){close();return;}const save=overlay.querySelector('[data-save]');save.disabled=true;status.textContent='Enregistrement…';const ok=kind==='project'?await nativeProjectRename(id,next):await renameChat(id,next);if(ok){close();return;}save.disabled=false;status.textContent=kind==='project'?'Renommage ChatGPT indisponible sur cette page. Réessaie après ouverture du Project.':'Échec du renommage · vérifie la connexion.';});
   }
 
   function projectMenu(menu,id){
     const title=document.createElement('strong');title.textContent=projectName(id);menu.append(title);
-    menu.append(makeButton('Renommer…',()=>{closeMenu();renameDialog('project',id);}));
+    menu.append(makeButton('Renommer…',()=>{const trigger=state?.button;closeMenu();renameDialog('project',id,trigger);}));
     menu.append(makeButton('Actualiser les conversations',()=>{closeMenu();document.dispatchEvent(new CustomEvent('niakgpt:hydrate-project',{detail:{projectId:normalizePid(id),force:true}}));document.dispatchEvent(new CustomEvent('niakgpt:force-server-index'));}));
   }
   function chatMenu(menu,id){
     const title=document.createElement('strong');title.textContent=chatTitle(id);menu.append(title);
-    menu.append(makeButton('Renommer…',()=>{closeMenu();renameDialog('chat',id);}));
-    const move=makeButton('Déplacer vers…',()=>{const sub=menu.querySelector('.ng123-move-list');const open=!sub.hidden;sub.hidden=open;move.setAttribute('aria-expanded',open?'false':'true');requestAnimationFrame(()=>positionMenu(menu,state?.button));});move.setAttribute('aria-haspopup','true');move.setAttribute('aria-expanded','false');menu.append(move);
-    const sub=document.createElement('div');sub.className='ng123-move-list';sub.hidden=true;const current=normalizePid(chatInfo(id).projectId||'');
-    const add=(label,target)=>{const b=makeButton(label,async()=>{b.disabled=true;const ok=await moveChat(id,target);if(ok)closeMenu();else{b.disabled=false;menu.querySelector('small').textContent='Déplacement impossible · vérifie la connexion.';}});if(normalizePid(target)===current)b.dataset.current='1';sub.appendChild(b);};
+    menu.append(makeButton('Renommer…',()=>{const trigger=state?.button;closeMenu();renameDialog('chat',id,trigger);}));
+    const move=makeButton('Déplacer vers…',()=>{const sub=menu.querySelector('.ng123-move-list'),willOpen=!!sub.hidden;sub.hidden=!willOpen;move.setAttribute('aria-expanded',willOpen?'true':'false');requestAnimationFrame(()=>{positionMenu(menu,state?.button);if(willOpen)focusMenuItem(sub);});});move.setAttribute('aria-haspopup','menu');move.setAttribute('aria-expanded','false');menu.append(move);
+    const sub=document.createElement('div');sub.className='ng123-move-list';sub.hidden=true;sub.setAttribute('role','menu');sub.setAttribute('aria-label','Choisir le Project de destination');const current=normalizePid(chatInfo(id).projectId||'');
+    const add=(label,target)=>{const b=makeButton(label,async()=>{b.disabled=true;const ok=await moveChat(id,target);if(ok)closeMenu();else{b.disabled=false;menu.querySelector('small').textContent='Déplacement impossible · vérifie la connexion.';}});if(normalizePid(target)===current){b.dataset.current='1';b.setAttribute('aria-current','true');}sub.appendChild(b);};
     add('Hors projet','');for(const p of (cache.projects||[]).filter(p=>normalizePid(p?.id).startsWith('g-p-')).sort((a,b)=>clean(a.name).localeCompare(clean(b.name),'fr')))add(clean(p.name)||'Project',p.id);menu.append(sub);const status=document.createElement('small');status.setAttribute('aria-live','polite');menu.append(status);
   }
-  function openMenu(button,kind,id){
+  function openMenu(button,kind,id,{last=false}={}){
     if(state?.button===button&&document.getElementById('ng123-action-menu')){closeMenu({focus:true});return;}
-    closeMenu();const menu=document.createElement('div');menu.id='ng123-action-menu';menu.dataset.kind=kind;menu.dataset.id=id;menu.setAttribute('role','menu');menu.tabIndex=-1;document.body.appendChild(menu);state={button,kind,id,menu};button.classList.add('ng123-action-open');button.setAttribute('aria-expanded','true');if(kind==='project')projectMenu(menu,id);else chatMenu(menu,id);positionMenu(menu,button);requestAnimationFrame(()=>positionMenu(menu,button));
+    closeMenu();const menu=document.createElement('div');menu.id='ng123-action-menu';menu.dataset.kind=kind;menu.dataset.id=id;menu.setAttribute('role','menu');menu.setAttribute('aria-label',`${kind==='project'?'Actions du Project':'Actions de la conversation'} : ${kind==='project'?projectName(id):chatTitle(id)}`);menu.tabIndex=-1;document.body.appendChild(menu);state={button,kind,id,menu};button.classList.add('ng123-action-open');button.setAttribute('aria-expanded','true');button.setAttribute('aria-controls',menu.id);if(kind==='project')projectMenu(menu,id);else chatMenu(menu,id);positionMenu(menu,button);requestAnimationFrame(()=>{positionMenu(menu,button);focusMenuItem(menu,last);});
   }
 
   function icon(){const s=document.createElement('span');s.className='ng113-dots';s.setAttribute('aria-hidden','true');s.textContent='•••';return s;}
@@ -119,7 +121,18 @@
 
   document.addEventListener('click',event=>{if(event.button!==0)return;const target=event.target instanceof Element?event.target:null,button=target?.closest('#ng8-pins .ng113-native-actions');if(!(button instanceof HTMLButtonElement))return;const kind=button.dataset.ng123Action,id=clean(button.dataset.ng123Id);if(!id||!['project','chat'].includes(kind))return;event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();openMenu(button,kind,id);},true);
   document.addEventListener('pointerdown',event=>{if(!state)return;const target=event.target instanceof Element?event.target:null;if(target?.closest('#ng123-action-menu,#ng123-rename-dialog,#ng8-pins .ng113-native-actions'))return;closeMenu();},true);
-  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&state){event.preventDefault();closeMenu({focus:true});}},true);
+  document.addEventListener('keydown',event=>{
+    const target=event.target instanceof Element?event.target:null,trigger=target?.closest?.('#ng8-pins .ng113-native-actions');
+    if(trigger instanceof HTMLButtonElement&&(event.key==='ArrowDown'||event.key==='ArrowUp')){const kind=trigger.dataset.ng123Action,id=clean(trigger.dataset.ng123Id);if(id&&['project','chat'].includes(kind)){event.preventDefault();openMenu(trigger,kind,id,{last:event.key==='ArrowUp'});return;}}
+    if(state?.menu?.isConnected&&state.menu.contains(document.activeElement)){
+      if(event.key==='Escape'){event.preventDefault();closeMenu({focus:true});return;}
+      if(event.key==='Tab'){closeMenu();return;}
+      const items=menuItems(state.menu),active=document.activeElement,idx=Math.max(0,items.indexOf(active));let next=-1;
+      if(event.key==='ArrowDown')next=(idx+1)%items.length;else if(event.key==='ArrowUp')next=(idx-1+items.length)%items.length;else if(event.key==='Home')next=0;else if(event.key==='End')next=items.length-1;
+      if(next>=0&&items.length){event.preventDefault();items[next].focus({preventScroll:true});return;}
+    }
+    if(event.key==='Escape'&&state){event.preventDefault();closeMenu({focus:true});}
+  },true);
   window.addEventListener('resize',()=>{if(state?.menu?.isConnected)positionMenu(state.menu,state.button);},{passive:true});
   document.addEventListener('scroll',()=>{if(state?.menu?.isConnected)positionMenu(state.menu,state.button);},true);
   try{chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY]){cache=changes[CACHE_KEY].newValue||cache;schedule(0);}});}catch{}

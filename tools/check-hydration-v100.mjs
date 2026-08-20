@@ -19,7 +19,7 @@ const main=runtimeList('MAIN_RUNTIME'),isolated=runtimeList('ISOLATED_RUNTIME');
 same(main,['page-bridge.js'],'MAIN runtime mismatch');
 
 const required=[
-  'sidebar-metadata-v118.js','sidebar-projects-authority-v112.js','sidebar-projects-v121.js','sidebar-ux-v119.js','pin-folders-v096.js','app-v090.js','sidebar-actions-v123.js',
+  'sidebar-metadata-v118.js','sidebar-projects-authority-v112.js','sidebar-projects-v121.js','sidebar-ux-v119.js','pin-folders-v096.js','app-v090.js','sidebar-actions-v123.js','folder-scroll-anchor-v124.js','project-native-name-sync-v124.js',
   'home-layout-v112.js','analysis-bridge-v112.js','reclassify-deep-v112.js','matrix-guardian-v112.js','performance-guard-v112.js','turn-headers-v112.js',
   'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','continuity-v112.js','interruption-guard-v119.js'
 ];
@@ -31,6 +31,8 @@ for(const consumer of ['cache-guardian-v100.js','recovery-v100.js','server-index
 if(idx('sidebar-projects-v121.js')>=idx('sidebar-ux-v119.js'))fail('v121 Projects authority must load before v119 guard');
 if(idx('sidebar-ux-v119.js')>=idx('pin-folders-v096.js'))fail('sidebar UX guard must register before folder handlers');
 if(idx('sidebar-actions-v123.js')<=idx('pin-folders-v096.js')||idx('sidebar-actions-v123.js')<=idx('app-v090.js'))fail('single sidebar action owner must load after rows/render owner');
+if(idx('folder-scroll-anchor-v124.js')<=idx('sidebar-actions-v123.js'))fail('folder scroll anchor must load after sidebar actions');
+if(idx('project-native-name-sync-v124.js')<=idx('sidebar-actions-v123.js'))fail('native Project name sync must load after sidebar actions');
 if(idx('interruption-guard-v119.js')<=idx('continuity-v112.js'))fail('interruption guard must load after continuity capture handler');
 
 for(const file of isolated.filter(x=>x!=='retro-loader-v097.js'))forbid(read(file),'setInterval(',`permanent polling in ${file}`);
@@ -50,6 +52,14 @@ forbid(app,'function routeTick()');
 const actions=read('sidebar-actions-v123.js');
 for(const token of ['ng123-action-menu','ng123-rename-dialog','dataset.ng123Action','openMenu','state?.button===button','renameChat','moveChat','nativeProjectRename','exactProjectRow','/project','Hors projet','niakgpt:hydrate-project','stopImmediatePropagation','aria-labelledby','aria-controls','ArrowDown','Home','End','focusMenuItem'])need(actions,token,'single-owner custom/accessibility sidebar action lifecycle incomplete');
 for(const token of ['native-actions-controller-v119.js','native-actions-v113.js'])forbid(background,token,'legacy action owner still wired');
+
+const scrollAnchor=read('folder-scroll-anchor-v124.js');
+for(const token of ['orderByProject','scrollByProject','stabilizeOrder','ng96-chat-entry','performance.now()+1400'])need(scrollAnchor,token,'folder scroll/order anchor incomplete');
+forbid(scrollAnchor,'setInterval(','folder scroll anchor must remain event-bounded');
+
+const nativeNameSync=read('project-native-name-sync-v124.js');
+for(const token of ['nativeNames','niakgpt:force-server-index','niakgpt:sidebar-projects-reconcile','data-ng8-pin','/project'])need(nativeNameSync,token,'native Project name synchronization incomplete');
+forbid(nativeNameSync,'setInterval(','native Project name sync must remain event-driven');
 
 const activity=read('activity-v086.js');
 for(const token of ['nativeBusy=hasThinking()||hasStop()','id===currentChat()&&ACTIVE.has(localState)','remember(id,localState,cur.projectId,localAt)'])need(activity,token,'long-running native activity retention incomplete');
@@ -74,7 +84,7 @@ for(const file of ['visual-lab/sidebar-session-ux-v123.mjs','visual-lab/tests/si
 const sessionGate=read('visual-lab/sidebar-session-ux-v123.mjs');
 for(const token of ['length:28','length:58','scroll snapped','Projects block drifted above native primary/logo area','Project menu is clipped/inside sidebar/not hit-testable','Chat menu is clipped/inside sidebar/not hit-testable','WCAG 2.5.8','sidebar remount did not recover','sidebar-session-ux-v123'])need(sessionGate,token,'cross-engine full-session sidebar gate incomplete');
 const humanSpec=read('visual-lab/tests/sidebar-human-ux-v123.spec.js');
-for(const token of ['full human sidebar session UX','Projects catalog is complete, scrollable and visually stable','Project folder and chat drawer keep independent scroll positions','true toggles','Keyboard, focus and modal accessibility','Custom chat rename and move','Late sidebar mount and route diversity','Conversation limit CTA really starts continuity','Network/generation error recovery preserves draft','more than 10 logical minutes'])need(humanSpec,token,'real extension human sidebar gate incomplete');
+for(const token of ['full human sidebar session UX','Projects catalog is complete, scrollable and visually stable','Project folder and chat drawer keep independent scroll positions','true toggles','Keyboard, focus and modal accessibility','Custom chat rename and move','Project custom rename targets only the exact Project native row','Late sidebar mount and route diversity','Conversation limit CTA really starts continuity','Network/generation error recovery preserves draft','more than 10 logical minutes'])need(humanSpec,token,'real extension human sidebar gate incomplete');
 const longRunSpec=read('visual-lab/tests/activity-long-running-v124.spec.js');
 for(const token of ['native long-running analysis stays active beyond 10 minutes without text growth','page.clock.fastForward(61_000)','10*60*1000','stop-generating'])need(longRunSpec,token,'silent long-running analysis gate incomplete');
 

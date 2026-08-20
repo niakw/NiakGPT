@@ -18,6 +18,7 @@ const CHAT1='11111111-1111-4111-8111-111111111111';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const projectId=i=>i===0?P1:i===1?P2:`g-p-${i.toString(36).padStart(16,'0')}`;
 const chatId=i=>i===0?CHAT1:`${(i+1).toString(16).padStart(8,'0')}-0000-4000-8000-${(i+1).toString(16).padStart(12,'0')}`;
+const EXPECTED_STUDIO_IDS=Array.from({length:72},(_,i)=>chatId(i));
 const projectRaw=p=>({gizmo:{gizmo:{id:p.id,display:{name:p.name,description:`Description ${p.name}`},instructions:''}}});
 const chatRaw=c=>({id:c.id,title:c.title,update_time:c.updated/1000,create_time:c.updated/1000,gizmo_id:c.projectId});
 
@@ -78,7 +79,13 @@ async function launchRuntime(){
 const studioPin=p=>p.locator(`#ng8-pins a[data-ng8-pin="1"][data-ng121-pid="${P1}"]`);
 const projectAction=p=>p.locator(`#ng8-pins .ng96-pin-entry[data-pid="${P1}"]>.ng113-native-actions-project`);
 const drawer=p=>p.locator(`#ng8-pins .ng96-pin-drawer[data-pid="${P1}"]`);
-async function waitStudioChats(page,count=72){await expect(page.locator(`#ng8-pins .ng96-pin-drawer[data-pid="${P1}"] .ng96-chat-entry`)).toHaveCount(count,{timeout:25000});}
+async function waitStudioChats(page){
+  const rows=page.locator(`#ng8-pins .ng96-pin-drawer[data-pid="${P1}"] .ng96-chat-entry`);
+  await expect.poll(async()=>rows.count(),{timeout:25000}).toBeGreaterThanOrEqual(EXPECTED_STUDIO_IDS.length);
+  const ids=await rows.evaluateAll(nodes=>nodes.map(n=>n.getAttribute('data-chat-entry')).filter(Boolean));
+  expect(new Set(ids).size).toBe(ids.length);
+  for(const id of EXPECTED_STUDIO_IDS)expect(ids).toContain(id);
+}
 async function menuGeometry(page){return page.evaluate(()=>{const m=document.getElementById('ng123-action-menu'),side=document.querySelector('[data-testid="conversation-sidebar"]');if(!m||!side)return null;const r=m.getBoundingClientRect(),s=side.getBoundingClientRect(),cs=getComputedStyle(m),hit=document.elementFromPoint((r.left+r.right)/2,(r.top+r.bottom)/2);return{body:m.parentElement===document.body,position:cs.position,left:r.left,right:r.right,top:r.top,bottom:r.bottom,sideRight:s.right,z:Number(cs.zIndex)||0,hit:!!hit?.closest?.('#ng123-action-menu'),inside:r.left>=0&&r.top>=0&&r.right<=innerWidth&&r.bottom<=innerHeight};});}
 async function scrollState(page){return page.evaluate(()=>{const outer=document.querySelector('#ng8-pins>.ng8-pin-list'),inner=document.querySelector('#ng8-pins .ng96-pin-drawer .ng96-folder-list'),head=document.querySelector('#ng8-pins>.ng8-pin-head'),box=document.getElementById('ng8-pins');return{outer:outer?.scrollTop||0,outerMax:outer?outer.scrollHeight-outer.clientHeight:0,inner:inner?.scrollTop||0,innerMax:inner?inner.scrollHeight-inner.clientHeight:0,headToken:head?.dataset.humanToken||'',boxToken:box?.dataset.humanToken||'',border:getComputedStyle(box).borderTopWidth+'|'+getComputedStyle(box).borderTopStyle+'|'+getComputedStyle(box).borderTopColor,order:[...document.querySelectorAll('#ng8-pins a[data-ng8-pin="1"]')].map(a=>a.dataset.ng121Pid)};});}
 

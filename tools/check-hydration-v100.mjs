@@ -48,15 +48,18 @@ need(app,"label.textContent=String(turn.innerText||turn.textContent||'')",'TOC D
 forbid(app,'function routeTick()');
 
 const actions=read('sidebar-actions-v123.js');
-for(const token of ['ng123-action-menu','ng123-rename-dialog','dataset.ng123Action','openMenu','state?.button===button','renameChat','moveChat','nativeProjectRename','exactProjectRow','/project','Hors projet','niakgpt:hydrate-project','stopImmediatePropagation'])need(actions,token,'single-owner custom sidebar action lifecycle incomplete');
+for(const token of ['ng123-action-menu','ng123-rename-dialog','dataset.ng123Action','openMenu','state?.button===button','renameChat','moveChat','nativeProjectRename','exactProjectRow','/project','Hors projet','niakgpt:hydrate-project','stopImmediatePropagation','aria-labelledby','aria-controls','ArrowDown','Home','End','focusMenuItem'])need(actions,token,'single-owner custom/accessibility sidebar action lifecycle incomplete');
 for(const token of ['native-actions-controller-v119.js','native-actions-v113.js'])forbid(background,token,'legacy action owner still wired');
+
+const activity=read('activity-v086.js');
+for(const token of ['nativeBusy=hasThinking()||hasStop()','id===currentChat()&&ACTIVE.has(localState)','remember(id,localState,cur.projectId,localAt)'])need(activity,token,'long-running native activity retention incomplete');
 
 const catalog=read('sidebar-projects-v121.js');
 for(const token of ['canonicalProjects','renderCatalog','ng121PinsReady','ng121PlacementReady','sessionOrder','armBootstrap','projectScroll','drawerScroll','projectScrollMemory','niakgpt:sidebar-projects-reconcile'])need(catalog,token,'stable Projects catalog/session ownership incomplete');
 for(const token of ['slice(0,8)','setInterval('])forbid(catalog,token,'Projects catalog must not truncate or poll');
 
 const folders=read('pin-folders-v096.js');
-for(const token of ['ng96-chat-entry','hydrateProject','publishProjectChats','drawerScrollMemory','innerScroll','outerScroll','niakgpt:hydrate-project'])need(folders,token,'folder hydration/scroll continuity incomplete');
+for(const token of ['ng96-chat-entry','hydrateProject','publishProjectChats','drawerScrollMemory','innerScroll','outerScroll','restoreDrawerScroll','niakgpt:hydrate-project'])need(folders,token,'folder hydration/scroll continuity incomplete');
 forbid(folders,'ensureFullProjectInventory','pin-folders must not compete with v121 catalog ownership');
 
 const interruption=read('interruption-guard-v119.js');
@@ -67,11 +70,13 @@ const manifestText=JSON.stringify(manifest.content_scripts);
 for(const css of ['sidebar-metadata-v118.css','sidebar-projects-authority-v112.css','sidebar-ux-v119.css','native-actions-v113.css','sidebar-actions-v123.css','interruption-guard-v119.css','chat-attention-v113.css','performance-guard-v112.css','sidebar-icons-v114.css'])need(manifestText,css,`${css} missing from manifest`);
 for(const css of ['native-rename-v112.css','sidebar-authority-v107.css','sidebar-expando-guard-v108.css','sidebar-projects-authority-v109.css','sidebar-projects-authority-v110.css','sidebar-projects-authority-v111.css'])forbid(manifestText,css,`${css} still wired`);
 
-for(const file of ['visual-lab/sidebar-session-ux-v123.mjs','visual-lab/tests/sidebar-human-ux-v123.spec.js','visual-lab/experience-gate-v116.mjs','visual-lab/false-positive-signals-v121.mjs','visual-lab/live-sidebar-state-v122.mjs','visual-lab/user-reported-regressions-v120.mjs'])if(!fs.existsSync(file))fail(`required current regression gate missing ${file}`);
+for(const file of ['visual-lab/sidebar-session-ux-v123.mjs','visual-lab/tests/sidebar-human-ux-v123.spec.js','visual-lab/tests/activity-long-running-v124.spec.js','visual-lab/experience-gate-v116.mjs','visual-lab/false-positive-signals-v121.mjs','visual-lab/live-sidebar-state-v122.mjs','visual-lab/user-reported-regressions-v120.mjs'])if(!fs.existsSync(file))fail(`required current regression gate missing ${file}`);
 const sessionGate=read('visual-lab/sidebar-session-ux-v123.mjs');
-for(const token of ['length:28','length:58','scroll snapped','Project menu is clipped/not hit-testable','sidebar remount did not recover','sidebar-session-ux-v123'])need(sessionGate,token,'cross-engine full-session sidebar gate incomplete');
+for(const token of ['length:28','length:58','scroll snapped','Projects block drifted above native primary/logo area','Project menu is clipped/inside sidebar/not hit-testable','Chat menu is clipped/inside sidebar/not hit-testable','WCAG 2.5.8','sidebar remount did not recover','sidebar-session-ux-v123'])need(sessionGate,token,'cross-engine full-session sidebar gate incomplete');
 const humanSpec=read('visual-lab/tests/sidebar-human-ux-v123.spec.js');
-for(const token of ['full human sidebar session UX','Projects catalog is complete, scrollable and visually stable','Project folder and chat drawer keep independent scroll positions','true toggles','Custom chat rename and move','Late sidebar mount and route diversity','Conversation limit CTA really starts continuity','Network/generation error recovery preserves draft','Long-work soak'])need(humanSpec,token,'real extension human sidebar gate incomplete');
+for(const token of ['full human sidebar session UX','Projects catalog is complete, scrollable and visually stable','Project folder and chat drawer keep independent scroll positions','true toggles','Keyboard, focus and modal accessibility','Custom chat rename and move','Late sidebar mount and route diversity','Conversation limit CTA really starts continuity','Network/generation error recovery preserves draft','more than 10 logical minutes'])need(humanSpec,token,'real extension human sidebar gate incomplete');
+const longRunSpec=read('visual-lab/tests/activity-long-running-v124.spec.js');
+for(const token of ['native long-running analysis stays active beyond 10 minutes without text growth','page.clock.fastForward(61_000)','10*60*1000','stop-generating'])need(longRunSpec,token,'silent long-running analysis gate incomplete');
 
 const packageJson=read('visual-lab/package.json');
 const packageVersion=JSON.parse(packageJson).devDependencies?.['@playwright/test'];if(packageVersion!=='1.62.1')fail(`Playwright package/image version drift: ${packageVersion}`);

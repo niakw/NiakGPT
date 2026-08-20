@@ -58,7 +58,7 @@ for(const token of ['orderByProject','scrollByProject','stabilizeOrder','ng96-ch
 forbid(scrollAnchor,'setInterval(','folder scroll anchor must remain event-bounded');
 
 const nativeNameSync=read('project-native-name-sync-v124.js');
-for(const token of ['nativeNames','niakgpt:force-server-index','niakgpt:sidebar-projects-reconcile','data-ng8-pin','/project'])need(nativeNameSync,token,'native Project name synchronization incomplete');
+for(const token of ['nativeNames','niakgpt:force-server-index','niakgpt:sidebar-projects-reconcile','closest?.(OWN)','/project'])need(nativeNameSync,token,'native Project name synchronization incomplete');
 forbid(nativeNameSync,'setInterval(','native Project name sync must remain event-driven');
 
 const activity=read('activity-v086.js');

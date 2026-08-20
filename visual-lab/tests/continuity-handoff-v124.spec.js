@@ -14,7 +14,7 @@ const chatRaw={id:CHAT,title:'Runtime integration test',gizmo_id:P1,update_time:
 
 test.setTimeout(120000);
 
-test('real MV3 continuity pending survives full document navigation',async()=>{
+test('real MV3 continuity pending survives full document navigation and is consumed once injected',async()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'niakgpt-continuity-handoff-'));
   const context=await chromium.launchPersistentContext(dir,{headless:true,channel:'chromium',viewport:{width:1440,height:900},args:[`--disable-extensions-except=${ROOT}`,`--load-extension=${ROOT}`,'--disable-background-mode','--no-first-run','--no-default-browser-check']});
   try{
@@ -39,13 +39,18 @@ test('real MV3 continuity pending survives full document navigation',async()=>{
     const before={session:await page.evaluate(key=>sessionStorage.getItem(key),SESSION),worker:await worker.evaluate(async key=>(await chrome.storage.local.get(key))[key]||null,STORE)};
     await page.locator('#ng119-interruption .ng100-continue').click();
     await expect.poll(()=>new URL(page.url()).pathname,{timeout:10000}).toBe(`/g/${P1}/project`);
+    // Visibility of the capsule is the commit point: boot-gate-v100 consumes both
+    // pending records before mutating the composer, so a subsequent navigation
+    // cannot replay the same continuity payload into another draft.
+    await expect(page.locator('#prompt-textarea')).toHaveValue(/CONTINUITÉ NIAKGPT/,{timeout:10000});
+    await expect(page.locator('#prompt-textarea')).toHaveValue(/BROUILLON PRÉSERVÉ AVANT CONTINUITÉ[\s\S]*Test runtime/,{timeout:10000});
     const afterWorker=await worker.evaluate(async key=>(await chrome.storage.local.get(key))[key]||null,STORE);
     const afterPage=await page.evaluate(key=>({session:sessionStorage.getItem(key),value:document.querySelector('#prompt-textarea')?.value||'',text:document.querySelector('#prompt-textarea')?.textContent||'',bootErrors:sessionStorage.getItem('niakgpt-last-boot-errors-v100')}),SESSION);
     console.log(`CONTINUITY_HANDOFF_DIAG ${JSON.stringify({before,afterWorker,afterPage,url:page.url()})}`);
-    expect(afterWorker?.capsule||'').toContain('CONTINUITÉ NIAKGPT');
-    expect(afterPage.session||'').toContain('CONTINUITÉ NIAKGPT');
-    await expect(page.locator('#prompt-textarea')).toHaveValue(/CONTINUITÉ NIAKGPT/,{timeout:10000});
-    await expect(page.locator('#prompt-textarea')).toHaveValue(/BROUILLON PRÉSERVÉ AVANT CONTINUITÉ[\s\S]*Test runtime/,{timeout:10000});
+    expect(afterWorker).toBeNull();
+    expect(afterPage.session).toBeNull();
+    expect(afterPage.value).toContain('CONTINUITÉ NIAKGPT');
+    expect(afterPage.value).toMatch(/BROUILLON PRÉSERVÉ AVANT CONTINUITÉ[\s\S]*Test runtime/);
   }finally{
     await context.close().catch(()=>{});
     fs.rmSync(dir,{recursive:true,force:true});

@@ -17,6 +17,14 @@
     const score=el=>{let n=0;if(el.matches('[data-testid="conversation-sidebar"]'))n+=60;if(box&&el.contains(box))n+=45;if(el.querySelector('a[href="/projects"],a[href*="/g/g-p-"]'))n+=25;const r=el.getBoundingClientRect();if(r.left<innerWidth*.35&&r.width>150&&r.width<540)n+=10;return n;};
     return candidates.sort((a,b)=>score(b)-score(a))[0]||null;
   }
+  function contentHost(root,box){
+    if(!root)return null;
+    const current=box?.parentElement;
+    if(current&&current!==root&&root.contains(current)&&(current.matches('nav,[role="navigation"]')||current.querySelector('a[href="/projects"],a[href*="/c/"]')))return current;
+    const candidates=[...root.querySelectorAll('nav,[role="navigation"]')].filter(el=>!own(el));
+    const score=el=>(el.querySelector('a[href="/projects"]')?30:0)+(el.querySelector('a[href*="/c/"]')?20:0)+(box&&el.contains(box)?15:0);
+    const best=candidates.sort((a,b)=>score(b)-score(a))[0];return best&&score(best)>0?best:root;
+  }
   function topChild(root,node){if(!root||!node)return null;let cur=node;while(cur.parentElement&&cur.parentElement!==root)cur=cur.parentElement;return cur.parentElement===root?cur:null;}
   function sectionFromHeading(root,rx){
     const headings=[...root.querySelectorAll('h1,h2,h3,[role="heading"],div,span')].filter(el=>!own(el)&&rx.test(clean(el.textContent))&&clean(el.textContent).length<28);
@@ -38,8 +46,8 @@
     const candidates=[...root.querySelectorAll('[data-testid*="logo" i],a[aria-label*="ChatGPT" i],button[aria-label*="ChatGPT" i],.brand')].filter(el=>!own(el)&&visible(el));return candidates.reduce((m,el)=>Math.max(m,el.getBoundingClientRect().bottom),0);
   }
   function place(){
-    timer=0;if(mutating)return false;const box=document.getElementById('ng8-pins'),root=sidebar();if(!box||!root)return false;
-    const project=nativeProjectSection(root),recent=recentsSection(root),tail=primaryTail(root);let anchor=null,mode='';
+    timer=0;if(mutating)return false;const box=document.getElementById('ng8-pins'),root=sidebar();if(!box||!root)return false;const host=contentHost(root,box);if(!host)return false;
+    const project=nativeProjectSection(host),recent=recentsSection(host),tail=primaryTail(host);let anchor=null,mode='';
     if(project&&project!==box&&!box.contains(project)){anchor=project;mode='native-projects';}
     else if(recent&&recent!==box&&!box.contains(recent)){anchor=recent;mode='before-recents';}
     else if(tail&&tail!==box&&!box.contains(tail)){mode='after-primary';}
@@ -47,7 +55,7 @@
     try{
       if(anchor?.parentElement){if(box.parentElement!==anchor.parentElement||box.nextElementSibling!==anchor)anchor.parentElement.insertBefore(box,anchor);}
       else if(tail?.parentElement){if(box.parentElement!==tail.parentElement||tail.nextElementSibling!==box)tail.insertAdjacentElement('afterend',box);}
-      else if(box.parentElement!==root)root.appendChild(box);
+      else if(box.parentElement!==host)host.appendChild(box);
       const br=brandBottom(root),r=box.getBoundingClientRect();
       if(br&&r.top<br-3&&tail?.parentElement){tail.insertAdjacentElement('afterend',box);mode='after-primary-brand-guard';}
       box.hidden=false;box.removeAttribute('aria-hidden');box.dataset.ng125RoutePlacement=mode||'sidebar-tail';document.documentElement.dataset.ng125RoutePlacement='ready';

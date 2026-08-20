@@ -51,7 +51,7 @@
     const started=performance.now();
     while(performance.now()-started<timeout){
       const ed=continuityEditor();
-      if(ed){const current=editorText(ed);if(current.includes('CONTINUITÉ NIAKGPT')){document.documentElement.dataset.ng100Continuity='ready';return true;}const text=current?`${pending.capsule}\n\nBROUILLON PRÉSERVÉ AVANT CONTINUITÉ\n${current}`:pending.capsule;if(setEditor(ed,text)){document.documentElement.dataset.ng100Continuity='ready';document.documentElement.dataset.ng100ContinuityBoot='1';return true;}}
+      if(ed){const current=editorText(ed);if(current.includes('CONTINUITÉ NIAKGPT'))return true;const text=current?`${pending.capsule}\n\nBROUILLON PRÉSERVÉ AVANT CONTINUITÉ\n${current}`:pending.capsule;if(setEditor(ed,text))return true;}
       await sleep(80);
     }
     return false;

@@ -54,7 +54,7 @@
   }
   async function moveChat(id,projectId){
     const target=normalizePid(projectId||'');const out=await rpc(`/backend-api/conversation/${encodeURIComponent(id)}`,{method:'PATCH',body:{gizmo_id:target||null}});if(!out.ok)return false;
-    await updateCache(raw=>{const chats=(raw?.chats||[]).map(c=>c?.id===id?{...c,projectId:target}:c),projectChats={};for(const [p,list] of Object.entries(raw?.projectChats||{}))projectChats[p]=(list||[]).filter(c=>c?.id!==id);const moved=chats.find(c=>c?.id===id);if(target&&moved)(projectChats[target]??=[]).unshift({...moved,projectId:target});return{...raw,at:Date.now(),chats,projectChats};});
+    await updateCache(raw=>{const before=(raw?.chats||[]).find(c=>c?.id===id),from=normalizePid(before?.projectId||''),chats=(raw?.chats||[]).map(c=>c?.id===id?{...c,projectId:target}:c),projectChats={};for(const [p,list] of Object.entries(raw?.projectChats||{}))projectChats[p]=(list||[]).filter(c=>c?.id!==id);const moved=chats.find(c=>c?.id===id);if(target&&moved)(projectChats[target]??=[]).unshift({...moved,projectId:target});const counts={...(raw?.counts||{})};if(from&&from!==target&&Number.isFinite(Number(counts[from])))counts[from]=Math.max(0,Number(counts[from])-1);if(target&&from!==target&&Number.isFinite(Number(counts[target])))counts[target]=Number(counts[target])+1;return{...raw,at:Date.now(),chats,projectChats,counts};});
     document.dispatchEvent(new CustomEvent('niakgpt:force-server-index'));return true;
   }
 

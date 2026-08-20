@@ -11,7 +11,7 @@
   let openPid='';
   let filter='';
   let observer=null,observedBox=null,bootstrapObserver=null,renderTimer=0,internalWrite=false,drawerDirty=false,rpcSeq=0;
-  const loadState=new Map();
+  const loadState=new Map(),drawerScrollMemory=new Map();
 
   const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt',"'":'&#39;','"':'&quot;'}[c]));
   const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
@@ -117,7 +117,7 @@
   function closeDrawers(){for(const d of document.querySelectorAll('#ng8-pins .ng96-pin-drawer'))d.remove();document.querySelectorAll(PIN_SEL).forEach(a=>a.setAttribute('aria-expanded','false'));}
   function emptyMessage(pid){const state=loadState.get(pid);if(state==='loading')return'Chargement des conversations…';if(state==='waiting')return'En attente de la fin de la réponse ChatGPT…';if(state==='error')return'Chargement impossible · reclique pour réessayer';if(state==='ready-empty')return'Aucune conversation dans ce Project';return'Chargement des conversations…';}
   function renderDrawer(pid,anchor){
-    pid=normalizePid(pid);const outer=document.querySelector('#ng8-pins>.ng8-pin-list'),outerScroll=outer?.scrollTop||0,previous=document.getElementById(drawerId(pid)),innerScroll=previous?.querySelector('.ng96-folder-list')?.scrollTop||0;closeDrawers();if(!pid||!anchor)return;
+    pid=normalizePid(pid);const outer=document.querySelector('#ng8-pins>.ng8-pin-list'),outerScroll=outer?.scrollTop||0,previous=document.getElementById(drawerId(pid)),innerScroll=previous?.querySelector('.ng96-folder-list')?.scrollTop??drawerScrollMemory.get(pid)??0;if(previous){const old=previous.querySelector('.ng96-folder-list');if(old)drawerScrollMemory.set(pid,old.scrollTop);}closeDrawers();if(!pid||!anchor)return;
     const entry=rowFor(anchor);if(!entry)return;
     anchor.setAttribute('aria-expanded','true');
     const all=chatsFor(pid),q=norm(filter),shown=q?all.filter(c=>norm(`${c.title||''} ${c.snippet||''}`).includes(q)):all;
@@ -125,7 +125,7 @@
     const rows=shown.slice(0,160).map(c=>`<div class="ng96-chat-entry" data-chat-entry="${esc(c.id)}"><a data-chat="${esc(c.id)}" href="${esc(chatHref(c,pid))}" title="${esc(c.title||'Conversation')}"><span>${esc(c.title||'Conversation sans titre')}</span><time>${fmt(c.updated)}</time></a>${actionMarkup(c.id)}</div>`).join('');
     drawer.innerHTML=`${all.length>8?`<div class="ng96-folder-search"><input type="search" value="${esc(filter)}" placeholder="Filtrer ${all.length} conversations…" aria-label="Filtrer les conversations du Project"></div>`:''}<div class="ng96-folder-list">${shown.length?rows:`<div class="ng96-folder-empty">${esc(emptyMessage(pid))}</div>`}</div>${all.length>160?`<small class="ng96-folder-limit">160 / ${all.length} affichées · utilise la recherche</small>`:''}`;
     entry.insertAdjacentElement('afterend',drawer);drawerDirty=false;
-    if(outer&&outer.scrollTop!==outerScroll)outer.scrollTop=outerScroll;const restoredList=drawer.querySelector('.ng96-folder-list');if(restoredList&&innerScroll)restoredList.scrollTop=Math.min(innerScroll,Math.max(0,restoredList.scrollHeight-restoredList.clientHeight));
+    if(outer&&outer.scrollTop!==outerScroll)outer.scrollTop=outerScroll;const restoredList=drawer.querySelector('.ng96-folder-list');if(restoredList&&innerScroll){restoredList.scrollTop=Math.min(innerScroll,Math.max(0,restoredList.scrollHeight-restoredList.clientHeight));drawerScrollMemory.set(pid,restoredList.scrollTop);}
     drawer.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();setOpen('');closeDrawers();anchor.focus();}});
     const input=drawer.querySelector('input');if(input){input.addEventListener('input',()=>{filter=input.value;renderDrawer(pid,anchor);requestAnimationFrame(()=>{const next=document.querySelector(`#${CSS.escape(drawerId(pid))} input`);if(next){next.focus();next.setSelectionRange(next.value.length,next.value.length);}});});}
     drawer.querySelectorAll('.ng96-chat-entry>a[data-chat]').forEach(link=>link.addEventListener('click',event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;const c=all.find(x=>x.id===link.dataset.chat);if(!c)return;event.preventDefault();event.stopPropagation();routeNative(link.getAttribute('href')||chatHref(c,pid));}));
@@ -167,6 +167,7 @@
     try{chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY])acceptCache(changes[CACHE_KEY].newValue);});}catch{}
     Promise.resolve(chrome.storage.local.get(CACHE_KEY)).then(result=>acceptCache(result?.[CACHE_KEY]||{})).catch(()=>{});
   }
+  document.addEventListener('scroll',event=>{const list=event.target instanceof Element?event.target.closest?.('#ng8-pins .ng96-folder-list'):null;if(!list)return;const drawer=list.closest('.ng96-pin-drawer'),pid=normalizePid(drawer?.dataset.pid||'');if(pid)drawerScrollMemory.set(pid,list.scrollTop);},true);
   document.addEventListener('niakgpt:pins-rendered',()=>{bindBox();rehydrate();});
   document.addEventListener('niakgpt:hydrate-project',event=>{const pid=normalizePid(event.detail?.projectId||'');if(!pid)return;loadState.delete(pid);if(openPid===pid){drawerDirty=true;schedule(0);}hydrateProject(pid);});
   document.addEventListener('niakgpt:activity-changed',event=>{if(event.detail?.active===false){for(const [pid,state] of loadState)if(state==='waiting')hydrateProject(pid);}});

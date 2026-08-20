@@ -65,7 +65,7 @@ for token in ('ng123-action-menu','ng123-rename-dialog','data-ng123-action','ope
 for forbidden in ('native-actions-controller-v119.js','native-actions-v113.js'):
     if forbidden in isolated: fail('legacy action owner wired '+forbidden)
 catalog=(ROOT/'sidebar-projects-v121.js').read_text(encoding='utf-8')
-for token in ('window.__NIAKGPT_SIDEBAR_UX_119__=true','canonicalProjects','renderCatalog','catalogue complet','ng121PinsReady','ng121PlacementReady','nativeProjectSection','primaryTail','data-ng121-catalog','projects.map(row).join','MutationObserver','sessionOrder','armBootstrap','projectScroll','drawerScroll','niakgpt:sidebar-projects-reconcile'):
+for token in ('window.__NIAKGPT_SIDEBAR_UX_119__=true','canonicalProjects','renderCatalog','catalogue complet','ng121PinsReady','ng121PlacementReady','nativeProjectSection','primaryTail','data-ng121-catalog','projects.map(row).join','MutationObserver','sessionOrder','armBootstrap','projectScroll','drawerScroll','projectScrollMemory','niakgpt:sidebar-projects-reconcile'):
     if token not in catalog: fail('v121 complete/stable Projects catalog authority incomplete '+token)
 for forbidden in ('slice(0,8)','setInterval('):
     if forbidden in catalog: fail('v121 Projects catalog must not truncate/poll '+forbidden)
@@ -111,7 +111,7 @@ if 'suppressNativeProjects' in legacy106 or "classList.add('ng8-native-project" 
 if 'clearLegacyProjectMarks' not in legacy106: fail('legacy Projects classes are not cleaned once during v106 migration')
 if '.ng8-native-project' in legacy_css: fail('legacy Projects suppression CSS is still active outside v112 authority')
 folders=(ROOT/'pin-folders-v096.js').read_text(encoding='utf-8')
-for token in ('drawerDirty','cooperativeNode','existing.previousElementSibling===entry','ng96-chat-entry','hydrateProject','publishProjectChats','bridgeBusy','niakgpt:activity-changed','Chargement des conversations','innerScroll','outerScroll','niakgpt:hydrate-project'):
+for token in ('drawerDirty','cooperativeNode','existing.previousElementSibling===entry','ng96-chat-entry','hydrateProject','publishProjectChats','bridgeBusy','niakgpt:activity-changed','Chargement des conversations','innerScroll','outerScroll','drawerScrollMemory','niakgpt:hydrate-project'):
     if token not in folders: fail('pin idle-stability/atomic-row/on-demand hydration guard missing '+token)
 if 'ensureFullProjectInventory' in folders: fail('pin-folders competes with v121 catalog ownership')
 if "createElement('button');open.type='button';open.className='ng96-project-open'" in folders: fail('obsolete Project open-page button recreated')

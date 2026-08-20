@@ -15,7 +15,7 @@
   const QUEUE=new Set(['a classer','hors projet / a classer','hors projet/a classer','unclassified','to classify']);
   const PRIMARY_PATH=/^(?:\/?$|\/new(?:\/|$)|\/search(?:\/|$)|\/library(?:\/|$)|\/images?(?:\/|$)|\/apps?(?:\/|$)|\/codex(?:\/|$))/i;
   let cache={projects:[],chats:[],counts:{}},governance={hiddenProjectIds:[],coreProjectIds:[]};
-  let observer=null,observedRoot=null,internal=false,timer=0,renderEpoch=0,lastPinFocus=null,lastPinFocusAt=0,bootstrapObserver=null;
+  let observer=null,observedRoot=null,internal=false,timer=0,renderEpoch=0,lastPinFocus=null,lastPinFocusAt=0,bootstrapObserver=null,projectScrollMemory=0;
   const sessionOrder=new Map();let sessionSeq=0;
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
@@ -131,7 +131,7 @@
   }
   function renderCatalog(box){
     const projects=canonicalProjects(),wanted=new Set(projects.map(p=>p.id)),sig=catalogSignature(projects);let structural=false;
-    const listBefore=box.querySelector(':scope>.ng8-pin-list'),projectScroll=listBefore?.scrollTop||0;
+    const listBefore=box.querySelector(':scope>.ng8-pin-list'),projectScroll=listBefore?listBefore.scrollTop:projectScrollMemory;
     const drawerScroll=new Map([...box.querySelectorAll('.ng96-pin-drawer')].map(d=>[normalizePid(d.dataset.pid),d.querySelector('.ng96-folder-list')?.scrollTop||0]));
     internal=true;const epoch=++renderEpoch;
     try{
@@ -155,7 +155,7 @@
       }
       const count=head.querySelector(':scope>b');if(count&&count.textContent!==String(projects.length))count.textContent=String(projects.length);
       box.dataset.ng121CatalogSig=sig;box.dataset.ng121CatalogCount=String(projects.length);box.dataset.ng121IdentityStable='1';
-      if(list.scrollTop!==projectScroll)list.scrollTop=projectScroll;
+      if(list.scrollTop!==projectScroll)list.scrollTop=projectScroll;projectScrollMemory=list.scrollTop;
       for(const d of box.querySelectorAll('.ng96-pin-drawer')){const sc=d.querySelector('.ng96-folder-list'),old=drawerScroll.get(normalizePid(d.dataset.pid));if(sc&&Number.isFinite(old)&&sc.scrollTop!==old)sc.scrollTop=old;}
       // Do not clear app-v090's data-ng8-signature. Clearing it caused repeated destructive
       // legacy rebuilds and disconnected action buttons during user clicks.
@@ -170,7 +170,7 @@
     const rx=/^(?:bonjour|bonsoir|salut|hello|hi)(?:\s+[\p{L}\p{N}._'-]{1,40})?[!,.? ]*$|^(?:par quoi commençons-nous|comment puis-je vous aider|que puis-je faire pour vous|qu[’']est-ce qu[’']on fait|how can i help|what can i help with|what(?:'|’)s on your mind)[?!. ]*$/iu;
     for(const el of main.querySelectorAll('h1,h2,[role="heading"],[data-testid*="welcome" i]')){const text=clean(el.textContent);if(text&&text.length<=140&&rx.test(text))el.classList.add('ng119-native-home-greeting');}
   }
-  function reconcile(){clearTimeout(timer);timer=0;if(internal)return;const box=ensureBox();if(!box)return;renderCatalog(box);place(box);bind();hideWelcome();window.__NIAKGPT_DIAGNOSTICS__?.set('sidebar-ux-119',`OK · Projects ${box.dataset.ng121Placement||'stable'} · autorité v121 unique`);}
+  function reconcile(){clearTimeout(timer);timer=0;if(internal)return;const box=ensureBox();if(!box){bind();return;}renderCatalog(box);place(box);bind();hideWelcome();window.__NIAKGPT_DIAGNOSTICS__?.set('sidebar-ux-119',`OK · Projects ${box.dataset.ng121Placement||'stable'} · autorité v121 unique`);}
   function schedule(delay=0){clearTimeout(timer);timer=setTimeout(reconcile,delay);}
   function relevant(records){for(const r of records){for(const n of [...r.addedNodes,...r.removedNodes]){if(!(n instanceof Element))continue;if(n.id==='ng8-pins'||n.querySelector?.('#ng8-pins')||n.matches?.('a[href*="/g/g-p-"],[data-ng112-native-projects]')||n.querySelector?.('a[href*="/g/g-p-"],[data-ng112-native-projects]'))return true;}}return false;}
   function bind(){
@@ -190,6 +190,7 @@
     reconcile();
   }
 
+  document.addEventListener('scroll',event=>{const target=event.target instanceof Element?event.target:null;if(target?.matches?.('#ng8-pins>.ng8-pin-list'))projectScrollMemory=target.scrollTop;},true);
   document.addEventListener('focusin',event=>{const target=event.target instanceof HTMLElement?event.target:null;if(target?.closest('#ng8-pins')){lastPinFocus=target;lastPinFocusAt=performance.now();}else if(target&&target!==document.body&&target!==document.documentElement){lastPinFocus=null;lastPinFocusAt=0;}},true);
   document.addEventListener('focusout',event=>{const target=event.target instanceof HTMLElement?event.target:null;if(target?.closest('#ng8-pins')&&(!event.relatedTarget||event.relatedTarget===document.body||event.relatedTarget===document.documentElement)){lastPinFocus=target;lastPinFocusAt=performance.now();}},true);
   document.addEventListener('click',event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;const a=event.target instanceof Element?event.target.closest('#ng8-pins a[data-ng8-pin="1"]'):null;if(a)event.preventDefault();},true);

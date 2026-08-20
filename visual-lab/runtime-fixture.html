@@ -55,6 +55,20 @@ function makeMenu(kind,level=1){
   for(const text of items){const b=document.createElement('button');b.type='button';b.setAttribute('role','menuitem');b.textContent=text;if(level===1&&/Déplacer vers/.test(text)){b.setAttribute('aria-haspopup','menu');b.addEventListener('click',()=>makeMenu(kind,2));}m.appendChild(b);}
   document.querySelector('.sidebar').appendChild(m);return m;
 }
+// Playwright's legacy text matcher reads textarea textContent while the real composer
+// contract is its value. Mirror value on input in this fixture only, so legacy text
+// assertions observe the same state without changing production editor behavior.
+document.getElementById('prompt-textarea').addEventListener('input',event=>{event.currentTarget.textContent=event.currentTarget.value;});
+// The human long-work soak now enters activity through the same public network phase
+// used by the dedicated >10 minute activity test, while exposing ChatGPT's native Stop.
+document.addEventListener('niakgpt:activity-changed',event=>{
+  if(!window.__humanSoakStart)return;
+  let stop=document.getElementById('lab-native-stop');
+  if(event.detail?.active){
+    if(!stop){stop=document.createElement('button');stop.id='lab-native-stop';stop.type='button';stop.dataset.testid='stop-button';stop.setAttribute('aria-label','Stop generating');stop.textContent='Stop';document.body.appendChild(stop);}
+    document.dispatchEvent(new CustomEvent('niakgpt:activity-network',{detail:{chatId:CURRENT,phase:'headers',at:Date.now()}}));
+  }else stop?.remove();
+});
 document.getElementById('native-studio-options').addEventListener('click',()=>makeMenu('project'));document.getElementById('native-research-options').addEventListener('click',()=>makeMenu('project'));
 document.getElementById('native-chat1-options').addEventListener('click',()=>makeMenu('chat'));document.getElementById('native-chat2-options').addEventListener('click',()=>makeMenu('chat'));
 document.getElementById('native-send').addEventListener('click',window.labSend);document.getElementById('lab-send-native').addEventListener('click',window.labSend);document.getElementById('lab-move-native').addEventListener('click',()=>window.labMove());

@@ -9,6 +9,7 @@
   const CACHE_KEY='niakgpt-v08-cache';
   const STATE_KEY='niakgpt-continuity-v100';
   const PENDING_KEY='niakgpt-continuity-pending-v100';
+  const PENDING_STORE_KEY='niakgpt-continuity-pending-v124';
   const CHAT_SEL='a[href*="/c/"]';
   const SIGNAL_SEL='[role="alert"],[data-testid*="error" i],[data-testid*="limit" i],[data-testid*="toast" i]';
   const OUT_RX=/(maximum\s+(?:conversation|context|length)|conversation\s+(?:is\s+)?too\s+long|conversation.{0,32}(?:limit|maximum)|maximum\s+context\s+length|context\s+window.{0,30}(?:limit|maximum)|start\s+(?:a\s+)?new\s+chat|continue\s+in\s+(?:a\s+)?new\s+chat|you(?:'|’)ve\s+reached.{0,40}(?:limit|maximum)|conversation\s+trop\s+longue|limite.{0,28}(?:conversation|contexte)|(?:nouveau|nouvelle)\s+(?:chat|conversation).{0,35}(?:continuer|poursuivre)|ce\s+fil.{0,24}(?:plein|limite))/i;
@@ -109,31 +110,45 @@
     if(!link.querySelector(':scope > .ng100-continue')){const b=document.createElement('button');b.type='button';b.className='ng100-continue';b.textContent='↗';b.title='Continuer dans un nouveau chat du même Project';b.setAttribute('aria-label','Continuer cette conversation');b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();continueFrom(id);});link.appendChild(b);}
   }
   function decorateSidebar(){const root=navRoot();if(root)for(const a of root.querySelectorAll(CHAT_SEL))decorateLink(a);}
+  function pendingSession(){try{const p=JSON.parse(sessionStorage.getItem(PENDING_KEY)||'null');if(!p||Date.now()-Number(p.createdAt||0)>30*60*1000)return null;return p;}catch{return null;}}
+  async function storePending(p){
+    try{sessionStorage.setItem(PENDING_KEY,JSON.stringify(p));}catch{}
+    try{await chrome.storage.local.set({[PENDING_STORE_KEY]:p});}catch{}
+    return p;
+  }
+  async function readPending(){
+    const fast=pendingSession();if(fast)return fast;
+    try{const p=(await chrome.storage.local.get(PENDING_STORE_KEY))[PENDING_STORE_KEY]||null;if(!p||Date.now()-Number(p.createdAt||0)>30*60*1000){if(p)await chrome.storage.local.remove?.(PENDING_STORE_KEY);return null;}try{sessionStorage.setItem(PENDING_KEY,JSON.stringify(p));}catch{}return p;}catch{return null;}
+  }
+  async function writePending(p){return storePending(p);}
+  async function clearPending(){try{sessionStorage.removeItem(PENDING_KEY);}catch{}try{await chrome.storage.local.remove?.(PENDING_STORE_KEY);}catch{}}
   async function continueFrom(chatId){
     const entry=state.out?.[chatId]||{},projectId=entry.projectId||chatInfo(chatId).projectId||currentPid();
     const capsule=buildCapsule(chatId,projectId,entry.history||'');
     const pending={schema:1,chatId,projectId,capsule,createdAt:Date.now(),sourceUrl:entry.sourceUrl||`${location.origin}/c/${chatId}`,patched:false};
-    try{sessionStorage.setItem(PENDING_KEY,JSON.stringify(pending));}catch{}
+    await storePending(pending);
     if(projectId){location.assign(`/g/${encodeURIComponent(projectId)}/project`);return;}
     location.assign('/');
   }
-  function readPending(){try{const p=JSON.parse(sessionStorage.getItem(PENDING_KEY)||'null');if(!p||Date.now()-Number(p.createdAt||0)>30*60*1000)return null;return p;}catch{return null;}}
-  function writePending(p){try{sessionStorage.setItem(PENDING_KEY,JSON.stringify(p));}catch{}}
-  function clearPending(){try{sessionStorage.removeItem(PENDING_KEY);}catch{}}
-  function injectPending(attempt=0){
-    const p=readPending();if(!p)return;const ed=editor();
-    if(ed&&clean('value'in ed?ed.value:ed.innerText||ed.textContent)===''&&setEditor(ed,p.capsule)){document.documentElement.dataset.ng100Continuity='ready';window.__NIAKGPT_DIAGNOSTICS__?.set('continuité','PRÊT · capsule injectée · aucun envoi automatique');return;}
+  async function injectPending(attempt=0){
+    const p=await readPending();if(!p)return;const ed=editor();
+    if(ed){
+      const current=clean('value'in ed?ed.value:ed.innerText||ed.textContent);
+      if(current.includes('CONTINUITÉ NIAKGPT')){document.documentElement.dataset.ng100Continuity='ready';return;}
+      const text=current?`${p.capsule}\n\nBROUILLON PRÉSERVÉ AVANT CONTINUITÉ\n${current}`:p.capsule;
+      if(setEditor(ed,text)){document.documentElement.dataset.ng100Continuity='ready';window.__NIAKGPT_DIAGNOSTICS__?.set('continuité',current?'PRÊT · capsule injectée + brouillon préservé · aucun envoi automatique':'PRÊT · capsule injectée · aucun envoi automatique');return;}
+    }
     if(attempt<12)setTimeout(()=>injectPending(attempt+1),Math.min(1200,180+attempt*90));
   }
   async function patchNewChat(attempt=0){
-    const p=readPending(),newId=currentCid();if(!p||!newId||newId===p.chatId||p.patched)return;
+    const p=await readPending(),newId=currentCid();if(!p||!newId||newId===p.chatId||p.patched)return;
     const known=chatInfo(newId);if(p.projectId&&known?.projectId!==p.projectId){
       const r=await rpc(`/backend-api/conversation/${encodeURIComponent(newId)}`,{method:'PATCH',body:{gizmo_id:p.projectId}});
       if(!r.ok){if(attempt<5)setTimeout(()=>patchNewChat(attempt+1),700+attempt*500);return;}
       const row=(cache.chats||[]).find(c=>c.id===newId);if(row)row.projectId=p.projectId;
       try{const bus=window.__NIAKGPT_CACHE_BUS__;if(bus?.update)await bus.update(latest=>{latest=latest&&typeof latest==='object'?latest:{};const chats=(latest.chats||[]).map(c=>c.id===newId?{...c,projectId:p.projectId}:c);return{...latest,chats};});}catch{}
     }
-    p.patched=true;writePending(p);setTimeout(clearPending,1000);
+    p.patched=true;await writePending(p);setTimeout(()=>clearPending(),1000);
   }
   function onRoute(){delete document.documentElement.dataset.ng100Out;setTimeout(()=>{decorateSidebar();if(outSignal())markCurrentOut('route-native-limit',{trusted:true,evidence:EVIDENCE});injectPending();patchNewChat();},180);}
   function scheduleScan(){clearTimeout(scanTimer);scanTimer=setTimeout(()=>{if(outSignal())markCurrentOut('scan-native-limit',{trusted:true,evidence:EVIDENCE});decorateSidebar();},220);}

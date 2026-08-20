@@ -365,6 +365,10 @@
   function pinDate(ms){if(!ms)return'—';const d=new Date(ms),now=new Date();if(Number.isNaN(d.getTime()))return'—';const dd=String(d.getDate()).padStart(2,'0'),mm=String(d.getMonth()+1).padStart(2,'0');return d.getFullYear()===now.getFullYear()?`${dd}/${mm}`:`${dd}/${mm}/${String(d.getFullYear()).slice(-2)}`;}
   function pinMeta(project){const latest=projectRecency(project.id),count=S.counts.has(project.id)?S.counts.get(project.id):null;return{latest,count,text:`${pinDate(latest)}  [${count==null?'…':count}]`};}
   function renderPins(){
+    if(window.__NIAKGPT_SIDEBAR_PROJECTS_121__){
+      document.dispatchEvent(new CustomEvent('niakgpt:sidebar-projects-reconcile',{detail:{source:'app-v090'}}));
+      return;
+    }
     const root=navRoot();if(!root)return;
     let box=document.getElementById('ng8-pins');if(!box){box=document.createElement('section');box.id='ng8-pins';}placePins(root,box);
     const all=sortedProjects(),coreSet=new Set(S.governance.coreProjectIds||[]),primary=all.filter(p=>coreSet.has(p.id)),extras=all.filter(p=>!coreSet.has(p.id));

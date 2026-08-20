@@ -17,6 +17,7 @@ const ISOLATED_RUNTIME=[
   'cache-guardian-v100.js',
   'recovery-v100.js',
   'server-index-v100.js',
+  'server-index-bootstrap-v124.js',
   'commands-v100.js',
   'browser-compat-v102.js',
   'lifecycle-guard-v104.js',
@@ -36,8 +37,9 @@ const ISOLATED_RUNTIME=[
   'sidebar-ux-v119.js',
   'pin-folders-v096.js',
   'app-v090.js',
-  'native-actions-controller-v119.js',
-  'native-actions-v113.js',
+  'sidebar-actions-v123.js',
+  'folder-scroll-anchor-v124.js',
+  'project-native-name-sync-v124.js',
   'home-layout-v112.js',
   'matrix-guardian-v112.js',
   'turn-headers-v112.js',
@@ -47,6 +49,7 @@ const ISOLATED_RUNTIME=[
   'breadcrumb-v113.js',
   'continuity-v100.js',
   'continuity-v112.js',
+  'continuity-consumer-v124.js',
   'interruption-guard-v119.js',
   'visual-stability-v101.js',
   'coach-v101.js',
@@ -117,7 +120,7 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
         if(file===HARD_ISOLATED_BARRIER){bootBlocked=true;break;}
       }
     }
-    const coreFailed=bootBlocked||errors.some(item=>item.includes(':app-v090.js:')||item.includes(':pin-folders-v096.js:')||item.includes(':project-state-selfheal-v102.js:')||item.includes(':project-assignment-selfheal-v103.js:')||item.includes(':sidebar-projects-authority-v112.js:')||item.includes(':sidebar-projects-v121.js:')||item.includes(':sidebar-metadata-v118.js:')||item.includes(':chat-state-authority-v113.js:')||item.includes(':sidebar-ux-v119.js:')||item.includes(':native-actions-controller-v119.js:')||item.includes(':native-actions-v113.js:')||item.includes(':interruption-guard-v119.js:'));
+    const coreFailed=bootBlocked||errors.some(item=>item.includes(':app-v090.js:')||item.includes(':pin-folders-v096.js:')||item.includes(':folder-scroll-anchor-v124.js:')||item.includes(':project-native-name-sync-v124.js:')||item.includes(':project-state-selfheal-v102.js:')||item.includes(':project-assignment-selfheal-v103.js:')||item.includes(':sidebar-projects-authority-v112.js:')||item.includes(':sidebar-projects-v121.js:')||item.includes(':sidebar-metadata-v118.js:')||item.includes(':server-index-v100.js:')||item.includes(':server-index-bootstrap-v124.js:')||item.includes(':chat-state-authority-v113.js:')||item.includes(':sidebar-ux-v119.js:')||item.includes(':sidebar-actions-v123.js:')||item.includes(':continuity-consumer-v124.js:')||item.includes(':interruption-guard-v119.js:'));
     sendResponse({ok:!coreFailed,errors});
   })().catch(error=>sendResponse({ok:false,errors:[`bootstrap:${String(error?.message||error)}`]}));
   return true;

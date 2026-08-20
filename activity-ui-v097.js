@@ -98,7 +98,7 @@
     const root=document.documentElement;root.dataset.ng86Activity=state;root.dataset.ng8Running=ACTIVE.has(state)?'1':'0';
     const id=currentChatId(),pid=currentProjectId();if(id){remember(id,state,pid,localSince);broadcast(id,state,pid,localSince);decorateChat(id);decorateProject(pid);}
     renderStatus();
-    document.dispatchEvent(new CustomEvent('niakgpt:activity-changed',{detail:{state,previous,active:ACTIVE.has(state),at:localSince}}));
+    if(previous!==state)document.dispatchEvent(new CustomEvent('niakgpt:activity-changed',{detail:{state,previous,active:ACTIVE.has(state),at:localSince}}));
     if(ACTIVE.has(state)){if(state==='loading')disarmActive();else armActive();scheduleHeartbeat();scheduleDeadline();scheduleSettle(state==='loading'?700:1000);}else disarmActive();
   }
   function remoteState(id,state,pid='',at=Date.now()){if(!id)return;remember(id,state,pid,at);decorateChat(id);decorateProject(pid);}

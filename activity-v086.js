@@ -36,6 +36,9 @@
     clearTimeout(expiry.get(id));expiry.delete(id);
     if(ACTIVE.has(state))expiry.set(id,setTimeout(()=>{
       const cur=states.get(id);if(!cur||cur.at!==at||!ACTIVE.has(cur.state))return;
+      // A current chat that is still natively busy must never age out merely because
+      // the response/tool call is long. Refresh the stale-state guard instead.
+      if(id===currentChat()&&ACTIVE.has(localState)){remember(id,localState,cur.projectId,localAt);return;}
       states.set(id,{...cur,state:'ready',at:Date.now()});decorateChat(id);decorateProject(cur.projectId);expiry.delete(id);
     },60000));
   }
@@ -95,7 +98,8 @@
     }
     const len=assistantLength();
     if(len>lastAssistantLen){lastAssistantLen=len;lastGrowthAt=Date.now();if(localState!=='executing')setState('executing',{force:true});scheduleSettle(900);return;}
-    if((hasThinking()||hasStop())&&localState==='waiting'){setState('thinking',{force:true});scheduleSettle(800);return;}
+    const nativeBusy=hasThinking()||hasStop();
+    if(nativeBusy){if(localState==='waiting'){setState('thinking',{force:true});return;}scheduleSettle(900);return;}
     const quiet=Date.now()-Math.max(lastGrowthAt,localAt);
     if(localState==='waiting'){scheduleSettle(700);return;}
     if((localState==='thinking'||localState==='executing')&&quiet>3200){setState('ready',{force:true});return;}

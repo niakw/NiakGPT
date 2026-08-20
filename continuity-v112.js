@@ -3,19 +3,34 @@
   if(location.hostname!=='chatgpt.com'||window.__NIAKGPT_CONTINUITY_112__)return;
   window.__NIAKGPT_CONTINUITY_112__=true;
 
-  const CACHE_KEY='niakgpt-v08-cache',GOV_KEY='niakgpt-governance-v085',PENDING_KEY='niakgpt-continuity-pending-v100',PIN_OPEN_KEY='niakgpt-open-pin-folder-v096';
+  const CACHE_KEY='niakgpt-v08-cache',GOV_KEY='niakgpt-governance-v085',PENDING_KEY='niakgpt-continuity-pending-v100',PENDING_STORE_KEY='niakgpt-continuity-pending-v124',PIN_OPEN_KEY='niakgpt-open-pin-folder-v096';
   const STOP=new Set('le la les un une des de du et ou en sur pour avec sans dans au aux ce cet cette ces mon ma mes ton ta tes son sa ses nos vos leur leurs je tu il elle on nous vous ils elles est sont a à the and or of to for in on with from chat conversation projet project faire fais moi peux peut comment pourquoi quoi cela cette ceci avoir etre être besoin voudrais veux faudrait faut'.split(/\s+/));
-  let seq=0,patching=false,routeTimer=0;
+  let seq=0,patching=false,routeTimer=0,injectTimer=0;
   const clean=v=>String(v??'').replace(/\r/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const words=v=>norm(v).replace(/[^a-z0-9à-ÿ_-]+/gi,' ').split(/\s+/).filter(x=>x.length>2&&!STOP.has(x));
   const cid=v=>String(v||'').match(/\/c\/([A-Za-z0-9_-]+)/)?.[1]||'';
   const currentCid=()=>cid(location.pathname);
   const escLine=v=>clean(v).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
+  const editor=()=>document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"]')||[...document.querySelectorAll('textarea,[contenteditable="true"]')].reverse().find(el=>!el.closest('#ng8-coach,#ng119-interruption'));
+  function setEditor(ed,text){
+    if(!ed)return false;
+    try{if('value'in ed){const proto=Object.getPrototypeOf(ed),setter=Object.getOwnPropertyDescriptor(proto,'value')?.set;setter?setter.call(ed,text):ed.value=text;}else{ed.focus();ed.textContent=text;}ed.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:text}));return true;}catch{return false;}
+  }
   function rpc(path,{method='GET',body=null,timeout=15000}={}){const id=`ng112c-${Date.now()}-${++seq}`;return new Promise(resolve=>{const t=setTimeout(()=>{off();resolve({ok:false,status:0,error:'rpc_timeout'});},timeout),h=e=>{if(e.detail?.id!==id)return;off();resolve(e.detail);},off=()=>{clearTimeout(t);document.removeEventListener('niakgpt:rpc-response',h);};document.addEventListener('niakgpt:rpc-response',h);document.dispatchEvent(new CustomEvent('niakgpt:rpc-request',{detail:{id,path,method,body,governance:true}}));});}
   async function cache(){try{return(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||{};}catch{return{};}}
-  function pending(){try{const p=JSON.parse(sessionStorage.getItem(PENDING_KEY)||'null');if(!p||Date.now()-Number(p.createdAt||0)>30*60*1000)return null;return p;}catch{return null;}}
-  function savePending(p){try{sessionStorage.setItem(PENDING_KEY,JSON.stringify(p));}catch{}}
+  function pendingSession(){try{const p=JSON.parse(sessionStorage.getItem(PENDING_KEY)||'null');if(!p||Date.now()-Number(p.createdAt||0)>30*60*1000)return null;return p;}catch{return null;}}
+  async function pending(){
+    const fast=pendingSession();if(fast)return fast;
+    try{const p=(await chrome.storage.local.get(PENDING_STORE_KEY))[PENDING_STORE_KEY]||null;if(!p||Date.now()-Number(p.createdAt||0)>30*60*1000){if(p)await chrome.storage.local.remove?.(PENDING_STORE_KEY);return null;}try{sessionStorage.setItem(PENDING_KEY,JSON.stringify(p));}catch{}return p;}catch{return null;}
+  }
+  async function savePending(p){try{sessionStorage.setItem(PENDING_KEY,JSON.stringify(p));}catch{}try{await chrome.storage.local.set({[PENDING_STORE_KEY]:p});}catch{}return p;}
+  async function clearPending(){try{sessionStorage.removeItem(PENDING_KEY);}catch{}try{await chrome.storage.local.remove?.(PENDING_STORE_KEY);}catch{}}
+  async function injectPending(attempt=0){
+    clearTimeout(injectTimer);const p=await pending();if(!p?.capsule)return;const ed=editor();
+    if(ed){const current=clean('value'in ed?ed.value:ed.innerText||ed.textContent);if(current.includes('CONTINUITÉ NIAKGPT')){document.documentElement.dataset.ng112ContinuityReady='1';return;}const text=current?`${p.capsule}\n\nBROUILLON PRÉSERVÉ AVANT CONTINUITÉ\n${current}`:p.capsule;if(setEditor(ed,text)){document.documentElement.dataset.ng112ContinuityReady='1';window.__NIAKGPT_DIAGNOSTICS__?.set('continuité-112',current?'PRÊT · capsule + brouillon préservé · aucun envoi automatique':'PRÊT · capsule injectée · aucun envoi automatique');return;}}
+    if(attempt<14)injectTimer=setTimeout(()=>injectPending(attempt+1),Math.min(1200,160+attempt*80));
+  }
   function keepProjectDrawerOpen(projectId){try{projectId?sessionStorage.setItem(PIN_OPEN_KEY,projectId):sessionStorage.removeItem(PIN_OPEN_KEY);}catch{}}
   function recommendProject(raw,title,history){
     const projects=(raw?.projects||[]).filter(p=>String(p?.id||'').startsWith('g-p-')&&!p.domOnly);
@@ -56,7 +71,7 @@
     const b=event.target instanceof Element?event.target.closest('.ng100-continue'):null;if(!b)return;
     const link=b.closest('a[href*="/c/"]'),chatId=cid(link?.getAttribute('href'))||cid(location.pathname);if(!chatId)return;
     event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();
-    const data=await makeCapsule(chatId),p={schema:3,chatId,projectId:data.projectId,projectName:data.projectName,chatName:data.chatName,capsule:data.capsule,createdAt:Date.now(),sourceUrl:data.sourceUrl,patched:false,exactProject:data.exactProject,recommendedProjectId:data.recommendedProjectId,recommendedProjectName:data.recommendedProjectName,recommendationScore:data.recommendationScore};savePending(p);
+    const data=await makeCapsule(chatId),p={schema:3,chatId,projectId:data.projectId,projectName:data.projectName,chatName:data.chatName,capsule:data.capsule,createdAt:Date.now(),sourceUrl:data.sourceUrl,patched:false,exactProject:data.exactProject,recommendedProjectId:data.recommendedProjectId,recommendedProjectName:data.recommendedProjectName,recommendationScore:data.recommendationScore};await savePending(p);
     if(data.projectId)keepProjectDrawerOpen(data.projectId);
     document.documentElement.dataset.ng112ContinuityProject=data.projectId||'none';
     window.__NIAKGPT_DIAGNOSTICS__?.set('continuité-112',data.exactProject?`PRÊT · ${data.projectName} > ${data.chatName} · Project verrouillé`:data.recommendedProjectId?`PRÊT · Project recommandé ${data.recommendedProjectName}`:'PRÊT · continuité hors Project');
@@ -77,12 +92,12 @@
       await chrome.storage.local.set({[CACHE_KEY]:raw,[GOV_KEY]:gov});keepProjectDrawerOpen(p.projectId);
       document.dispatchEvent(new CustomEvent('niakgpt:force-server-index'));
     }catch{}
-    p.patched=true;p.lockedAt=Date.now();savePending(p);document.documentElement.dataset.ng112ContinuityProject=p.projectId;
+    p.patched=true;p.lockedAt=Date.now();await savePending(p);document.documentElement.dataset.ng112ContinuityProject=p.projectId;
     window.__NIAKGPT_DIAGNOSTICS__?.set('continuité-112',`OK · nouveau chat visible et verrouillé sur ${p.projectName||p.projectId}`);
-    setTimeout(()=>{try{sessionStorage.removeItem(PENDING_KEY);}catch{}delete document.documentElement.dataset.ng112ContinuityProject;},1800);
+    setTimeout(()=>{clearPending();delete document.documentElement.dataset.ng112ContinuityProject;},1800);
   }
   async function lockNewChat(attempt=0){
-    if(patching)return;const p=pending(),newId=currentCid();if(!p?.exactProject||!p.projectId||!newId||newId===p.chatId)return;
+    if(patching)return;const p=await pending(),newId=currentCid();if(!p?.exactProject||!p.projectId||!newId||newId===p.chatId)return;
     // continuity-v100 is injected just before this module and already owns the normal
     // Project PATCH. Give it one short chance to finish so v112 only adds the exact lock.
     if(!p.patched&&attempt<1){routeTimer=setTimeout(()=>lockNewChat(attempt+1),180);return;}
@@ -92,6 +107,6 @@
       await persistExactLock(p,newId);
     }finally{patching=false;}
   }
-  function onRoute(){clearTimeout(routeTimer);routeTimer=setTimeout(()=>lockNewChat(0),120);}
-  document.addEventListener('click',interceptContinue,true);window.addEventListener('popstate',onRoute);if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',onRoute);document.addEventListener('niakgpt:activity-changed',()=>{if((document.documentElement.dataset.ng86Activity||'ready')==='ready')onRoute();});onRoute();
+  function onRoute(){clearTimeout(routeTimer);injectPending();routeTimer=setTimeout(()=>{injectPending();lockNewChat(0);},120);}
+  document.addEventListener('click',interceptContinue,true);window.addEventListener('popstate',onRoute);if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',onRoute);document.addEventListener('niakgpt:activity-changed',()=>{if((document.documentElement.dataset.ng86Activity||'ready')==='ready')onRoute();});window.addEventListener('pagehide',()=>clearTimeout(injectTimer),{once:true});onRoute();
 })();

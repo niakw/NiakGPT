@@ -59,6 +59,14 @@ function makeMenu(kind,level=1){
 // contract is its value. Mirror value on input in this fixture only, so legacy text
 // assertions observe the same state without changing production editor behavior.
 document.getElementById('prompt-textarea').addEventListener('input',event=>{event.currentTarget.textContent=event.currentTarget.value;});
+// The long-work human scenario must use the same native busy contract as production.
+// Only when that explicit soak starts, mirror its active event to ChatGPT's native Stop signal.
+document.addEventListener('niakgpt:activity-changed',event=>{
+  if(!window.__humanSoakStart)return;
+  let stop=document.getElementById('lab-native-stop');
+  if(event.detail?.active){if(!stop){stop=document.createElement('button');stop.id='lab-native-stop';stop.type='button';stop.dataset.testid='stop-button';stop.setAttribute('aria-label','Stop generating');stop.textContent='Stop';document.body.appendChild(stop);}}
+  else stop?.remove();
+});
 document.getElementById('native-studio-options').addEventListener('click',()=>makeMenu('project'));document.getElementById('native-research-options').addEventListener('click',()=>makeMenu('project'));
 document.getElementById('native-chat1-options').addEventListener('click',()=>makeMenu('chat'));document.getElementById('native-chat2-options').addEventListener('click',()=>makeMenu('chat'));
 document.getElementById('native-send').addEventListener('click',window.labSend);document.getElementById('lab-send-native').addEventListener('click',window.labSend);document.getElementById('lab-move-native').addEventListener('click',()=>window.labMove());

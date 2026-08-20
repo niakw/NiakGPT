@@ -74,6 +74,16 @@
       "js": []
     }
   ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "assets/mascot-v125.svg"
+      ],
+      "matches": [
+        "https://chatgpt.com/*"
+      ]
+    }
+  ],
   "action": {
     "default_title": "NiakGPT",
     "default_icon": {

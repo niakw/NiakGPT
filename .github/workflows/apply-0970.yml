@@ -1,0 +1,37 @@
+name: Apply NiakGPT 0.9.70 migration
+
+on:
+  pull_request:
+    paths:
+      - 'tools/apply-0970.mjs'
+      - '.github/workflows/apply-0970.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply migration
+        run: node tools/apply-0970.mjs
+      - name: Remove one-shot migration files
+        run: rm -f tools/apply-0970.mjs .github/workflows/apply-0970.yml
+      - name: Commit migration
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "NiakGPT 0.9.70: stabilize sidebar UX runtime"
+          git push origin HEAD:${{ github.head_ref }}

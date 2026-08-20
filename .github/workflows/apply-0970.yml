@@ -22,6 +22,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Normalize migration marker
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('sidebar-projects-v121.js')
+          s=p.read_text()
+          old="if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>schedule(0));window.addEventListener('pageshow'"
+          new="if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>schedule(0));\n  window.addEventListener('pageshow'"
+          if old not in s:
+              raise SystemExit('migration marker normalization missing')
+          p.write_text(s.replace(old,new,1))
+          PY
       - name: Apply migration
         run: node tools/apply-0970.mjs
       - name: Remove one-shot migration files

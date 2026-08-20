@@ -24,7 +24,7 @@ def runtime(name):
 
 manifest=json.loads(read('manifest.json'))
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if manifest.get('version')!='0.9.70': fail(f"version={manifest.get('version')}")
+if manifest.get('version')!='0.9.71': fail(f"version={manifest.get('version')}")
 if manifest.get('permissions')!=['storage','scripting']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*']: fail('host permissions drift')
 
@@ -34,7 +34,8 @@ if main!=['page-bridge.js']: fail(f'MAIN_RUNTIME={main!r}')
 required={
     'sidebar-metadata-v118.js','sidebar-projects-authority-v112.js','sidebar-projects-v121.js','sidebar-ux-v119.js','pin-folders-v096.js','app-v090.js','sidebar-actions-v123.js',
     'home-layout-v112.js','analysis-bridge-v112.js','reclassify-deep-v112.js','matrix-guardian-v112.js','performance-guard-v112.js','turn-headers-v112.js','continuity-v112.js',
-    'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','interruption-guard-v119.js'
+    'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','interruption-guard-v119.js',
+    'continuity-limit-v125.js','native-ux-v125.js'
 }
 missing_runtime=sorted(required-set(isolated))
 if missing_runtime: fail('current runtime missing: '+', '.join(missing_runtime))
@@ -48,6 +49,7 @@ for cs in manifest.get('content_scripts',[]):
 refs.add(manifest.get('background',{}).get('service_worker',''))
 refs.update((manifest.get('icons') or {}).values())
 refs.update((manifest.get('action',{}).get('default_icon') or {}).values())
+refs.add('assets/mascot-v125.svg')
 missing=sorted(x for x in refs if x and not (ROOT/x).exists())
 if missing: fail('missing refs: '+', '.join(missing))
 
@@ -78,7 +80,17 @@ interrupt=read('interruption-guard-v119.js')
 for token in ('continueFrom?.(chatId)',r'failed\s+to\s+fetch'):
     if token not in interrupt: fail('interruption recovery incomplete '+token)
 
-for gate in ('visual-lab/sidebar-session-ux-v123.mjs','visual-lab/tests/sidebar-human-ux-v123.spec.js'):
+native_ux=read('native-ux-v125.js')
+for token in ('Paramètres du projet','ng125ProjectSettings','openCustomChatInNewTab','event.metaKey||event.ctrlKey','input[type="file"]','guardBrowse','sidebar-projects-reconcile','ng125NativeModal'):
+    if token not in native_ux: fail('0.9.71 native UX incomplete '+token)
+limit_ux=read('continuity-limit-v125.js')
+for token in ('interactiveLimitCard','CONTINUE_RX','markCurrentOut','native-limit-v120','ng100-continue','ng125LimitReady'):
+    if token not in limit_ux: fail('0.9.71 limit continuity incomplete '+token)
+css=read('native-ux-v125.css')
+for token in ('ng113-native-actions-chat','pointer-events:auto','ng125-native-stage','data-ng125-native-modal','assets/mascot-v125.svg'):
+    if token not in css: fail('0.9.71 UX CSS incomplete '+token)
+
+for gate in ('visual-lab/sidebar-session-ux-v123.mjs','visual-lab/tests/sidebar-human-ux-v123.spec.js','visual-lab/tests/native-ux-v125.spec.js'):
     if not (ROOT/gate).exists(): fail('current human UX gate missing '+gate)
 workflow=read('.github/workflows/current-finalization.yml')
 for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble'):
@@ -86,7 +98,7 @@ for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','PRI
 if re.search(r'^\s*npx playwright install --with-deps\b',workflow,re.M): fail('Linux Finalization reintroduced apt --with-deps')
 
 package_tool=read('tools/package-extension.mjs')
-for token in ('sidebar-actions-v123.js','sidebar-actions-v123.css','native-actions-controller-v119.js','native-actions-v113.js'):
+for token in ('sidebar-actions-v123.js','sidebar-actions-v123.css','native-actions-controller-v119.js','native-actions-v113.js','native-ux-v125.js','continuity-limit-v125.js','assets/mascot-v125.svg'):
     if token not in package_tool: fail('package runtime policy missing '+token)
 
 if errors:

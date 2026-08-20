@@ -37,7 +37,17 @@
     try{sessionStorage.removeItem(LEGACY_KEY);}catch{}
     try{const data=JSON.parse(sessionStorage.getItem(KEY)||'null');return data&&Date.now()-Number(data.at||0)<20*60*1000?data:null;}catch{return null;}
   }
-  function saveIncident(data){incident=data;try{data?sessionStorage.setItem(KEY,JSON.stringify(data)):sessionStorage.removeItem(KEY);}catch{}}
+  function persistedIncident(data){
+    if(!data)return null;
+    return {
+      type:data.type||'',
+      at:Number(data.at||0),
+      retried:!!data.retried,
+      recovered:!!data.recovered,
+      recoveredAt:data.recoveredAt?Number(data.recoveredAt):undefined
+    };
+  }
+  function saveIncident(data){incident=data;try{const safe=persistedIncident(data);safe?sessionStorage.setItem(KEY,JSON.stringify(safe)):sessionStorage.removeItem(KEY);}catch{}}
   function candidateText(el){return clean(`${el?.getAttribute?.('aria-label')||''} ${el?.getAttribute?.('title')||''} ${el?.getAttribute?.('src')||''} ${el?.innerText||el?.textContent||''}`).slice(0,2200);}
   function classifyText(text){if(!text)return'';if(LIMIT_RX.test(text))return'limit';if(VERIFY_RX.test(text))return'verify';if(NETWORK_RX.test(text))return'network';return'';}
   function trustedSignal(el){

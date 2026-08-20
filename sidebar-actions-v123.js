@@ -40,9 +40,9 @@
     if(focus&&old?.button?.isConnected)old.button.focus({preventScroll:true});
   }
   function positionMenu(menu,button){
-    if(!(menu instanceof HTMLElement)||!(button instanceof HTMLElement))return;const r=button.getBoundingClientRect(),w=Math.min(310,Math.max(238,menu.offsetWidth||260)),h=Math.min(innerHeight-16,Math.max(90,menu.offsetHeight||220));
-    let left=r.right+8;if(left+w>innerWidth-8)left=Math.max(8,r.left-w-8);const top=Math.min(Math.max(8,r.top-5),Math.max(8,innerHeight-h-8));
-    menu.style.left=`${left}px`;menu.style.top=`${top}px`;menu.style.maxHeight=`${Math.max(120,innerHeight-top-8)}px`;
+    if(!(menu instanceof HTMLElement)||!(button instanceof HTMLElement))return;const r=button.getBoundingClientRect(),w=Math.min(310,Math.max(238,menu.offsetWidth||260)),h=Math.min(innerHeight-16,Math.max(90,menu.offsetHeight||220)),sidebar=document.querySelector('[data-testid="conversation-sidebar"]'),sideRight=sidebar?.getBoundingClientRect?.().right||0,safeLeft=Math.max(8,sideRight+8);
+    let left=Math.max(r.right+8,safeLeft);if(left+w>innerWidth-8)left=Math.max(safeLeft,innerWidth-w-8);const top=Math.min(Math.max(8,r.top-5),Math.max(8,innerHeight-h-8));
+    menu.style.left=`${left}px`;menu.style.top=`${top}px`;menu.style.maxWidth=`${Math.max(180,innerWidth-left-8)}px`;menu.style.maxHeight=`${Math.max(120,innerHeight-top-8)}px`;
   }
   function makeButton(text,action,{danger=false}={}){const b=document.createElement('button');b.type='button';b.setAttribute('role','menuitem');b.textContent=text;if(danger)b.dataset.danger='1';b.addEventListener('click',action);return b;}
 

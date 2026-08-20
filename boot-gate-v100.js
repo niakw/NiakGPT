@@ -4,9 +4,12 @@
   window.__NIAKGPT_BOOT_GATE_100__=true;
 
   const captured=[];
+  const CONTINUITY_PENDING_KEY='niakgpt-continuity-pending-v100';
+  const CONTINUITY_STORE_KEY='niakgpt-continuity-pending-v124';
   let safeToMutate=false;
   const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   const message=value=>String(value?.message||value?.reason?.message||value?.reason||value||'Erreur inconnue').replace(/\s+/g,' ').slice(0,260);
+  const clean=v=>String(v??'').replace(/\r/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
 
   function remember(kind,value){
     const line=`${kind}: ${message(value)}`;
@@ -28,6 +31,30 @@
       if(document.body&&(document.querySelector('main')||document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"]')||document.querySelector('nav,aside')))return;
       await sleep(100);
     }
+  }
+
+  function continuityEditor(){return document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"]')||[...document.querySelectorAll('textarea,[contenteditable="true"]')].reverse().find(el=>!el.closest('#ng8-coach,#ng119-interruption'));}
+  function editorText(ed){return clean(ed?('value'in ed?ed.value:ed.innerText||ed.textContent):'');}
+  function setEditor(ed,text){
+    if(!ed)return false;
+    try{if('value'in ed){const proto=Object.getPrototypeOf(ed),setter=Object.getOwnPropertyDescriptor(proto,'value')?.set;setter?setter.call(ed,text):ed.value=text;}else{ed.focus();ed.textContent=text;}ed.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:text}));return true;}catch(error){remember('CONTINUITY-EDITOR',error);return false;}
+  }
+  function pendingFromSession(){
+    try{const p=JSON.parse(sessionStorage.getItem(CONTINUITY_PENDING_KEY)||'null');if(!p||Date.now()-Number(p.createdAt||0)>30*60*1000)return null;return p;}catch{return null;}
+  }
+  async function pendingContinuity(){
+    const fast=pendingFromSession();if(fast)return fast;
+    try{const p=(await chrome.storage.local.get(CONTINUITY_STORE_KEY))[CONTINUITY_STORE_KEY]||null;if(!p||Date.now()-Number(p.createdAt||0)>30*60*1000)return null;try{sessionStorage.setItem(CONTINUITY_PENDING_KEY,JSON.stringify(p));}catch{}return p;}catch(error){remember('CONTINUITY-STORE',error);return null;}
+  }
+  async function restorePendingContinuity(timeout=7000){
+    const pending=await pendingContinuity();if(!pending?.capsule)return false;
+    const started=performance.now();
+    while(performance.now()-started<timeout){
+      const ed=continuityEditor();
+      if(ed){const current=editorText(ed);if(current.includes('CONTINUITÉ NIAKGPT')){document.documentElement.dataset.ng100Continuity='ready';return true;}const text=current?`${pending.capsule}\n\nBROUILLON PRÉSERVÉ AVANT CONTINUITÉ\n${current}`:pending.capsule;if(setEditor(ed,text)){document.documentElement.dataset.ng100Continuity='ready';document.documentElement.dataset.ng100ContinuityBoot='1';return true;}}
+      await sleep(80);
+    }
+    return false;
   }
 
   function waitForQuiet(quietMs=700,maxWait=3500){
@@ -109,6 +136,9 @@
   async function start(){
     await waitLoad();
     await waitForChatShell();
+    // Continuity is a navigation-critical, no-network operation. Restore it before the
+    // deliberate hydration/quiet delay used by the rest of NiakGPT's runtime bootstrap.
+    await restorePendingContinuity();
     await sleep(2500);
     await waitForQuiet();
     await nextFrames();

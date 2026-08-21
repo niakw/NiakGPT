@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.74",
-  "description": "Recovery stable de NiakGPT : retour au dernier socle utilisateur validé, sécurité conservée et couches expérimentales retirées.",
+  "version": "0.9.75",
+  "description": "Socle stable NiakGPT : Projects, continuité fiable et ajouts en parallèle sans interrompre le travail en cours.",
   "permissions": [
     "storage",
     "scripting"
@@ -58,7 +58,8 @@
         "https://chatgpt.com/*"
       ],
       "js": [
-        "boot-gate-v100.js"
+        "boot-gate-v100.js",
+        "composer-continuation-v128.js"
       ],
       "run_at": "document_start"
     },

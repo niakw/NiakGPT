@@ -24,9 +24,11 @@ def runtime(name):
 
 manifest=json.loads(read('manifest.json'))
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if manifest.get('version')!='0.9.74': fail(f"version={manifest.get('version')}")
+if manifest.get('version')!='0.9.75': fail(f"version={manifest.get('version')}")
 if manifest.get('permissions')!=['storage','scripting']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*']: fail('host permissions drift')
+static_js=[file for cs in manifest.get('content_scripts',[]) for file in cs.get('js',[])]
+if static_js!=['boot-gate-v100.js','composer-continuation-v128.js']: fail(f'static runtime drift: {static_js!r}')
 
 main=runtime('MAIN_RUNTIME')
 isolated=runtime('ISOLATED_RUNTIME')
@@ -38,7 +40,7 @@ required={
 }
 missing_runtime=sorted(required-set(isolated))
 if missing_runtime: fail('current runtime missing: '+', '.join(missing_runtime))
-for forbidden in ('project-pins-v090.js','native-rename-v112.js','breadcrumb-v100.js','sidebar-authority-v107.js','sidebar-expando-guard-v108.js','native-actions-controller-v119.js','native-actions-v113.js'):
+for forbidden in ('project-pins-v090.js','native-rename-v112.js','breadcrumb-v100.js','sidebar-authority-v107.js','sidebar-expando-guard-v108.js','native-actions-controller-v119.js','native-actions-v113.js','composer-continuation-v128.js'):
     if forbidden in isolated: fail(f'legacy/conflicting runtime wired: {forbidden}')
 
 recovery_overlays=(
@@ -86,15 +88,23 @@ interrupt=read('interruption-guard-v119.js')
 for token in ('continueFrom?.(chatId)',r'failed\s+to\s+fetch','persistedIncident','allowedType','type:allowedType'):
     if token not in interrupt: fail('interruption recovery/security incomplete '+token)
 
-for gate in ('visual-lab/sidebar-session-ux-v123.mjs','visual-lab/tests/sidebar-human-ux-v123.spec.js'):
+parallel=read('composer-continuation-v128.js')
+for token in ('--- CONTINUE — AJOUT EN PARALLÈLE ---','waiting','thinking','executing','nativeGenerationBusy','idleTriggerUntil','CANCEL_RX','prepareParallelContinuation','niakgpt:parallel-continue','contentEditable','execCommand'):
+    if token not in parallel: fail('parallel continuation incomplete '+token)
+if 'setInterval(' in parallel: fail('parallel continuation must remain event-driven')
+
+for gate in ('visual-lab/sidebar-session-ux-v123.mjs','visual-lab/tests/sidebar-human-ux-v123.spec.js','visual-lab/parallel-continue-v128.mjs','visual-lab/tests/composer-continuation-runtime-v128.spec.js'):
     if not (ROOT/gate).exists(): fail('current browser-fixture UX gate missing '+gate)
 workflow=read('.github/workflows/current-finalization.yml')
 for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble'):
     if token not in workflow: fail('Current Finalization missing '+token)
 if re.search(r'^\s*npx playwright install --with-deps\b',workflow,re.M): fail('Linux Finalization reintroduced apt --with-deps')
+parallel_workflow=read('.github/workflows/parallel-continuation-v128.yml')
+for token in ('parallel-continue-v128.mjs','composer-continuation-runtime-v128.spec.js','chromium, firefox, webkit','parallel-continuation-v128'):
+    if token not in parallel_workflow: fail('Parallel continuation workflow missing '+token)
 
 package_tool=read('tools/package-extension.mjs')
-for token in ('sidebar-actions-v123.js','sidebar-actions-v123.css','native-actions-controller-v119.js','native-actions-v113.js'):
+for token in ('sidebar-actions-v123.js','sidebar-actions-v123.css','native-actions-controller-v119.js','native-actions-v113.js','composer-continuation-v128.js'):
     if token not in package_tool: fail('package runtime policy missing '+token)
 
 if not (ROOT/'TESTING_TRUTH.md').exists(): fail('testing truth contract missing')

@@ -57,6 +57,17 @@ test('0.9.73 never replaces a larger native Project inventory with one cached pi
   await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.ng127InventoryReady||'')).toBe('1');
   await expect(page.locator('#ng8-pins')).toBeVisible();
   await expect.poll(()=>page.locator('#native-projects [data-ng112-native-projects="1"]').count()).toBeGreaterThan(0);
+
+  // A chat/drawer writer may rebuild the shared cache and accidentally omit v127's
+  // metadata. That must not revoke the already verified page authority.
+  await page.evaluate(async()=>{
+    const key='niakgpt-v08-cache',raw={...window.__truthStore[key]};
+    delete raw.projectInventoryVerified;delete raw.projectInventorySource;delete raw.projectInventoryAt;
+    raw.chats=[...(raw.chats||[]),{id:'writer-only-chat',title:'hydrated'}];
+    await chrome.storage.local.set({[key]:raw});
+  });
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.ng127InventoryReady||'')).toBe('1');
+  await expect(page.locator('#ng8-pins')).toBeVisible();
 });
 
 test('0.9.73 neutralises NiakGPT border/shadow leakage on native sidebar controls',async({page})=>{

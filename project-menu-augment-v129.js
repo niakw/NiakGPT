@@ -60,7 +60,7 @@
   }
 
   function action(text,handler,marker){
-    const button=document.createElement('button');button.type='button';button.setAttribute('role','menuitem');button.tabIndex=-1;button.textContent=text;if(marker)button.dataset[marker]='1';button.addEventListener('click',handler);return button;
+    const button=document.createElement('button');button.type='button';button.className='ng129-project-shortcut';button.textContent=text;if(marker)button.dataset[marker]='1';button.addEventListener('click',handler);return button;
   }
   function contextBlock(id){
     const p=project(id),box=document.createElement('div');box.className='ng129-project-context';box.setAttribute('aria-label','Contexte et instructions du Project');
@@ -72,9 +72,13 @@
     if(!(menu instanceof HTMLElement)||menu.dataset.kind!=='project'||menu.dataset.ng129Augmented==='1')return;
     const id=normalizePid(menu.dataset.id||'');if(!id)return;menu.dataset.ng129Augmented='1';
     const title=menu.querySelector(':scope>strong');const context=contextBlock(id);title?.insertAdjacentElement('afterend',context);
+    const shortcuts=document.createElement('div');shortcuts.className='ng129-project-shortcuts';shortcuts.setAttribute('role','group');shortcuts.setAttribute('aria-label','Raccourcis du Project');
     const personalize=action('Personnaliser le Project…',async event=>{event.preventDefault();event.stopPropagation();closeCustomMenu();const ok=await openProjectSettings(id);if(!ok&&location.pathname.includes(`/g/${id}/`)){pendingSettings=id;setTimeout(()=>openProjectSettings(id,1),500);}},'ng129Personalize');
     const newChat=action('Nouveau chat dans ce Project',event=>{event.preventDefault();event.stopPropagation();closeCustomMenu();routeProject(id);},'ng129NewChat');
-    const first=menu.querySelector(':scope>button');if(first){first.insertAdjacentElement('beforebegin',personalize);personalize.insertAdjacentElement('afterend',newChat);}else menu.append(personalize,newChat);
+    shortcuts.append(personalize,newChat);context.append(shortcuts);
+    // Keep the parent menu's WAI-ARIA arrow/Home/End contract unchanged: the existing
+    // Renommer / Actualiser menuitems remain the only direct menuitems. These two
+    // supplemental buttons are a separate labelled shortcut group inside Project context.
   }
   function scan(root=document){
     if(root instanceof HTMLElement&&root.matches?.('#ng123-action-menu[data-kind="project"]'))augment(root);

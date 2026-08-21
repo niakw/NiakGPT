@@ -6,6 +6,7 @@ const ROOT=path.resolve(__dirname,'..','..');
 const runtime=fs.readFileSync(path.join(ROOT,'sidebar-truth-v127.js'),'utf8');
 const css=fs.readFileSync(path.join(ROOT,'sidebar-truth-v127.css'),'utf8');
 const P=['g-p-aaaaaaaaaaaaaaaa','g-p-bbbbbbbbbbbbbbbb','g-p-cccccccccccccccc','g-p-dddddddddddddddd'];
+const WRONG='g-p-eeeeeeeeeeeeeeee';
 
 const projectRaw=(id,name)=>({gizmo:{gizmo:{id,display:{name}}}});
 function html(){return `<!doctype html><html><body class="ng8-ready" style="margin:0">
@@ -68,6 +69,37 @@ test('0.9.73 never replaces a larger native Project inventory with one cached pi
   });
   await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.ng127InventoryReady||'')).toBe('1');
   await expect(page.locator('#ng8-pins')).toBeVisible();
+
+  // Count equality alone is not authority. A same-size cache with one wrong/stale Project
+  // identity must immediately reveal the native fallback instead of hiding it.
+  await page.evaluate(async WRONG=>{
+    const key='niakgpt-v08-cache',raw=structuredClone(window.__truthStore[key]);
+    raw.projects[raw.projects.length-1]={...raw.projects[raw.projects.length-1],id:WRONG,name:'Stale Project'};
+    await chrome.storage.local.set({[key]:raw});
+  },WRONG);
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.ng127InventoryReady||'')).toBe('');
+  await expect(page.locator('#ng8-pins')).toBeHidden();
+  await expect.poll(()=>page.locator('#native-projects [data-ng112-native-projects="1"]').count()).toBe(0);
+
+  // Restoring the exact verified identities is sufficient; a missing metadata field is not.
+  await page.evaluate(async({P})=>{
+    const key='niakgpt-v08-cache',raw=structuredClone(window.__truthStore[key]);
+    raw.projects=P.map((id,i)=>({id,name:['Films','NiakVIO','NiakGPT','Elias'][i],domOnly:false,href:`/g/${id}/project`}));
+    await chrome.storage.local.set({[key]:raw});
+  },{P});
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.ng127InventoryReady||'')).toBe('1');
+  await expect(page.locator('#ng8-pins')).toBeVisible();
+
+  // Render identity is equally strict: four rows are insufficient if one points to a
+  // Project that was not part of the verified inventory.
+  await page.evaluate(WRONG=>{
+    const a=document.querySelectorAll('#ng8-pins a[data-ng8-pin="1"]')[3];
+    a.dataset.ng121Pid=WRONG;a.href=`/g/${WRONG}/project`;
+    document.dispatchEvent(new CustomEvent('niakgpt:pins-rendered'));
+  },WRONG);
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.ng127InventoryReady||'')).toBe('');
+  await expect(page.locator('#ng8-pins')).toBeHidden();
+  await expect.poll(()=>page.locator('#native-projects [data-ng112-native-projects="1"]').count()).toBe(0);
 });
 
 test('0.9.73 neutralises NiakGPT border/shadow leakage on native sidebar controls',async({page})=>{

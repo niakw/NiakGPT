@@ -69,8 +69,8 @@ test('0.9.72 reported UX is visible in rendered evidence, not just source contra
   });
 
   await test.step('Modified chat click stays a real anchor default and is not prevented by NiakGPT',async()=>{
-    const result=await page.evaluate(({CHAT})=>new Promise(resolve=>{const a=document.querySelector(`a[data-chat="${CHAT}"]`);a.addEventListener('click',event=>queueMicrotask(()=>resolve({prevented:event.defaultPrevented,href:a.href})),{once:true});a.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,button:0,ctrlKey:true}));}),{CHAT});
-    expect(result.prevented).toBe(false);expect(result.href).toContain(`/c/${CHAT}`);
+    const result=await page.evaluate(({CHAT})=>{const a=document.querySelector(`a[data-chat="${CHAT}"]`),event=new MouseEvent('click',{bubbles:true,cancelable:true,button:0,ctrlKey:true});const accepted=a.dispatchEvent(event);return{accepted,prevented:event.defaultPrevented,href:a.href};},{CHAT});
+    expect(result.accepted).toBe(true);expect(result.prevented).toBe(false);expect(result.href).toContain(`/c/${CHAT}`);
   });
 
   await test.step('Browse owns the trusted click and opens the actual file input chooser',async()=>{

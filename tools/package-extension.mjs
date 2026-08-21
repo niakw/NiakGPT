@@ -24,7 +24,7 @@ for(const file of files){
 for(const required of [
   'boot-gate-v100.js','page-bridge.js','browser-compat-v102.js','lifecycle-guard-v104.js','multitab-v090.js',
   'governance-adapter-v105.js','project-governance-v090.js','app-v090.js','project-state-selfheal-v102.js','project-assignment-selfheal-v103.js',
-  'sidebar-metadata-v118.js','sidebar-metadata-v118.css','sidebar-projects-authority-v112.js','sidebar-projects-authority-v112.css',
+  'sidebar-metadata-v118.js','sidebar-metadata-v118.css','sidebar-truth-v127.js','sidebar-truth-v127.css','sidebar-projects-authority-v112.js','sidebar-projects-authority-v112.css',
   'sidebar-ux-v119.js','sidebar-ux-v119.css','sidebar-actions-v123.js','sidebar-actions-v123.css','interruption-guard-v119.js','interruption-guard-v119.css',
   'analysis-bridge-v112.js','reclassify-deep-v112.js','performance-guard-v112.js','performance-guard-v112.css','home-layout-v112.js','home-layout-v112.css',
   'matrix-guardian-v112.js','matrix-guardian-v112.css','turn-headers-v112.js','continuity-v112.js','continuity-live-v126.js','continuity-limit-v125.js','native-ux-v126.js','native-ux-v126.css','native-ux-v125.js','native-ux-v125.css','assets/mascot-v125.svg','native-da-v112.css','sidebar-icons-v114.js','sidebar-icons-v114.css','cache-bus-v096.js',

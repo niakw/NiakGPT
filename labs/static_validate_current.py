@@ -24,11 +24,15 @@ def runtime(name):
 
 manifest=json.loads(read('manifest.json'))
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if manifest.get('version')!='0.9.75': fail(f"version={manifest.get('version')}")
+if manifest.get('version')!='0.9.76': fail(f"version={manifest.get('version')}")
 if manifest.get('permissions')!=['storage','scripting']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*']: fail('host permissions drift')
 static_js=[file for cs in manifest.get('content_scripts',[]) for file in cs.get('js',[])]
-if static_js!=['boot-gate-v100.js','composer-continuation-v128.js']: fail(f'static runtime drift: {static_js!r}')
+expected_static=[
+    'boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js',
+    'pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'
+]
+if static_js!=expected_static: fail(f'static runtime drift: {static_js!r}')
 
 main=runtime('MAIN_RUNTIME')
 isolated=runtime('ISOLATED_RUNTIME')
@@ -40,7 +44,11 @@ required={
 }
 missing_runtime=sorted(required-set(isolated))
 if missing_runtime: fail('current runtime missing: '+', '.join(missing_runtime))
-for forbidden in ('project-pins-v090.js','native-rename-v112.js','breadcrumb-v100.js','sidebar-authority-v107.js','sidebar-expando-guard-v108.js','native-actions-controller-v119.js','native-actions-v113.js','composer-continuation-v128.js'):
+for forbidden in (
+    'project-pins-v090.js','native-rename-v112.js','breadcrumb-v100.js','sidebar-authority-v107.js','sidebar-expando-guard-v108.js',
+    'native-actions-controller-v119.js','native-actions-v113.js','composer-continuation-v128.js','long-run-watchdog-v129.js',
+    'pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'
+):
     if forbidden in isolated: fail(f'legacy/conflicting runtime wired: {forbidden}')
 
 recovery_overlays=(
@@ -68,8 +76,6 @@ for file in sorted(x for x in refs if x.endswith('.css')):
     text=read(file)
     if text.count('{')!=text.count('}'): fail(f'CSS braces {file}')
 
-# The Node validator owns the detailed architecture invariants. Keeping a single
-# authoritative contract prevents release validators from drifting independently.
 hydration=subprocess.run(['node','tools/check-hydration-v100.mjs'],cwd=ROOT,capture_output=True,text=True)
 if hydration.returncode:
     fail('hydration invariants: '+(hydration.stderr.strip() or hydration.stdout.strip()))
@@ -93,7 +99,26 @@ for token in ('--- CONTINUE — AJOUT EN PARALLÈLE ---','waiting','thinking','e
     if token not in parallel: fail('parallel continuation incomplete '+token)
 if 'setInterval(' in parallel: fail('parallel continuation must remain event-driven')
 
-for gate in ('visual-lab/sidebar-session-ux-v123.mjs','visual-lab/tests/sidebar-human-ux-v123.spec.js','visual-lab/parallel-continue-v128.mjs','visual-lab/tests/composer-continuation-runtime-v128.spec.js'):
+watchdog=read('long-run-watchdog-v129.js')
+for token in ('DEFAULT_SEGMENT_MS','4*60*1000+40*1000','NIAKGPT LONG RUN — REPRISE AUTOMATIQUE','nativeStop','draft-protected','attemptResume','niakgpt:long-run-resume','CANCEL_RX'):
+    if token not in watchdog: fail('long-run watchdog incomplete '+token)
+if 'setInterval(' in watchdog: fail('long-run watchdog must use bounded timers, not polling intervals')
+
+rescue=read('pin-interaction-rescue-v129.js')
+for token in ('pointerdown','pointerup','replacementAction','clickSeen','fallback'):
+    if token not in rescue: fail('pin interaction rescue incomplete '+token)
+menu=read('project-menu-augment-v129.js')
+for token in ('Personnaliser le Project','Nouveau chat dans ce Project','ng129-project-context','openProjectSettings'):
+    if token not in menu: fail('Project menu augmentation incomplete '+token)
+handoff=read('continuity-native-handoff-v129.js')
+for token in ('nativeLimitControl','CONTINUITÉ NIAKGPT','markCurrentOut','writePending','finishProjectLock','sendButton'):
+    if token not in handoff: fail('native continuity handoff incomplete '+token)
+
+for gate in (
+    'visual-lab/sidebar-session-ux-v123.mjs','visual-lab/tests/sidebar-human-ux-v123.spec.js',
+    'visual-lab/parallel-continue-v128.mjs','visual-lab/tests/composer-continuation-runtime-v128.spec.js',
+    'visual-lab/tests/live-stability-v129.spec.js'
+):
     if not (ROOT/gate).exists(): fail('current browser-fixture UX gate missing '+gate)
 workflow=read('.github/workflows/current-finalization.yml')
 for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble'):
@@ -102,9 +127,15 @@ if re.search(r'^\s*npx playwright install --with-deps\b',workflow,re.M): fail('L
 parallel_workflow=read('.github/workflows/parallel-continuation-v128.yml')
 for token in ('parallel-continue-v128.mjs','composer-continuation-runtime-v128.spec.js','chromium, firefox, webkit','parallel-continuation-v128'):
     if token not in parallel_workflow: fail('Parallel continuation workflow missing '+token)
+live_workflow=read('.github/workflows/live-stability-v129.yml')
+for token in ('live-stability-v129.spec.js','Brave stable','chromium'):
+    if token not in live_workflow: fail('Live stability workflow missing '+token)
 
 package_tool=read('tools/package-extension.mjs')
-for token in ('sidebar-actions-v123.js','sidebar-actions-v123.css','native-actions-controller-v119.js','native-actions-v113.js','composer-continuation-v128.js'):
+for token in (
+    'sidebar-actions-v123.js','sidebar-actions-v123.css','native-actions-controller-v119.js','native-actions-v113.js','composer-continuation-v128.js',
+    'long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js','live-stability-v129.css'
+):
     if token not in package_tool: fail('package runtime policy missing '+token)
 
 if not (ROOT/'TESTING_TRUTH.md').exists(): fail('testing truth contract missing')

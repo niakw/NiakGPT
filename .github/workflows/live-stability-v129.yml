@@ -1,0 +1,105 @@
+name: NiakGPT Live Stability v129
+
+on:
+  pull_request:
+    paths:
+      - 'manifest.json'
+      - 'boot-gate-v100.js'
+      - 'turn-headers-v112.js'
+      - 'long-run-watchdog-v129.js'
+      - 'pin-interaction-rescue-v129.js'
+      - 'project-menu-augment-v129.js'
+      - 'continuity-native-handoff-v129.js'
+      - 'live-stability-v129.css'
+      - 'visual-lab/tests/live-stability-v129.spec.js'
+      - 'labs/static_validate_current.py'
+      - 'tools/package-extension.mjs'
+      - '.github/workflows/live-stability-v129.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chromium:
+    name: focused stability · chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      options: --ipc=host
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      HOME: /root
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: visual-lab/package-lock.json
+      - name: Install lab dependencies
+        working-directory: visual-lab
+        run: npm ci --no-audit --no-fund
+      - name: Syntax + release invariants
+        run: |
+          node --check boot-gate-v100.js
+          node --check turn-headers-v112.js
+          node --check long-run-watchdog-v129.js
+          node --check pin-interaction-rescue-v129.js
+          node --check project-menu-augment-v129.js
+          node --check continuity-native-handoff-v129.js
+          python3 labs/static_validate_current.py
+          node tools/package-extension.mjs
+      - name: Focused watchdog / remount / Project / continuity gate
+        working-directory: visual-lab
+        run: npx playwright test tests/live-stability-v129.spec.js --workers=1 --reporter=line
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-stability-v129-chromium
+          path: |
+            visual-lab/playwright-report
+            visual-lab/test-results
+            dist/niakgpt-0.9.76.zip
+          if-no-files-found: warn
+          retention-days: 14
+
+  brave-macos:
+    name: focused stability · macOS · Brave stable
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: visual-lab/package-lock.json
+      - name: Install lab dependencies
+        working-directory: visual-lab
+        run: npm ci --no-audit --no-fund
+      - name: Install Brave stable
+        shell: bash
+        run: |
+          brew install --cask brave-browser
+          BRAVE='/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'
+          test -x "$BRAVE"
+          "$BRAVE" --version
+      - name: Focused watchdog / remount / Project / continuity gate in Brave stable
+        working-directory: visual-lab
+        env:
+          NIAKGPT_EXECUTABLE_PATH: /Applications/Brave Browser.app/Contents/MacOS/Brave Browser
+          NIAKGPT_HEADLESS: '0'
+        run: npx playwright test tests/live-stability-v129.spec.js --workers=1 --reporter=line
+      - name: Upload Brave stable evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-stability-v129-brave-macos
+          path: |
+            visual-lab/playwright-report
+            visual-lab/test-results
+          if-no-files-found: warn
+          retention-days: 14

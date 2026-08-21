@@ -68,7 +68,8 @@ test('0.9.73 neutralises NiakGPT border/shadow leakage on native sidebar control
 
 test('0.9.73 cannot self-certify a one-Project inventory on its first scan',async({page})=>{
   const one=[projectRaw(P[0],'Films')];
-  const oneHtml=html().replace(P.slice(1).map(id=>new RegExp(`<div data-sidebar-item="true" class="native-project"><a href="/g/${id}/project">[^<]+</a><button aria-label="Plus d’options">\\.\\.\\.</button></div>`)).reduce((s,rx)=>s.replace(rx,''),html());
+  let oneHtml=html();
+  for(const id of P.slice(1))oneHtml=oneHtml.replace(new RegExp(`<div data-sidebar-item="true" class="native-project"><a href="/g/${id}/project">[^<]+</a><button aria-label="Plus d’options">\\.\\.\\.</button></div>`),'');
   await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html; charset=utf-8',body:oneHtml}));
   await page.goto('https://chatgpt.com/');await installMocks(page,one);await page.addStyleTag({content:css});await page.addScriptTag({content:runtime});
   await page.waitForTimeout(350);

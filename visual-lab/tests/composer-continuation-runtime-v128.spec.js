@@ -19,17 +19,25 @@ test('real MV3 static continuation layer prefixes only pre-existing parallel wor
     await page.goto(`https://chatgpt.com/c/${CHAT}`,{waitUntil:'domcontentloaded'});
     await page.waitForTimeout(250);
 
-    await page.evaluate(()=>document.documentElement.dataset.ng86Activity='ready');
+    await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.ng86Activity||'ready')).toBe('ready');
     await page.locator('#prompt-textarea').fill('Message depuis une conversation au repos.');await page.locator('#send').click();
     await expect.poll(()=>page.evaluate(()=>window.__sent[0])).toBe('Message depuis une conversation au repos.');
     await page.waitForTimeout(520);
 
-    await page.evaluate(()=>document.documentElement.dataset.ng86Activity='thinking');
+    // Exercise the same public activity signal used by NiakGPT's runtime and keep the
+    // native Stop control visible, as ChatGPT does during a real active generation.
+    await page.evaluate(()=>{
+      let stop=document.getElementById('native-stop');
+      if(!stop){stop=document.createElement('button');stop.id='native-stop';stop.dataset.testid='stop-generating';stop.setAttribute('aria-label','Stop generating');stop.textContent='Stop';document.body.appendChild(stop);}
+      document.dispatchEvent(new CustomEvent('niakgpt:activity-network',{detail:{chatId:'11111111-1111-4111-8111-111111111111',phase:'headers',at:Date.now()}}));
+    });
+    await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.ng86Activity)).toBe('thinking');
     await page.locator('#prompt-textarea').fill('Ajoute ce contrôle sans arrêter ce que tu fais.');await page.locator('#send').click();
     await expect.poll(()=>page.evaluate(()=>window.__sent[1])).toContain(HEADER);
     const active=await page.evaluate(()=>window.__sent[1]);expect(active.startsWith(HEADER)).toBe(true);expect(active).toContain('Ajoute ce contrôle sans arrêter ce que tu fais.');
 
-    await page.evaluate(()=>document.documentElement.dataset.ng86Activity='executing');
+    await page.evaluate(()=>document.dispatchEvent(new CustomEvent('niakgpt:activity-network',{detail:{chatId:'11111111-1111-4111-8111-111111111111',phase:'headers',at:Date.now()}})));
+    await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.ng86Activity)).toBe('thinking');
     await page.locator('#prompt-textarea').fill('annule');await page.locator('#send').click();
     await expect.poll(()=>page.evaluate(()=>window.__sent[2])).toBe('annule');
   }finally{

@@ -22,6 +22,9 @@
   let cachedToken = '';
   let tokenAt = 0;
 
+  // One broker owns every NiakGPT backend request. This prevents the independent
+  // modules (indexer, governance, recovery, reclassifier) from bursting the same
+  // undocumented ChatGPT endpoints at once.
   const inflightGets = new Map();
   const responseCache = new Map();
   let requestChain = Promise.resolve();
@@ -38,7 +41,6 @@
     ['loading','waiting','thinking','executing'].includes(document.documentElement.dataset.ng86Activity || '') ||
     document.documentElement.dataset.ng105Verification === '1';
   const nativeBusyResult = () => ({ok:false,status:0,data:null,error:'native_busy',transport:'bridge-pause'});
-  const confirmedContinuityLimit = () => !!document.querySelector('#ng119-interruption[data-type="limit"],#ng119-interruption[data-ng125-limit="1"]');
 
   function retryAfterMsFrom(value) {
     const raw = String(value || '').trim();
@@ -109,6 +111,8 @@
         const requested = Number(url.searchParams.get('limit') || 0);
         if (!requested || requested > 20) url.searchParams.set('limit', '20');
       }
+      // Never invent a cursor. The first Project page is requested without one;
+      // subsequent requests reuse only the opaque cursor returned by ChatGPT.
       return `${url.pathname}${url.search}`;
     } catch {
       return path;
@@ -212,11 +216,12 @@
     return result;
   }
 
-  async function backendFetchCore(path, method, body, forceToken = false, options = {}) {
-    const allowNativeBusy = options.allowNativeBusy === true;
-    if (nativeBusy() && !allowNativeBusy) return nativeBusyResult();
+  async function backendFetchCore(path, method, body, forceToken = false) {
+    // Last-second circuit breaker: requests queued before the user presses Send must not
+    // wake up during a long/complex ChatGPT generation or native verification phase.
+    if (nativeBusy()) return nativeBusyResult();
     const token = await getAccessToken(forceToken);
-    if (!token) return {ok:false,status:401,data:null,error:'auth_session_missing',transport:'auth'};
+    if (!token) return { ok:false, status:401, data:null, error:'auth_session_missing', transport:'auth' };
 
     const originalPath = path;
     let effectivePath = method === 'GET' ? normalizeProjectConversationPath(path, 'safe') : path;
@@ -227,7 +232,7 @@
     const gap = gapFor(effectivePath, method);
     const wait = Math.max(0, lastNetworkAt + gap - now());
     if (wait) await sleep(wait);
-    if (nativeBusy() && !allowNativeBusy) return nativeBusyResult();
+    if (nativeBusy()) return nativeBusyResult();
     const afterWaitCircuit = syntheticRateLimit();
     if (afterWaitCircuit) return afterWaitCircuit;
 
@@ -236,7 +241,7 @@
 
     if (result.status === 401 && !forceToken) {
       cachedToken = '';
-      return backendFetchCore(originalPath, method, body, true, options);
+      return backendFetchCore(originalPath, method, body, true);
     }
 
     if (method === 'GET' && projectConversationsRx.test(originalPath) && result.status === 422) {
@@ -249,7 +254,7 @@
         const retry = await requestWithTransportFallback(noLimitPath, method, body, token);
         if (retry.status === 401 && !forceToken) {
           cachedToken = '';
-          return backendFetchCore(originalPath, method, body, true, options);
+          return backendFetchCore(originalPath, method, body, true);
         }
         result = retry;
         effectivePath = noLimitPath;
@@ -280,19 +285,19 @@
     return run;
   }
 
-  function backendFetch(path, method, body, options = {}) {
+  function backendFetch(path, method, body) {
     const normalized = method === 'GET' ? normalizeProjectConversationPath(path,'safe') : path;
     const key=cacheKey(normalized,method);
     if(method==='GET'){
       const cached=cachedSuccess(key);if(cached)return Promise.resolve(cached);
       const pending=inflightGets.get(key);if(pending)return pending;
-      const promise=enqueueNetwork(()=>backendFetchCore(path,method,body,false,options)).then(result=>{
+      const promise=enqueueNetwork(()=>backendFetchCore(path,method,body)).then(result=>{
         if(result?.ok)rememberSuccess(key,result,normalized);
         return result;
       }).finally(()=>inflightGets.delete(key));
       inflightGets.set(key,promise);return promise;
     }
-    return enqueueNetwork(()=>backendFetchCore(path,method,body,false,options)).then(result=>{
+    return enqueueNetwork(()=>backendFetchCore(path,method,body)).then(result=>{
       if(result?.ok)invalidateAfterMutation(path);
       return result;
     });
@@ -311,11 +316,14 @@
       return;
     }
 
+    // Full conversation payloads are intentionally forbidden: they are expensive on long threads
+    // and all NiakGPT features now rely on list/project metadata + local DOM/cache state.
     if (method === 'GET' && conversationRx.test(path)) {
       document.dispatchEvent(new CustomEvent(RES,{detail:{id,ok:false,status:0,data:null,error:'conversation_detail_get_disabled',transport:'guard'}}));
       return;
     }
 
+    // All NiakGPT project moves go through Project Governance.
     if (method === 'PATCH' && conversationRx.test(path) && d.governance !== true) {
       document.dispatchEvent(new CustomEvent(RES, {
         detail: { id, ok:false, status:409, data:null, error:'project_move_requires_governance', transport:'governance-guard' }
@@ -331,8 +339,7 @@
       if(!validProjectCreate(d.body)){document.dispatchEvent(new CustomEvent(RES,{detail:{id,ok:false,status:400,data:null,error:'invalid_project_create_payload',transport:'governance-guard'}}));return;}
     }
 
-    const allowNativeBusy = d.continuity === true && method === 'GET' && projectConversationsRx.test(path) && confirmedContinuityLimit();
-    const result = await backendFetch(path, method, d.body, {allowNativeBusy});
+    const result = await backendFetch(path, method, d.body);
     document.dispatchEvent(new CustomEvent(RES, { detail:{ id, ...result } }));
   });
 })();

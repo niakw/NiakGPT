@@ -1,1 +1,0 @@
-The visual lab runs deterministic ChatGPT-shaped fixtures in real browser engines. It does not prove the current authenticated production ChatGPT DOM unless an explicit authenticated-live job exists. Field screenshots remain authoritative regression evidence when fixtures disagree.

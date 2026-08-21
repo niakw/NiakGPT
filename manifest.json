@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.73",
-  "description": "Workspace power-user local pour ChatGPT : Projects stables, interactions natives préservées, continuité fiable et Safe Mode pour les longs fils.",
+  "version": "0.9.70",
+  "description": "Workspace power-user local pour ChatGPT : Projects stables, menus natifs fiables, continuité visible et reprise sûre après interruption.",
   "permissions": [
     "storage",
     "scripting"
@@ -48,10 +48,7 @@
         "matrix-guardian-v112.css",
         "performance-guard-v112.css",
         "sidebar-icons-v114.css",
-        "native-da-v112.css",
-        "native-ux-v125.css",
-        "native-ux-v126.css",
-        "sidebar-truth-v127.css"
+        "native-da-v112.css"
       ],
       "run_at": "document_start",
       "js": []
@@ -74,16 +71,6 @@
       ],
       "run_at": "document_start",
       "js": []
-    }
-  ],
-  "web_accessible_resources": [
-    {
-      "resources": [
-        "assets/mascot-v125.svg"
-      ],
-      "matches": [
-        "https://chatgpt.com/*"
-      ]
     }
   ],
   "action": {

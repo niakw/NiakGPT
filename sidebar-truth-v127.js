@@ -81,6 +81,7 @@
   function releaseNative(){for(const el of document.querySelectorAll(`[${MARK}="1"]`))el.removeAttribute(MARK);}
   function suppressNative(){const targets=nativeTargets();for(const el of targets)el.setAttribute(MARK,'1');return targets.length;}
   function customProjectIds(){return new Set([...document.querySelectorAll('#ng8-pins a[data-ng8-pin="1"]')].map(a=>normalizePid(a.dataset.ng121Pid||pidFromHref(a.getAttribute('href')))).filter(Boolean));}
+  const customCount=()=>customProjectIds().size;
   function clearProof(reason='contradiction'){
     if(!verifiedCount)return;
     verifiedCount=0;verifiedIds=new Set();verifiedAt=0;
@@ -90,7 +91,7 @@
   function inventoryState(raw=cache){
     const nativeIds=nativeProjectIds(),native=nativeIds.size;
     const serverIds=new Set(serverProjects(raw).map(p=>normalizePid(p?.id)).filter(Boolean)),server=serverIds.size;
-    const renderedIds=customProjectIds(),rendered=renderedIds.size;
+    const renderedIds=customProjectIds(),rendered=customCount();
     const cacheExpected=Math.max(0,Number(raw?.projectInventoryCount||0)||0),expected=verifiedCount||cacheExpected;
     const verified=verifiedCount>0;
     const proofInCache=verified&&server===verifiedCount&&setContainsAll(serverIds,verifiedIds);

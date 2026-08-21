@@ -37,6 +37,19 @@
   }
   async function clearPending(){try{sessionStorage.removeItem(PENDING_KEY);}catch{}try{await chrome.storage.local.remove?.(PENDING_STORE_KEY);}catch{}}
 
+  function projectFromRenderedChat(chatId){
+    const links=[...document.querySelectorAll('#ng8-pins a[data-chat],#ng8-pins a[href*="/c/"]')];
+    const link=links.find(a=>(a.dataset.chat||cid(a.getAttribute('href')))==chatId);if(!link)return'';
+    const row=link.closest('.ng96-pin-entry,[data-pid],[data-project-id]');
+    const direct=normalizePid(row?.dataset?.pid||row?.dataset?.projectId||'');if(direct)return direct;
+    const projectLink=row?.querySelector?.('a[data-ng8-pin],a[href*="/g/g-p-"]');
+    return normalizePid(String(projectLink?.getAttribute('href')||'').match(/\/g\/(g-p-[^/?#]+)/i)?.[1]||'');
+  }
+  function projectFromProjectChats(raw,chatId){
+    for(const [projectId,list] of Object.entries(raw?.projectChats||{}))if((list||[]).some(c=>c?.id===chatId))return normalizePid(projectId);
+    return'';
+  }
+
   function nativeNavigate(projectId){
     const path=projectId?`/g/${encodeURIComponent(projectId)}/project`:'/';
     const links=[...document.querySelectorAll('a[href]')].filter(outsideOwn);
@@ -49,7 +62,7 @@
 
   async function makePending(chatId){
     const raw=await cache(),state=window.__NIAKGPT_CONTINUITY__?.getState?.()||{},entry=state.out?.[chatId]||{},chat=(raw.chats||[]).find(c=>c?.id===chatId)||{};
-    const projectId=normalizePid(entry.projectId||chat.projectId||'');
+    const projectId=normalizePid(entry.projectId||chat.projectId||chat.gizmo_id||projectFromProjectChats(raw,chatId)||projectFromRenderedChat(chatId)||'');
     const project=(raw.projects||[]).find(p=>normalizePid(p?.id)===projectId)||{};
     const capsule=window.__NIAKGPT_CONTINUITY__?.buildCapsule?.(chatId,projectId,entry.history||'');
     if(!capsule)return null;
@@ -85,9 +98,8 @@
   }
   function armInjection(source='route'){const epoch=++routeEpoch;setTimeout(()=>injectPending(0,epoch),source==='handoff'?80:140);}
 
-  // Window capture runs before continuity-v112's document capture listener. We only
-  // take ownership of the explicit limit CTA, and nothing is mounted before a real
-  // limit detector creates that CTA.
+  // Window capture owns the explicit limit CTA before legacy document handlers.
+  // v112 also checks the live-owner flag, so this remains deterministic in MV3.
   window.addEventListener('click',event=>{
     const button=event.target instanceof Element?event.target.closest('.ng100-continue'):null;if(!button)return;
     const interruption=button.closest('#ng119-interruption[data-type="limit"],[data-ng125-limit="1"]');

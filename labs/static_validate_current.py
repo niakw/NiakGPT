@@ -89,7 +89,7 @@ for token in ('continueFrom?.(chatId)',r'failed\s+to\s+fetch','persistedIncident
     if token not in interrupt: fail('interruption recovery/security incomplete '+token)
 
 parallel=read('composer-continuation-v128.js')
-for token in ('--- CONTINUE — AJOUT EN PARALLÈLE ---','waiting','thinking','executing','nativeGenerationBusy','idleTriggerUntil','CANCEL_RX','prepareParallelContinuation','niakgpt:parallel-continue','contentEditable','execCommand'):
+for token in ('--- CONTINUE — AJOUT EN PARALLÈLE ---','waiting','thinking','executing','nativeGenerationBusy','idleTriggerUntil','CANCEL_RX','prepareParallelContinuation','niakgpt:parallel-continue','isContentEditable','execCommand'):
     if token not in parallel: fail('parallel continuation incomplete '+token)
 if 'setInterval(' in parallel: fail('parallel continuation must remain event-driven')
 

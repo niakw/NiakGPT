@@ -11,16 +11,43 @@ html[data-ng127-inventory-ready="1"] #ng8-pins[data-ng121-placement-ready="1"]{
   pointer-events:auto!important;
 }
 
-/* The legacy theme changed ChatGPT's global border tokens and native-da added its own
-   geometry. Keep NiakGPT decoration inside NiakGPT-owned surfaces: native sidebar rows
-   should not gain cyan separator/border traces merely because the extension is active. */
-body.ng8-ready :is(nav,[data-testid*="sidebar" i],[class*="sidebar" i]) :is(a,button,[role="button"]):not(#ng8-pins *):not([data-ng8-chat="1"]):not([data-ng8-project="1"]){
+/* The legacy native DA leaked decorative border/shadow traces onto ChatGPT's primary
+   navigation rows. Neutralise only those known top-level routes; native Project/chat rows
+   remain fully owned by ChatGPT and keep any border/shadow styles ChatGPT intentionally uses. */
+body.ng8-ready :is(nav,[data-testid*="sidebar" i],[class*="sidebar" i]) :is(
+  a[href="/"],
+  a[href^="/new"],
+  a[href^="/search"],
+  a[href^="/library"],
+  a[href^="/images"],
+  a[href^="/apps"],
+  a[href^="/codex"],
+  a[href^="/projects"],
+  a[href^="/tasks"],
+  a[href^="/plugins"],
+  a[href^="/gpts"],
+  a[href^="/explore"]
+):not(#ng8-pins *){
   border-color:transparent!important;
   box-shadow:none!important;
 }
 
-/* Preserve browser/native focus indication even while neutralising NiakGPT borders. */
-body.ng8-ready :is(nav,[data-testid*="sidebar" i],[class*="sidebar" i]) :is(a,button,[role="button"]):not(#ng8-pins *):not([data-ng8-chat="1"]):not([data-ng8-project="1"]):focus-visible{
+/* Preserve an explicit focus indication on the few native primary rows whose leaked
+   border is neutralised above. */
+body.ng8-ready :is(nav,[data-testid*="sidebar" i],[class*="sidebar" i]) :is(
+  a[href="/"],
+  a[href^="/new"],
+  a[href^="/search"],
+  a[href^="/library"],
+  a[href^="/images"],
+  a[href^="/apps"],
+  a[href^="/codex"],
+  a[href^="/projects"],
+  a[href^="/tasks"],
+  a[href^="/plugins"],
+  a[href^="/gpts"],
+  a[href^="/explore"]
+):not(#ng8-pins *):focus-visible{
   outline:2px solid currentColor!important;
   outline-offset:2px!important;
 }

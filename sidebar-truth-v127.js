@@ -31,6 +31,7 @@
   const totalHint=data=>{const root=dataRoot(data)||{},values=[root.total,root.total_count,root.totalCount,root.project_count,root.projectCount,root.pagination?.total,root.metadata?.total];return Math.max(0,...values.map(Number).filter(Number.isFinite));};
   const projectFromRaw=raw=>{const g=raw?.gizmo?.gizmo||raw?.gizmo||raw,id=normalizePid(clean(g?.id||raw?.id)),name=clean(g?.display?.name||g?.name||raw?.display?.name);return id.startsWith('g-p-')&&name?{id,name,description:clean(g?.display?.description||g?.description||''),instructions:clean(g?.instructions||''),href:`/g/${id}/project`,domOnly:false}:null;};
   const nativeBusy=()=>document.documentElement.dataset.ng8Running==='1'||['loading','waiting','thinking','executing'].includes(document.documentElement.dataset.ng86Activity||'')||document.documentElement.dataset.ng105Verification==='1';
+  const setContainsAll=(haystack,needles)=>{for(const id of needles)if(!haystack.has(id))return false;return true;};
 
   function rpc(path,timeout=9000){
     const id=`ng127-projects-${Date.now()}-${++rpcSeq}`;
@@ -79,7 +80,7 @@
   }
   function releaseNative(){for(const el of document.querySelectorAll(`[${MARK}="1"]`))el.removeAttribute(MARK);}
   function suppressNative(){const targets=nativeTargets();for(const el of targets)el.setAttribute(MARK,'1');return targets.length;}
-  function customCount(){return new Set([...document.querySelectorAll('#ng8-pins a[data-ng8-pin="1"]')].map(a=>normalizePid(a.dataset.ng121Pid||pidFromHref(a.getAttribute('href')))).filter(Boolean)).size;}
+  function customProjectIds(){return new Set([...document.querySelectorAll('#ng8-pins a[data-ng8-pin="1"]')].map(a=>normalizePid(a.dataset.ng121Pid||pidFromHref(a.getAttribute('href')))).filter(Boolean));}
   function clearProof(reason='contradiction'){
     if(!verifiedCount)return;
     verifiedCount=0;verifiedIds=new Set();verifiedAt=0;
@@ -87,11 +88,17 @@
     window.__NIAKGPT_DIAGNOSTICS__?.set('projects-truth-127',`ATTENTE · preuve inventaire invalidée · ${reason}`);
   }
   function inventoryState(raw=cache){
-    const native=nativeProjectIds().size,server=serverProjects(raw).length,cacheExpected=Math.max(0,Number(raw?.projectInventoryCount||0)||0),expected=verifiedCount||cacheExpected;
+    const nativeIds=nativeProjectIds(),native=nativeIds.size;
+    const serverIds=new Set(serverProjects(raw).map(p=>normalizePid(p?.id)).filter(Boolean)),server=serverIds.size;
+    const renderedIds=customProjectIds(),rendered=renderedIds.size;
+    const cacheExpected=Math.max(0,Number(raw?.projectInventoryCount||0)||0),expected=verifiedCount||cacheExpected;
     const verified=verifiedCount>0;
-    const trusted=verified&&server>=verifiedCount&&verifiedCount>=native;
-    const rendered=customCount(),ready=trusted&&rendered>=verifiedCount;
-    return{native,server,expected,verified,trusted,rendered,ready,verifiedAt};
+    const proofInCache=verified&&server===verifiedCount&&setContainsAll(serverIds,verifiedIds);
+    const proofRendered=verified&&rendered===verifiedCount&&setContainsAll(renderedIds,verifiedIds);
+    const nativeCovered=verified&&native<=verifiedCount&&setContainsAll(verifiedIds,nativeIds);
+    const trusted=verified&&proofInCache&&nativeCovered;
+    const ready=trusted&&proofRendered;
+    return{native,server,expected,verified,trusted,rendered,ready,verifiedAt,proofInCache,proofRendered,nativeCovered};
   }
   function apply(source='state'){
     clearTimeout(applyTimer);applyTimer=0;
@@ -131,18 +138,25 @@
     try{
       cache=await readCache();const result=await fetchInventory();
       if(!result.ok){window.__NIAKGPT_DIAGNOSTICS__?.set('projects-truth-127',`ATTENTE · inventaire serveur indisponible · ${result.error}`);if(attempts<8)scheduleRefresh('retry-error',1200);return;}
-      const found=[...result.found.values()],signature=found.map(p=>p.id).sort().join('|');
+      const found=[...result.found.values()],foundIds=new Set(found.map(p=>p.id)),signature=found.map(p=>p.id).sort().join('|');
       stableScans=signature&&signature===lastSignature?stableScans+1:1;lastSignature=signature;
-      const nativeLower=nativeProjectIds().size,lowerBound=Math.max(nativeLower,result.maxTotal||0);
+      const nativeIds=nativeProjectIds(),nativeLower=nativeIds.size,lowerBound=Math.max(nativeLower,result.maxTotal||0);
       const oneItemNeedsConfirmation=found.length<=1&&lowerBound<=1&&result.maxTotal<=1;
-      if(verifiedCount&&(nativeLower>verifiedCount||result.maxTotal>verifiedCount||(result.transportComplete&&found.length!==verifiedCount)))clearProof(`serveur=${found.length}, total=${result.maxTotal||'?'}, natif≥${nativeLower}`);
-      const verified=result.transportComplete&&found.length>0&&found.length>=lowerBound&&(!oneItemNeedsConfirmation||stableScans>=2);
+      const proofContradicted=verifiedCount&&(nativeLower>verifiedCount||!setContainsAll(verifiedIds,nativeIds)||result.maxTotal>verifiedCount||(result.transportComplete&&(found.length!==verifiedCount||!setContainsAll(foundIds,verifiedIds))));
+      if(proofContradicted)clearProof(`serveur=${found.length}, total=${result.maxTotal||'?'}, natif≥${nativeLower}`);
+      const verified=result.transportComplete&&found.length>0&&found.length>=lowerBound&&setContainsAll(foundIds,nativeIds)&&(!oneItemNeedsConfirmation||stableScans>=2);
       const proofCount=verified?Math.max(nativeLower,result.maxTotal||0,found.length):0;
-      if(verified){verifiedCount=proofCount;verifiedIds=new Set(found.map(p=>p.id));verifiedAt=Date.now();}
+      if(verified){verifiedCount=proofCount;verifiedIds=new Set(foundIds);verifiedAt=Date.now();}
       cache=await updateCache(latest=>{
         latest=latest&&typeof latest==='object'?latest:{};
-        const merged=new Map(serverProjects(latest).map(p=>[normalizePid(p.id),{...p}]));for(const p of found){const old=merged.get(p.id)||{};merged.set(p.id,{...old,...p,domOnly:false,href:`/g/${p.id}/project`});}
-        const other=(latest.projects||[]).filter(p=>!normalizePid(p?.id).startsWith('g-p-')||p?.domOnly);
+        const authoritative=verifiedCount>0;
+        const merged=new Map(authoritative?[]:serverProjects(latest).map(p=>[normalizePid(p.id),{...p}]));
+        for(const p of found){const old=merged.get(p.id)||{};merged.set(p.id,{...old,...p,domOnly:false,href:`/g/${p.id}/project`});}
+        const other=(latest.projects||[]).filter(p=>{
+          const id=normalizePid(p?.id);
+          if(!id.startsWith('g-p-'))return true;
+          return !authoritative&&p?.domOnly;
+        });
         const expected=verifiedCount||Math.max(nativeLower,result.maxTotal||0,found.length);
         return{...latest,projects:[...merged.values(),...other],projectInventoryCount:expected,projectInventoryAt:verifiedAt||0,projectInventoryVerified:verifiedCount>0,projectInventorySource:'sidebar-truth-v127',projectInventoryObservedAt:Date.now(),at:Date.now()};
       });

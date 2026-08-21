@@ -1,8 +1,10 @@
-/* NiakGPT 0.9.62 — long-thread cold history stays cheap and native-first. */
+/* NiakGPT 0.9.76 — long-thread cold history stays cheap and native-first. */
 html[data-ng112-long-thread="1"] [data-ng112-cold="1"]{
   content-visibility:auto!important;
   contain:layout paint style!important;
-  contain-intrinsic-size:auto 460px!important;
+  /* 360px keeps the initial virtual scroll estimate realistic without pushing
+     100+ turn threads beyond Firefox/WebKit's 32767px full-page raster limit. */
+  contain-intrinsic-size:auto 360px!important;
 }
 html[data-ng112-long-thread="1"][data-ng8-running="1"] #ng8-matrix,
 html[data-ng112-long-thread="1"][data-ng8-running="1"] #ng112-matrix-fallback{opacity:0!important;visibility:hidden!important;}

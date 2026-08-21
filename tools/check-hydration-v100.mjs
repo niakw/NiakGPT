@@ -8,10 +8,11 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 
 const manifest=JSON.parse(read('manifest.json'));
 if(manifest.manifest_version!==3)fail('manifest_version drift');
-if(manifest.version!=='0.9.75')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.76')fail(`unexpected release ${manifest.version}`);
 same(manifest.permissions,['storage','scripting'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*'],'host scope mismatch');
-same(manifest.content_scripts.flatMap(x=>x.js||[]),['boot-gate-v100.js','composer-continuation-v128.js'],'unexpected static runtime');
+const staticRuntime=['boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'];
+same(manifest.content_scripts.flatMap(x=>x.js||[]),staticRuntime,'unexpected static runtime');
 
 const background=read('background-v100.js');
 const runtimeList=name=>[...(background.match(new RegExp(`const ${name}=\\[(.*?)\\];`,'s'))?.[1]||'').matchAll(/'([^']+)'/g)].map(x=>x[1]);
@@ -24,7 +25,7 @@ const required=[
   'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','continuity-v112.js','interruption-guard-v119.js'
 ];
 for(const file of required)if(!isolated.includes(file))fail(`current runtime missing ${file}`);
-for(const file of ['project-pins-v090.js','native-rename-v112.js','breadcrumb-v100.js','sidebar-authority-v107.js','sidebar-expando-guard-v108.js','sidebar-projects-authority-v109.js','sidebar-projects-authority-v110.js','sidebar-projects-authority-v111.js','native-actions-controller-v119.js','native-actions-v113.js','composer-continuation-v128.js'])if(isolated.includes(file))fail(`legacy/conflicting runtime loaded ${file}`);
+for(const file of ['project-pins-v090.js','native-rename-v112.js','breadcrumb-v100.js','sidebar-authority-v107.js','sidebar-expando-guard-v108.js','sidebar-projects-authority-v109.js','sidebar-projects-authority-v110.js','sidebar-projects-authority-v111.js','native-actions-controller-v119.js','native-actions-v113.js',...staticRuntime.slice(1)])if(isolated.includes(file))fail(`legacy/conflicting runtime loaded ${file}`);
 
 const recoveryOverlays=[
   'native-ux-v125.js','native-ux-v126.js','continuity-limit-v125.js','continuity-live-v126.js','sidebar-route-placement-v125.js','sidebar-truth-v127.js',
@@ -45,17 +46,30 @@ if(idx('project-native-name-sync-v124.js')<=idx('sidebar-actions-v123.js'))fail(
 if(idx('interruption-guard-v119.js')<=idx('continuity-v112.js'))fail('interruption guard must load after continuity capture handler');
 
 for(const file of isolated.filter(x=>x!=='retro-loader-v097.js'))forbid(read(file),'setInterval(',`permanent polling in ${file}`);
-for(const file of [...main,...isolated,'background-v100.js','boot-gate-v100.js','composer-continuation-v128.js'])if(!fs.existsSync(file))fail(`missing runtime ${file}`);
+for(const file of [...main,...isolated,'background-v100.js',...staticRuntime])if(!fs.existsSync(file))fail(`missing runtime ${file}`);
 
 const bridge=read('page-bridge.js');
 need(bridge,'const nativeFetch = window.fetch.bind(window);');need(bridge,'conversation_detail_get_disabled');need(bridge,'project_move_requires_governance');forbid(bridge,'window.fetch =');forbid(bridge,'globalThis.fetch =');
 const gate=read('boot-gate-v100.js');
-for(const token of ['await waitLoad()','await waitForChatShell()','await waitForQuiet()','safeToMutate=true'])need(gate,token);
-forbid(gate,'document.documentElement.dataset');
+for(const token of ['waitDomInteractive','waitForChatShell','restorePendingContinuity','guardUpdateOnboarding','injectRuntime','for(const delay of [0,240,720])','safeToMutate=!!document.body'])need(gate,token,'fast/retry bootstrap contract incomplete');
+forbid(gate,'location.reload(','boot gate must never reload ChatGPT');
 
 const parallel=read('composer-continuation-v128.js');
 for(const token of ['--- CONTINUE — AJOUT EN PARALLÈLE ---','Poursuis le travail déjà en cours','waiting','thinking','executing','nativeGenerationBusy','idleTriggerUntil','CANCEL_RX','prepareParallelContinuation','niakgpt:parallel-continue','execCommand'])need(parallel,token,'parallel continuation contract incomplete');
 for(const token of ['setInterval(','location.reload(','stopImmediatePropagation(','preventDefault('])forbid(parallel,token,'parallel continuation must not poll, reload or hijack native send');
+
+const watchdog=read('long-run-watchdog-v129.js');
+for(const token of ['DEFAULT_SEGMENT_MS=4*60*1000+40*1000','NIAKGPT LONG RUN — REPRISE AUTOMATIQUE','nativeStop','draft-protected','attemptResume','niakgpt:long-run-resume','CANCEL_RX','ng129NativeBusy'])need(watchdog,token,'long-run watchdog contract incomplete');
+for(const token of ['setInterval(','location.reload('])forbid(watchdog,token,'long-run watchdog must stay bounded and non-reloading');
+const pinRescue=read('pin-interaction-rescue-v129.js');
+for(const token of ['pointerdown','pointerup','replacementAction','clickSeen','fallback'])need(pinRescue,token,'pin remount rescue incomplete');
+forbid(pinRescue,'setInterval(','pin rescue must remain gesture-bounded');
+const projectMenu=read('project-menu-augment-v129.js');
+for(const token of ['Personnaliser le Project','Nouveau chat dans ce Project','ng129-project-context','openProjectSettings','ng129-native-stage'])need(projectMenu,token,'Project menu/context augmentation incomplete');
+forbid(projectMenu,'setInterval(','Project menu augmentation must remain event-driven');
+const nativeHandoff=read('continuity-native-handoff-v129.js');
+for(const token of ['nativeLimitControl','CONTINUITÉ NIAKGPT','markCurrentOut','writePending','finishProjectLock','sendButton','niakgpt:activity-changed'])need(nativeHandoff,token,'native continuity handoff incomplete');
+for(const token of ['setInterval(','location.reload('])forbid(nativeHandoff,token,'native continuity handoff must stay bounded');
 
 const app=read('app-v090.js');
 for(const token of ['MutationObserver(queueMainNodes)','function renderPins()','window.__NIAKGPT_SIDEBAR_PROJECTS_121__','niakgpt:sidebar-projects-reconcile'])need(app,token,'app/v121 cooperative ownership incomplete');
@@ -89,11 +103,15 @@ const interruption=read('interruption-guard-v119.js');
 for(const token of ['LIMIT_RX','VERIFY_RX','NETWORK_RX','nativeRetry','markCurrentOut','ng100-continue','tryNativeRecovery','incident.retried','resumePrompt','continueFrom?.(chatId)','failed\\s+to\\s+fetch','persistedIncident','allowedType','type:allowedType'])need(interruption,token,'bounded interruption recovery/security incomplete');
 for(const token of ['setInterval(','location.reload(','challenge.click(','iframe.click('])forbid(interruption,token,'interruption guard must not bypass security or loop recovery');
 
+const turnHeaders=read('turn-headers-v112.js');
+for(const token of ['LIVE_KEY','nativeAt','pendingUserAt','pendingAssistantAt','data-ng8-time','date/heure fiable prioritaire'])need(turnHeaders,token,'turn timestamp/header contract incomplete');
+forbid(turnHeaders,'setInterval(','turn headers must stay event-driven');
+
 const manifestText=JSON.stringify(manifest.content_scripts);
-for(const css of ['sidebar-metadata-v118.css','sidebar-projects-authority-v112.css','sidebar-ux-v119.css','native-actions-v113.css','sidebar-actions-v123.css','interruption-guard-v119.css','chat-attention-v113.css','performance-guard-v112.css','sidebar-icons-v114.css'])need(manifestText,css,`${css} missing from manifest`);
+for(const css of ['sidebar-metadata-v118.css','sidebar-projects-authority-v112.css','sidebar-ux-v119.css','native-actions-v113.css','sidebar-actions-v123.css','interruption-guard-v119.css','chat-attention-v113.css','performance-guard-v112.css','sidebar-icons-v114.css','live-stability-v129.css'])need(manifestText,css,`${css} missing from manifest`);
 for(const css of ['native-rename-v112.css','sidebar-authority-v107.css','sidebar-expando-guard-v108.css','sidebar-projects-authority-v109.css','sidebar-projects-authority-v110.css','sidebar-projects-authority-v111.css','native-ux-v125.css','native-ux-v126.css','sidebar-truth-v127.css'])forbid(manifestText,css,`${css} still wired`);
 
-for(const file of ['visual-lab/sidebar-session-ux-v123.mjs','visual-lab/tests/sidebar-human-ux-v123.spec.js','visual-lab/tests/activity-long-running-v124.spec.js','visual-lab/experience-gate-v116.mjs','visual-lab/false-positive-signals-v121.mjs','visual-lab/live-sidebar-state-v122.mjs','visual-lab/user-reported-regressions-v120.mjs','visual-lab/parallel-continue-v128.mjs','visual-lab/tests/composer-continuation-runtime-v128.spec.js'])if(!fs.existsSync(file))fail(`required current regression gate missing ${file}`);
+for(const file of ['visual-lab/sidebar-session-ux-v123.mjs','visual-lab/tests/sidebar-human-ux-v123.spec.js','visual-lab/tests/activity-long-running-v124.spec.js','visual-lab/experience-gate-v116.mjs','visual-lab/false-positive-signals-v121.mjs','visual-lab/live-sidebar-state-v122.mjs','visual-lab/user-reported-regressions-v120.mjs','visual-lab/parallel-continue-v128.mjs','visual-lab/tests/composer-continuation-runtime-v128.spec.js','visual-lab/tests/live-stability-v129.spec.js'])if(!fs.existsSync(file))fail(`required current regression gate missing ${file}`);
 const sessionGate=read('visual-lab/sidebar-session-ux-v123.mjs');
 for(const token of ['length:28','length:58','scroll snapped','Projects block drifted above native primary/logo area','Project menu is clipped/inside sidebar/not hit-testable','Chat menu is clipped/inside sidebar/not hit-testable','WCAG 2.5.8','sidebar remount did not recover','sidebar-session-ux-v123'])need(sessionGate,token,'cross-engine full-session sidebar gate incomplete');
 const humanSpec=read('visual-lab/tests/sidebar-human-ux-v123.spec.js');
@@ -104,6 +122,8 @@ const parallelGate=read('visual-lab/parallel-continue-v128.mjs');
 for(const token of ['idle+thinking+executing+cancel+native-stop+contenteditable+visual','parallel-continuation.png','chromium,firefox,webkit'])need(parallelGate,token,'parallel cross-engine/visual gate incomplete');
 const parallelRuntime=read('visual-lab/tests/composer-continuation-runtime-v128.spec.js');
 for(const token of ['real MV3 static continuation layer prefixes only pre-existing parallel work','Message depuis une conversation au repos.','Ajoute ce contrôle sans arrêter ce que tu fais.','annule'])need(parallelRuntime,token,'parallel real-extension gate incomplete');
+const liveSpec=read('visual-lab/tests/live-stability-v129.spec.js');
+for(const token of ['NIAKGPT_EXECUTABLE_PATH','long-run recovery + remount-safe pins + Project context + native limit handoff','Brouillon utilisateur à préserver','draft-protected','Personnaliser le Project','CONTINUITÉ NIAKGPT'])need(liveSpec,token,'0.9.76 focused live stability gate incomplete');
 
 const packageJson=read('visual-lab/package.json');
 const packageVersion=JSON.parse(packageJson).devDependencies?.['@playwright/test'];if(packageVersion!=='1.62.1')fail(`Playwright package/image version drift: ${packageVersion}`);
@@ -113,6 +133,8 @@ const imageLines=workflow.split(/\r?\n/).filter(line=>/^\s+image:\s+mcr\.microso
 if(/^\s*npx playwright install --with-deps\b/m.test(workflow))fail('Linux Finalization reintroduced apt --with-deps');
 const parallelWorkflow=read('.github/workflows/parallel-continuation-v128.yml');
 for(const token of ['parallel-continue-v128.mjs','composer-continuation-runtime-v128.spec.js','matrix:','browser: [chromium, firefox, webkit]','parallel-continuation-v128'])need(parallelWorkflow,token,'parallel continuation workflow incomplete');
+const liveWorkflow=read('.github/workflows/live-stability-v129.yml');
+for(const token of ['live-stability-v129.spec.js','Brave stable','NIAKGPT_EXECUTABLE_PATH','chromium'])need(liveWorkflow,token,'0.9.76 live stability workflow incomplete');
 
 if(!fs.existsSync('TESTING_TRUTH.md'))fail('testing truth contract missing');
 const truth=read('TESTING_TRUTH.md');

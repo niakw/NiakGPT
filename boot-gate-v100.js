@@ -22,16 +22,16 @@
   window.addEventListener('error',event=>remember('JS',event.error||event.message),true);
   window.addEventListener('unhandledrejection',event=>remember('PROMISE',event.reason),true);
 
-  function waitLoad(){
-    if(document.readyState==='complete')return Promise.resolve();
-    return new Promise(resolve=>window.addEventListener('load',resolve,{once:true}));
+  function waitDomInteractive(){
+    if(document.readyState!=='loading')return Promise.resolve();
+    return new Promise(resolve=>document.addEventListener('DOMContentLoaded',resolve,{once:true}));
   }
 
-  async function waitForChatShell(timeout=10000){
+  async function waitForChatShell(timeout=8000){
     const start=performance.now();
     while(performance.now()-start<timeout){
       if(document.body&&(document.querySelector('main')||document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"]')||document.querySelector('nav,aside')))return;
-      await sleep(100);
+      await sleep(80);
     }
   }
 
@@ -53,9 +53,6 @@
     const lock={schema:1,chatId:pending.chatId||'',projectId:pending.projectId||'',projectName:pending.projectName||'',chatName:pending.chatName||'',exactProject:pending.exactProject!==false&&!!pending.projectId,createdAt:Number(pending.createdAt||Date.now()),consumedAt:Date.now(),sourceUrl:pending.sourceUrl||''};
     try{
       if(lock.projectId){await chrome.storage.local.set({[CONTINUITY_LOCK_KEY]:lock});try{sessionStorage.setItem(PIN_OPEN_KEY,lock.projectId);}catch{}}
-      // The capsule must not become observable before both durable and page-local
-      // injection records are gone. This removes the navigation race where a fast
-      // next route could replay the same capsule into an unrelated draft.
       await chrome.storage.local.remove(CONTINUITY_STORE_KEY);
       try{sessionStorage.removeItem(CONTINUITY_PENDING_KEY);}catch{}
       return true;
@@ -65,8 +62,8 @@
       return false;
     }
   }
-  async function restorePendingContinuity(timeout=7000){
-    const pending=await pendingContinuity();if(!pending?.capsule)return false;
+  async function restorePendingContinuity(timeout=6500){
+    const pending=await pendingContinuity();if(!pending?.capsule||pending.autoSend===true)return false;
     const started=performance.now();
     while(performance.now()-started<timeout){
       const ed=continuityEditor();
@@ -78,39 +75,9 @@
           if(await consumePendingBeforeInjection(pending)&&setEditor(ed,text))return true;
         }
       }
-      await sleep(80);
+      await sleep(70);
     }
     return false;
-  }
-
-  function waitForQuiet(quietMs=700,maxWait=3500){
-    return new Promise(resolve=>{
-      if(!document.documentElement){resolve();return;}
-      let done=false,last=performance.now();
-      const observer=new MutationObserver(()=>{last=performance.now();});
-      observer.observe(document.documentElement,{childList:true,subtree:true,characterData:true});
-      const start=performance.now();
-      const tick=()=>{
-        if(done)return;
-        const now=performance.now();
-        if(now-last>=quietMs||now-start>=maxWait){
-          done=true;observer.disconnect();resolve();return;
-        }
-        setTimeout(tick,100);
-      };
-      setTimeout(tick,100);
-    });
-  }
-
-  function nextFrames(){
-    return new Promise(resolve=>{
-      requestAnimationFrame(()=>requestAnimationFrame(()=>{
-        if('requestIdleCallback'in window){
-          try{requestIdleCallback(()=>resolve(),{timeout:1200});return;}catch{}
-        }
-        setTimeout(resolve,80);
-      }));
-    });
   }
 
   async function guardUpdateOnboarding(){
@@ -159,26 +126,29 @@
     }
   }
 
+  async function injectRuntime(){
+    let result={ok:false,errors:['runtime_message_failed']};
+    for(const delay of [0,240,720]){
+      if(delay)await sleep(delay);
+      try{result=await chrome.runtime.sendMessage({type:'niakgpt:inject-runtime-v100'})||result;}
+      catch(error){result={ok:false,errors:[`runtime_message:${message(error)}`]};}
+      if(result.ok||document.body?.classList.contains('ng8-ready'))break;
+    }
+    return result;
+  }
+
   async function start(){
-    await waitLoad();
+    await waitDomInteractive();
+    safeToMutate=!!document.body;
     await waitForChatShell();
-    // Continuity is navigation-critical. Its pending record is durably consumed before
-    // the capsule becomes visible, so an immediate subsequent route cannot replay it.
     await restorePendingContinuity();
-    await sleep(2500);
-    await waitForQuiet();
-    await nextFrames();
-    safeToMutate=true;
     await guardUpdateOnboarding();
 
-    let result={ok:false,errors:['runtime_message_failed']};
-    try{result=await chrome.runtime.sendMessage({type:'niakgpt:inject-runtime-v100'})||result;}
-    catch(error){result={ok:false,errors:[`runtime_message:${message(error)}`]};}
-
-    const deadline=performance.now()+8000;
+    const result=await injectRuntime();
+    const deadline=performance.now()+9000;
     while(performance.now()<deadline){
       if(document.body?.classList.contains('ng8-ready'))return;
-      await sleep(150);
+      await sleep(120);
     }
     showFallback(result.errors||[]);
   }

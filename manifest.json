@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.75",
-  "description": "Socle stable NiakGPT : Projects, continuité fiable et ajouts en parallèle sans interrompre le travail en cours.",
+  "version": "0.9.76",
+  "description": "Socle stable NiakGPT : Projects, continuité fiable, interactions Brave et reprise des exécutions longues.",
   "permissions": [
     "storage",
     "scripting"
@@ -48,7 +48,8 @@
         "matrix-guardian-v112.css",
         "performance-guard-v112.css",
         "sidebar-icons-v114.css",
-        "native-da-v112.css"
+        "native-da-v112.css",
+        "live-stability-v129.css"
       ],
       "run_at": "document_start",
       "js": []
@@ -59,7 +60,11 @@
       ],
       "js": [
         "boot-gate-v100.js",
-        "composer-continuation-v128.js"
+        "composer-continuation-v128.js",
+        "long-run-watchdog-v129.js",
+        "pin-interaction-rescue-v129.js",
+        "project-menu-augment-v129.js",
+        "continuity-native-handoff-v129.js"
       ],
       "run_at": "document_start"
     },

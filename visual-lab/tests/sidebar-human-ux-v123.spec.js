@@ -43,15 +43,15 @@ function makeServer(){
   return{projects,chats};
 }
 async function launchRuntime(){
-  const dir=fs.mkdtempSync(path.join(os.tmpdir(),`niakgpt-human-v123-${BROWSER_LABEL}-`)),prefs=PROFILE.browser||{},launch={headless:HEADLESS,viewport:prefs.viewport||{width:1440,height:900},colorScheme:prefs.colorScheme||'dark',reducedMotion:prefs.reducedMotion||'reduce',args:[`--disable-extensions-except=${extensionPath}`,`--load-extension=${extensionPath}`,'--disable-background-mode','--no-first-run','--no-default-browser-check']};
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),`niakgpt-fixture-v123-${BROWSER_LABEL}-`)),prefs=PROFILE.browser||{},launch={headless:HEADLESS,viewport:prefs.viewport||{width:1440,height:900},colorScheme:prefs.colorScheme||'dark',reducedMotion:prefs.reducedMotion||'reduce',args:[`--disable-extensions-except=${extensionPath}`,`--load-extension=${extensionPath}`,'--disable-background-mode','--no-first-run','--no-default-browser-check']};
   if(EXECUTABLE)launch.executablePath=EXECUTABLE;else launch.channel='chromium';
   const context=await chromium.launchPersistentContext(dir,launch),worker=await extensionWorker(context);await worker.evaluate(async s=>chrome.storage.local.set(s),PROFILE.storageLocal||{});
   const server=makeServer(),traffic={documents:0,session:0,projects:0,projectChats:{},general:0,patches:[],posts:0,projectRenames:0,other:[]};
   await context.route('https://chatgpt.com/**',async route=>{
     const req=route.request(),url=new URL(req.url()),method=req.method().toUpperCase(),json=(body,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
     if(req.resourceType()==='document'){traffic.documents++;return route.fulfill({status:200,contentType:'text/html; charset=utf-8',body:fixture});}
-    if(url.pathname==='/api/auth/session'){traffic.session++;return json({accessToken:'human-ux-token'});}
-    if(url.pathname==='/backend-api/gizmos/snorlax/sidebar'){traffic.projects++;return json({items:server.projects.map(projectRaw),cursor:null});}
+    if(url.pathname==='/api/auth/session'){traffic.session++;return json({accessToken:'fixture-ux-token'});}
+    if(url.pathname==='/backend-api/gizmos/snorlax/sidebar'){traffic.projects++;return json({items:server.projects.map(projectRaw),total:server.projects.length,cursor:null});}
     const pm=url.pathname.match(/^\/backend-api\/gizmos\/(g-p-[A-Za-z0-9]+)\/conversations$/);if(pm){const p=pm[1],all=server.chats.filter(c=>c.projectId===p),start=Number(url.searchParams.get('cursor')||0)||0,items=all.slice(start,start+20),next=start+items.length<all.length?String(start+items.length):null;traffic.projectChats[p]=(traffic.projectChats[p]||0)+1;return json({items:items.map(chatRaw),cursor:next});}
     if(url.pathname==='/backend-api/conversations'){const offset=Number(url.searchParams.get('offset')||0)||0,limit=Number(url.searchParams.get('limit')||100)||100,items=server.chats.slice(offset,offset+limit);traffic.general++;return json({items:items.map(chatRaw),has_more:offset+items.length<server.chats.length,total:server.chats.length});}
     const cm=url.pathname.match(/^\/backend-api\/conversation\/([0-9a-f-]{20,})$/i);if(cm&&method==='PATCH'){
@@ -63,7 +63,13 @@ async function launchRuntime(){
     traffic.other.push(`${method} ${url.pathname}`);if(traffic.other.length>40)traffic.other.shift();return route.fulfill({status:204,body:''});
   });
   const page=context.pages()[0]||await context.newPage(),pageErrors=[],consoleErrors=[];page.on('pageerror',e=>pageErrors.push(String(e?.stack||e)));page.on('console',m=>{if(m.type()==='error')consoleErrors.push(m.text());});
-  const goto=async pathname=>{await page.goto(`https://chatgpt.com${pathname}`,{waitUntil:'commit'});if(!HEADLESS)await page.bringToFront();await expect(page.locator('#ng8-status')).toContainText(manifest.version,{timeout:20000});await expect(page.locator('#ng8-pins a[data-ng8-pin="1"]')).toHaveCount(server.projects.length,{timeout:20000});};
+  const goto=async pathname=>{
+    await page.goto(`https://chatgpt.com${pathname}`,{waitUntil:'commit'});if(!HEADLESS)await page.bringToFront();
+    await expect(page.locator('#ng8-status')).toContainText(manifest.version,{timeout:20000});
+    await expect(page.locator('#ng8-pins a[data-ng8-pin="1"]')).toHaveCount(server.projects.length,{timeout:20000});
+    await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.ng127InventoryReady||''),{timeout:20000,message:'managed Projects must not become testable until v127 verified the fixture inventory and renderer'}).toBe('1');
+    await expect(page.locator('#ng8-pins')).toBeVisible({timeout:5000});
+  };
   await goto(`/c/${CHAT1}`);
   await page.evaluate(({P1})=>{
     document.addEventListener('click',event=>{
@@ -87,11 +93,11 @@ async function waitStudioChats(page){
 async function menuGeometry(page){return page.evaluate(()=>{const m=document.getElementById('ng123-action-menu'),side=document.querySelector('[data-testid="conversation-sidebar"]');if(!m||!side)return null;const r=m.getBoundingClientRect(),s=side.getBoundingClientRect(),cs=getComputedStyle(m),hit=document.elementFromPoint((r.left+r.right)/2,(r.top+r.bottom)/2);return{body:m.parentElement===document.body,position:cs.position,left:r.left,right:r.right,top:r.top,bottom:r.bottom,sideRight:s.right,z:Number(cs.zIndex)||0,hit:!!hit?.closest?.('#ng123-action-menu'),inside:r.left>=0&&r.top>=0&&r.right<=innerWidth&&r.bottom<=innerHeight};});}
 async function scrollState(page){return page.evaluate(()=>{const outer=document.querySelector('#ng8-pins>.ng8-pin-list'),inner=document.querySelector('#ng8-pins .ng96-pin-drawer .ng96-folder-list'),head=document.querySelector('#ng8-pins>.ng8-pin-head'),box=document.getElementById('ng8-pins');return{outer:outer?.scrollTop||0,outerMax:outer?outer.scrollHeight-outer.clientHeight:0,inner:inner?.scrollTop||0,innerMax:inner?inner.scrollHeight-inner.clientHeight:0,headToken:head?.dataset.humanToken||'',boxToken:box?.dataset.humanToken||'',border:getComputedStyle(box).borderTopWidth+'|'+getComputedStyle(box).borderTopStyle+'|'+getComputedStyle(box).borderTopColor,order:[...document.querySelectorAll('#ng8-pins a[data-ng8-pin="1"]')].map(a=>a.dataset.ng121Pid)};});}
 
-test(`full human sidebar session UX (${BROWSER_LABEL}, ${PROFILE_NAME})`,async()=>{
-  let rt;await test.step('boot real MV3 extension in exact browser',async()=>{rt=await launchRuntime();const env=await rt.page.evaluate(()=>({brave:!!navigator.brave,visibility:document.visibilityState,hidden:document.hidden,ua:navigator.userAgent}));console.log(`HUMAN_UX_ENV ${JSON.stringify(env)}`);if(BROWSER_LABEL.includes('brave')){expect(env.brave).toBe(true);expect(env.visibility).toBe('visible');expect(env.hidden).toBe(false);expect(env.ua).not.toContain('HeadlessChrome');}});
+test(`full MV3 browser-fixture sidebar session UX (${BROWSER_LABEL}, ${PROFILE_NAME})`,async()=>{
+  let rt;await test.step('boot MV3 extension against deterministic ChatGPT fixture in exact browser',async()=>{rt=await launchRuntime();const env=await rt.page.evaluate(()=>({brave:!!navigator.brave,visibility:document.visibilityState,hidden:document.hidden,ua:navigator.userAgent}));console.log(`FIXTURE_UX_ENV ${JSON.stringify(env)}`);if(BROWSER_LABEL.includes('brave')){expect(env.brave).toBe(true);expect(env.visibility).toBe('visible');expect(env.hidden).toBe(false);expect(env.ua).not.toContain('HeadlessChrome');}});
   try{
-    await test.step('Projects catalog is complete, scrollable and visually stable',async()=>{
-      const page=rt.page;await expect(page.locator('#ng8-pins>.ng8-pin-head')).toContainText('PROJECTS');await expect(page.locator('#ng8-pins>.ng8-pin-list')).toHaveCount(1);
+    await test.step('Projects catalog is verified, complete, scrollable and visually stable',async()=>{
+      const page=rt.page;await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.ng127InventoryReady||''),{timeout:5000}).toBe('1');await expect(page.locator('#ng8-pins')).toBeVisible();await expect(page.locator('#ng8-pins>.ng8-pin-head')).toContainText('PROJECTS');await expect(page.locator('#ng8-pins>.ng8-pin-list')).toHaveCount(1);
       await page.evaluate(()=>{const box=document.getElementById('ng8-pins'),head=box.querySelector(':scope>.ng8-pin-head'),outer=box.querySelector(':scope>.ng8-pin-list');box.dataset.humanToken='box-stable';head.dataset.humanToken='head-stable';window.__humanRemoved={box:0,head:0,pins:0,drawers:0};window.__humanObs=new MutationObserver(rs=>{for(const r of rs)for(const n of r.removedNodes){if(!(n instanceof Element))continue;window.__humanRemoved.box+=n.id==='ng8-pins'?1:n.querySelectorAll?.('#ng8-pins').length||0;window.__humanRemoved.head+=n.matches?.('.ng8-pin-head')?1:n.querySelectorAll?.('.ng8-pin-head').length||0;window.__humanRemoved.pins+=n.matches?.('a[data-ng8-pin]')?1:n.querySelectorAll?.('a[data-ng8-pin]').length||0;window.__humanRemoved.drawers+=n.matches?.('.ng96-pin-drawer')?1:n.querySelectorAll?.('.ng96-pin-drawer').length||0;}});window.__humanObs.observe(document.body,{childList:true,subtree:true});outer.scrollTop=Math.floor((outer.scrollHeight-outer.clientHeight)*.55);});
       const before=await scrollState(page);expect(before.outerMax).toBeGreaterThan(120);expect(before.outer).toBeGreaterThan(40);expect(before.border).not.toMatch(/^0px/);
       for(let i=0;i<18;i++){await rt.worker.evaluate(async ({key,delta})=>{const raw=(await chrome.storage.local.get(key))[key]||{};raw.at=Date.now();raw.chats=(raw.chats||[]).map((c,j)=>({...c,updated:Number(c.updated||0)+delta+j}));await chrome.storage.local.set({[key]:raw});},{key:'niakgpt-v08-cache',delta:i+1});await page.evaluate(i=>{const main=document.querySelector('main');const n=document.createElement('span');n.dataset.churn=String(i);main.appendChild(n);n.remove();},i);await page.waitForTimeout(35);}
@@ -133,7 +139,7 @@ test(`full human sidebar session UX (${BROWSER_LABEL}, ${PROFILE_NAME})`,async()
     await test.step('Late sidebar mount and route diversity always recover Pins',async()=>{
       const page=rt.page;for(const route of ['/','/search','/library','/images','/apps',`/g/${P1}/project`,`/c/${CHAT1}`]){await rt.goto(route);await expect(page.locator('#ng8-pins>.ng8-pin-head')).toContainText('PROJECTS',{timeout:7000});}
       await page.evaluate(()=>{const old=document.querySelector('[data-testid="conversation-sidebar"]'),fresh=old.cloneNode(true);fresh.querySelector('#ng8-pins')?.remove();fresh.querySelectorAll('[data-ng112-native-projects]').forEach(x=>x.removeAttribute('data-ng112-native-projects'));old.remove();setTimeout(()=>document.body.prepend(fresh),350);});
-      await expect(page.locator('#ng8-pins a[data-ng8-pin="1"]')).toHaveCount(rt.server.projects.length,{timeout:9000});await expect(page.locator('#ng8-pins .ng113-native-actions-project')).toHaveCount(rt.server.projects.length,{timeout:5000});
+      await expect(page.locator('#ng8-pins a[data-ng8-pin="1"]')).toHaveCount(rt.server.projects.length,{timeout:9000});await expect(page.locator('#ng8-pins .ng113-native-actions-project')).toHaveCount(rt.server.projects.length,{timeout:5000});await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.ng127InventoryReady||''),{timeout:9000}).toBe('1');
     });
 
     await test.step('Conversation limit CTA really starts continuity in same Project',async()=>{

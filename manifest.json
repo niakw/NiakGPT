@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.70",
-  "description": "Workspace power-user local pour ChatGPT : Projects stables, menus natifs fiables, continuité visible et reprise sûre après interruption.",
+  "version": "0.9.74",
+  "description": "Recovery stable de NiakGPT : retour au dernier socle utilisateur validé, sécurité conservée et couches expérimentales retirées.",
   "permissions": [
     "storage",
     "scripting"
@@ -87,4 +87,5 @@
     "128": "icons/icon-128.png"
   },
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxhfsiAg5/N6bdP5qlUOkjulPdUqMH4N9C58wgEgAtjGmzoi4HjEGE/+iGfKlO1J3wzjReW6gTfkdPmVXSbLIbDG4qbcMC9HJiMKR5IUAc5aF/CyK92OHhAroxWGgUSpUpNkSZXAQtVxuo9YJWXJIXxCDmgSdg9rcdVO3kIG4bI3FbCvHfvC6qc0gHRyY41tS+FYBSysZWDdFJGkWQpLF4uZGTgaaqiG9AXs7gfucDKSc/ApXQmJ4YdlHvAcPV36l3sNrV5M9HdY9afS3FGyN1kZ55dT3Ty4LjlNVEUYz2fGbL0eoWl7gIJ0Kd1ZQmZzEQVLaMMTJu7vkk60UmX0EDQIDAQAB"
+  }
 }

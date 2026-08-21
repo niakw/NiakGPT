@@ -24,7 +24,7 @@ def runtime(name):
 
 manifest=json.loads(read('manifest.json'))
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if manifest.get('version')!='0.9.70': fail(f"version={manifest.get('version')}")
+if manifest.get('version')!='0.9.74': fail(f"version={manifest.get('version')}")
 if manifest.get('permissions')!=['storage','scripting']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*']: fail('host permissions drift')
 
@@ -40,6 +40,14 @@ missing_runtime=sorted(required-set(isolated))
 if missing_runtime: fail('current runtime missing: '+', '.join(missing_runtime))
 for forbidden in ('project-pins-v090.js','native-rename-v112.js','breadcrumb-v100.js','sidebar-authority-v107.js','sidebar-expando-guard-v108.js','native-actions-controller-v119.js','native-actions-v113.js'):
     if forbidden in isolated: fail(f'legacy/conflicting runtime wired: {forbidden}')
+
+recovery_overlays=(
+    'native-ux-v125.js','native-ux-v126.js','continuity-limit-v125.js','continuity-live-v126.js',
+    'sidebar-route-placement-v125.js','sidebar-truth-v127.js','native-ux-v125.css','native-ux-v126.css','sidebar-truth-v127.css','assets/mascot-v125.svg'
+)
+for file in recovery_overlays:
+    if file in isolated: fail(f'0.9.71-0.9.73 recovery overlay wired: {file}')
+    if (ROOT/file).exists(): fail(f'0.9.71-0.9.73 recovery overlay still shipped: {file}')
 
 refs=set(main+isolated)
 for cs in manifest.get('content_scripts',[]):
@@ -75,11 +83,11 @@ folders=read('pin-folders-v096.js')
 for token in ('drawerScrollMemory','innerScroll','outerScroll','niakgpt:hydrate-project'):
     if token not in folders: fail('drawer scroll/hydration continuity incomplete '+token)
 interrupt=read('interruption-guard-v119.js')
-for token in ('continueFrom?.(chatId)',r'failed\s+to\s+fetch'):
-    if token not in interrupt: fail('interruption recovery incomplete '+token)
+for token in ('continueFrom?.(chatId)',r'failed\s+to\s+fetch','persistedIncident','allowedType','type:allowedType'):
+    if token not in interrupt: fail('interruption recovery/security incomplete '+token)
 
 for gate in ('visual-lab/sidebar-session-ux-v123.mjs','visual-lab/tests/sidebar-human-ux-v123.spec.js'):
-    if not (ROOT/gate).exists(): fail('current human UX gate missing '+gate)
+    if not (ROOT/gate).exists(): fail('current browser-fixture UX gate missing '+gate)
 workflow=read('.github/workflows/current-finalization.yml')
 for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble'):
     if token not in workflow: fail('Current Finalization missing '+token)
@@ -89,6 +97,7 @@ package_tool=read('tools/package-extension.mjs')
 for token in ('sidebar-actions-v123.js','sidebar-actions-v123.css','native-actions-controller-v119.js','native-actions-v113.js'):
     if token not in package_tool: fail('package runtime policy missing '+token)
 
+if not (ROOT/'TESTING_TRUTH.md').exists(): fail('testing truth contract missing')
 if errors:
     print('STATIC_CURRENT_FAIL')
     for error in errors: print('- '+error)

@@ -4,6 +4,7 @@ const os=require('node:os');
 const path=require('node:path');
 
 const ROOT=path.resolve(__dirname,'..','..');
+const VERSION=require(path.join(ROOT,'manifest.json')).version;
 const fixture=fs.readFileSync(path.resolve(__dirname,'..','runtime-fixture.html'),'utf8');
 const P1='g-p-aaaaaaaaaaaaaaaa';
 const CHAT='11111111-1111-4111-8111-111111111111';
@@ -32,7 +33,7 @@ test('real MV3 continuity pending survives full document navigation and is consu
     });
     const page=context.pages()[0]||await context.newPage();
     await page.goto(`https://chatgpt.com/c/${CHAT}`,{waitUntil:'commit'});
-    await expect(page.locator('#ng8-status')).toContainText('0.9.70',{timeout:20000});
+    await expect(page.locator('#ng8-status')).toContainText(VERSION,{timeout:20000});
     await expect(page.locator('#ng8-pins a[data-ng8-pin="1"]')).toHaveCount(2,{timeout:20000});
     await page.evaluate(()=>{const a=document.createElement('div');a.setAttribute('role','alert');a.dataset.testid='conversation-limit-error';a.textContent="You've reached the maximum conversation limit. Continue in a new chat.";document.querySelector('main').appendChild(a);});
     await expect(page.locator('#ng119-interruption .ng100-continue')).toHaveCount(1,{timeout:5000});

@@ -62,7 +62,7 @@ test('0.9.76 long-run recovery + remount-safe pins + Project context + native li
     await page.waitForTimeout(500);
     expect(await page.evaluate(()=>window.__sent.length)).toBe(2);
     await expect(page.locator('html')).toHaveAttribute('data-ng129-watchdog','cancelled');
-    await page.locator('#native-stop').remove();
+    await page.locator('#native-stop').evaluate(el=>el.remove());
 
     await page.locator('#old-action').dispatchEvent('pointerdown',{button:0,clientX:30,clientY:30});
     await page.evaluate(project=>{const old=document.getElementById('old-action'),next=document.createElement('button');next.id='new-action';next.className='ng113-native-actions ng113-native-actions-project';next.dataset.ng123Action='project';next.dataset.ng123Id=project;next.textContent='•••';next.addEventListener('click',()=>window.__actionClicks++);old.replaceWith(next);},PROJECT);

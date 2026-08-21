@@ -10,7 +10,7 @@
   const PENDING_KEY='niakgpt-continuity-pending-v100';
   const PENDING_STORE_KEY='niakgpt-continuity-pending-v124';
   const PIN_OPEN_KEY='niakgpt-open-pin-folder-v096';
-  let injectTimer=0,routeEpoch=0;
+  let injectTimer=0,routeEpoch=0,rpcSeq=0;
 
   const clean=v=>String(v??'').replace(/\r/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
   const cid=v=>String(v||'').match(/\/c\/([A-Za-z0-9_-]+)/)?.[1]||'';
@@ -26,6 +26,16 @@
       else{ed.focus();ed.textContent=text;}
       ed.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:text}));ed.dispatchEvent(new Event('change',{bubbles:true}));return editorText(ed).includes('CONTINUITÉ NIAKGPT');
     }catch{return false;}
+  }
+  function rpc(path,{timeout=7000}={}){
+    const id=`ng126-cont-${Date.now()}-${++rpcSeq}`;
+    return new Promise(resolve=>{
+      const timer=setTimeout(()=>{off();resolve({ok:false,status:0,error:'rpc_timeout'});},timeout);
+      const handler=event=>{if(event.detail?.id!==id)return;off();resolve(event.detail);};
+      const off=()=>{clearTimeout(timer);document.removeEventListener('niakgpt:rpc-response',handler);};
+      document.addEventListener('niakgpt:rpc-response',handler);
+      document.dispatchEvent(new CustomEvent('niakgpt:rpc-request',{detail:{id,path,method:'GET',governance:true}}));
+    });
   }
   async function cache(){try{return(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||{};}catch{return{};}}
   async function storePending(p){
@@ -52,6 +62,35 @@
     for(const [projectId,list] of Object.entries(raw?.projectChats||{}))if((list||[]).some(c=>c?.id===chatId))return normalizePid(projectId);
     return'';
   }
+  const rowsFrom=data=>Array.isArray(data?.items)?data.items:Array.isArray(data?.conversations)?data.conversations:[];
+  const cursorFrom=data=>data?.cursor??data?.next_cursor??data?.nextCursor??null;
+  async function projectFromServer(raw,chatId){
+    const projects=(raw?.projects||[]).filter(p=>normalizePid(p?.id).startsWith('g-p-')&&!p?.domOnly);
+    if(!projects.length)return{projectId:'',complete:false};
+    const started=performance.now(),budget=7800,seenCursors=new Set();let complete=true;
+    for(const project of projects){
+      const projectId=normalizePid(project.id);let cursor=null;
+      for(let page=0;page<80&&performance.now()-started<budget;page++){
+        const qs=new URLSearchParams({limit:'20'});if(cursor!=null&&cursor!=='')qs.set('cursor',String(cursor));
+        const result=await rpc(`/backend-api/gizmos/${encodeURIComponent(projectId)}/conversations?${qs}`,{timeout:Math.max(1200,Math.min(7000,budget-(performance.now()-started)+300))});
+        if(!result?.ok){complete=false;break;}
+        const rows=rowsFrom(result.data);if(rows.some(row=>clean(row?.id||row?.conversation_id)===chatId))return{projectId,complete:true};
+        const next=cursorFrom(result.data);if(!rows.length||next==null||next==='')break;
+        const key=`${projectId}:${String(next)}`;if(seenCursors.has(key))break;seenCursors.add(key);cursor=next;
+      }
+      if(performance.now()-started>=budget){complete=false;break;}
+    }
+    return{projectId:'',complete};
+  }
+  async function resolveProject(raw,chatId,entry,chat){
+    const local=normalizePid(entry.projectId||chat.projectId||chat.gizmo_id||projectFromProjectChats(raw,chatId)||projectFromRenderedChat(chatId)||'');
+    if(local)return{projectId:local,source:'local'};
+    // At a hard conversation limit there is no generation left to protect. A bounded,
+    // one-shot lookup is preferable to silently losing the exact Project relation.
+    const remote=await projectFromServer(raw,chatId);
+    if(remote.projectId)return{projectId:remote.projectId,source:'project-list'};
+    return{projectId:'',source:remote.complete?'confirmed-outside-project':'unresolved'};
+  }
 
   function nativeNavigate(projectId){
     const path=projectId?`/g/${encodeURIComponent(projectId)}/project`:'/';
@@ -65,7 +104,11 @@
 
   async function makePending(chatId){
     const raw=await cache(),state=window.__NIAKGPT_CONTINUITY__?.getState?.()||{},entry=state.out?.[chatId]||{},chat=(raw.chats||[]).find(c=>c?.id===chatId)||{};
-    const projectId=normalizePid(entry.projectId||chat.projectId||chat.gizmo_id||projectFromProjectChats(raw,chatId)||projectFromRenderedChat(chatId)||'');
+    const relation=await resolveProject(raw,chatId,entry,chat),projectId=relation.projectId;
+    if(relation.source==='unresolved'){
+      window.__NIAKGPT_DIAGNOSTICS__?.set('continuité-126','ATTENTE · relation Project non résolue, aucun changement de page');
+      return{unresolved:true,chatId};
+    }
     const project=(raw.projects||[]).find(p=>normalizePid(p?.id)===projectId)||{};
     const baseCapsule=window.__NIAKGPT_CONTINUITY__?.buildCapsule?.(chatId,projectId,entry.history||'');
     if(!baseCapsule)return null;
@@ -73,15 +116,18 @@
     const capsule=projectId
       ?`CONTINUITÉ NIAKGPT — FIL PRÉCÉDENT ARRIVÉ À SA LIMITE\n\nPROJECT EXACT À CONSERVER : ${projectName||projectId}\nCe nouveau chat appartient obligatoirement au même Project que le fil précédent.\n\n${baseCapsule}`
       :baseCapsule;
-    return{schema:4,chatId,projectId,projectName,chatName:clean(entry.title||chat.title)||'Conversation',capsule,createdAt:Date.now(),sourceUrl:entry.sourceUrl||`${location.origin}/c/${chatId}`,patched:false,exactProject:!!projectId,source:'continuity-live-v126'};
+    return{schema:4,chatId,projectId,projectName,chatName:clean(entry.title||chat.title)||'Conversation',capsule,createdAt:Date.now(),sourceUrl:entry.sourceUrl||`${location.origin}/c/${chatId}`,patched:false,exactProject:!!projectId,relationSource:relation.source,source:'continuity-live-v126'};
   }
 
   async function continueFromButton(button){
     const link=button.closest('a[href*="/c/"]'),chatId=cid(link?.getAttribute('href'))||cid(location.pathname);if(!chatId)return false;
-    const p=await makePending(chatId);if(!p)return false;
+    button.disabled=true;button.textContent='PRÉPARATION…';
+    const p=await makePending(chatId);
+    if(p?.unresolved){button.disabled=false;button.textContent='RÉESSAYER LA CONTINUITÉ';return false;}
+    if(!p){button.disabled=false;button.textContent='CONTINUER LE FIL';return false;}
     await storePending(p);
     document.documentElement.dataset.ng126Continuity='handoff';
-    window.__NIAKGPT_DIAGNOSTICS__?.set('continuité-126',p.projectId?`PRÊT · handoff SPA vers ${p.projectName||p.projectId}`:'PRÊT · handoff vers nouveau chat');
+    window.__NIAKGPT_DIAGNOSTICS__?.set('continuité-126',p.projectId?`PRÊT · handoff vers ${p.projectName||p.projectId} · ${p.relationSource}`:'PRÊT · chat confirmé hors Project');
     nativeNavigate(p.projectId);armInjection('handoff');return true;
   }
 

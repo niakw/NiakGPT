@@ -14,6 +14,10 @@
   const PROJECT_RX=/\/g\/(g-p-[^/?#]+)(?:\/|$)/i;
   const SHOW_MORE_RX=/^(?:afficher|voir)\s+plus$|^show\s+more$/i;
   let cache={},rpcSeq=0,refreshTimer=0,applyTimer=0,busy=false,attempts=0,lastSignature='',stableScans=0,observer=null;
+  // Verified inventory is runtime authority owned by v127, not a field other cache
+  // writers are allowed to accidentally revoke. Shared-cache metadata is persisted for
+  // diagnostics/recovery only; unrelated chat hydration cannot erase this page proof.
+  let verifiedCount=0,verifiedIds=new Set(),verifiedAt=0;
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const normalizePid=v=>{const s=clean(v),m=s.match(/^g-p-([A-Za-z0-9]+)(?:-.+)?$/);return m?`g-p-${m[1]}`:s;};
@@ -76,11 +80,18 @@
   function releaseNative(){for(const el of document.querySelectorAll(`[${MARK}="1"]`))el.removeAttribute(MARK);}
   function suppressNative(){const targets=nativeTargets();for(const el of targets)el.setAttribute(MARK,'1');return targets.length;}
   function customCount(){return new Set([...document.querySelectorAll('#ng8-pins a[data-ng8-pin="1"]')].map(a=>normalizePid(a.dataset.ng121Pid||pidFromHref(a.getAttribute('href')))).filter(Boolean)).size;}
+  function clearProof(reason='contradiction'){
+    if(!verifiedCount)return;
+    verifiedCount=0;verifiedIds=new Set();verifiedAt=0;
+    delete document.documentElement.dataset.ng127InventoryReady;releaseNative();
+    window.__NIAKGPT_DIAGNOSTICS__?.set('projects-truth-127',`ATTENTE · preuve inventaire invalidée · ${reason}`);
+  }
   function inventoryState(raw=cache){
-    const native=nativeProjectIds().size,server=serverProjects(raw).length,expected=Math.max(0,Number(raw?.projectInventoryCount||0)||0),verified=raw?.projectInventoryVerified===true&&raw?.projectInventorySource==='sidebar-truth-v127';
-    const trusted=verified&&expected>0&&server>=expected&&expected>=native;
-    const rendered=customCount(),ready=trusted&&rendered>=expected;
-    return{native,server,expected,verified,trusted,rendered,ready};
+    const native=nativeProjectIds().size,server=serverProjects(raw).length,cacheExpected=Math.max(0,Number(raw?.projectInventoryCount||0)||0),expected=verifiedCount||cacheExpected;
+    const verified=verifiedCount>0;
+    const trusted=verified&&server>=verifiedCount&&verifiedCount>=native;
+    const rendered=customCount(),ready=trusted&&rendered>=verifiedCount;
+    return{native,server,expected,verified,trusted,rendered,ready,verifiedAt};
   }
   function apply(source='state'){
     clearTimeout(applyTimer);applyTimer=0;
@@ -118,20 +129,22 @@
     clearTimeout(refreshTimer);refreshTimer=0;if(busy||document.hidden||nativeBusy())return scheduleRefresh('busy',700);
     busy=true;attempts++;
     try{
-      cache=await readCache();const previous=inventoryState(cache),result=await fetchInventory();
+      cache=await readCache();const result=await fetchInventory();
       if(!result.ok){window.__NIAKGPT_DIAGNOSTICS__?.set('projects-truth-127',`ATTENTE · inventaire serveur indisponible · ${result.error}`);if(attempts<8)scheduleRefresh('retry-error',1200);return;}
       const found=[...result.found.values()],signature=found.map(p=>p.id).sort().join('|');
       stableScans=signature&&signature===lastSignature?stableScans+1:1;lastSignature=signature;
-      const nativeLower=nativeProjectIds().size,previousExpected=Math.max(0,Number(cache.projectInventoryCount||0)||0),previousServer=serverProjects(cache).length;
-      const lowerBound=Math.max(nativeLower,previousExpected,result.maxTotal||0);
+      const nativeLower=nativeProjectIds().size,lowerBound=Math.max(nativeLower,result.maxTotal||0);
       const oneItemNeedsConfirmation=found.length<=1&&lowerBound<=1&&result.maxTotal<=1;
+      if(verifiedCount&&(nativeLower>verifiedCount||result.maxTotal>verifiedCount||(result.transportComplete&&found.length!==verifiedCount)))clearProof(`serveur=${found.length}, total=${result.maxTotal||'?'}, natif≥${nativeLower}`);
       const verified=result.transportComplete&&found.length>0&&found.length>=lowerBound&&(!oneItemNeedsConfirmation||stableScans>=2);
+      const proofCount=verified?Math.max(nativeLower,result.maxTotal||0,found.length):0;
+      if(verified){verifiedCount=proofCount;verifiedIds=new Set(found.map(p=>p.id));verifiedAt=Date.now();}
       cache=await updateCache(latest=>{
         latest=latest&&typeof latest==='object'?latest:{};
         const merged=new Map(serverProjects(latest).map(p=>[normalizePid(p.id),{...p}]));for(const p of found){const old=merged.get(p.id)||{};merged.set(p.id,{...old,...p,domOnly:false,href:`/g/${p.id}/project`});}
         const other=(latest.projects||[]).filter(p=>!normalizePid(p?.id).startsWith('g-p-')||p?.domOnly);
-        const expected=Math.max(Number(latest.projectInventoryCount||0)||0,nativeLower,result.maxTotal||0,found.length);
-        return{...latest,projects:[...merged.values(),...other],projectInventoryCount:expected,projectInventoryAt:verified?Date.now():0,projectInventoryVerified:verified,projectInventorySource:'sidebar-truth-v127',projectInventoryObservedAt:Date.now(),at:Date.now()};
+        const expected=verifiedCount||Math.max(nativeLower,result.maxTotal||0,found.length);
+        return{...latest,projects:[...merged.values(),...other],projectInventoryCount:expected,projectInventoryAt:verifiedAt||0,projectInventoryVerified:verifiedCount>0,projectInventorySource:'sidebar-truth-v127',projectInventoryObservedAt:Date.now(),at:Date.now()};
       });
       document.dispatchEvent(new CustomEvent('niakgpt:sidebar-projects-reconcile',{detail:{source:'sidebar-truth-v127'}}));
       const state=apply(`refresh:${source}`);
@@ -143,16 +156,16 @@
 
   try{chrome.storage.onChanged.addListener((changes,area)=>{if(area!=='local'||!changes[CACHE_KEY])return;cache=changes[CACHE_KEY].newValue||{};scheduleApply('storage',0);});}catch{}
   document.addEventListener('niakgpt:pins-rendered',()=>scheduleApply('pins-rendered',0));
-  document.addEventListener('niakgpt:server-projects-ready',()=>scheduleRefresh('server-projects-ready',80));
+  document.addEventListener('niakgpt:server-projects-ready',()=>scheduleRefresh('server-projects-ready',40));
   document.addEventListener('niakgpt:server-indexed',()=>scheduleApply('server-indexed',0));
   document.addEventListener('niakgpt:activity-changed',event=>{if(event.detail?.active===false){attempts=0;scheduleRefresh('activity-ready',120);}});
   document.addEventListener('niakgpt:rate-limit-cleared',()=>{attempts=0;scheduleRefresh('rate-limit-cleared',180);});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){attempts=0;scheduleRefresh('visible',120);}});
   window.addEventListener('popstate',()=>scheduleApply('popstate',40));
   if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>scheduleApply('navigation',40));
-  window.addEventListener('pageshow',()=>{attempts=0;scheduleRefresh('pageshow',120);});
+  window.addEventListener('pageshow',()=>{attempts=0;scheduleRefresh('pageshow',80);});
   window.addEventListener('pagehide',()=>{clearTimeout(refreshTimer);clearTimeout(applyTimer);observer?.disconnect();},{once:true});
   observer=new MutationObserver(records=>{if(records.some(r=>[...r.addedNodes,...r.removedNodes].some(n=>n instanceof Element&&(n.id==='ng8-pins'||n.matches?.('a[href*="/g/g-p-"],[data-ng112-native-projects]')||n.querySelector?.('#ng8-pins,a[href*="/g/g-p-"]')))))scheduleApply('dom',30);});
   observer.observe(document.documentElement,{childList:true,subtree:true});
-  readCache().then(raw=>{cache=raw;apply('init');scheduleRefresh('init',160);});
+  readCache().then(raw=>{cache=raw;apply('init');scheduleRefresh('init',80);});
 })();

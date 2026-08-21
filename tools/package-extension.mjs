@@ -22,7 +22,7 @@ for(const file of files){
   const dest=path.join(build,file);fs.mkdirSync(path.dirname(dest),{recursive:true});fs.copyFileSync(file,dest);
 }
 for(const required of [
-  'boot-gate-v100.js','page-bridge.js','browser-compat-v102.js','lifecycle-guard-v104.js','multitab-v090.js',
+  'boot-gate-v100.js','composer-continuation-v128.js','page-bridge.js','browser-compat-v102.js','lifecycle-guard-v104.js','multitab-v090.js',
   'governance-adapter-v105.js','project-governance-v090.js','app-v090.js','project-state-selfheal-v102.js','project-assignment-selfheal-v103.js',
   'sidebar-metadata-v118.js','sidebar-metadata-v118.css','sidebar-projects-authority-v112.js','sidebar-projects-authority-v112.css',
   'sidebar-ux-v119.js','sidebar-ux-v119.css','sidebar-actions-v123.js','sidebar-actions-v123.css','interruption-guard-v119.js','interruption-guard-v119.css',

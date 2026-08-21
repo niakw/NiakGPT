@@ -33,8 +33,9 @@ if(idx('sidebar-ux-v119.js')>=idx('pin-folders-v096.js'))fail('sidebar UX guard 
 if(idx('sidebar-actions-v123.js')<=idx('pin-folders-v096.js')||idx('sidebar-actions-v123.js')<=idx('app-v090.js'))fail('single sidebar action owner must load after rows/render owner');
 if(idx('folder-scroll-anchor-v124.js')<=idx('sidebar-actions-v123.js'))fail('folder scroll anchor must load after sidebar actions');
 if(idx('project-native-name-sync-v124.js')<=idx('sidebar-actions-v123.js'))fail('native Project name sync must load after sidebar actions');
-if(idx('continuity-live-v126.js')<=idx('continuity-v112.js'))fail('live continuity handoff must load after legacy continuity helpers');
-if(idx('interruption-guard-v119.js')<=idx('continuity-live-v126.js'))fail('interruption guard must load after the live continuity click owner');
+if(idx('continuity-live-v126.js')>=idx('continuity-v112.js'))fail('live continuity owner must register before legacy v112 so v112 no-ops at runtime');
+if(idx('continuity-live-v126.js')<=idx('continuity-v100.js'))fail('live continuity owner needs v100 capsule/state helpers first');
+if(idx('interruption-guard-v119.js')<=idx('continuity-v112.js'))fail('interruption guard must load after continuity ownership is settled');
 if(idx('continuity-limit-v125.js')<=idx('interruption-guard-v119.js'))fail('modern limit detector must load after interruption guard');
 if(idx('native-ux-v126.js')<=idx('sidebar-actions-v123.js'))fail('live native UX owner must load after sidebar actions');
 if(idx('native-ux-v126.js')>=idx('native-ux-v125.js'))fail('v126 must disable v125 before the old repair shim executes');
@@ -87,7 +88,7 @@ for(const token of ['location.assign(`/g/','window.open('])forbid(nativeUx126,to
 for(const token of ['setInterval(','location.reload('])forbid(nativeUx126,token,'live native UX must remain event-bounded');
 
 const continuity126=read('continuity-live-v126.js');
-for(const token of ['window.addEventListener(\'click\'','source:\'continuity-live-v126\'','nativeNavigate','setEditor','await clearPending();document.documentElement.dataset.ng126Continuity=\'ready\'','CONTINUITÉ NIAKGPT','ng119-interruption[data-type="limit"]'])need(continuity126,token,'0.9.72 live continuity handoff incomplete');
+for(const token of ['window.__NIAKGPT_CONTINUITY_112__=true','projectFromRenderedChat','projectFromProjectChats','PROJECT EXACT À CONSERVER','window.addEventListener(\'click\'','source:\'continuity-live-v126\'','nativeNavigate','setEditor','await clearPending();document.documentElement.dataset.ng126Continuity=\'ready\'','CONTINUITÉ NIAKGPT','ng119-interruption[data-type="limit"]'])need(continuity126,token,'0.9.72 live continuity handoff incomplete');
 forbid(continuity126,'setInterval(','live continuity handoff must remain event-bounded');
 
 const limit125=read('continuity-limit-v125.js');

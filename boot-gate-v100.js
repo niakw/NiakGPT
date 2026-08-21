@@ -77,6 +77,11 @@
     }
     return false;
   }
+  async function commitVisibleContinuity(){
+    const pending=await pendingContinuity(),ed=continuityEditor();
+    if(!pending?.capsule||!ed||!editorText(ed).includes('CONTINUITÉ NIAKGPT'))return false;
+    return consumePendingBeforeInjection(pending);
+  }
 
   function waitForQuiet(quietMs=700,maxWait=3500){
     return new Promise(resolve=>{
@@ -153,14 +158,13 @@
   async function start(){
     await waitLoad();
     await waitForChatShell();
-    // Bootstrap may stage the capsule early for responsiveness, but it deliberately
-    // keeps the durable pending record. ChatGPT can remount the composer during
-    // hydration; the stable runtime re-injects if needed and is the only owner that
-    // commits the Project lock + clears pending after a verified write.
-    await restorePendingContinuity();
+    // Do not expose or consume the capsule while ChatGPT is still hydrating. Once the
+    // shell has stayed quiet, write it, verify the editor actually contains it, then
+    // atomically preserve the Project lock and clear both pending records. A failed
+    // write leaves pending intact for the runtime recovery path.
     await sleep(2500);
     await waitForQuiet();
-    await restorePendingContinuity(1200);
+    if(await restorePendingContinuity(1600))await commitVisibleContinuity();
     await nextFrames();
     safeToMutate=true;
     await guardUpdateOnboarding();

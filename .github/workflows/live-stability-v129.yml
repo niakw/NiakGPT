@@ -50,7 +50,6 @@ jobs:
           node --check project-menu-augment-v129.js
           node --check continuity-native-handoff-v129.js
           python3 labs/static_validate_current.py
-          node tools/package-extension.mjs
       - name: Focused watchdog / remount / Project / continuity gate
         working-directory: visual-lab
         run: npx playwright test tests/live-stability-v129.spec.js --workers=1 --reporter=line
@@ -62,7 +61,6 @@ jobs:
           path: |
             visual-lab/playwright-report
             visual-lab/test-results
-            dist/niakgpt-0.9.76.zip
           if-no-files-found: warn
           retention-days: 14
 

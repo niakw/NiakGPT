@@ -102,11 +102,19 @@ test('0.9.73 never replaces a larger native Project inventory with one cached pi
   await expect.poll(()=>page.locator('#native-projects [data-ng112-native-projects="1"]').count()).toBe(0);
 });
 
-test('0.9.73 neutralises NiakGPT border/shadow leakage on native sidebar controls',async({page})=>{
-  await page.setContent(html());await page.addStyleTag({content:css});
-  const style=await page.locator('#library').evaluate(el=>{const s=getComputedStyle(el);return{border:s.borderTopColor,shadow:s.boxShadow};});
-  expect(style.border).toBe('rgba(0, 0, 0, 0)');
-  expect(style.shadow).toBe('none');
+test('0.9.73 neutralises NiakGPT border/shadow leakage on native sidebar controls without restyling native Projects',async({page})=>{
+  await page.setContent(html());
+  await page.locator('#native-projects a').first().evaluate(el=>{
+    el.style.border='1px solid rgb(200, 100, 50)';
+    el.style.boxShadow='inset 0 -1px rgb(200, 100, 50)';
+  });
+  await page.addStyleTag({content:css});
+  const primary=await page.locator('#library').evaluate(el=>{const s=getComputedStyle(el);return{border:s.borderTopColor,shadow:s.boxShadow};});
+  expect(primary.border).toBe('rgba(0, 0, 0, 0)');
+  expect(primary.shadow).toBe('none');
+  const project=await page.locator('#native-projects a').first().evaluate(el=>{const s=getComputedStyle(el);return{border:s.borderTopColor,shadow:s.boxShadow};});
+  expect(project.border).toBe('rgb(200, 100, 50)');
+  expect(project.shadow).not.toBe('none');
 });
 
 test('0.9.73 cannot self-certify a one-Project inventory on its first scan',async({page})=>{

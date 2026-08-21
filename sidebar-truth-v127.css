@@ -1,0 +1,26 @@
+/* NiakGPT 0.9.73 — live sidebar truth gate.
+   A partial custom Project cache must never replace ChatGPT's native Project list. */
+html:not([data-ng127-inventory-ready="1"]) #ng8-pins{
+  display:none!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+html[data-ng127-inventory-ready="1"] #ng8-pins[data-ng121-placement-ready="1"]{
+  display:block!important;
+  visibility:visible!important;
+  pointer-events:auto!important;
+}
+
+/* The legacy theme changed ChatGPT's global border tokens and native-da added its own
+   geometry. Keep NiakGPT decoration inside NiakGPT-owned surfaces: native sidebar rows
+   should not gain cyan separator/border traces merely because the extension is active. */
+body.ng8-ready :is(nav,[data-testid*="sidebar" i],[class*="sidebar" i]) :is(a,button,[role="button"]):not(#ng8-pins *):not([data-ng8-chat="1"]):not([data-ng8-project="1"]){
+  border-color:transparent!important;
+  box-shadow:none!important;
+}
+
+/* Preserve browser/native focus indication even while neutralising NiakGPT borders. */
+body.ng8-ready :is(nav,[data-testid*="sidebar" i],[class*="sidebar" i]) :is(a,button,[role="button"]):not(#ng8-pins *):not([data-ng8-chat="1"]):not([data-ng8-project="1"]):focus-visible{
+  outline:2px solid currentColor!important;
+  outline-offset:2px!important;
+}

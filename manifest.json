@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "NiakGPT",
   "version": "0.9.76",
-  "description": "Socle stable NiakGPT : Projects, continuité fiable, interactions Brave et reprise des exécutions longues.",
+  "description": "Socle stable NiakGPT : Projects, continuité fiable, interactions Brave et reprise contrôlée des exécutions longues.",
   "permissions": [
     "storage",
     "scripting"

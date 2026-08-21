@@ -1,0 +1,1 @@
+Browser labels in CI describe the real browser engine/binary used to execute NiakGPT. Unless a job explicitly supplies an authenticated ChatGPT session, the document/API surface is the deterministic visual-lab fixture. See `../TESTING_TRUTH.md`.

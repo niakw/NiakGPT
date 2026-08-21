@@ -52,7 +52,7 @@
   }
   async function cache(){try{return(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||{};}catch{return{};}}
   async function readPending(){try{const p=(await chrome.storage.local.get(PENDING_KEY))[PENDING_KEY]||null;if(p&&Date.now()-Number(p.createdAt||0)<MAX_AGE)return p;if(p)await chrome.storage.local.remove(PENDING_KEY);}catch{}return null;}
-  async function writePending(p){try{await chrome.storage.local.set({[PENDING_KEY-:p});}catch{}return p;}
+  async function writePending(p){try{await chrome.storage.local.set({[PENDING_KEY]:p});}catch{}return p;}
   async function clearPending(){try{await chrome.storage.local.remove(PENDING_KEY);}catch{}}
 
   function routeProject(projectId){
@@ -62,8 +62,8 @@
   }
   async function buildPending(){
     const chatId=currentCid();if(!chatId)return null;const raw=await cache(),chat=(raw.chats||[]).find(c=>c?.id===chatId)||{},projectId=normalizePid(pid(location.pathname)||chat.projectId||''),project=(raw.projects||[]).find(p=>normalizePid(p?.id)===projectId)||{};
-    const state=window.__NIAKGPT_CONTINUITY__?.getState?.()||{},entry=state.out?.[chatId]||{};
     try{await window.__NIAKGPT_CONTINUITY__?.markCurrentOut?.('native-limit-handoff-v129',{trusted:true,evidence:'native-limit-v120'});}catch{}
+    const state=window.__NIAKGPT_CONTINUITY__?.getState?.()||{},entry=state.out?.[chatId]||{};
     const title=clean(entry.title||chat.title)||'Conversation',projectName=clean(project.name)||(projectId?'Project':'Hors projet');
     const base=window.__NIAKGPT_CONTINUITY__?.buildCapsule?.(chatId,projectId,entry.history||'');if(!base)return null;
     const capsule=[
@@ -95,6 +95,6 @@
 
   window.addEventListener('click',intercept,true);
   window.addEventListener('popstate',()=>schedule(80));if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>schedule(80));window.addEventListener('pageshow',()=>schedule(120));
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden)schedule(80);});document.addEventListener('iakgpt:activity-changed',()=>schedule(120));
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)schedule(80);});document.addEventListener('niakgpt:activity-changed',()=>schedule(120));
   window.addEventListener('pagehide',()=>clearTimeout(timer),{once:true});schedule(80);
 })();

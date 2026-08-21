@@ -2,6 +2,9 @@
   'use strict';
   if(location.hostname!=='chatgpt.com'||window.__NIAKGPT_CONTINUITY_LIVE_126__)return;
   window.__NIAKGPT_CONTINUITY_LIVE_126__=true;
+  // This module is the runtime handoff owner. The older v112 module remains in the
+  // repository for regression labs, but must not register a competing click handler.
+  window.__NIAKGPT_CONTINUITY_112__=true;
 
   const CACHE_KEY='niakgpt-v08-cache';
   const PENDING_KEY='niakgpt-continuity-pending-v100';
@@ -64,9 +67,13 @@
     const raw=await cache(),state=window.__NIAKGPT_CONTINUITY__?.getState?.()||{},entry=state.out?.[chatId]||{},chat=(raw.chats||[]).find(c=>c?.id===chatId)||{};
     const projectId=normalizePid(entry.projectId||chat.projectId||chat.gizmo_id||projectFromProjectChats(raw,chatId)||projectFromRenderedChat(chatId)||'');
     const project=(raw.projects||[]).find(p=>normalizePid(p?.id)===projectId)||{};
-    const capsule=window.__NIAKGPT_CONTINUITY__?.buildCapsule?.(chatId,projectId,entry.history||'');
-    if(!capsule)return null;
-    return{schema:4,chatId,projectId,projectName:clean(project.name)||'',chatName:clean(entry.title||chat.title)||'Conversation',capsule,createdAt:Date.now(),sourceUrl:entry.sourceUrl||`${location.origin}/c/${chatId}`,patched:false,exactProject:!!projectId,source:'continuity-live-v126'};
+    const baseCapsule=window.__NIAKGPT_CONTINUITY__?.buildCapsule?.(chatId,projectId,entry.history||'');
+    if(!baseCapsule)return null;
+    const projectName=clean(project.name)||'';
+    const capsule=projectId
+      ?`CONTINUITÉ NIAKGPT — FIL PRÉCÉDENT ARRIVÉ À SA LIMITE\n\nPROJECT EXACT À CONSERVER : ${projectName||projectId}\nCe nouveau chat appartient obligatoirement au même Project que le fil précédent.\n\n${baseCapsule}`
+      :baseCapsule;
+    return{schema:4,chatId,projectId,projectName,chatName:clean(entry.title||chat.title)||'Conversation',capsule,createdAt:Date.now(),sourceUrl:entry.sourceUrl||`${location.origin}/c/${chatId}`,patched:false,exactProject:!!projectId,source:'continuity-live-v126'};
   }
 
   async function continueFromButton(button){
@@ -87,8 +94,6 @@
       if(current.includes('CONTINUITÉ NIAKGPT')){document.documentElement.dataset.ng126Continuity='ready';return true;}
       const text=current?`${p.capsule}\n\nBROUILLON PRÉSERVÉ AVANT CONTINUITÉ\n${current}`:p.capsule;
       if(setEditor(ed,text)){
-        // Consume only AFTER the editor actually contains the capsule. This is the
-        // inverse of the old boot race that could delete pending state before a failed write.
         await clearPending();document.documentElement.dataset.ng126Continuity='ready';
         window.__NIAKGPT_DIAGNOSTICS__?.set('continuité-126',`OK · contexte injecté${p.projectId?` · ${p.projectName||p.projectId}`:''} · aucun envoi automatique`);return true;
       }
@@ -98,8 +103,6 @@
   }
   function armInjection(source='route'){const epoch=++routeEpoch;setTimeout(()=>injectPending(0,epoch),source==='handoff'?80:140);}
 
-  // Window capture owns the explicit limit CTA before legacy document handlers.
-  // v112 also checks the live-owner flag, so this remains deterministic in MV3.
   window.addEventListener('click',event=>{
     const button=event.target instanceof Element?event.target.closest('.ng100-continue'):null;if(!button)return;
     const interruption=button.closest('#ng119-interruption[data-type="limit"],[data-ng125-limit="1"]');

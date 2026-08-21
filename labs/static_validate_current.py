@@ -24,7 +24,7 @@ def runtime(name):
 
 manifest=json.loads(read('manifest.json'))
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if manifest.get('version')!='0.9.71': fail(f"version={manifest.get('version')}")
+if manifest.get('version')!='0.9.72': fail(f"version={manifest.get('version')}")
 if manifest.get('permissions')!=['storage','scripting']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*']: fail('host permissions drift')
 
@@ -33,9 +33,9 @@ isolated=runtime('ISOLATED_RUNTIME')
 if main!=['page-bridge.js']: fail(f'MAIN_RUNTIME={main!r}')
 required={
     'sidebar-metadata-v118.js','sidebar-projects-authority-v112.js','sidebar-projects-v121.js','sidebar-ux-v119.js','pin-folders-v096.js','app-v090.js','sidebar-actions-v123.js',
-    'home-layout-v112.js','analysis-bridge-v112.js','reclassify-deep-v112.js','matrix-guardian-v112.js','performance-guard-v112.js','turn-headers-v112.js','continuity-v112.js',
+    'home-layout-v112.js','analysis-bridge-v112.js','reclassify-deep-v112.js','matrix-guardian-v112.js','performance-guard-v112.js','turn-headers-v112.js','continuity-v112.js','continuity-live-v126.js',
     'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','interruption-guard-v119.js',
-    'continuity-limit-v125.js','native-ux-v125.js'
+    'continuity-limit-v125.js','native-ux-v126.js','native-ux-v125.js'
 }
 missing_runtime=sorted(required-set(isolated))
 if missing_runtime: fail('current runtime missing: '+', '.join(missing_runtime))
@@ -80,17 +80,24 @@ interrupt=read('interruption-guard-v119.js')
 for token in ('continueFrom?.(chatId)',r'failed\s+to\s+fetch'):
     if token not in interrupt: fail('interruption recovery incomplete '+token)
 
-native_ux=read('native-ux-v125.js')
-for token in ('Paramètres du projet','ng125ProjectSettings','openCustomChatInNewTab','event.metaKey||event.ctrlKey','input[type="file"]','guardBrowse','sidebar-projects-reconcile','ng125NativeModal'):
-    if token not in native_ux: fail('0.9.71 native UX incomplete '+token)
+native_ux=read('native-ux-v126.js')
+for token in ('Paramètres du projet','__NIAKGPT_NATIVE_UX_125__=true','__NIAKGPT_SIDEBAR_ROUTE_PLACEMENT_125__=true','openProjectSettings','input.click();event.preventDefault()','aucune redirection effectuée','sidebar-projects-reconcile','ng125NativeModal'):
+    if token not in native_ux: fail('0.9.72 live native UX incomplete '+token)
+for forbidden in ('window.open(', 'location.assign(`/g/'):
+    if forbidden in native_ux: fail('0.9.72 live native UX reintroduced emulated navigation '+forbidden)
+
+continuity_ux=read('continuity-live-v126.js')
+for token in ('continuity-live-v126','nativeNavigate','setEditor','await clearPending();document.documentElement.dataset.ng126Continuity=\'ready\'','ng119-interruption[data-type="limit"]'):
+    if token not in continuity_ux: fail('0.9.72 live continuity incomplete '+token)
+
 limit_ux=read('continuity-limit-v125.js')
 for token in ('interactiveLimitCard','CONTINUE_RX','markCurrentOut','native-limit-v120','ng100-continue','ng125LimitReady'):
-    if token not in limit_ux: fail('0.9.71 limit continuity incomplete '+token)
-css=read('native-ux-v125.css')
-for token in ('ng113-native-actions-chat','pointer-events:auto','ng125-native-stage','data-ng125-native-modal','assets/mascot-v125.svg'):
-    if token not in css: fail('0.9.71 UX CSS incomplete '+token)
+    if token not in limit_ux: fail('0.9.72 limit continuity incomplete '+token)
+css=read('native-ux-v126.css')
+for token in ('grid-template-columns:minmax(0,1fr) 38px','width:36px','height:34px','pointer-events:auto','ng126-native-stage','data-ng125-native-modal'):
+    if token not in css: fail('0.9.72 live UX CSS incomplete '+token)
 
-for gate in ('visual-lab/sidebar-session-ux-v123.mjs','visual-lab/tests/sidebar-human-ux-v123.spec.js','visual-lab/tests/native-ux-v125.spec.js'):
+for gate in ('visual-lab/sidebar-session-ux-v123.mjs','visual-lab/tests/sidebar-human-ux-v123.spec.js','visual-lab/tests/native-ux-v125.spec.js','visual-lab/tests/live-user-regressions-v126.spec.js'):
     if not (ROOT/gate).exists(): fail('current human UX gate missing '+gate)
 workflow=read('.github/workflows/current-finalization.yml')
 for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble'):
@@ -98,7 +105,7 @@ for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','PRI
 if re.search(r'^\s*npx playwright install --with-deps\b',workflow,re.M): fail('Linux Finalization reintroduced apt --with-deps')
 
 package_tool=read('tools/package-extension.mjs')
-for token in ('sidebar-actions-v123.js','sidebar-actions-v123.css','native-actions-controller-v119.js','native-actions-v113.js','native-ux-v125.js','continuity-limit-v125.js','assets/mascot-v125.svg'):
+for token in ('sidebar-actions-v123.js','sidebar-actions-v123.css','native-actions-controller-v119.js','native-actions-v113.js','native-ux-v126.js','native-ux-v126.css','continuity-live-v126.js','continuity-limit-v125.js','assets/mascot-v125.svg'):
     if token not in package_tool: fail('package runtime policy missing '+token)
 
 if errors:

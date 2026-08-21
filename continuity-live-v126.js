@@ -2,13 +2,12 @@
   'use strict';
   if(location.hostname!=='chatgpt.com'||window.__NIAKGPT_CONTINUITY_LIVE_126__)return;
   window.__NIAKGPT_CONTINUITY_LIVE_126__=true;
-  // This module is the runtime handoff owner. The older v112 module remains in the
-  // repository for regression labs, but must not register a competing click handler.
   window.__NIAKGPT_CONTINUITY_112__=true;
 
   const CACHE_KEY='niakgpt-v08-cache';
   const PENDING_KEY='niakgpt-continuity-pending-v100';
   const PENDING_STORE_KEY='niakgpt-continuity-pending-v124';
+  const LOCK_KEY='niakgpt-continuity-project-lock-v124';
   const PIN_OPEN_KEY='niakgpt-open-pin-folder-v096';
   let injectTimer=0,routeEpoch=0,rpcSeq=0;
 
@@ -34,7 +33,7 @@
       const handler=event=>{if(event.detail?.id!==id)return;off();resolve(event.detail);};
       const off=()=>{clearTimeout(timer);document.removeEventListener('niakgpt:rpc-response',handler);};
       document.addEventListener('niakgpt:rpc-response',handler);
-      document.dispatchEvent(new CustomEvent('niakgpt:rpc-request',{detail:{id,path,method:'GET',governance:true}}));
+      document.dispatchEvent(new CustomEvent('niakgpt:rpc-request',{detail:{id,path,method:'GET',governance:true,continuity:true}}));
     });
   }
   async function cache(){try{return(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||{};}catch{return{};}}
@@ -49,6 +48,12 @@
     try{const p=(await chrome.storage.local.get(PENDING_STORE_KEY))[PENDING_STORE_KEY]||null;return p?.capsule&&Date.now()-Number(p.createdAt||0)<30*60*1000?p:null;}catch{return null;}
   }
   async function clearPending(){try{sessionStorage.removeItem(PENDING_KEY);}catch{}try{await chrome.storage.local.remove?.(PENDING_STORE_KEY);}catch{}}
+  async function preserveProjectLock(p){
+    if(!p?.projectId)return;
+    const lock={schema:1,chatId:p.chatId||'',projectId:p.projectId,projectName:p.projectName||'',chatName:p.chatName||'',exactProject:true,createdAt:Number(p.createdAt||Date.now()),consumedAt:Date.now(),sourceUrl:p.sourceUrl||'',source:'continuity-live-v126'};
+    try{await chrome.storage.local.set({[LOCK_KEY]:lock});}catch{}
+    try{sessionStorage.setItem(PIN_OPEN_KEY,p.projectId);}catch{}
+  }
 
   function projectFromRenderedChat(chatId){
     const links=[...document.querySelectorAll('#ng8-pins a[data-chat],#ng8-pins a[href*="/c/"]')];
@@ -72,7 +77,7 @@
       const projectId=normalizePid(project.id);let cursor=null;
       for(let page=0;page<80&&performance.now()-started<budget;page++){
         const qs=new URLSearchParams({limit:'20'});if(cursor!=null&&cursor!=='')qs.set('cursor',String(cursor));
-        const result=await rpc(`/backend-api/gizmos/${encodeURIComponent(projectId)}/conversations?${qs}`,{timeout:Math.max(1200,Math.min(7000,budget-(performance.now()-started)+300))});
+        const left=budget-(performance.now()-started),result=await rpc(`/backend-api/gizmos/${encodeURIComponent(projectId)}/conversations?${qs}`,{timeout:Math.max(1200,Math.min(7000,left+300))});
         if(!result?.ok){complete=false;break;}
         const rows=rowsFrom(result.data);if(rows.some(row=>clean(row?.id||row?.conversation_id)===chatId))return{projectId,complete:true};
         const next=cursorFrom(result.data);if(!rows.length||next==null||next==='')break;
@@ -85,8 +90,6 @@
   async function resolveProject(raw,chatId,entry,chat){
     const local=normalizePid(entry.projectId||chat.projectId||chat.gizmo_id||projectFromProjectChats(raw,chatId)||projectFromRenderedChat(chatId)||'');
     if(local)return{projectId:local,source:'local'};
-    // At a hard conversation limit there is no generation left to protect. A bounded,
-    // one-shot lookup is preferable to silently losing the exact Project relation.
     const remote=await projectFromServer(raw,chatId);
     if(remote.projectId)return{projectId:remote.projectId,source:'project-list'};
     return{projectId:'',source:remote.complete?'confirmed-outside-project':'unresolved'};
@@ -137,10 +140,12 @@
     const ed=editor();
     if(ed){
       const current=editorText(ed);
-      if(current.includes('CONTINUITÉ NIAKGPT')){document.documentElement.dataset.ng126Continuity='ready';return true;}
+      if(current.includes('CONTINUITÉ NIAKGPT')){
+        await preserveProjectLock(p);await clearPending();document.documentElement.dataset.ng126Continuity='ready';return true;
+      }
       const text=current?`${p.capsule}\n\nBROUILLON PRÉSERVÉ AVANT CONTINUITÉ\n${current}`:p.capsule;
       if(setEditor(ed,text)){
-        await clearPending();document.documentElement.dataset.ng126Continuity='ready';
+        await preserveProjectLock(p);await clearPending();document.documentElement.dataset.ng126Continuity='ready';
         window.__NIAKGPT_DIAGNOSTICS__?.set('continuité-126',`OK · contexte injecté${p.projectId?` · ${p.projectName||p.projectId}`:''} · aucun envoi automatique`);return true;
       }
     }

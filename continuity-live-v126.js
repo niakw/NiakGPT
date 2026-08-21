@@ -9,7 +9,7 @@
   const PENDING_STORE_KEY='niakgpt-continuity-pending-v124';
   const LOCK_KEY='niakgpt-continuity-project-lock-v124';
   const PIN_OPEN_KEY='niakgpt-open-pin-folder-v096';
-  let injectTimer=0,routeEpoch=0,rpcSeq=0;
+  let injectTimer=0,routeEpoch=0,rpcSeq=0,handoffTimer=0;
 
   const clean=v=>String(v??'').replace(/\r/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
   const cid=v=>String(v||'').match(/\/c\/([A-Za-z0-9_-]+)/)?.[1]||'';
@@ -122,6 +122,14 @@
     return{schema:4,chatId,projectId,projectName,chatName:clean(entry.title||chat.title)||'Conversation',capsule,createdAt:Date.now(),sourceUrl:entry.sourceUrl||`${location.origin}/c/${chatId}`,patched:false,exactProject:!!projectId,relationSource:relation.source,source:'continuity-live-v126'};
   }
 
+  function armAfterHandoff(chatId,attempt=0){
+    clearTimeout(handoffTimer);
+    handoffTimer=setTimeout(()=>{
+      handoffTimer=0;
+      if(cid(location.pathname)!==chatId){armInjection('handoff-destination');return;}
+      if(attempt<24)armAfterHandoff(chatId,attempt+1);
+    },100+Math.min(300,attempt*20));
+  }
   async function continueFromButton(button){
     const link=button.closest('a[href*="/c/"]'),chatId=cid(link?.getAttribute('href'))||cid(location.pathname);if(!chatId)return false;
     button.disabled=true;button.textContent='PRÉPARATION…';
@@ -131,7 +139,7 @@
     await storePending(p);
     document.documentElement.dataset.ng126Continuity='handoff';
     window.__NIAKGPT_DIAGNOSTICS__?.set('continuité-126',p.projectId?`PRÊT · handoff vers ${p.projectName||p.projectId} · ${p.relationSource}`:'PRÊT · chat confirmé hors Project');
-    nativeNavigate(p.projectId);armInjection('handoff');return true;
+    nativeNavigate(p.projectId);armAfterHandoff(chatId);return true;
   }
 
   async function injectPending(attempt=0,epoch=routeEpoch){
@@ -152,7 +160,7 @@
     if(attempt<50)injectTimer=setTimeout(()=>injectPending(attempt+1,epoch),Math.min(900,100+attempt*18));
     return false;
   }
-  function armInjection(source='route'){const epoch=++routeEpoch;setTimeout(()=>injectPending(0,epoch),source==='handoff'?80:140);}
+  function armInjection(source='route'){const epoch=++routeEpoch;setTimeout(()=>injectPending(0,epoch),source==='handoff-destination'?80:140);}
 
   window.addEventListener('click',event=>{
     const button=event.target instanceof Element?event.target.closest('.ng100-continue'):null;if(!button)return;
@@ -165,5 +173,6 @@
   if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>armInjection('navigation'));
   window.addEventListener('pageshow',()=>armInjection('pageshow'));
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)armInjection('visible');});
+  window.addEventListener('pagehide',()=>clearTimeout(handoffTimer),{once:true});
   armInjection('init');
 })();

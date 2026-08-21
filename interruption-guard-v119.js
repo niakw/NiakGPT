@@ -39,8 +39,9 @@
   }
   function persistedIncident(data){
     if(!data)return null;
+    const allowedType = data.type==='limit'||data.type==='verify'||data.type==='network' ? data.type : '';
     return {
-      type:data.type||'',
+      type:allowedType,
       at:Number(data.at||0),
       retried:!!data.retried,
       recovered:!!data.recovered,

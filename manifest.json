@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.72",
+  "version": "0.9.73",
   "description": "Workspace power-user local pour ChatGPT : Projects stables, interactions natives préservées, continuité fiable et Safe Mode pour les longs fils.",
   "permissions": [
     "storage",
@@ -50,7 +50,8 @@
         "sidebar-icons-v114.css",
         "native-da-v112.css",
         "native-ux-v125.css",
-        "native-ux-v126.css"
+        "native-ux-v126.css",
+        "sidebar-truth-v127.css"
       ],
       "run_at": "document_start",
       "js": []

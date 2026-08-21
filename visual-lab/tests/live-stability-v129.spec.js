@@ -32,7 +32,9 @@ test('0.9.76 long-run recovery + remount-safe pins + Project context + native li
   const editor=document.getElementById('prompt-textarea');document.getElementById('send').addEventListener('click',()=>{window.__sent.push(editor.value);editor.value='';editor.dispatchEvent(new InputEvent('input',{bubbles:true}));});
   document.getElementById('native-project').addEventListener('click',event=>{event.preventDefault();window.__routed=true;});
   window.__NIAKGPT_CONTINUITY__={buildCapsule:()=> 'CONTINUITÉ NIAKGPT — capsule complète',getState:()=>({out:{}}),markCurrentOut:async()=>true};
-  document.documentElement.dataset.ng129TestSegmentMs='180';
+  // Keep the production 4m40 rolling semantics, but compress one segment enough for CI
+  // without letting several artificial segments elapse before Playwright can observe #1.
+  document.documentElement.dataset.ng129TestSegmentMs='1200';
   </script></body></html>`;
   try{
     await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html; charset=utf-8',body:fixture}));
@@ -43,14 +45,15 @@ test('0.9.76 long-run recovery + remount-safe pins + Project context + native li
     await page.addScriptTag({content:read('project-menu-augment-v129.js')});
     await page.addScriptTag({content:read('continuity-native-handoff-v129.js')});
 
-    await expect.poll(()=>page.evaluate(()=>window.__sent.length),{timeout:2500}).toBe(1);
+    await expect.poll(()=>page.evaluate(()=>window.__sent.length),{timeout:2800,intervals:[80,120,180]}).toBe(1);
     const automatic=await page.evaluate(()=>window.__sent[0]);
     expect(automatic).toContain('--- NIAKGPT LONG RUN — REPRISE AUTOMATIQUE ---');
     expect(automatic).toContain('Poursuis exactement la tâche déjà en cours');
     await expect(page.locator('html')).toHaveAttribute('data-ng129-native-busy','1');
 
+    // A following rolling deadline must never overwrite a real user draft.
     await page.locator('#prompt-textarea').fill('Brouillon utilisateur à préserver');
-    await page.waitForTimeout(900);
+    await page.waitForTimeout(2100);
     expect(await page.evaluate(()=>window.__sent.length)).toBe(1);
     await expect(page.locator('#prompt-textarea')).toHaveValue('Brouillon utilisateur à préserver');
     await expect(page.locator('html')).toHaveAttribute('data-ng129-watchdog','draft-protected');

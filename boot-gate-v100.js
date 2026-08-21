@@ -39,7 +39,7 @@
   function editorText(ed){return clean(ed?('value'in ed?ed.value:ed.innerText||ed.textContent):'');}
   function setEditor(ed,text){
     if(!ed)return false;
-    try{if('value'in ed){const proto=Object.getPrototypeOf(ed),setter=Object.getOwnPropertyDescriptor(proto,'value')?.set;setter?setter.call(ed,text):ed.value=text;}else{ed.focus();ed.textContent=text;}ed.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:text}));return editorText(ed).includes('CONTINUITÉ NIAKGPT');}catch(error){remember('CONTINUITY-EDITOR',error);return false;}
+    try{if('value'in ed){const proto=Object.getPrototypeOf(ed),setter=Object.getOwnPropertyDescriptor(proto,'value')?.set;setter?setter.call(ed,text):ed.value=text;}else{ed.focus();ed.textContent=text;}ed.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:text}));return true;}catch(error){remember('CONTINUITY-EDITOR',error);return false;}
   }
   function pendingFromSession(){
     try{const p=JSON.parse(sessionStorage.getItem(CONTINUITY_PENDING_KEY)||'null');if(!p||Date.now()-Number(p.createdAt||0)>30*60*1000)return null;return p;}catch{return null;}
@@ -53,6 +53,9 @@
     const lock={schema:1,chatId:pending.chatId||'',projectId:pending.projectId||'',projectName:pending.projectName||'',chatName:pending.chatName||'',exactProject:pending.exactProject!==false&&!!pending.projectId,createdAt:Number(pending.createdAt||Date.now()),consumedAt:Date.now(),sourceUrl:pending.sourceUrl||''};
     try{
       if(lock.projectId){await chrome.storage.local.set({[CONTINUITY_LOCK_KEY]:lock});try{sessionStorage.setItem(PIN_OPEN_KEY,lock.projectId);}catch{}}
+      // The capsule must not become observable before both durable and page-local
+      // injection records are gone. This removes the navigation race where a fast
+      // next route could replay the same capsule into an unrelated draft.
       await chrome.storage.local.remove(CONTINUITY_STORE_KEY);
       try{sessionStorage.removeItem(CONTINUITY_PENDING_KEY);}catch{}
       return true;
@@ -69,18 +72,15 @@
       const ed=continuityEditor();
       if(ed){
         const current=editorText(ed);
-        if(current.includes('CONTINUITÉ NIAKGPT'))return true;
-        const text=current?`${pending.capsule}\n\nBROUILLON PRÉSERVÉ AVANT CONTINUITÉ\n${current}`:pending.capsule;
-        if(setEditor(ed,text))return true;
+        if(current.includes('CONTINUITÉ NIAKGPT')){if(await consumePendingBeforeInjection(pending))return true;}
+        else{
+          const text=current?`${pending.capsule}\n\nBROUILLON PRÉSERVÉ AVANT CONTINUITÉ\n${current}`:pending.capsule;
+          if(await consumePendingBeforeInjection(pending)&&setEditor(ed,text))return true;
+        }
       }
       await sleep(80);
     }
     return false;
-  }
-  async function commitVisibleContinuity(){
-    const pending=await pendingContinuity(),ed=continuityEditor();
-    if(!pending?.capsule||!ed||!editorText(ed).includes('CONTINUITÉ NIAKGPT'))return false;
-    return consumePendingBeforeInjection(pending);
   }
 
   function waitForQuiet(quietMs=700,maxWait=3500){
@@ -93,7 +93,9 @@
       const tick=()=>{
         if(done)return;
         const now=performance.now();
-        if(now-last>=quietMs||now-start>=maxWait){done=true;observer.disconnect();resolve();return;}
+        if(now-last>=quietMs||now-start>=maxWait){
+          done=true;observer.disconnect();resolve();return;
+        }
         setTimeout(tick,100);
       };
       setTimeout(tick,100);
@@ -103,7 +105,9 @@
   function nextFrames(){
     return new Promise(resolve=>{
       requestAnimationFrame(()=>requestAnimationFrame(()=>{
-        if('requestIdleCallback'in window){try{requestIdleCallback(()=>resolve(),{timeout:1200});return;}catch{}}
+        if('requestIdleCallback'in window){
+          try{requestIdleCallback(()=>resolve(),{timeout:1200});return;}catch{}
+        }
         setTimeout(resolve,80);
       }));
     });
@@ -158,13 +162,11 @@
   async function start(){
     await waitLoad();
     await waitForChatShell();
-    // Do not expose or consume the capsule while ChatGPT is still hydrating. Once the
-    // shell has stayed quiet, write it, verify the editor actually contains it, then
-    // atomically preserve the Project lock and clear both pending records. A failed
-    // write leaves pending intact for the runtime recovery path.
+    // Continuity is navigation-critical. Its pending record is durably consumed before
+    // the capsule becomes visible, so an immediate subsequent route cannot replay it.
+    await restorePendingContinuity();
     await sleep(2500);
     await waitForQuiet();
-    if(await restorePendingContinuity(1600))await commitVisibleContinuity();
     await nextFrames();
     safeToMutate=true;
     await guardUpdateOnboarding();

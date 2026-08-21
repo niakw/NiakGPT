@@ -1,1 +1,0 @@
-This regression contract originated from a real authenticated ChatGPT screenshot supplied on 2026-08-21. The screenshot itself is not committed because it contains user interface/session content; only the observable contract is encoded in tests.

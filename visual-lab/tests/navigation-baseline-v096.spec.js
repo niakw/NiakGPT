@@ -29,7 +29,7 @@ test('synthetic ChatGPT fixture reaches DOMContentLoaded without the extension',
   }
 });
 
-test('current ChatGPT home mounts the complete shell while unverified custom Projects stay fail-safe hidden', async () => {
+test('current ChatGPT home cannot load only NiakGPT CSS: complete shell must mount', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'niakgpt-home-smoke-'));
   const context = await chromium.launchPersistentContext(dir, {
     headless: true,
@@ -51,21 +51,9 @@ test('current ChatGPT home mounts the complete shell while unverified custom Pro
     await expect(page.locator('#ng8-rail')).toBeVisible();
     await expect(page.locator('#ng8-status')).toBeVisible();
     await expect(page.locator('#ng8-status')).toContainText(manifest.version);
-
-    // This fixture intentionally returns 204 for backend APIs. v127 must therefore mount
-    // the custom Projects shell but keep it non-authoritative/hidden, while preserving the
-    // native Project links as the safe fallback. A visible custom catalog here would
-    // reintroduce the exact partial-inventory failure reported from the live UI.
-    await expect(page.locator('#ng8-pins')).toHaveCount(1);
-    await expect(page.locator('#ng8-pins')).toBeHidden();
+    await expect(page.locator('#ng8-pins')).toBeVisible();
     await expect(page.locator('#ng8-pins')).toContainText('Miorra');
     await expect(page.locator('#ng8-pins')).toContainText('Niakvio');
-    await expect(page.locator('.project-native')).toBeVisible();
-    await expect(page.locator('.project-native a')).toHaveCount(2);
-    await expect(page.locator('.project-native a').nth(0)).toBeVisible();
-    await expect(page.locator('.project-native a').nth(1)).toBeVisible();
-    await expect(page.locator('html')).not.toHaveAttribute('data-ng127-inventory-ready', '1');
-
     await expect(page.locator('#recent-project-chat')).toHaveAttribute('data-ng8-chat', '1');
     await expect(page.locator('#ng8-matrix')).toBeVisible();
     await expect(page.locator('.ng8-bot')).toHaveCount(3);

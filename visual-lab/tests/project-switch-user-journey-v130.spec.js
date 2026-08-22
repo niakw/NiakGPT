@@ -10,11 +10,13 @@ const VERSION=JSON.parse(fs.readFileSync(path.join(ROOT,'manifest.json'),'utf8')
 const EXECUTABLE=process.env.NIAKGPT_EXECUTABLE_PATH||undefined;
 const LABEL=process.env.NIAKGPT_BROWSER_LABEL||'chromium';
 const HEADLESS=process.env.NIAKGPT_HEADLESS!=='0';
+const STANDALONE=process.env.NIAKGPT_STANDALONE==='1';
 const P1='g-p-aaaaaaaaaaaaaaaa';
 const P2='g-p-bbbbbbbbbbbbbbbb';
 const C1='11111111-1111-4111-8111-111111111111';
 const OUT=path.join(ROOT,'visual-lab','artifacts','user-journey-v130',LABEL.replace(/[^a-z0-9._-]+/gi,'-'));
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const runStep=(name,fn)=>STANDALONE?fn():test.step(name,fn);
 
 const projectRaw=(id,name)=>({gizmo:{gizmo:{id,display:{name,description:`${name} fixture`},instructions:''}}});
 const chat=(projectId,i)=>({id:`${String(i).padStart(8,'0')}-0000-4000-8000-${String(i).padStart(12,'0')}`,title:`${projectId===P1?'Studio':'Research'} chat ${i}`,gizmo_id:projectId,update_time:(Date.now()-i*1000)/1000});
@@ -23,10 +25,10 @@ async function worker(context){
   return context.serviceWorkers().find(w=>w.url().includes('background-v100.js'))||context.waitForEvent('serviceworker',{predicate:w=>w.url().includes('background-v100.js'),timeout:15000});
 }
 
-// Reuse the proven Brave/macOS shutdown strategy from sidebar-human-ux-v123.spec.js.
-// Persistent headed Brave can leave helper processes alive after every assertion passed;
-// killing only this test profile + Brave helpers keeps worker teardown bounded without
-// weakening any functional assertion in the test itself.
+// Persistent headed Brave on GitHub's macOS runner can leave Playwright's test-worker
+// teardown waiting after every assertion has passed. The same proven process cleanup used
+// by sidebar-human-ux-v123 is applied here. The standalone Brave entry point below then
+// exits only after runJourney() has completed every assertion and screenshot successfully.
 async function closeRuntime(context,dir){
   const braveMac=LABEL.includes('brave')&&process.platform==='darwin';
   if(braveMac){
@@ -103,7 +105,6 @@ async function launch(){
   await expect(page.locator('#ng8-status')).toContainText(VERSION,{timeout:20000});
   await expect(page.locator('#ng8-pins a[data-ng8-pin="1"]')).toHaveCount(2,{timeout:20000});
 
-  // Test-only RPC helper: it uses the exact public event contract used by runtime modules.
   await page.evaluate(()=>{
     window.__uxRpcSeq=0;
     window.__uxRpc=(path,timeout=2500)=>new Promise(resolve=>{
@@ -116,18 +117,13 @@ async function launch(){
     });
   });
 
-  return{
-    context,page,traffic,pageErrors,consoleErrors,
-    close:()=>closeRuntime(context,dir)
-  };
+  return{context,page,traffic,pageErrors,consoleErrors,close:()=>closeRuntime(context,dir)};
 }
 
 const pin=(page,pid)=>page.locator(`#ng8-pins a[data-ng8-pin="1"][data-ng121-pid="${pid}"]`);
 const drawer=(page,pid)=>page.locator(`#ng8-pins .ng96-pin-drawer[data-pid="${pid}"]`);
 const action=(page,pid)=>page.locator(`#ng8-pins .ng96-pin-entry[data-pid="${pid}"]>.ng113-native-actions-project`);
-
 async function shot(page,name){await page.screenshot({path:path.join(OUT,name),fullPage:true});}
-
 async function assertSingleOpen(page,expectedPid){
   await expect(drawer(page,expectedPid)).toHaveCount(1,{timeout:7000});
   const other=expectedPid===P1?P2:P1;
@@ -136,16 +132,14 @@ async function assertSingleOpen(page,expectedPid){
   await expect(pin(page,other)).toHaveAttribute('aria-expanded','false');
 }
 
-test.setTimeout(180000);
-
-test(`issue #55 automated Project-switch user journey + visual evidence (${LABEL})`,async()=>{
+async function runJourney(){
   const rt=await launch();
   try{
     const {page}=rt;
     const initialUrl=page.url();
     await shot(page,'01-ready.png');
 
-    await test.step('rapid Project switching stays local, single-owner and responsive',async()=>{
+    await runStep('rapid Project switching stays local, single-owner and responsive',async()=>{
       for(let i=0;i<5;i++){
         await pin(page,P1).click();
         await page.waitForTimeout(28);
@@ -159,8 +153,7 @@ test(`issue #55 automated Project-switch user journey + visual evidence (${LABEL
       await shot(page,'02-rapid-switch-final.png');
     });
 
-    await test.step('busy transition blocks backend work without freezing Project UX',async()=>{
-      // Prime the bridge so the next request has to wait for the network gap.
+    await runStep('busy transition blocks backend work without freezing Project UX',async()=>{
       const prime=await page.evaluate(()=>window.__uxRpc('/backend-api/conversations?offset=0&limit=100'));
       expect(prime.ok).toBeTruthy();
       const before=rt.traffic.projectCalls.length;
@@ -174,7 +167,6 @@ test(`issue #55 automated Project-switch user journey + visual evidence (${LABEL
       expect(blocked.error).toBe('native_busy');
       expect(rt.traffic.projectCalls.length).toBe(before);
 
-      // The sidebar itself must still accept local user interaction while ChatGPT is active.
       await pin(page,P1).click();
       await expect(pin(page,P1)).toBeFocused();
       await expect(page.locator('#ng8-pins')).toBeVisible();
@@ -187,8 +179,7 @@ test(`issue #55 automated Project-switch user journey + visual evidence (${LABEL
       expect(rt.traffic.projectCalls.length).toBe(before+1);
     });
 
-    await test.step('focus, drawer content and action menu remain usable after stress',async()=>{
-      // Return to a known open state and wait for hydrated rows.
+    await runStep('focus, drawer content and action menu remain usable after stress',async()=>{
       if(await drawer(page,P1).count()===0)await pin(page,P1).click();
       await expect(drawer(page,P1)).toHaveCount(1,{timeout:7000});
       const rows=drawer(page,P1).locator('.ng96-chat-entry');
@@ -210,5 +201,15 @@ test(`issue #55 automated Project-switch user journey + visual evidence (${LABEL
     expect(rt.pageErrors).toEqual([]);
     const meaningfulConsoleErrors=rt.consoleErrors.filter(x=>!/favicon|Failed to load resource.*204/i.test(x));
     expect(meaningfulConsoleErrors).toEqual([]);
-  }finally{await rt.close();}
-});
+    console.log(`PROJECT_SWITCH_USER_JOURNEY_V130_PASS ${LABEL}`);
+  }finally{
+    await rt.close();
+  }
+}
+
+if(STANDALONE){
+  runJourney().then(()=>process.exit(0)).catch(error=>{console.error(error?.stack||error);process.exit(1);});
+}else{
+  test.setTimeout(180000);
+  test(`issue #55 automated Project-switch user journey + visual evidence (${LABEL})`,runJourney);
+}

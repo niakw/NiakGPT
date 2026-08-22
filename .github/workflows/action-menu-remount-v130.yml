@@ -1,0 +1,37 @@
+name: NiakGPT Action Menu Remount v130
+
+on:
+  pull_request:
+    paths:
+      - 'sidebar-actions-v123.js'
+      - 'visual-lab/tests/action-menu-remount-toggle-v130.spec.js'
+      - '.github/workflows/action-menu-remount-v130.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chromium:
+    name: Action menu semantic toggle · Chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      options: --ipc=host
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      HOME: /root
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: visual-lab/package-lock.json
+      - name: Install lab dependencies
+        working-directory: visual-lab
+        run: npm ci --no-audit --no-fund
+      - name: Action menu trigger-remount regression
+        working-directory: visual-lab
+        run: npx playwright test tests/action-menu-remount-toggle-v130.spec.js --workers=1 --reporter=line

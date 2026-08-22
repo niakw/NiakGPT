@@ -18,7 +18,7 @@
   const pid=v=>normalizePid(String(v||'').match(/\/g\/(g-p-[^/?#]+)/i)?.[1]||'');
   const currentCid=()=>cid(location.pathname);
   const visible=el=>{if(!(el instanceof HTMLElement)||!el.isConnected)return false;const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden'&&el.getClientRects().length>0;};
-  const text=el=>clean(`${el?.getAttribute?.('aria-label')||''} ${el?.getAttribute?.('title')||''} ${el?.innerText||el?.textContent||''}`).slice(0,2800);
+  const text=el=>clean(`${el?.getAttribute?.('aria-label')||''} ${el?.getAttribute?.('title')||''} ${el?.innerText||el?.textContent||''}`).slice(0,3200);
   const own=el=>!!el?.closest?.('#ng119-interruption,#ng8-pins,#ng8-panel,#ng8-rail,#ng8-status,#ng90-control,#ng100-command,#ng8-coach');
   const editor=()=>[...document.querySelectorAll('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')].filter(visible).at(-1)||null;
   const editorText=ed=>clean(ed?('value'in ed?ed.value:ed.innerText||ed.textContent):'');
@@ -26,21 +26,19 @@
   function nativeLimitControl(target){
     const control=target instanceof Element?target.closest('button,[role="button"],a[href]'):null;
     if(!(control instanceof HTMLElement)||!visible(control)||own(control)||!CONTINUE_RX.test(text(control)))return null;
-    if(control.closest('[data-message-author-role],article[data-testid^="conversation-turn-"]'))return null;
     const main=control.closest('main,[role="main"]');if(!main)return null;
+    // The real ChatGPT limit CTA currently lives inside the final assistant turn.
+    // v129 excluded every conversation turn, so the native handler won and only carried
+    // ChatGPT's default last-message context. Require explicit limit wording instead.
     let node=control;
-    for(let depth=0;depth<7&&node&&node!==main.parentElement;depth++,node=node.parentElement){
+    for(let depth=0;depth<10&&node&&node!==main.parentElement;depth++,node=node.parentElement){
       if(node instanceof HTMLElement&&visible(node)&&!own(node)&&LIMIT_RX.test(text(node)))return control;
       if(node===main)break;
     }
     return null;
   }
   function setEditor(ed,value){
-    try{
-      if('value'in ed){const proto=Object.getPrototypeOf(ed),setter=Object.getOwnPropertyDescriptor(proto,'value')?.set;setter?setter.call(ed,value):(ed.value=value);}
-      else{ed.focus({preventScroll:true});ed.textContent=value;}
-      ed.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:value}));return editorText(ed).includes('CONTINUITÉ NIAKGPT');
-    }catch{return false;}
+    try{if('value'in ed){const proto=Object.getPrototypeOf(ed),setter=Object.getOwnPropertyDescriptor(proto,'value')?.set;setter?setter.call(ed,value):(ed.value=value);}else{ed.focus({preventScroll:true});ed.textContent=value;}ed.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:value}));return editorText(ed).includes('CONTINUITÉ NIAKGPT');}catch{return false;}
   }
   function sendButton(ed){
     const scope=ed?.closest?.('form,[data-type*="composer" i],[class*="composer" i]')||document;
@@ -61,11 +59,13 @@
     if(native instanceof HTMLElement){native.click();return;}location.assign(path);
   }
   async function buildPending(){
-    const chatId=currentCid();if(!chatId)return null;const raw=await cache(),chat=(raw.chats||[]).find(c=>c?.id===chatId)||{},projectId=normalizePid(pid(location.pathname)||chat.projectId||''),project=(raw.projects||[]).find(p=>normalizePid(p?.id)===projectId)||{};
+    const chatId=currentCid();if(!chatId)return null;
+    const raw=await cache(),chat=(raw.chats||[]).find(c=>c?.id===chatId)||{},projectId=normalizePid(pid(location.pathname)||chat.projectId||''),project=(raw.projects||[]).find(p=>normalizePid(p?.id)===projectId)||{};
     try{await window.__NIAKGPT_CONTINUITY__?.markCurrentOut?.('native-limit-handoff-v129',{trusted:true,evidence:'native-limit-v120'});}catch{}
     const state=window.__NIAKGPT_CONTINUITY__?.getState?.()||{},entry=state.out?.[chatId]||{};
     const title=clean(entry.title||chat.title)||'Conversation',projectName=clean(project.name)||(projectId?'Project':'Hors projet');
-    const base=window.__NIAKGPT_CONTINUITY__?.buildCapsule?.(chatId,projectId,entry.history||'');if(!base)return null;
+    const history=clean(entry.history||'');
+    const base=window.__NIAKGPT_CONTINUITY__?.buildCapsule?.(chatId,projectId,history);if(!base)return null;
     const capsule=[
       `Reprends la conversation nommée « ${projectName} > ${title} » exactement là où elle s’est arrêtée.`,
       'CONTINUITÉ NIAKGPT — FIL PRÉCÉDENT ARRIVÉ À SA LIMITE',
@@ -73,11 +73,17 @@
       base,
       'RÈGLE D’EXÉCUTION\nPoursuis immédiatement le travail restant. Ne demande pas de confirmation intermédiaire et ne t’arrête pas après un simple plan ou une étape partielle.'
     ].join('\n\n');
-    return{schema:1,chatId,projectId,projectName,chatName:title,capsule,createdAt:Date.now(),sourceUrl:`${location.origin}${location.pathname}`,sendAttemptAt:0,sentAt:0};
+    return{schema:2,chatId,projectId,projectName,chatName:title,capsule,historyBytes:history.length,createdAt:Date.now(),sourceUrl:`${location.origin}${location.pathname}`,sendAttemptAt:0,sentAt:0};
   }
   async function intercept(event){
-    const control=nativeLimitControl(event.target);if(!control||busy)return;event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();busy=true;
-    try{const p=await buildPending();if(!p)return;await writePending(p);if(p.projectId)try{sessionStorage.setItem(PIN_OPEN_KEY,p.projectId);}catch{}window.__NIAKGPT_DIAGNOSTICS__?.set('native-handoff-129',`PRÊT · ${p.projectName} > ${p.chatName} · contexte complet`);routeProject(p.projectId);schedule(120);}finally{busy=false;}
+    const control=nativeLimitControl(event.target);if(!control||busy)return;
+    event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();busy=true;
+    try{
+      const p=await buildPending();if(!p)return;
+      await writePending(p);if(p.projectId)try{sessionStorage.setItem(PIN_OPEN_KEY,p.projectId);}catch{}
+      window.__NIAKGPT_DIAGNOSTICS__?.set('native-handoff-129',`PRÊT · ${p.projectName} > ${p.chatName} · ${p.historyBytes} caractères de contexte`);
+      routeProject(p.projectId);schedule(120);
+    }finally{busy=false;}
   }
   async function finishProjectLock(p,newId){
     if(!p.projectId)return true;const out=await rpc(`/backend-api/conversation/${encodeURIComponent(newId)}`,{method:'PATCH',body:{gizmo_id:p.projectId}});if(out.ok){try{sessionStorage.setItem(PIN_OPEN_KEY,p.projectId);}catch{}document.dispatchEvent(new CustomEvent('niakgpt:force-server-index',{detail:{source:'native-handoff-v129'}}));return true;}return false;
@@ -88,8 +94,8 @@
     if(p.sentAt){if(Date.now()-p.sentAt>18000){p.sentAt=0;p.sendAttemptAt=0;await writePending(p);}else{schedule(500);return;}}
     const ed=editor();if(!ed){schedule(240);return;}const current=editorText(ed),textToSend=current?`${p.capsule}\n\nBROUILLON PRÉSERVÉ AVANT CONTINUITÉ\n${current}`:p.capsule;
     if(!current.includes('CONTINUITÉ NIAKGPT')&&!setEditor(ed,textToSend)){schedule(300);return;}
-    const button=sendButton(ed);if(!button){schedule(350);return;}
-    busy=true;try{p.sendAttemptAt=Date.now();p.sentAt=p.sendAttemptAt;await writePending(p);button.click();window.__NIAKGPT_DIAGNOSTICS__?.set('native-handoff-129','ENVOI · contexte de continuité transmis automatiquement');schedule(500);}catch{p.sentAt=0;await writePending(p);schedule(500);}finally{busy=false;}
+    const button=sendButton(ed);if(!button){schedule(180);return;}
+    busy=true;try{p.sendAttemptAt=Date.now();p.sentAt=p.sendAttemptAt;await writePending(p);button.click();window.__NIAKGPT_DIAGNOSTICS__?.set('native-handoff-129',`ENVOI · capsule complète transmise · ${p.historyBytes||0} caractères d'historique`);schedule(500);}catch{p.sentAt=0;await writePending(p);schedule(500);}finally{busy=false;}
   }
   function schedule(delay=180){clearTimeout(timer);timer=setTimeout(()=>{timer=0;resumePending();},delay);}
 

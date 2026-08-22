@@ -21,6 +21,19 @@ async function worker(context){
   return context.serviceWorkers().find(w=>w.url().includes('background-v100.js'))||context.waitForEvent('serviceworker',{predicate:w=>w.url().includes('background-v100.js'),timeout:15000});
 }
 
+async function boundedClose(context,dir,timeout=8000){
+  let timer=0;
+  try{
+    await Promise.race([
+      context.close().catch(()=>{}),
+      new Promise(resolve=>{timer=setTimeout(resolve,timeout);})
+    ]);
+  }finally{
+    clearTimeout(timer);
+    try{fs.rmSync(dir,{recursive:true,force:true});}catch{}
+  }
+}
+
 async function launch(){
   fs.mkdirSync(OUT,{recursive:true});
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),`niakgpt-user-journey-${LABEL}-`));
@@ -97,7 +110,7 @@ async function launch(){
 
   return{
     context,page,traffic,pageErrors,consoleErrors,
-    close:async()=>{await context.close().catch(()=>{});fs.rmSync(dir,{recursive:true,force:true});}
+    close:()=>boundedClose(context,dir)
   };
 }
 

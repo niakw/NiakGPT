@@ -60,10 +60,7 @@ jobs:
     env:
       NIAKGPT_BROWSER_LABEL: brave-stable-macos
       NIAKGPT_EXECUTABLE_PATH: /Applications/Brave Browser.app/Contents/MacOS/Brave Browser
-      # This focused CI journey is intentionally headless: headed Brave on the macOS runner
-      # can hang Playwright worker teardown even after every UX assertion and screenshot passed.
-      # The main Finalization workflow still runs the separate headed PRIMARY Brave gate.
-      NIAKGPT_HEADLESS: '1'
+      NIAKGPT_HEADLESS: '0'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -80,7 +77,7 @@ jobs:
           brew install --cask brave-browser
           test -x "$NIAKGPT_EXECUTABLE_PATH"
           "$NIAKGPT_EXECUTABLE_PATH" --version
-      - name: Automated journey + visual evidence in real Brave process
+      - name: Automated journey + visual evidence in headed Brave process
         working-directory: visual-lab
         run: npx playwright test tests/project-switch-user-journey-v130.spec.js --workers=1 --reporter=line
       - name: Upload visual evidence

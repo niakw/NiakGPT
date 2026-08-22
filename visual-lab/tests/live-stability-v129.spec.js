@@ -1,13 +1,28 @@
 const {test,expect,chromium}=require('@playwright/test');
 const fs=require('node:fs');
 const path=require('node:path');
+const {execFileSync}=require('node:child_process');
 
 const ROOT=path.resolve(__dirname,'..','..');
 const read=name=>fs.readFileSync(path.join(ROOT,name),'utf8');
 const CHAT='11111111-1111-4111-8111-111111111111';
 const PROJECT='g-p-demo123';
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 test.setTimeout(60000);
+
+async function closeRuntime(context,browser){
+  const braveMac=!!process.env.NIAKGPT_EXECUTABLE_PATH&&process.platform==='darwin';
+  if(!braveMac){await context.close().catch(()=>{});await browser.close().catch(()=>{});return;}
+  // Hosted macOS runners occasionally leave Brave's helper/process pipe alive even after
+  // every assertion has completed. Kill only Brave in this dedicated runner so teardown
+  // can never turn a passing browser gate into a 60s timeout.
+  for(const signal of ['-TERM','-KILL']){
+    try{execFileSync('/usr/bin/pkill',[signal,'-f','Brave Browser'],{stdio:'ignore'});}catch{}
+    await sleep(signal==='-TERM'?350:120);
+    if(!browser.isConnected())break;
+  }
+}
 
 test('0.9.76 long-run recovery + remount-safe pins + Project context + native limit handoff',async()=>{
   const browser=await chromium.launch({
@@ -50,6 +65,7 @@ test('0.9.76 long-run recovery + remount-safe pins + Project context + native li
     expect(automatic).toContain('--- NIAKGPT LONG RUN — REPRISE AUTOMATIQUE ---');
     expect(automatic).toContain('Poursuis exactement la tâche déjà en cours');
     await expect(page.locator('html')).toHaveAttribute('data-ng129-native-busy','1');
+    console.log('LIVE_STABILITY_CHECKPOINT watchdog-auto PASS');
 
     // A following rolling deadline must never overwrite a real user draft.
     await page.locator('#prompt-textarea').fill('Brouillon utilisateur à préserver');
@@ -57,23 +73,27 @@ test('0.9.76 long-run recovery + remount-safe pins + Project context + native li
     expect(await page.evaluate(()=>window.__sent.length)).toBe(1);
     await expect(page.locator('#prompt-textarea')).toHaveValue('Brouillon utilisateur à préserver');
     await expect(page.locator('html')).toHaveAttribute('data-ng129-watchdog','draft-protected');
+    console.log('LIVE_STABILITY_CHECKPOINT draft-protection PASS');
 
     await page.locator('#prompt-textarea').fill('annule');await page.locator('#send').click();
     await page.waitForTimeout(500);
     expect(await page.evaluate(()=>window.__sent.length)).toBe(2);
     await expect(page.locator('html')).toHaveAttribute('data-ng129-watchdog','cancelled');
     await page.locator('#native-stop').evaluate(el=>el.remove());
+    console.log('LIVE_STABILITY_CHECKPOINT cancel PASS');
 
     await page.locator('#old-action').dispatchEvent('pointerdown',{button:0,clientX:30,clientY:30});
     await page.evaluate(project=>{const old=document.getElementById('old-action'),next=document.createElement('button');next.id='new-action';next.className='ng113-native-actions ng113-native-actions-project';next.dataset.ng123Action='project';next.dataset.ng123Id=project;next.textContent='•••';next.addEventListener('click',()=>window.__actionClicks++);old.replaceWith(next);},PROJECT);
     await page.locator('body').dispatchEvent('pointerup',{button:0,clientX:30,clientY:30});
     await expect.poll(()=>page.evaluate(()=>window.__actionClicks),{timeout:1000}).toBe(1);
+    console.log('LIVE_STABILITY_CHECKPOINT remount-click PASS');
 
     await page.evaluate(project=>{const menu=document.createElement('div');menu.id='ng123-action-menu';menu.dataset.kind='project';menu.dataset.id=project;menu.innerHTML='<strong>Projet Démo</strong><button type="button">Renommer…</button>';document.body.appendChild(menu);},PROJECT);
     await expect(page.locator('#ng123-action-menu')).toContainText('Personnaliser le Project',{timeout:1500});
     await expect(page.locator('#ng123-action-menu')).toContainText('Nouveau chat dans ce Project');
     await expect(page.locator('#ng123-action-menu .ng129-project-context')).toContainText('Description de démonstration');
     await expect(page.locator('#ng123-action-menu .ng129-project-context')).toContainText('Toujours terminer le travail.');
+    console.log('LIVE_STABILITY_CHECKPOINT project-context PASS');
 
     await page.locator('#limit-card').evaluate(el=>el.hidden=false);
     await page.locator('#continue-limit').click();
@@ -87,7 +107,8 @@ test('0.9.76 long-run recovery + remount-safe pins + Project context + native li
     expect(await page.evaluate(()=>window.__NIAKGPT_PIN_INTERACTION_RESCUE_129__===true)).toBe(true);
     expect(await page.evaluate(()=>window.__NIAKGPT_PROJECT_MENU_AUGMENT_129__===true)).toBe(true);
     expect(await page.evaluate(()=>window.__NIAKGPT_NATIVE_HANDOFF_129__===true)).toBe(true);
+    console.log('LIVE_STABILITY_CHECKPOINT native-handoff PASS');
   }finally{
-    await context.close();await browser.close();
+    await closeRuntime(context,browser);
   }
 });

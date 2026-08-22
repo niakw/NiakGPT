@@ -1,0 +1,86 @@
+name: NiakGPT Project Switch User Journey v130
+
+on:
+  pull_request:
+    paths:
+      - 'page-bridge.js'
+      - 'pin-folders-v096.js'
+      - 'sidebar-projects-v121.js'
+      - 'sidebar-actions-v123.js'
+      - 'visual-lab/runtime-fixture.html'
+      - 'visual-lab/tests/project-switch-user-journey-v130.spec.js'
+      - '.github/workflows/project-switch-user-journey-v130.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chromium:
+    name: Automated Project-switch user journey · Chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      options: --ipc=host
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      HOME: /root
+      NIAKGPT_BROWSER_LABEL: chromium
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: visual-lab/package-lock.json
+      - name: Install lab dependencies
+        working-directory: visual-lab
+        run: npm ci --no-audit --no-fund
+      - name: User journey + visual evidence
+        working-directory: visual-lab
+        run: npx playwright test tests/project-switch-user-journey-v130.spec.js --workers=1 --reporter=line
+      - name: Upload visual evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: niakgpt-project-switch-user-journey-chromium
+          path: visual-lab/artifacts/user-journey-v130/chromium
+          if-no-files-found: warn
+          retention-days: 14
+
+  brave-macos:
+    name: Automated Project-switch user journey · macOS Brave stable
+    runs-on: macos-latest
+    timeout-minutes: 20
+    env:
+      NIAKGPT_BROWSER_LABEL: brave-stable-macos
+      NIAKGPT_EXECUTABLE_PATH: /Applications/Brave Browser.app/Contents/MacOS/Brave Browser
+      NIAKGPT_HEADLESS: '0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: visual-lab/package-lock.json
+      - name: Install lab dependencies
+        working-directory: visual-lab
+        run: npm ci --no-audit --no-fund
+      - name: Install Brave stable
+        shell: bash
+        run: |
+          brew install --cask brave-browser
+          test -x "$NIAKGPT_EXECUTABLE_PATH"
+          "$NIAKGPT_EXECUTABLE_PATH" --version
+      - name: User journey + visual evidence in real Brave process
+        working-directory: visual-lab
+        run: npx playwright test tests/project-switch-user-journey-v130.spec.js --workers=1 --reporter=line
+      - name: Upload visual evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: niakgpt-project-switch-user-journey-brave-macos
+          path: visual-lab/artifacts/user-journey-v130/brave-stable-macos
+          if-no-files-found: warn
+          retention-days: 14

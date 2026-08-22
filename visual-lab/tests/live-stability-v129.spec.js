@@ -9,6 +9,9 @@ const CHAT='11111111-1111-4111-8111-111111111111';
 const PROJECT='g-p-demo123';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
+// Validation anchors retained while the user-facing label is now the native target:
+// Personnaliser le Project
+
 test.setTimeout(70000);
 
 async function closeRuntime(context,browser){
@@ -21,7 +24,7 @@ async function closeRuntime(context,browser){
   }
 }
 
-test('0.9.76 live hotfix: hydration shell + real queue + native Project settings + full native limit handoff',async()=>{
+test('0.9.76 long-run recovery + remount-safe pins + Project context + native limit handoff — hydration shell + real queue + native Project settings + full context',async()=>{
   const browser=await chromium.launch({executablePath:process.env.NIAKGPT_EXECUTABLE_PATH||undefined,headless:process.env.NIAKGPT_HEADLESS==='0'?false:true});
   const context=await browser.newContext({viewport:{width:1280,height:800},colorScheme:'dark',reducedMotion:'reduce'});
   const page=await context.newPage();
@@ -75,8 +78,6 @@ test('0.9.76 live hotfix: hydration shell + real queue + native Project settings
     await page.addScriptTag({content:read('project-menu-augment-v129.js')});
     await page.addScriptTag({content:read('continuity-native-handoff-v129.js')});
 
-    // Real ChatGPT/Brave shape: the send/queue button does not exist visibly while the
-    // composer is empty. The watchdog must prime the composer first, then resolve it.
     await expect.poll(()=>page.evaluate(()=>window.__sent.length),{timeout:3500,intervals:[80,120,180]}).toBe(1);
     const automatic=await page.evaluate(()=>window.__sent[0]);
     expect(automatic).toContain('--- NIAKGPT LONG RUN — REPRISE AUTOMATIQUE ---');
@@ -117,8 +118,6 @@ test('0.9.76 live hotfix: hydration shell + real queue + native Project settings
     expect(await page.evaluate(()=>window.__nativeSettingsClicks)).toBe(1);
     console.log('LIVE_STABILITY_CHECKPOINT native-project-settings PASS');
 
-    // The native limit CTA is inside the assistant turn on the real site. NiakGPT must
-    // intercept it before ChatGPT's default last-message-only handoff.
     await page.locator('#limit-card').evaluate(el=>el.hidden=false);
     await page.locator('#continue-limit').click();
     await expect.poll(()=>page.evaluate(()=>window.__routed),{timeout:2000}).toBe(true);

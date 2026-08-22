@@ -20,7 +20,7 @@
   function label(at){if(!at)return'';const d=new Date(at);if(!Number.isFinite(d.getTime()))return'';const dd=String(d.getDate()).padStart(2,'0'),mm=String(d.getMonth()+1).padStart(2,'0'),yy=String(d.getFullYear()).slice(-2),hh=String(d.getHours()).padStart(2,'0'),mi=String(d.getMinutes()).padStart(2,'0');return`${dd}/${mm}/${yy} · ${hh}:${mi}`;}
   function decorate(turn,{allowLive=true}={}){
     if(!(turn instanceof HTMLElement)||!turn.isConnected)return;
-    const r=role(turn);if(r!=='user'&&r!=='assistant')return;turn.dataset.ng8Role=r;
+    const r=role(turn);if(r!=='user'&&r!=='assistant')return;turn.dataset.ng8Role=r;turn.dataset.ng8Turn='1';
     const id=mid(turn),exact=nativeAt(turn),elementStored=Number(turn.dataset.ng112At||0),sessionStored=Number(liveMap()[id]||0);let at=exact||elementStored||sessionStored;
     if(!at&&allowLive){
       if(r==='user'&&pendingUserAt){at=pendingUserAt;pendingUserAt=0;pendingAssistantAt=Date.now();}
@@ -29,6 +29,8 @@
     }
     if(at){turn.dataset.ng112At=String(at);turn.dataset.ng8Time=label(at);turn.dataset.ng112TimeSource=exact?'native':(elementStored||sessionStored?'cached-live':'live');}
     else if(!/^(native|live|cached-live)$/.test(turn.dataset.ng112TimeSource||'')){delete turn.dataset.ng8Time;delete turn.dataset.ng112At;}
+    const active=['waiting','thinking','executing'].includes(document.documentElement.dataset.ng86Activity||'')&&r==='assistant';
+    if(active)turn.dataset.ng112Live='1';else delete turn.dataset.ng112Live;
     turn.dataset.ng112Header='1';
   }
   function scanRecent(){
@@ -51,13 +53,13 @@
         for(const n of r.addedNodes){if(!(n instanceof Element))continue;if(n.matches?.(TURN)||n.querySelector?.(TURN)){relevant=true;break;}}
         if(relevant)break;
       }
-      if(relevant)schedule(110);
+      if(relevant)schedule(70);
     });
-    observer.observe(main,{childList:true,subtree:true,attributes:true,attributeFilter:['data-ng8-time']});schedule(100);
+    observer.observe(main,{childList:true,subtree:true,attributes:true,attributeFilter:['data-ng8-time']});schedule(60);
   }
-  function routeCheck(){if(route!==location.pathname){route=location.pathname;pendingUserAt=0;pendingAssistantAt=0;}bind();schedule(120);}
+  function routeCheck(){if(route!==location.pathname){route=location.pathname;pendingUserAt=0;pendingAssistantAt=0;}bind();schedule(80);}
   document.addEventListener('click',e=>{const b=e.target instanceof Element?e.target.closest('button'):null;if(!b)return;const label=`${b.getAttribute('aria-label')||''} ${b.getAttribute('data-testid')||''}`;if(/send|envoyer/i.test(label))markSend();},true);
   document.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.altKey&&!e.ctrlKey&&!e.metaKey&&!e.isComposing&&composerTarget(e.target))markSend();},true);
-  document.addEventListener('niakgpt:activity-changed',()=>schedule(160));window.addEventListener('popstate',()=>setTimeout(routeCheck,10));if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>setTimeout(routeCheck,10));window.addEventListener('pagehide',()=>observer?.disconnect());
+  document.addEventListener('niakgpt:activity-changed',()=>schedule(50));window.addEventListener('popstate',()=>setTimeout(routeCheck,10));if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>setTimeout(routeCheck,10));window.addEventListener('pagehide',()=>observer?.disconnect());
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',routeCheck,{once:true});else routeCheck();
 })();

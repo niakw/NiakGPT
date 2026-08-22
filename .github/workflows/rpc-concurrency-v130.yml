@@ -1,0 +1,39 @@
+name: NiakGPT RPC Concurrency v130
+
+on:
+  pull_request:
+    paths:
+      - 'page-bridge.js'
+      - 'visual-lab/tests/rpc-concurrency-v130.spec.js'
+      - '.github/workflows/rpc-concurrency-v130.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chromium:
+    name: RPC broker concurrency · Chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      options: --ipc=host
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      HOME: /root
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: visual-lab/package-lock.json
+      - name: Install lab dependencies
+        working-directory: visual-lab
+        run: npm ci --no-audit --no-fund
+      - name: page-bridge syntax
+        run: node --check page-bridge.js
+      - name: Issue 55 concurrency / busy-transition / timeout-retry regression
+        working-directory: visual-lab
+        run: npx playwright test tests/rpc-concurrency-v130.spec.js --workers=1 --reporter=line

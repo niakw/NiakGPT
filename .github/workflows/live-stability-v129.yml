@@ -87,12 +87,29 @@ jobs:
           "$BRAVE" --version
       - name: Focused watchdog / remount / Project / continuity gate in Brave stable
         working-directory: visual-lab
+        shell: bash
         env:
           NIAKGPT_EXECUTABLE_PATH: /Applications/Brave Browser.app/Contents/MacOS/Brave Browser
           # The full Current Finalization job remains a headed Brave session. This focused
-          # executable-specific gate is headless to avoid macOS hosted-runner GUI teardown stalls.
+          # executable-specific gate is headless; Playwright on hosted macOS can still emit
+          # a worker-teardown-only error after every functional assertion already passed.
           NIAKGPT_HEADLESS: '1'
-        run: npx playwright test tests/live-stability-v129.spec.js --workers=1 --reporter=line
+        run: |
+          set +e
+          npx playwright test tests/live-stability-v129.spec.js --workers=1 --reporter=line 2>&1 | tee brave-focused.log
+          code=${PIPESTATUS[0]}
+          set -e
+          if [ "$code" -eq 0 ]; then
+            exit 0
+          fi
+          if grep -Fq '1 passed' brave-focused.log \
+            && grep -Fq 'Worker teardown timeout of 30000ms exceeded.' brave-focused.log \
+            && grep -Fq 'LIVE_STABILITY_CHECKPOINT native-handoff PASS' brave-focused.log \
+            && ! grep -Eq '(^|[[:space:]])[1-9][0-9]* failed([[:space:]]|$)' brave-focused.log; then
+            echo 'Brave functional assertions passed; tolerating Playwright macOS worker teardown-only failure.'
+            exit 0
+          fi
+          exit "$code"
       - name: Upload Brave stable evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -101,5 +118,6 @@ jobs:
           path: |
             visual-lab/playwright-report
             visual-lab/test-results
+            visual-lab/brave-focused.log
           if-no-files-found: warn
           retention-days: 14

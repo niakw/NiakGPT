@@ -4,6 +4,7 @@
   window.__NIAKGPT_PROJECT_MENU_AUGMENT_129__=true;
 
   const CACHE_KEY='niakgpt-v08-cache';
+  const LEGACY_SETTINGS_LABEL='Personnaliser le Project';
   const OWN='#ng8-pins,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb,#ng119-interruption,#ng123-action-menu,#ng123-rename-dialog';
   const MENU_SEL='[role="menu"],[data-radix-menu-content]';
   const SETTINGS_EXACT_RX=/^(?:param[eè]tres?\s+du\s+projet|project\s+settings)$/i;

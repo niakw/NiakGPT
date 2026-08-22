@@ -104,7 +104,8 @@
     add('Hors projet','');for(const p of (cache.projects||[]).filter(p=>normalizePid(p?.id).startsWith('g-p-')).sort((a,b)=>clean(a.name).localeCompare(clean(b.name),'fr')))add(clean(p.name)||'Project',p.id);menu.append(sub);const status=document.createElement('small');status.setAttribute('aria-live','polite');menu.append(status);
   }
   function openMenu(button,kind,id,{last=false}={}){
-    if(state?.button===button&&document.getElementById('ng123-action-menu')){closeMenu({focus:true});return;}
+    // Legacy failure mode was `state?.button===button`: remounts can replace that DOM node. Toggle by semantic action identity instead.
+    if(state?.kind===kind&&state?.id===id&&document.getElementById('ng123-action-menu')){state.button=button;closeMenu({focus:true});return;}
     closeMenu();const menu=document.createElement('div');menu.id='ng123-action-menu';menu.dataset.kind=kind;menu.dataset.id=id;menu.setAttribute('role','menu');menu.setAttribute('aria-label',`${kind==='project'?'Actions du Project':'Actions de la conversation'} : ${kind==='project'?projectName(id):chatTitle(id)}`);menu.tabIndex=-1;document.body.appendChild(menu);state={button,kind,id,menu};button.classList.add('ng123-action-open');button.setAttribute('aria-expanded','true');button.setAttribute('aria-controls',menu.id);if(kind==='project')projectMenu(menu,id);else chatMenu(menu,id);positionMenu(menu,button);requestAnimationFrame(()=>{positionMenu(menu,button);focusMenuItem(menu,last);});
   }
 

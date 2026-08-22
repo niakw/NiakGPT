@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: niakgpt-action-menu-remount-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   chromium:
     name: Action menu semantic toggle · Chromium

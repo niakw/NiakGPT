@@ -33,9 +33,48 @@
     delete root.dataset.ng119Verification;delete root.dataset.ng119VerificationOwn;
     window.__NIAKGPT_DIAGNOSTICS__?.set('vérification','OK · vérification native absente');
   }
-  function readIncident(){
+  const ENC_V=1;
+  const ENC_SALT='niakgpt-interruption-v119-salt';
+  const ENC_PASS='niakgpt-interruption-v119-passphrase';
+  let keyPromise=0;
+  function b64FromBytes(bytes){let s='';for(let i=0;i<bytes.length;i++)s+=String.fromCharCode(bytes[i]);return btoa(s);}
+  function bytesFromB64(b64){const s=atob(b64);const out=new Uint8Array(s.length);for(let i=0;i<s.length;i++)out[i]=s.charCodeAt(i);return out;}
+  function cryptoReady(){return !!(window.crypto&&window.crypto.subtle&&window.TextEncoder&&window.TextDecoder);}
+  function getKey(){
+    if(keyPromise)return keyPromise;
+    keyPromise=(async()=>{
+      const enc=new TextEncoder();
+      const base=await crypto.subtle.importKey('raw',enc.encode(ENC_PASS),{name:'PBKDF2'},false,['deriveKey']);
+      return crypto.subtle.deriveKey({name:'PBKDF2',salt:enc.encode(ENC_SALT),iterations:120000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+    })();
+    return keyPromise;
+  }
+  async function encryptText(text){
+    if(!cryptoReady())return null;
+    const iv=crypto.getRandomValues(new Uint8Array(12));
+    const key=await getKey();
+    const enc=new TextEncoder().encode(text);
+    const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,enc);
+    return JSON.stringify({v:ENC_V,iv:b64FromBytes(iv),ct:b64FromBytes(new Uint8Array(ct))});
+  }
+  async function decryptText(payload){
+    if(!cryptoReady())return null;
+    const box=JSON.parse(payload||'null');
+    if(!box||box.v!==ENC_V||!box.iv||!box.ct)return null;
+    const key=await getKey();
+    const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:bytesFromB64(box.iv)},key,bytesFromB64(box.ct));
+    return new TextDecoder().decode(pt);
+  }
+  async function readIncident(){
     try{sessionStorage.removeItem(LEGACY_KEY);}catch{}
-    try{const data=JSON.parse(sessionStorage.getItem(KEY)||'null');return data&&Date.now()-Number(data.at||0)<20*60*1000?data:null;}catch{return null;}
+    try{
+      const raw=sessionStorage.getItem(KEY)||'';
+      if(!raw)return null;
+      const plain=await decryptText(raw);
+      if(!plain)return null;
+      const data=JSON.parse(plain||'null');
+      return data&&Date.now()-Number(data.at||0)<20*60*1000?data:null;
+    }catch{return null;}
   }
   function persistedIncident(data){
     if(!data)return null;
@@ -48,7 +87,14 @@
       recoveredAt:data.recoveredAt?Number(data.recoveredAt):undefined
     };
   }
-  function saveIncident(data){incident=data;try{const safe=persistedIncident(data);safe?sessionStorage.setItem(KEY,JSON.stringify(safe)):sessionStorage.removeItem(KEY);}catch{}}
+  function saveIncident(data){
+    incident=data;
+    try{
+      const safe=persistedIncident(data);
+      if(!safe){sessionStorage.removeItem(KEY);return;}
+      encryptText(JSON.stringify(safe)).then(payload=>{if(payload)sessionStorage.setItem(KEY,payload);else sessionStorage.removeItem(KEY);}).catch(()=>{try{sessionStorage.removeItem(KEY);}catch{}});
+    }catch{}
+  }
   function candidateText(el){return clean(`${el?.getAttribute?.('aria-label')||''} ${el?.getAttribute?.('title')||''} ${el?.getAttribute?.('src')||''} ${el?.innerText||el?.textContent||''}`).slice(0,2200);}
   function classifyText(text){if(!text)return'';if(LIMIT_RX.test(text))return'limit';if(VERIFY_RX.test(text))return'verify';if(NETWORK_RX.test(text))return'network';return'';}
   function trustedSignal(el){

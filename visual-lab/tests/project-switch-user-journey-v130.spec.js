@@ -2,6 +2,7 @@ const {test,expect,chromium}=require('@playwright/test');
 const fs=require('node:fs');
 const os=require('node:os');
 const path=require('node:path');
+const {execFileSync}=require('node:child_process');
 
 const ROOT=path.resolve(__dirname,'..','..');
 const FIXTURE=fs.readFileSync(path.join(ROOT,'visual-lab','runtime-fixture.html'),'utf8');
@@ -13,6 +14,7 @@ const P1='g-p-aaaaaaaaaaaaaaaa';
 const P2='g-p-bbbbbbbbbbbbbbbb';
 const C1='11111111-1111-4111-8111-111111111111';
 const OUT=path.join(ROOT,'visual-lab','artifacts','user-journey-v130',LABEL.replace(/[^a-z0-9._-]+/gi,'-'));
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 const projectRaw=(id,name)=>({gizmo:{gizmo:{id,display:{name,description:`${name} fixture`},instructions:''}}});
 const chat=(projectId,i)=>({id:`${String(i).padStart(8,'0')}-0000-4000-8000-${String(i).padStart(12,'0')}`,title:`${projectId===P1?'Studio':'Research'} chat ${i}`,gizmo_id:projectId,update_time:(Date.now()-i*1000)/1000});
@@ -21,17 +23,23 @@ async function worker(context){
   return context.serviceWorkers().find(w=>w.url().includes('background-v100.js'))||context.waitForEvent('serviceworker',{predicate:w=>w.url().includes('background-v100.js'),timeout:15000});
 }
 
-async function boundedClose(context,dir,timeout=8000){
-  let timer=0;
-  try{
-    await Promise.race([
-      context.close().catch(()=>{}),
-      new Promise(resolve=>{timer=setTimeout(resolve,timeout);})
-    ]);
-  }finally{
-    clearTimeout(timer);
-    try{fs.rmSync(dir,{recursive:true,force:true});}catch{}
+// Reuse the proven Brave/macOS shutdown strategy from sidebar-human-ux-v123.spec.js.
+// Persistent headed Brave can leave helper processes alive after every assertion passed;
+// killing only this test profile + Brave helpers keeps worker teardown bounded without
+// weakening any functional assertion in the test itself.
+async function closeRuntime(context,dir){
+  const braveMac=LABEL.includes('brave')&&process.platform==='darwin';
+  if(braveMac){
+    for(const signal of ['-TERM','-KILL']){
+      for(const pattern of [dir,'Brave Browser Helper']){
+        try{execFileSync('/usr/bin/pkill',[signal,'-f',pattern],{stdio:'ignore'});}catch{}
+      }
+      await sleep(signal==='-TERM'?420:180);
+    }
+  }else{
+    await context.close().catch(()=>{});
   }
+  try{fs.rmSync(dir,{recursive:true,force:true});}catch{}
 }
 
 async function launch(){
@@ -110,7 +118,7 @@ async function launch(){
 
   return{
     context,page,traffic,pageErrors,consoleErrors,
-    close:()=>boundedClose(context,dir)
+    close:()=>closeRuntime(context,dir)
   };
 }
 

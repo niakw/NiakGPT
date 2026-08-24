@@ -10,7 +10,7 @@
   const VERIFY_RX=/(vérification\s+en\s+cours|verification\s+in\s+progress|checking\s+your\s+browser|verify\s+(?:you|that\s+you)\s+are\s+human|vérifiez\s+que\s+vous\s+êtes\s+humain|cloudflare\s+(?:verification|challenge)|challenge\s+in\s+progress)/i;
   const NETWORK_RX=/(connexion\s+(?:perdue|interrompue)|connection\s+(?:lost|interrupted)|network\s+error|erreur\s+réseau|disconnected|déconnecté|websocket.{0,24}(?:error|closed|failed)|reconnecting|reconnexion\s+en\s+cours|failed\s+to\s+fetch|fetch\s+failed|something\s+went\s+wrong|there\s+was\s+an\s+error\s+(?:generating|processing)|une\s+erreur\s+est\s+survenue|erreur\s+lors\s+de\s+la\s+(?:génération|generation)|impossible\s+de\s+générer|unable\s+to\s+generate)/i;
   const RETRY_RX=/(réessayer|reessayer|retry|régénérer|regenerer|regenerate|continuer\s+la\s+génération|continue\s+generating|resume\s+generating)/i;
-  let observer=null,timer=0,incident=readIncident(),marking=false;
+  let observer=null,timer=0,incident=null,marking=false,persistEpoch=0;
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const visible=el=>{if(!(el instanceof Element)||!el.isConnected)return false;const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden'&&el.getClientRects().length>0;};
@@ -88,11 +88,14 @@
     };
   }
   function saveIncident(data){
-    incident=data;
+    incident=data;const epoch=++persistEpoch;
     try{
       const safe=persistedIncident(data);
       if(!safe){sessionStorage.removeItem(KEY);return;}
-      encryptText(JSON.stringify(safe)).then(payload=>{if(payload)sessionStorage.setItem(KEY,payload);else sessionStorage.removeItem(KEY);}).catch(()=>{try{sessionStorage.removeItem(KEY);}catch{}});
+      encryptText(JSON.stringify(safe)).then(payload=>{
+        if(epoch!==persistEpoch||incident!==data)return;
+        if(payload)sessionStorage.setItem(KEY,payload);else sessionStorage.removeItem(KEY);
+      }).catch(()=>{if(epoch===persistEpoch){try{sessionStorage.removeItem(KEY);}catch{}}});
     }catch{}
   }
   function candidateText(el){return clean(`${el?.getAttribute?.('aria-label')||''} ${el?.getAttribute?.('title')||''} ${el?.getAttribute?.('src')||''} ${el?.innerText||el?.textContent||''}`).slice(0,2200);}
@@ -190,6 +193,10 @@
   window.addEventListener('popstate',onRoute);if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',onRoute);
   window.addEventListener('pageshow',()=>{bind();setTimeout(scan,120);});
   window.addEventListener('pagehide',()=>{observer?.disconnect();clearTimeout(timer);},{once:true});
-  const start=()=>{bind();scan();};
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+  const start=async()=>{
+    const restored=await readIncident();
+    if(!incident&&restored)incident=restored;
+    bind();scan();
+  };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{start();},{once:true});else start();
 })();

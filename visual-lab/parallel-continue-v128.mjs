@@ -8,7 +8,8 @@ const engines={chromium,firefox,webkit};
 const requested=String(process.env.NIAKGPT_BROWSER||'chromium').trim();
 if(!engines[requested])throw new Error(`Unsupported NIAKGPT_BROWSER=${requested}`);
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg);};
-const HEADER='--- CONTINUE — AJOUT EN PARALLÈLE ---';
+const HEADER='↳ Suite en parallèle';
+const LEGACY='--- CONTINUE — AJOUT EN PARALLÈLE ---';
 const out=path.join('artifacts','parallel-continue-v128',requested);await fs.mkdir(out,{recursive:true});
 const browser=await engines[requested].launch({headless:true});
 const context=await browser.newContext({viewport:{width:1280,height:800},colorScheme:'dark',reducedMotion:'reduce'});
@@ -35,7 +36,7 @@ try{
 
   await page.evaluate(()=>{document.documentElement.dataset.ng86Activity='thinking';document.getElementById('state').textContent='ANALYSE';});
   await page.locator('#prompt-textarea').fill('Ajoute aussi une vérification réseau.');await page.locator('#send').click();sent=await page.evaluate(()=>window.__sent.slice());
-  assert(sent[1]?.startsWith(HEADER),`thinking click missing marker: ${JSON.stringify(sent[1])}`);assert(sent[1]?.includes('Ajoute aussi une vérification réseau.'),'thinking click lost user text');
+  assert(sent[1]?.startsWith(HEADER),`thinking click missing marker: ${JSON.stringify(sent[1])}`);assert(sent[1]?.includes('Ajoute aussi une vérification réseau.'),'thinking click lost user text');assert(!sent[1]?.includes(LEGACY),'legacy verbose marker leaked');assert(sent[1]?.length<220,'parallel prefix became verbose again');
 
   await page.evaluate(()=>{document.documentElement.dataset.ng86Activity='executing';document.getElementById('state').textContent='EXÉCUTION';});
   await page.locator('#prompt-textarea').fill('Et documente le résultat final.');await page.locator('#prompt-textarea').press('Enter');sent=await page.evaluate(()=>window.__sent.slice());
@@ -52,15 +53,18 @@ try{
   await page.locator('#prompt-textarea').fill('Test éditeur contenteditable moderne.');await page.locator('#send').click();sent=await page.evaluate(()=>window.__sent.slice());
   assert(sent[5]?.startsWith(HEADER),`contenteditable missing marker: ${JSON.stringify(sent[5])}`);assert(sent[5]?.includes('Test éditeur contenteditable moderne.'),'contenteditable lost user text');
 
-  await page.locator('#prompt-textarea').fill(`${HEADER}\nPoursuis déjà marqué.`);await page.locator('#send').click();sent=await page.evaluate(()=>window.__sent.slice());
-  assert((sent[6]?.match(/--- CONTINUE — AJOUT EN PARALLÈLE ---/g)||[]).length===1,`marker duplicated: ${JSON.stringify(sent[6])}`);
+  await page.locator('#prompt-textarea').fill(`${HEADER} — déjà marqué.`);await page.locator('#send').click();sent=await page.evaluate(()=>window.__sent.slice());
+  assert((sent[6]?.match(/↳ Suite en parallèle/g)||[]).length===1,`marker duplicated: ${JSON.stringify(sent[6])}`);
+
+  await page.locator('#prompt-textarea').fill(`${LEGACY}\nAncien brouillon déjà marqué.`);await page.locator('#send').click();sent=await page.evaluate(()=>window.__sent.slice());
+  assert((sent[7]?.match(/--- CONTINUE — AJOUT EN PARALLÈLE ---/g)||[]).length===1,`legacy marker migration duplicated: ${JSON.stringify(sent[7])}`);
 
   const geometry=await page.evaluate(()=>({scrollWidth:document.documentElement.scrollWidth,innerWidth,overlays:document.querySelectorAll('#ng128-parallel-continue,.ng128-parallel-continue').length,turns:document.querySelectorAll('.turn.user').length}));
-  assert(geometry.scrollWidth<=geometry.innerWidth,`visual horizontal overflow: ${JSON.stringify(geometry)}`);assert(geometry.overlays===0,'parallel continuation created an unwanted overlay');assert(geometry.turns===7,`rendered message count drift: ${geometry.turns}`);
+  assert(geometry.scrollWidth<=geometry.innerWidth,`visual horizontal overflow: ${JSON.stringify(geometry)}`);assert(geometry.overlays===0,'parallel continuation created an unwanted overlay');assert(geometry.turns===8,`rendered message count drift: ${geometry.turns}`);
   assert(errors.length===0,`browser errors: ${JSON.stringify(errors)}`);
   await page.screenshot({path:path.join(out,'parallel-continuation.png'),fullPage:true});
   await fs.writeFile(path.join(out,'metrics.json'),JSON.stringify({browser:requested,sent,geometry,errors},null,2),'utf8');
-  console.log(`parallel-continue-v128 ${requested}: PASS idle+thinking+executing+cancel+native-stop+contenteditable+visual`);
+  console.log(`parallel-continue-v128 ${requested}: PASS concise+idle+thinking+executing+cancel+native-stop+contenteditable+migration+visual`);
 }catch(error){
   try{await page.screenshot({path:path.join(out,'failure.png'),fullPage:true});await fs.writeFile(path.join(out,'failure.html'),await page.content(),'utf8');await fs.writeFile(path.join(out,'failure.json'),JSON.stringify({error:String(error?.stack||error),errors},null,2),'utf8');}catch{}
   throw error;

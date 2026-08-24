@@ -21,9 +21,11 @@ test('real MV3 static continuation layer prefixes only pre-existing parallel wor
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'niakgpt-parallel-v128-'));
   const context=await chromium.launchPersistentContext(dir,{headless:true,channel:'chromium',viewport:{width:1280,height:800},args:[`--disable-extensions-except=${extensionPath}`,`--load-extension=${extensionPath}`]});
   const fixture=`<!doctype html><html><body><main id="thread"><article data-testid="conversation-turn-1"><div data-message-author-role="assistant">Travail en cours.</div></article><form data-type="unified-composer" onsubmit="return false"><textarea id="prompt-textarea" data-testid="prompt-textarea"></textarea><button type="button" id="send" data-testid="send-button" aria-label="Envoyer">Envoyer</button></form></main><script>
-  window.__sent=[];const e=document.getElementById('prompt-textarea');
+  window.__sent=[];window.__dropNext=false;const e=document.getElementById('prompt-textarea');
   document.getElementById('send').addEventListener('click',()=>{
-    const value=e.value;window.__sent.push(value);
+    const value=e.value;
+    if(window.__dropNext){window.__dropNext=false;return;}
+    window.__sent.push(value);
     const article=document.createElement('article');article.dataset.testid='conversation-turn-'+(window.__sent.length+1);
     const user=document.createElement('div');user.setAttribute('data-message-author-role','user');user.textContent=value;article.appendChild(user);document.getElementById('thread').insertBefore(article,document.querySelector('form'));
     // Deliberately do NOT clear the textarea: reproduces the real controlled-composer stale draft regression.
@@ -53,6 +55,13 @@ test('real MV3 static continuation layer prefixes only pre-existing parallel wor
     const active=await page.evaluate(()=>window.__sent[1]);expect(active.startsWith(HEADER)).toBe(true);expect(active).toContain('Ajoute ce contrôle sans arrêter ce que tu fais.');expect(active).not.toContain(LEGACY);expect(active.length).toBeLessThan(230);
     await expect.poll(()=>page.locator('#prompt-textarea').inputValue(),{timeout:2500}).toBe('');
     await expect(page.locator('html')).toHaveAttribute('data-ng128-composer-cleanup','confirmed-clear');
+
+    // If the host does not confirm a send, remove only NiakGPT's prefix and preserve the exact user draft.
+    await page.evaluate(()=>window.__dropNext=true);
+    await page.locator('#prompt-textarea').fill('Ce texte doit rester si l’envoi natif échoue.');await page.locator('#send').click();
+    await expect.poll(()=>page.locator('#prompt-textarea').inputValue(),{timeout:1500}).toBe('Ce texte doit rester si l’envoi natif échoue.');
+    await expect(page.locator('html')).toHaveAttribute('data-ng128-composer-cleanup','prefix-stripped');
+    expect(await page.evaluate(()=>window.__sent.length)).toBe(2);
 
     await page.locator('#prompt-textarea').fill('annule');await page.locator('#send').click();
     await expect.poll(()=>page.evaluate(()=>window.__sent[2])).toBe('annule');

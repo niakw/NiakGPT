@@ -60,9 +60,22 @@
     move();
     if(list&&before>0){list.scrollTop=before;requestAnimationFrame(()=>{if(list.isConnected&&Math.abs(list.scrollTop-before)>1)list.scrollTop=before;});}
   }
+  function markVerified(box){
+    box.dataset.ng131Mounted='1';box.dataset.ng131SidebarVerified='1';
+    document.documentElement.dataset.ng131Sidebar='verified';
+    window.__NIAKGPT_DIAGNOSTICS__?.set('ux-v131','OK · sidebar vérifiée · chrome discret');
+    return true;
+  }
   function repairPins(){
     const box=document.getElementById('ng8-pins'),root=findSidebar();
     if(!box||!root)return false;
+    // v121 is the one and only production placement owner. v131 validates the host and
+    // supplies the sidebar finder/visual guard; it must not race v121 by reparenting the
+    // same scroll container on every cache reconciliation.
+    if(window.__NIAKGPT_SIDEBAR_PROJECTS_121__){
+      if(!root.contains(box))return false;
+      return markVerified(box);
+    }
     const section=nativeProjectSection(root);
     if(section?.parentElement){
       if(box.parentElement!==section.parentElement||box.nextElementSibling!==section)movePreservingScroll(box,()=>section.parentElement.insertBefore(box,section));
@@ -71,10 +84,7 @@
       if(anchor?.parentElement){if(box.parentElement!==anchor.parentElement||box.nextElementSibling!==anchor)movePreservingScroll(box,()=>anchor.parentElement.insertBefore(box,anchor));}
       else if(box.parentElement!==root)movePreservingScroll(box,()=>root.appendChild(box));
     }
-    box.dataset.ng131Mounted='1';box.dataset.ng131SidebarVerified='1';
-    document.documentElement.dataset.ng131Sidebar='verified';
-    window.__NIAKGPT_DIAGNOSTICS__?.set('ux-v131','OK · sidebar vérifiée · chrome discret');
-    return true;
+    return markVerified(box);
   }
   function surface(){
     const p=location.pathname;

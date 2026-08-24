@@ -60,6 +60,7 @@
         "https://chatgpt.com/*"
       ],
       "js": [
+        "ux-v131.js",
         "boot-gate-v100.js",
         "composer-continuation-v128.js",
         "long-run-watchdog-v129.js",

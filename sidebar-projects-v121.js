@@ -91,6 +91,9 @@
     const list=document.querySelector('#ng8-pins>.ng8-pin-list');if(!(list instanceof HTMLElement))return null;
     const max=Math.max(0,list.scrollHeight-list.clientHeight);if(max<=0)return null;
     const top=Math.min(max,Math.max(0,list.scrollTop));projectScrollMemory=top;
+    // Wheel/touch/key input is authoritative. During its short input window we preserve the
+    // live position through renderCatalog itself and never arm a stale timer at the pre-scroll position.
+    if(performance.now()-userScrollIntentAt<600){pendingProjectScroll=null;document.documentElement.dataset.ng121ScrollGuard=`user-priority:${Math.round(top)}`;return null;}
     const seq=++pendingScrollSeq;
     pendingProjectScroll={top,max,reason,seq,at:performance.now(),until:performance.now()+1200,userIntentAt:userScrollIntentAt};
     return pendingProjectScroll;

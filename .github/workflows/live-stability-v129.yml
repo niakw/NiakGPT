@@ -100,7 +100,7 @@ jobs:
           if [ "$code" -eq 0 ]; then
             exit 0
           fi
-          if grep -Fq '2 passed' brave-focused.log \
+          if grep -Fq '3 passed' brave-focused.log \
             && grep -Fq 'Worker teardown timeout of 30000ms exceeded.' brave-focused.log \
             && grep -Fq 'LIVE_STABILITY_CHECKPOINT native-handoff-full-context PASS' brave-focused.log \
             && ! grep -Eq '(^|[[:space:]])[1-9][0-9]* failed([[:space:]]|$)' brave-focused.log; then

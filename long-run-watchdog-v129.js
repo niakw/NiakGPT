@@ -4,12 +4,14 @@
   window.__NIAKGPT_LONG_RUN_WATCHDOG_129__=true;
 
   const ACTIVE=new Set(['waiting','thinking','executing']);
-  const DEFAULT_SEGMENT_MS=4*60*1000+40*1000;
+  const DEFAULT_SEGMENT_MS=6*60*1000+30*1000;
   const RETRY_MS=3500;
   const PRIME_RETRY_MS=180;
-  const PARALLEL_HEADER='--- CONTINUE — AJOUT EN PARALLÈLE ---';
-  const MARKER='--- NIAKGPT LONG RUN — REPRISE AUTOMATIQUE ---';
-  const MESSAGE=`${PARALLEL_HEADER}\n${MARKER}\nPoursuis exactement la tâche déjà en cours là où elle en est. Ne fais ni résumé intermédiaire ni demande de confirmation. Termine toutes les étapes de la demande initiale, vérifie le résultat et ne t'arrête qu'une fois le travail réellement terminé. Si le tour précédent vient d'être interrompu par une limite de durée, reprends immédiatement au dernier point utile.`;
+  const MARKER='↻ Reprise NiakGPT';
+  const LEGACY_MARKER='--- NIAKGPT LONG RUN — REPRISE AUTOMATIQUE ---';
+  const LEGACY_PARALLEL_HEADER='--- CONTINUE — AJOUT EN PARALLÈLE ---';
+  const AUTO_RX=/(?:↻\s*Reprise NiakGPT|---\s*NIAKGPT LONG RUN\s*[—–-]\s*REPRISE AUTOMATIQUE\s*---)/i;
+  const MESSAGE=`${MARKER} — Continue exactement la tâche en cours au dernier point utile, jusqu’à finalisation et vérification, sans résumé ni confirmation intermédiaire.`;
   const CANCEL_RX=/^\s*(?:stop\b|stoppe\b|arr(?:ê|e)te\b|annule\b|cancel\b|abort\b|interromps\b|laisse\s+tomber\b|ne\s+continue\s+pas\b)/i;
   const SEND_RX=/(?:^|\b)(?:send|envoyer|submit)(?:\b|$)/i;
   let segmentTimer=0,retryTimer=0,guardTimer=0,segmentStartedAt=0,due=false,suppressed=false,lastAutoAt=0,forcedRunning=false,writing=false;
@@ -38,7 +40,7 @@
       if('value'in ed){const proto=Object.getPrototypeOf(ed),setter=Object.getOwnPropertyDescriptor(proto,'value')?.set;setter?setter.call(ed,text):(ed.value=text);}
       else{ed.focus({preventScroll:true});ed.textContent=text;}
       ed.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:text}));
-      return editorText(ed).includes(MARKER);
+      return AUTO_RX.test(editorText(ed));
     }catch{return false;}finally{writing=false;}
   }
 
@@ -60,11 +62,8 @@
     if(Date.now()-lastAutoAt<Math.min(segmentMs()*.7,60000)){retryDue();return false;}
     const ed=editor();if(!ed){retryDue();return false;}
     let draft=editorText(ed);
-    if(draft&&!draft.includes(MARKER)){root().dataset.ng129Watchdog='draft-protected';retryDue();return false;}
+    if(draft&&!AUTO_RX.test(draft)){root().dataset.ng129Watchdog='draft-protected';retryDue();return false;}
 
-    // ChatGPT only renders/enables its send/queue control after the composer has content.
-    // v129 looked for that button while the composer was still empty, so the automatic
-    // continuation could stay "due" forever on the real app even though the fixture passed.
     if(!draft){
       if(!setEditor(ed,MESSAGE)){retryDue();return false;}
       draft=editorText(ed);
@@ -87,7 +86,7 @@
   }
 
   function userTextForTarget(target){const b=target instanceof Element?target.closest('button'):null;if(b&&SEND_RX.test(`${b.getAttribute('aria-label')||''} ${b.getAttribute('data-testid')||''} ${b.title||''}`))return editorText(editor());return'';}
-  function onUserSend(text){if(writing||!text||text.includes(MARKER))return;if(CANCEL_RX.test(text)){suppressed=true;clearTimers();root().dataset.ng129Watchdog='cancelled';return;}suppressed=false;}
+  function onUserSend(text){if(writing||!text||AUTO_RX.test(text))return;if(CANCEL_RX.test(text)){suppressed=true;clearTimers();root().dataset.ng129Watchdog='cancelled';return;}suppressed=false;}
 
   document.addEventListener('click',event=>{const text=userTextForTarget(event.target);if(text)onUserSend(text);setTimeout(()=>{syncNativeBusyGuard();armSegment();},80);},true);
   document.addEventListener('keydown',event=>{if(event.key!=='Enter'||event.shiftKey||event.altKey||event.ctrlKey||event.metaKey||event.isComposing)return;const target=event.target instanceof Element?event.target:null;if(!target?.matches?.('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]'))return;onUserSend(editorText(target));setTimeout(()=>{syncNativeBusyGuard();armSegment();},80);},true);

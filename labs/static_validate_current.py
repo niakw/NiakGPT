@@ -29,7 +29,7 @@ if manifest.get('permissions')!=['storage','scripting']: fail('permissions drift
 if manifest.get('host_permissions')!=['https://chatgpt.com/*']: fail('host permissions drift')
 static_js=[file for cs in manifest.get('content_scripts',[]) for file in cs.get('js',[])]
 expected_static=[
-    'boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js',
+    'ux-v131.js','boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js',
     'pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'
 ]
 if static_js!=expected_static: fail(f'static runtime drift: {static_js!r}')

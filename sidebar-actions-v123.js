@@ -117,7 +117,11 @@
     for(const entry of pins.querySelectorAll('.ng96-chat-entry')){const a=entry.querySelector(':scope>a[data-chat]'),id=a?.dataset.chat||cid(a?.getAttribute('href'));if(!id)continue;let b=entry.querySelector(':scope>.ng113-native-actions-chat');if(!b){b=document.createElement('button');entry.appendChild(b);}normalizeAction(b,'chat',id);for(const extra of entry.querySelectorAll(':scope>.ng113-native-actions-chat'))if(extra!==b)extra.remove();}
   }
   function schedule(delay=12){clearTimeout(timer);timer=setTimeout(decorate,delay);}
-  function bind(){const next=document.getElementById('ng8-pins');if(!next||next===box)return false;observer?.disconnect();box=next;observer=new MutationObserver(records=>{if(records.some(r=>[...r.addedNodes,...r.removedNodes].some(n=>n instanceof Element&&!n.closest?.('#ng123-action-menu,#ng123-rename-dialog'))))schedule();});observer.observe(box,{childList:true,subtree:true});schedule(0);return true;}
+  function bind(){
+    const next=document.getElementById('ng8-pins');if(!next)return false;
+    if(next===box&&observer){schedule(0);return true;}
+    observer?.disconnect();box=next;observer=new MutationObserver(records=>{if(records.some(r=>[...r.addedNodes,...r.removedNodes].some(n=>n instanceof Element&&!n.closest?.('#ng123-action-menu,#ng123-rename-dialog'))))schedule();});observer.observe(box,{childList:true,subtree:true});schedule(0);return true;
+  }
   async function start(){try{cache=(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||cache;}catch{}if(bind())return;boot?.disconnect();boot=new MutationObserver(()=>{if(bind()){boot.disconnect();boot=null;}});boot.observe(document.documentElement,{childList:true,subtree:true});setTimeout(()=>boot?.disconnect(),20000);}
 
   document.addEventListener('click',event=>{if(event.button!==0)return;const target=event.target instanceof Element?event.target:null,button=target?.closest('#ng8-pins .ng113-native-actions');if(!(button instanceof HTMLButtonElement))return;const kind=button.dataset.ng123Action,id=clean(button.dataset.ng123Id);if(!id||!['project','chat'].includes(kind))return;event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();openMenu(button,kind,id);},true);
@@ -139,6 +143,7 @@
   try{chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY]){cache=changes[CACHE_KEY].newValue||cache;schedule(0);}});}catch{}
   document.addEventListener('niakgpt:folder-rendered',()=>{bind();decorate();});document.addEventListener('niakgpt:pins-rendered',()=>{bind();decorate();});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)closeMenu();else{bind();decorate();}});window.addEventListener('popstate',()=>{closeMenu();bind();decorate();});if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>{closeMenu();bind();decorate();});
-  window.addEventListener('pagehide',()=>{observer?.disconnect();boot?.disconnect();closeMenu();});
+  window.addEventListener('pageshow',()=>{closeMenu();start();});
+  window.addEventListener('pagehide',()=>{observer?.disconnect();observer=null;box=null;boot?.disconnect();boot=null;clearTimeout(timer);closeMenu();});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();

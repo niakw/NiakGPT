@@ -10,6 +10,7 @@ if(!engines[requested])throw new Error(`Unsupported NIAKGPT_BROWSER=${requested}
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg);};
 const HEADER='↳ Suite en parallèle';
 const LEGACY='--- CONTINUE — AJOUT EN PARALLÈLE ---';
+const LEGACY_GATE_SIGNATURE='idle+thinking+executing+cancel+native-stop+contenteditable+visual';
 const out=path.join('artifacts','parallel-continue-v128',requested);await fs.mkdir(out,{recursive:true});
 const browser=await engines[requested].launch({headless:true});
 const context=await browser.newContext({viewport:{width:1280,height:800},colorScheme:'dark',reducedMotion:'reduce'});
@@ -63,7 +64,7 @@ try{
   assert(geometry.scrollWidth<=geometry.innerWidth,`visual horizontal overflow: ${JSON.stringify(geometry)}`);assert(geometry.overlays===0,'parallel continuation created an unwanted overlay');assert(geometry.turns===8,`rendered message count drift: ${geometry.turns}`);
   assert(errors.length===0,`browser errors: ${JSON.stringify(errors)}`);
   await page.screenshot({path:path.join(out,'parallel-continuation.png'),fullPage:true});
-  await fs.writeFile(path.join(out,'metrics.json'),JSON.stringify({browser:requested,sent,geometry,errors},null,2),'utf8');
+  await fs.writeFile(path.join(out,'metrics.json'),JSON.stringify({browser:requested,sent,geometry,errors,legacyGate:LEGACY_GATE_SIGNATURE},null,2),'utf8');
   console.log(`parallel-continue-v128 ${requested}: PASS concise+idle+thinking+executing+cancel+native-stop+contenteditable+migration+visual`);
 }catch(error){
   try{await page.screenshot({path:path.join(out,'failure.png'),fullPage:true});await fs.writeFile(path.join(out,'failure.html'),await page.content(),'utf8');await fs.writeFile(path.join(out,'failure.json'),JSON.stringify({error:String(error?.stack||error),errors},null,2),'utf8');}catch{}

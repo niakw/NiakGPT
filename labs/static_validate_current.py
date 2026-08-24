@@ -98,12 +98,12 @@ for token in ('continueFrom?.(chatId)',r'failed\s+to\s+fetch','persistedIncident
     if token not in interrupt: fail('interruption recovery/security incomplete '+token)
 
 parallel=read('composer-continuation-v128.js')
-for token in ('↳ Suite en parallèle','LEGACY_HEADER','waiting','thinking','executing','nativeGenerationBusy','idleTriggerUntil','CANCEL_RX','prepareParallelContinuation','niakgpt:parallel-continue','isContentEditable','execCommand'):
+for token in ('↳ Suite en parallèle','LEGACY_HEADER','waiting','thinking','executing','nativeGenerationBusy','idleTriggerUntil','CANCEL_RX','prepareParallelContinuation','niakgpt:parallel-continue','isContentEditable','execCommand','cleanupAfterNativeSend','ng128ComposerCleanup','prefix-stripped'):
     if token not in parallel: fail('parallel continuation incomplete '+token)
 if 'setInterval(' in parallel: fail('parallel continuation must remain event-driven')
 
 watchdog=read('long-run-watchdog-v129.js')
-for token in ('DEFAULT_SEGMENT_MS','6*60*1000+30*1000','↻ Reprise NiakGPT','LEGACY_MARKER','AUTO_RX','nativeStop','draft-protected','attemptResume','niakgpt:long-run-resume','CANCEL_RX'):
+for token in ('DEFAULT_SEGMENT_MS','6*60*1000+30*1000','↻ Reprise NiakGPT','LEGACY_MARKER','AUTO_RX','nativeStop','draft-protected','attemptResume','niakgpt:long-run-resume','CANCEL_RX','sendCandidate','waiting-send-control','clearAutoDraft'):
     if token not in watchdog: fail('long-run watchdog incomplete '+token)
 if 'setInterval(' in watchdog: fail('long-run watchdog must use bounded timers, not polling intervals')
 
@@ -127,7 +127,7 @@ for token in ('nativeLimitControl','CONTINUITÉ NIAKGPT','markCurrentOut','write
 for gate in (
     'visual-lab/sidebar-session-ux-v123.mjs','visual-lab/tests/sidebar-human-ux-v123.spec.js',
     'visual-lab/parallel-continue-v128.mjs','visual-lab/tests/composer-continuation-runtime-v128.spec.js',
-    'visual-lab/tests/live-stability-v129.spec.js','visual-lab/ux-integral-v131.mjs'
+    'visual-lab/tests/live-stability-v129.spec.js','visual-lab/tests/long-run-composer-residue-v131.spec.js','visual-lab/ux-integral-v131.mjs'
 ):
     if not (ROOT/gate).exists(): fail('current browser-fixture UX gate missing '+gate)
 workflow=read('.github/workflows/current-finalization.yml')
@@ -138,7 +138,7 @@ parallel_workflow=read('.github/workflows/parallel-continuation-v128.yml')
 for token in ('parallel-continue-v128.mjs','composer-continuation-runtime-v128.spec.js','chromium, firefox, webkit','parallel-continuation-v128'):
     if token not in parallel_workflow: fail('Parallel continuation workflow missing '+token)
 live_workflow=read('.github/workflows/live-stability-v129.yml')
-for token in ('live-stability-v129.spec.js','Brave stable','chromium'):
+for token in ('live-stability-v129.spec.js','long-run-composer-residue-v131.spec.js','Brave stable','chromium'):
     if token not in live_workflow: fail('Live stability workflow missing '+token)
 ux_workflow=read('.github/workflows/ux-integral-v131.yml')
 for token in ('ux-integral-v131.mjs','chromium, firefox, webkit','screenshot UX','mcr.microsoft.com/playwright:v1.62.1-noble'):

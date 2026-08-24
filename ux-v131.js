@@ -61,9 +61,20 @@
     if(list&&before>0){list.scrollTop=before;requestAnimationFrame(()=>{if(list.isConnected&&Math.abs(list.scrollTop-before)>1)list.scrollTop=before;});}
   }
   function markVerified(box){
+    // A native Projects authority pass can briefly leave a stale suppression marker on
+    // an ancestor while v121 is moving the managed block.  Clear only markers that
+    // actually contain NiakGPT, then make the verified block explicitly interactive.
+    for(let node=box.parentElement;node&&node!==document.body&&node!==document.documentElement;node=node.parentElement){
+      if(node.getAttribute?.('data-ng112-native-projects')==='1'&&node.contains(box))node.removeAttribute('data-ng112-native-projects');
+    }
     box.dataset.ng131Mounted='1';box.dataset.ng131SidebarVerified='1';
+    box.style.setProperty('visibility','visible','important');
+    box.style.setProperty('opacity','1','important');
+    box.style.setProperty('pointer-events','auto','important');
+    box.style.setProperty('z-index','20','important');
+    for(const el of box.querySelectorAll('a[data-ng8-pin="1"],.ng96-pin-entry,.ng96-chat-entry,.ng113-native-actions'))el.style.setProperty('pointer-events','auto','important');
     document.documentElement.dataset.ng131Sidebar='verified';
-    window.__NIAKGPT_DIAGNOSTICS__?.set('ux-v131','OK · sidebar vérifiée · chrome discret');
+    window.__NIAKGPT_DIAGNOSTICS__?.set('ux-v131','OK · sidebar vérifiée · hitboxes actives · chrome discret');
     return true;
   }
   function repairPins(){

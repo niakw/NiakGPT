@@ -87,7 +87,7 @@
     if(!p||performance.now()>p.until){pendingProjectScroll=null;return null;}
     return p;
   }
-  function captureProjectScroll(reason='cache'){ 
+  function captureProjectScroll(reason='cache'){
     const list=document.querySelector('#ng8-pins>.ng8-pin-list');if(!(list instanceof HTMLElement))return null;
     const max=Math.max(0,list.scrollHeight-list.clientHeight);if(max<=0)return null;
     const top=Math.min(max,Math.max(0,list.scrollTop));projectScrollMemory=top;
@@ -237,6 +237,7 @@
   try{chrome.storage.onChanged.addListener((changes,area)=>{if(area!=='local')return;if(changes[CACHE_KEY]||changes[GOV_KEY])captureProjectScroll('storage');if(changes[CACHE_KEY])cache=changes[CACHE_KEY].newValue||cache;if(changes[GOV_KEY])governance={...governance,...(changes[GOV_KEY].newValue||{})};if(changes[CACHE_KEY]||changes[GOV_KEY]){schedule(0);settlePendingScroll('storage');}});}catch{}
   document.addEventListener('niakgpt:server-projects-ready',()=>{captureProjectScroll('server-projects');schedule(0);});document.addEventListener('niakgpt:server-indexed',()=>{captureProjectScroll('server-index');schedule(0);});document.addEventListener('niakgpt:recovery-complete',()=>{captureProjectScroll('recovery');schedule(0);});document.addEventListener('niakgpt:sidebar-projects-reconcile',()=>{captureProjectScroll('reconcile-event');schedule(0);});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){bind();schedule(0);}});window.addEventListener('popstate',()=>schedule(0));if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>schedule(0));
-  window.addEventListener('pageshow',()=>{bind();schedule(0);});window.addEventListener('pagehide',()=>{observer?.disconnect();bootstrapObserver?.disconnect();clearTimeout(timer);pendingProjectScroll=null;},{once:true});
+  window.addEventListener('pageshow',()=>{bind();schedule(0);});
+  window.addEventListener('pagehide',()=>{observer?.disconnect();observer=null;observedRoot=null;bootstrapObserver?.disconnect();bootstrapObserver=null;clearTimeout(timer);pendingProjectScroll=null;});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',load,{once:true});else load();
 })();

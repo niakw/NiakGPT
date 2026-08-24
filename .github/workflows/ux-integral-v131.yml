@@ -1,0 +1,57 @@
+name: NiakGPT UX Integral v131
+
+on:
+  pull_request:
+    paths:
+      - '**/*.js'
+      - '**/*.css'
+      - 'manifest.json'
+      - 'visual-lab/**'
+      - '.github/workflows/ux-integral-v131.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: niakgpt-ux-integral-v131-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ux-integral:
+    name: screenshot UX · ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      options: --ipc=host
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      HOME: /root
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: visual-lab/package-lock.json
+      - name: Install lab dependencies
+        working-directory: visual-lab
+        run: npm ci --no-audit --no-fund
+      - name: Integral human UX regression
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node ux-integral-v131.mjs
+      - name: Upload UX evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ux-integral-v131-${{ matrix.browser }}
+          path: visual-lab/artifacts/ux-integral-v131/${{ matrix.browser }}
+          if-no-files-found: warn
+          retention-days: 14

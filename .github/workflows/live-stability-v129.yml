@@ -7,12 +7,15 @@ on:
       - 'boot-gate-v100.js'
       - 'turn-headers-v112.js'
       - 'long-run-watchdog-v129.js'
+      - 'sidebar-projects-v121.js'
+      - 'ux-v131.js'
       - 'pin-interaction-rescue-v129.js'
       - 'project-menu-augment-v129.js'
       - 'continuity-native-handoff-v129.js'
       - 'live-stability-v129.css'
       - 'visual-lab/tests/live-stability-v129.spec.js'
       - 'visual-lab/tests/long-run-composer-residue-v131.spec.js'
+      - 'visual-lab/tests/bfcache-observer-v131.spec.js'
       - 'labs/static_validate_current.py'
       - 'tools/package-extension.mjs'
       - '.github/workflows/live-stability-v129.yml'
@@ -51,6 +54,9 @@ jobs:
           node --check project-menu-augment-v129.js
           node --check continuity-native-handoff-v129.js
           python3 labs/static_validate_current.py
+      - name: Repeated BFCache observer recovery
+        working-directory: visual-lab
+        run: npx playwright test tests/bfcache-observer-v131.spec.js --workers=1 --reporter=line
       - name: Focused watchdog / composer residue / remount / Project / continuity gate
         working-directory: visual-lab
         run: npx playwright test tests/long-run-composer-residue-v131.spec.js tests/live-stability-v129.spec.js --workers=1 --reporter=line

@@ -39,6 +39,7 @@
   }
 
   function navRoot(){
+    const guarded=window.__NIAKGPT_FIND_SIDEBAR_V131__?.();if(guarded?.isConnected)return guarded;
     const candidates=[...document.querySelectorAll('[data-testid="conversation-sidebar"],[data-testid*="sidebar" i],aside,nav')].filter(el=>!el.closest('main,[role="main"]'));
     const score=el=>{let n=0;if(el.matches('[data-testid="conversation-sidebar"]'))n+=40;if(el.querySelector('#ng8-pins'))n+=30;if(el.querySelector('a[href*="/g/g-p-"]'))n+=20;if(el.querySelector('a[href*="/c/"]'))n+=10;const r=el.getBoundingClientRect();if(r.left<innerWidth*.35&&r.width>150&&r.width<520)n+=8;return n;};
     return candidates.sort((a,b)=>score(b)-score(a))[0]||null;
@@ -74,8 +75,14 @@
     if(performance.now()-lastPinFocusAt>1600||document.activeElement===lastPinFocus)return;
     try{lastPinFocus.focus({preventScroll:true});}catch{try{lastPinFocus.focus();}catch{}}
   }
+  function restoreProjectScroll(list,value){
+    if(!list||!Number.isFinite(value))return;
+    if(Math.abs(list.scrollTop-value)>1)list.scrollTop=value;
+    projectScrollMemory=list.scrollTop;
+  }
   function place(box){
     const root=navRoot();if(!root||!box)return false;let moved=false;
+    const list=box.querySelector(':scope>.ng8-pin-list'),scrollBefore=list?list.scrollTop:projectScrollMemory;
     const section=nativeProjectSection();
     if(section?.parentElement){
       if(box.parentElement!==section.parentElement||box.nextElementSibling!==section){section.parentElement.insertBefore(box,section);moved=true;}
@@ -85,6 +92,7 @@
       if(tail?.parentElement){if(box.parentElement!==tail.parentElement||tail.nextElementSibling!==box){tail.insertAdjacentElement('afterend',box);moved=true;}box.dataset.ng121Placement='after-primary';box.dataset.ng119Placement='after-primary-v121';}
       else if(box.parentElement!==root){root.appendChild(box);moved=true;box.dataset.ng121Placement='sidebar-tail';box.dataset.ng119Placement='sidebar-tail-v121';}
     }
+    if(moved&&list){restoreProjectScroll(list,scrollBefore);requestAnimationFrame(()=>{if(box.isConnected&&list.isConnected)restoreProjectScroll(list,scrollBefore);});}
     box.hidden=false;box.removeAttribute('aria-hidden');box.dataset.ng121PlacementReady='1';document.documentElement.dataset.ng121PinsReady='1';document.documentElement.dataset.ng119PinsReady='1';restoreFocusedPin(box,moved);return true;
   }
 

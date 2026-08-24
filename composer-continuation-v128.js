@@ -5,10 +5,11 @@
 
   const COMPOSER_SEL='#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]';
   const ACTIVE_STATES=new Set(['waiting','thinking','executing']);
-  const HEADER='--- CONTINUE — AJOUT EN PARALLÈLE ---';
-  const INSTRUCTION="Poursuis le travail déjà en cours jusqu'à son terme ; intègre cet ajout en parallèle sans interrompre ni remplacer la tâche en cours.";
-  const PREFIX=`${HEADER}\n${INSTRUCTION}\n\n`;
-  const MARKER_RX=/^\s*---\s*CONTINUE(?:\s*[—–-]\s*AJOUT EN PARALLÈLE)?\s*---/i;
+  const HEADER='↳ Suite en parallèle';
+  const LEGACY_HEADER='--- CONTINUE — AJOUT EN PARALLÈLE ---';
+  const INSTRUCTION="Continue la tâche en cours jusqu’au bout et intègre cet ajout sans interrompre le travail déjà lancé.";
+  const PREFIX=`${HEADER} — ${INSTRUCTION}\n\n`;
+  const MARKER_RX=/^\s*(?:↳\s*Suite en parallèle|---\s*CONTINUE(?:\s*[—–-]\s*AJOUT EN PARALLÈLE)?\s*---)/i;
   const CANCEL_RX=/^\s*(?:stop\b|stoppe\b|arr(?:ê|e)te\b|annule\b|cancel\b|abort\b|interromps\b|laisse\s+tomber\b|ne\s+continue\s+pas\b)/i;
   const SEND_RX=/(?:^|\b)(?:send|envoyer|submit)(?:\b|$)/i;
   let idleTriggerUntil=0;
@@ -77,9 +78,6 @@
   function prepareParallelContinuation(editor,source){
     if(!editor||!visible(editor))return false;
     const now=performance.now();
-    // A normal send makes the activity sensor enter "waiting" immediately afterwards.
-    // Ignore any synthetic follow-up click from that same send so an idle message can
-    // never be mistaken for a pre-existing parallel task.
     if(now<idleTriggerUntil)return false;
     if(!preexistingActivity()){
       idleTriggerUntil=now+450;

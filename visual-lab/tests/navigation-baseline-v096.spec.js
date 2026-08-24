@@ -29,7 +29,7 @@ test('synthetic ChatGPT fixture reaches DOMContentLoaded without the extension',
   }
 });
 
-test('current ChatGPT home cannot load only NiakGPT CSS: complete shell must mount', async () => {
+test('current ChatGPT home mounts the complete quiet shell without reserving host layout space', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'niakgpt-home-smoke-'));
   const context = await chromium.launchPersistentContext(dir, {
     headless: true,
@@ -61,10 +61,17 @@ test('current ChatGPT home cannot load only NiakGPT CSS: complete shell must mou
       const rail = document.getElementById('ng8-rail').getBoundingClientRect();
       const status = document.getElementById('ng8-status').getBoundingClientRect();
       const composer = document.getElementById('home-composer').getBoundingClientRect();
-      return { rail, status, composer, width: innerWidth, height: innerHeight, scrollWidth: document.documentElement.scrollWidth };
+      const railStyle=getComputedStyle(document.getElementById('ng8-rail'));
+      return { rail, status, composer, railOpacity:Number(railStyle.opacity), railPointerEvents:railStyle.pointerEvents, width: innerWidth, height: innerHeight, scrollWidth: document.documentElement.scrollWidth };
     });
     expect(geometry.rail.left).toBeGreaterThan(geometry.composer.right);
-    expect(geometry.rail.right).toBeLessThanOrEqual(geometry.width + 0.5);
+    // v131 deliberately tucks the idle/home rail beyond the viewport edge instead of reserving
+    // permanent right-side chrome. Its transform must not create horizontal document overflow.
+    expect(geometry.rail.left).toBeGreaterThanOrEqual(geometry.width - 12);
+    expect(geometry.rail.left).toBeLessThanOrEqual(geometry.width + 1);
+    expect(geometry.rail.right).toBeGreaterThan(geometry.width);
+    expect(geometry.railOpacity).toBeLessThanOrEqual(0.01);
+    expect(geometry.railPointerEvents).toBe('none');
     expect(geometry.status.bottom).toBeLessThanOrEqual(geometry.height + 0.5);
     expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.width + 2);
     await page.screenshot({ path: path.join(artifacts, 'real-chatgpt-home-bootstrap.png'), fullPage: true });

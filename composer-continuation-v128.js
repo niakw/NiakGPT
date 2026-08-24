@@ -13,7 +13,7 @@
   const MARKER_RX=/^\s*(?:↳\s*Suite en parallèle|---\s*CONTINUE(?:\s*[—–-]\s*AJOUT EN PARALLÈLE)?\s*---)/i;
   const CANCEL_RX=/^\s*(?:stop\b|stoppe\b|arr(?:ê|e)te\b|annule\b|cancel\b|abort\b|interromps\b|laisse\s+tomber\b|ne\s+continue\s+pas\b)/i;
   const SEND_RX=/(?:^|\b)(?:send|envoyer|submit)(?:\b|$)/i;
-  let idleTriggerUntil=0;
+  let idleTriggerUntil=0,cleanupToken=0;
 
   const visible=el=>{
     if(!(el instanceof Element)||!el.isConnected)return false;
@@ -30,6 +30,7 @@
   ].some(selector=>visible(document.querySelector(selector)));
   const preexistingActivity=()=>ACTIVE_STATES.has(activityState())||nativeGenerationBusy();
   const editorText=editor=>String(editor?('value'in editor?editor.value:editor.innerText||editor.textContent||''):'');
+  const compact=value=>String(value||'').replace(/\s+/g,' ').trim().toLowerCase();
 
   function visibleEditor(scope=document){
     const editors=[...scope.querySelectorAll(COMPOSER_SEL)].filter(visible);
@@ -57,8 +58,8 @@
         const proto=Object.getPrototypeOf(editor);
         const setter=Object.getOwnPropertyDescriptor(proto,'value')?.set;
         setter?setter.call(editor,value):(editor.value=value);
-        editor.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:value}));
-        return MARKER_RX.test(editorText(editor));
+        editor.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:value?'insertText':'deleteContentBackward',data:value||null}));
+        return value===''?!editorText(editor).trim():MARKER_RX.test(editorText(editor));
       }
       if(editor.isContentEditable){
         editor.focus({preventScroll:true});
@@ -66,14 +67,49 @@
         range.selectNodeContents(editor);selection?.removeAllRanges();selection?.addRange(range);
         let inserted=false;
         try{inserted=!!document.execCommand?.('insertText',false,value);}catch{}
-        if(!inserted||!MARKER_RX.test(editorText(editor))){
+        if(!inserted||(value&& !MARKER_RX.test(editorText(editor)))){
           editor.textContent=value;
-          editor.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:value}));
+          editor.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:value?'insertText':'deleteContentBackward',data:value||null}));
         }
-        return MARKER_RX.test(editorText(editor));
+        return value===''?!editorText(editor).trim():MARKER_RX.test(editorText(editor));
       }
     }catch{}
     return false;
+  }
+
+  function sentTurnExists(raw,payload){
+    const rawNeedle=compact(raw).slice(0,180),payloadNeedle=compact(payload).slice(0,180);
+    if(!rawNeedle&&!payloadNeedle)return false;
+    const turns=[...document.querySelectorAll('[data-message-author-role="user"]')].slice(-5);
+    return turns.some(turn=>{
+      const value=compact(turn.innerText||turn.textContent||'');
+      return !!value&&((rawNeedle&&value.includes(rawNeedle))||(payloadNeedle&&value.includes(payloadNeedle)));
+    });
+  }
+
+  function cleanupAfterNativeSend(editor,raw,payload){
+    const token=++cleanupToken,rawTrim=raw.trim(),payloadTrim=payload.trim();
+    let attempts=0;
+    const check=()=>{
+      if(token!==cleanupToken||!editor?.isConnected)return;
+      const current=editorText(editor).trim();
+      if(!current)return;
+      if(current!==payloadTrim&&current!==rawTrim)return; // Never erase text the user changed after clicking Send.
+      if(sentTurnExists(raw,payload)){
+        setEditorText(editor,'');
+        document.documentElement.dataset.ng128ComposerCleanup='confirmed-clear';
+        return;
+      }
+      // The host occasionally accepts the click but leaves our capture-phase prefix in its controlled draft.
+      // Strip only NiakGPT's protocol immediately; preserve the user's exact text until send is observable.
+      if(current===payloadTrim){
+        setEditorText(editor,raw);
+        document.documentElement.dataset.ng128ComposerCleanup='prefix-stripped';
+      }
+      attempts++;
+      if(attempts<18)setTimeout(check,120);
+    };
+    setTimeout(check,80);
   }
 
   function prepareParallelContinuation(editor,source){
@@ -86,8 +122,10 @@
     }
     const raw=editorText(editor);
     if(!raw.trim()||MARKER_RX.test(raw)||CANCEL_RX.test(raw))return false;
-    const applied=setEditorText(editor,`${PREFIX}${raw}`);
+    const payload=`${PREFIX}${raw}`;
+    const applied=setEditorText(editor,payload);
     if(applied){
+      cleanupAfterNativeSend(editor,raw,payload);
       document.dispatchEvent(new CustomEvent('niakgpt:parallel-continue',{detail:{state:activityState(),source,at:Date.now()}}));
       window.__NIAKGPT_DIAGNOSTICS__?.set('parallel-continue',`CONTINUE · ${activityState()||'native-busy'} · ${source}`);
     }

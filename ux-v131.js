@@ -108,9 +108,13 @@
   function relevant(records){
     return records.some(r=>[...r.addedNodes,...r.removedNodes].some(structuralNode));
   }
+  function bindObserver(){
+    observer?.disconnect();
+    observer=new MutationObserver(records=>{if(relevant(records))schedule(90);});
+    observer.observe(document.documentElement,{childList:true,subtree:true});
+  }
   function start(){
-    surface();schedule(0);
-    observer?.disconnect();observer=new MutationObserver(records=>{if(relevant(records))schedule(90);});observer.observe(document.documentElement,{childList:true,subtree:true});
+    surface();schedule(0);bindObserver();
     for(const d of[120,420,1000,2200,4500])setTimeout(()=>schedule(0),d);
   }
   document.addEventListener('niakgpt:pins-rendered',()=>schedule(0));
@@ -118,7 +122,7 @@
   window.addEventListener('popstate',()=>schedule(20));
   if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>schedule(20));
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)schedule(0);});
-  window.addEventListener('pageshow',()=>schedule(0));
-  window.addEventListener('pagehide',()=>observer?.disconnect(),{once:true});
+  window.addEventListener('pageshow',()=>{bindObserver();schedule(0);});
+  window.addEventListener('pagehide',()=>{observer?.disconnect();observer=null;clearTimeout(timer);});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();

@@ -7,6 +7,7 @@
   const ACTIVE_STATES=new Set(['waiting','thinking','executing']);
   const HEADER='↳ Suite en parallèle';
   const LEGACY_HEADER='--- CONTINUE — AJOUT EN PARALLÈLE ---';
+  const LEGACY_INSTRUCTION='Poursuis le travail déjà en cours';
   const INSTRUCTION="Continue la tâche en cours jusqu’au bout et intègre cet ajout sans interrompre le travail déjà lancé.";
   const PREFIX=`${HEADER} — ${INSTRUCTION}\n\n`;
   const MARKER_RX=/^\s*(?:↳\s*Suite en parallèle|---\s*CONTINUE(?:\s*[—–-]\s*AJOUT EN PARALLÈLE)?\s*---)/i;

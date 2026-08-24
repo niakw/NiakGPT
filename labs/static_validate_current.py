@@ -23,10 +23,21 @@ def runtime(name):
     return re.findall(r"['\"]([^'\"]+\.js)['\"]",match.group(1))
 
 manifest=json.loads(read('manifest.json'))
+version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if manifest.get('version')!='0.9.76': fail(f"version={manifest.get('version')}")
+if version!='0.9.76': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*']: fail('host permissions drift')
+
+# Release-facing documentation must never lag behind the installable manifest again.
+readme=read('README.md')
+changelog=read('CHANGELOG.md')
+architecture=read('ARCHITECTURE.md')
+if f'version-{version}-' not in readme: fail('README version badge drift')
+if f'Version actuelle : {version}' not in readme: fail('README current version drift')
+if not changelog.startswith(f'# NiakGPT {version} '): fail('CHANGELOG latest release drift')
+if f'architecture {version}' not in architecture: fail('ARCHITECTURE version drift')
+
 static_js=[file for cs in manifest.get('content_scripts',[]) for file in cs.get('js',[])]
 expected_static=[
     'boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js',
@@ -88,13 +99,13 @@ for token in ('ng123-action-menu','ng123-rename-dialog','dataset.ng123Action','d
     if token not in actions: fail('single-owner sidebar actions incomplete '+token)
 
 catalog=read('sidebar-projects-v121.js')
-for token in ('sessionOrder','armBootstrap','projectScrollMemory','niakgpt:sidebar-projects-reconcile'):
+for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','niakgpt:sidebar-projects-reconcile'):
     if token not in catalog: fail('session-stable Projects catalog incomplete '+token)
 folders=read('pin-folders-v096.js')
 for token in ('drawerScrollMemory','innerScroll','outerScroll','niakgpt:hydrate-project'):
     if token not in folders: fail('drawer scroll/hydration continuity incomplete '+token)
 interrupt=read('interruption-guard-v119.js')
-for token in ('continueFrom?.(chatId)',r'failed\s+to\s+fetch','persistedIncident','allowedType','type:allowedType'):
+for token in ('continueFrom?.(chatId)',r'failed\s+to\s+fetch','persistedIncident','allowedType','type:allowedType','persistEpoch'):
     if token not in interrupt: fail('interruption recovery/security incomplete '+token)
 
 parallel=read('composer-continuation-v128.js')
@@ -103,15 +114,16 @@ for token in ('↳ Suite en parallèle','LEGACY_HEADER','waiting','thinking','ex
 if 'setInterval(' in parallel: fail('parallel continuation must remain event-driven')
 
 watchdog=read('long-run-watchdog-v129.js')
-for token in ('DEFAULT_SEGMENT_MS','6*60*1000+30*1000','↻ Reprise NiakGPT','LEGACY_MARKER','AUTO_RX','nativeStop','draft-protected','attemptResume','niakgpt:long-run-resume','CANCEL_RX','sendCandidate','waiting-send-control','clearAutoDraft'):
+for token in ('DEFAULT_SEGMENT_MS','6*60*1000+30*1000','↻ Reprise NiakGPT','LEGACY_MARKER','LEGACY_MESSAGE','AUTO_RX','knownAutoDraft','nativeStop','draft-protected','attemptResume','niakgpt:long-run-resume','CANCEL_RX','sendCandidate','waiting-send-control','clearAutoDraft'):
     if token not in watchdog: fail('long-run watchdog incomplete '+token)
 if 'setInterval(' in watchdog: fail('long-run watchdog must use bounded timers, not polling intervals')
+if "if(ed&&AUTO_RX.test(editorText(ed)))clearAutoDraft(ed)" in watchdog: fail('watchdog startup may clear user-modified protocol-looking draft')
 
 ux=read('ux-v131.js')
 for token in ('findSidebar','score(el)','repairPins','dataset.ng131Mounted','nativeProjectSection','dataset.ng131Surface','enhanceA11y','__NIAKGPT_FIND_SIDEBAR_V131__'):
     if token not in ux: fail('v131 UX reconciler incomplete '+token)
 ux_css=read('ux-v131.css')
-for token in ('#ng8-pins:not([data-ng131-mounted="1"])','body.ng8-ready{padding-right:0!important;padding-bottom:0!important}','#ng8-status{','#ng8-rail{','.ng131-coach-detail[hidden]'):
+for token in ('#ng8-pins:not([data-ng131-mounted="1"])','body.ng8-ready{padding-right:0!important;padding-bottom:0!important}','#ng8-status{','#ng8-rail{','.ng131-coach-detail[hidden]','@media(prefers-reduced-motion:reduce)'):
     if token not in ux_css: fail('v131 UX visual authority incomplete '+token)
 
 rescue=read('pin-interaction-rescue-v129.js')
@@ -138,7 +150,7 @@ parallel_workflow=read('.github/workflows/parallel-continuation-v128.yml')
 for token in ('parallel-continue-v128.mjs','composer-continuation-runtime-v128.spec.js','chromium, firefox, webkit','parallel-continuation-v128'):
     if token not in parallel_workflow: fail('Parallel continuation workflow missing '+token)
 live_workflow=read('.github/workflows/live-stability-v129.yml')
-for token in ('live-stability-v129.spec.js','long-run-composer-residue-v131.spec.js','Brave stable','chromium'):
+for token in ('live-stability-v129.spec.js','long-run-composer-residue-v131.spec.js','3 passed','Brave stable','chromium'):
     if token not in live_workflow: fail('Live stability workflow missing '+token)
 ux_workflow=read('.github/workflows/ux-integral-v131.yml')
 for token in ('ux-integral-v131.mjs','chromium, firefox, webkit','screenshot UX','mcr.microsoft.com/playwright:v1.62.1-noble'):

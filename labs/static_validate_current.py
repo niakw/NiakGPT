@@ -24,12 +24,12 @@ def runtime(name):
 
 manifest=json.loads(read('manifest.json'))
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if manifest.get('version')!='0.9.77': fail(f"version={manifest.get('version')}")
+if manifest.get('version')!='0.9.76': fail(f"version={manifest.get('version')}")
 if manifest.get('permissions')!=['storage','scripting']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*']: fail('host permissions drift')
 static_js=[file for cs in manifest.get('content_scripts',[]) for file in cs.get('js',[])]
 expected_static=[
-    'ux-v131.js','boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js',
+    'boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js',
     'pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'
 ]
 if static_js!=expected_static: fail(f'static runtime drift: {static_js!r}')

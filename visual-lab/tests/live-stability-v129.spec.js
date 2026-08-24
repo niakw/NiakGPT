@@ -24,7 +24,7 @@ async function closeRuntime(context,browser){
   }
 }
 
-test('0.9.76 long-run recovery + remount-safe pins + Project context + native limit handoff — hydration shell + real queue + native Project settings + full context',async()=>{
+test('0.9.77 quiet long-run recovery + remount-safe pins + Project context + native limit handoff',async()=>{
   const browser=await chromium.launch({executablePath:process.env.NIAKGPT_EXECUTABLE_PATH||undefined,headless:process.env.NIAKGPT_HEADLESS==='0'?false:true});
   const context=await browser.newContext({viewport:{width:1280,height:800},colorScheme:'dark',reducedMotion:'reduce'});
   const page=await context.newPage();
@@ -49,7 +49,7 @@ test('0.9.76 long-run recovery + remount-safe pins + Project context + native li
   window.__sent=[];window.__actionClicks=0;window.__routed=false;window.__nativeSettingsClicks=0;
   window.__store={'niakgpt-v08-cache':{projects:[{id:'${PROJECT}',name:'Projet Démo',description:'Description de démonstration',instructions:'Toujours terminer le travail.'}],chats:[{id:'${CHAT}',title:'Fil long',projectId:'${PROJECT}'}]}};
   const local={get:async key=>{const keys=Array.isArray(key)?key:[key];const out={};for(const k of keys)out[k]=window.__store[k];return out;},set:async obj=>Object.assign(window.__store,obj),remove:async key=>{for(const k of (Array.isArray(key)?key:[key]))delete window.__store[k];}};
-  window.chrome={storage:{local,onChanged:{addListener:()=>{}}},runtime:{getManifest:()=>({version:'0.9.76'}),sendMessage:async()=>{if(!document.getElementById('ng8-rail')){const rail=document.createElement('aside');rail.id='ng8-rail';rail.innerHTML='<button>Explorer</button>';document.body.appendChild(rail);}if(!document.getElementById('ng8-panel')){const panel=document.createElement('aside');panel.id='ng8-panel';document.body.appendChild(panel);}if(!document.getElementById('ng8-status')){const status=document.createElement('div');status.id='ng8-status';document.body.appendChild(status);}document.body.classList.add('ng8-ready');return{ok:true,errors:[]};}}};
+  window.chrome={storage:{local,onChanged:{addListener:()=>{}}},runtime:{getManifest:()=>({version:'0.9.77'}),sendMessage:async()=>{if(!document.getElementById('ng8-rail')){const rail=document.createElement('aside');rail.id='ng8-rail';rail.innerHTML='<button>Explorer</button>';document.body.appendChild(rail);}if(!document.getElementById('ng8-panel')){const panel=document.createElement('aside');panel.id='ng8-panel';document.body.appendChild(panel);}if(!document.getElementById('ng8-status')){const status=document.createElement('div');status.id='ng8-status';document.body.appendChild(status);}document.body.classList.add('ng8-ready');return{ok:true,errors:[]};}}};
   const editor=document.getElementById('prompt-textarea'),send=document.getElementById('send');
   const syncSend=()=>{send.hidden=!editor.value.trim();};editor.addEventListener('input',syncSend);syncSend();
   send.addEventListener('click',()=>{window.__sent.push(editor.value);editor.value='';editor.dispatchEvent(new InputEvent('input',{bubbles:true}));});
@@ -80,8 +80,10 @@ test('0.9.76 long-run recovery + remount-safe pins + Project context + native li
 
     await expect.poll(()=>page.evaluate(()=>window.__sent.length),{timeout:3500,intervals:[80,120,180]}).toBe(1);
     const automatic=await page.evaluate(()=>window.__sent[0]);
-    expect(automatic).toContain('--- NIAKGPT LONG RUN — REPRISE AUTOMATIQUE ---');
-    expect(automatic).toContain('Poursuis exactement la tâche déjà en cours');
+    expect(automatic).toContain('↻ Reprise NiakGPT');
+    expect(automatic).toContain('Continue exactement la tâche en cours');
+    expect(automatic).not.toContain('--- CONTINUE — AJOUT EN PARALLÈLE ---');
+    expect(automatic.length).toBeLessThan(220);
     await expect(page.locator('html')).toHaveAttribute('data-ng129-native-busy','1');
     console.log('LIVE_STABILITY_CHECKPOINT watchdog-real-queue PASS');
 

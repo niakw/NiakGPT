@@ -111,20 +111,32 @@
 
   function icon(){const s=document.createElement('span');s.className='ng113-dots';s.setAttribute('aria-hidden','true');s.textContent='•••';return s;}
   function normalizeAction(button,kind,id){if(!(button instanceof HTMLButtonElement))return null;button.type='button';button.classList.add('ng113-native-actions',`ng113-native-actions-${kind}`);button.dataset.ng123Action=kind;button.dataset.ng123Id=id;button.removeAttribute('data-ng113-actions');button.removeAttribute('data-ng113-id');button.title=kind==='project'?'Actions du Project':'Actions de la conversation';button.setAttribute('aria-label',button.title);button.setAttribute('aria-haspopup','menu');if(!button.hasAttribute('aria-expanded'))button.setAttribute('aria-expanded','false');if(!button.querySelector('.ng113-dots')){button.replaceChildren(icon());}return button;}
+  function actionIdentity(button){
+    if(!(button instanceof HTMLButtonElement))return{kind:'',id:''};
+    let kind=clean(button.dataset.ng123Action||button.dataset.ng113Actions);if(!['project','chat'].includes(kind))kind=button.classList.contains('ng113-native-actions-project')?'project':button.classList.contains('ng113-native-actions-chat')?'chat':'';
+    let id=clean(button.dataset.ng123Id||button.dataset.ng113Id);
+    if(!id&&kind==='project'){const entry=button.closest('.ng96-pin-entry'),a=entry?.querySelector(':scope>a[data-ng8-pin]');id=normalizePid(a?.dataset.ng121Pid||pid(a?.getAttribute('href')));}
+    if(!id&&kind==='chat'){const entry=button.closest('.ng96-chat-entry'),a=entry?.querySelector(':scope>a[data-chat]');id=clean(a?.dataset.chat)||cid(a?.getAttribute('href'));}
+    if(kind&&id)normalizeAction(button,kind,id);return{kind,id};
+  }
   function decorate(){
     timer=0;const pins=document.getElementById('ng8-pins');if(!pins)return;
     for(const entry of pins.querySelectorAll('.ng96-pin-entry')){const a=entry.querySelector(':scope>a[data-ng8-pin]'),id=normalizePid(a?.dataset.ng121Pid||pid(a?.getAttribute('href')));if(!id)continue;let b=entry.querySelector(':scope>.ng113-native-actions-project');if(!b){b=document.createElement('button');entry.appendChild(b);}normalizeAction(b,'project',id);}
     for(const entry of pins.querySelectorAll('.ng96-chat-entry')){const a=entry.querySelector(':scope>a[data-chat]'),id=a?.dataset.chat||cid(a?.getAttribute('href'));if(!id)continue;let b=entry.querySelector(':scope>.ng113-native-actions-chat');if(!b){b=document.createElement('button');entry.appendChild(b);}normalizeAction(b,'chat',id);for(const extra of entry.querySelectorAll(':scope>.ng113-native-actions-chat'))if(extra!==b)extra.remove();}
   }
   function schedule(delay=12){clearTimeout(timer);timer=setTimeout(decorate,delay);}
-  function bind(){const next=document.getElementById('ng8-pins');if(!next||next===box)return false;observer?.disconnect();box=next;observer=new MutationObserver(records=>{if(records.some(r=>[...r.addedNodes,...r.removedNodes].some(n=>n instanceof Element&&!n.closest?.('#ng123-action-menu,#ng123-rename-dialog'))))schedule();});observer.observe(box,{childList:true,subtree:true});schedule(0);return true;}
+  function bind(){
+    const next=document.getElementById('ng8-pins');if(!next)return false;
+    if(next===box&&observer){schedule(0);return true;}
+    observer?.disconnect();box=next;observer=new MutationObserver(records=>{if(records.some(r=>[...r.addedNodes,...r.removedNodes].some(n=>n instanceof Element&&!n.closest?.('#ng123-action-menu,#ng123-rename-dialog'))))schedule();});observer.observe(box,{childList:true,subtree:true});schedule(0);return true;
+  }
   async function start(){try{cache=(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||cache;}catch{}if(bind())return;boot?.disconnect();boot=new MutationObserver(()=>{if(bind()){boot.disconnect();boot=null;}});boot.observe(document.documentElement,{childList:true,subtree:true});setTimeout(()=>boot?.disconnect(),20000);}
 
-  document.addEventListener('click',event=>{if(event.button!==0)return;const target=event.target instanceof Element?event.target:null,button=target?.closest('#ng8-pins .ng113-native-actions');if(!(button instanceof HTMLButtonElement))return;const kind=button.dataset.ng123Action,id=clean(button.dataset.ng123Id);if(!id||!['project','chat'].includes(kind))return;event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();openMenu(button,kind,id);},true);
-  document.addEventListener('pointerdown',event=>{if(!state)return;const target=event.target instanceof Element?event.target:null;if(target?.closest('#ng123-action-menu,#ng123-rename-dialog,#ng8-pins .ng113-native-actions'))return;closeMenu();},true);
+  document.addEventListener('click',event=>{if(event.button!==0)return;const target=event.target instanceof Element?event.target:null,button=target?.closest('#ng8-pins .ng113-native-actions');if(!(button instanceof HTMLButtonElement))return;const {kind,id}=actionIdentity(button);if(!id||!['project','chat'].includes(kind))return;event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();openMenu(button,kind,id);},true);
+  document.addEventListener('pointerdown',event=>{const target=event.target instanceof Element?event.target:null,button=target?.closest('#ng8-pins .ng113-native-actions');if(button instanceof HTMLButtonElement)actionIdentity(button);if(!state)return;if(target?.closest('#ng123-action-menu,#ng123-rename-dialog,#ng8-pins .ng113-native-actions'))return;closeMenu();},true);
   document.addEventListener('keydown',event=>{
     const target=event.target instanceof Element?event.target:null,trigger=target?.closest?.('#ng8-pins .ng113-native-actions');
-    if(trigger instanceof HTMLButtonElement&&(event.key==='ArrowDown'||event.key==='ArrowUp')){const kind=trigger.dataset.ng123Action,id=clean(trigger.dataset.ng123Id);if(id&&['project','chat'].includes(kind)){event.preventDefault();openMenu(trigger,kind,id,{last:event.key==='ArrowUp'});return;}}
+    if(trigger instanceof HTMLButtonElement&&(event.key==='ArrowDown'||event.key==='ArrowUp')){const {kind,id}=actionIdentity(trigger);if(id&&['project','chat'].includes(kind)){event.preventDefault();openMenu(trigger,kind,id,{last:event.key==='ArrowUp'});return;}}
     if(state?.menu?.isConnected&&state.menu.contains(document.activeElement)){
       if(event.key==='Escape'){event.preventDefault();closeMenu({focus:true});return;}
       if(event.key==='Tab'){closeMenu();return;}
@@ -139,6 +151,7 @@
   try{chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY]){cache=changes[CACHE_KEY].newValue||cache;schedule(0);}});}catch{}
   document.addEventListener('niakgpt:folder-rendered',()=>{bind();decorate();});document.addEventListener('niakgpt:pins-rendered',()=>{bind();decorate();});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)closeMenu();else{bind();decorate();}});window.addEventListener('popstate',()=>{closeMenu();bind();decorate();});if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>{closeMenu();bind();decorate();});
-  window.addEventListener('pagehide',()=>{observer?.disconnect();boot?.disconnect();closeMenu();});
+  window.addEventListener('pageshow',()=>{closeMenu();start();});
+  window.addEventListener('pagehide',()=>{observer?.disconnect();observer=null;box=null;boot?.disconnect();boot=null;clearTimeout(timer);closeMenu();});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();

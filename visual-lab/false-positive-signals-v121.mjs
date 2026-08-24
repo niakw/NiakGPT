@@ -84,9 +84,12 @@ for(const [engine,launcher] of Object.entries(engines)){
     assert(!prose.bar&&!prose.pause&&!prose.out&&!prose.incident,`ordinary conversation prose triggered interruption state: ${JSON.stringify(prose)}`);
 
     await page.evaluate(()=>{const a=document.createElement('div');a.id='network-alert';a.setAttribute('role','alert');a.textContent='Connexion interrompue';document.getElementById('signals').appendChild(a);});
-    await page.waitForTimeout(320);
-    let state=await page.evaluate(()=>({bar:document.getElementById('ng119-interruption')?.dataset.type||'',incident:JSON.parse(sessionStorage.getItem('niakgpt-interruption-v120')||'null')?.type||''}));
-    assert(state.bar==='network'&&state.incident==='network',`real native network alert was not detected: ${JSON.stringify(state)}`);
+    await page.waitForFunction(()=>document.getElementById('ng119-interruption')?.dataset.type==='network',null,{timeout:1600});
+    // v119 deliberately encrypts the persisted incident. Validate the encrypted envelope instead
+    // of assuming the sessionStorage value contains a plaintext `type` field.
+    await page.waitForFunction(()=>{try{const box=JSON.parse(sessionStorage.getItem('niakgpt-interruption-v120')||'null');return box?.v===1&&!!box.iv&&!!box.ct&&!('type'in box);}catch{return false;}},null,{timeout:2400});
+    let state=await page.evaluate(()=>{let persisted=null;try{persisted=JSON.parse(sessionStorage.getItem('niakgpt-interruption-v120')||'null');}catch{}return{bar:document.getElementById('ng119-interruption')?.dataset.type||'',encrypted:!!(persisted?.v===1&&persisted?.iv&&persisted?.ct),plaintextType:persisted?.type||''};});
+    assert(state.bar==='network'&&state.encrypted&&!state.plaintextType,`real native network alert was not detected/persisted securely: ${JSON.stringify(state)}`);
     await page.evaluate(()=>document.getElementById('network-alert')?.remove());
     await page.waitForTimeout(850);
     state=await page.evaluate(()=>({bar:!!document.getElementById('ng119-interruption'),incident:sessionStorage.getItem('niakgpt-interruption-v120')}));

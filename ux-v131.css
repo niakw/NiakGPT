@@ -1,0 +1,108 @@
+/* NiakGPT 0.9.76 / v131 — native-first, quiet-by-default UX.
+   This is the final visual authority: NiakGPT stays useful without taking over ChatGPT. */
+
+/* Stable shell styling applies from document_start while hidden, so verification never creates a visual jump. */
+#ng8-pins{border:0!important;border-top:1px solid #2b3540!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}
+/* Never expose a Project block until the v131 placement guard has verified the real left sidebar. */
+#ng8-pins:not([data-ng131-mounted="1"]){visibility:hidden!important;opacity:0!important;pointer-events:none!important}
+#ng8-pins[data-ng131-mounted="1"]{visibility:visible!important;opacity:1!important;pointer-events:auto!important}
+
+/* Stop reserving permanent application chrome around ChatGPT. */
+body.ng8-ready{padding-right:0!important;padding-bottom:0!important}
+body.ng8-panel-open main{margin-right:0!important}
+
+/* Project list: integrate with the native sidebar instead of looking like a second app. */
+#ng8-pins[data-ng131-mounted="1"]{
+  width:calc(100% - 14px)!important;max-width:calc(100% - 14px)!important;min-height:0!important;
+  margin:6px 7px 8px!important;padding:3px 0 5px!important;
+  border:0!important;border-top:1px solid #2b3540!important;
+  border-radius:0!important;background:transparent!important;box-shadow:none!important;contain:layout style!important;
+}
+#ng8-pins .ng8-pin-head{min-height:27px!important;padding:5px 7px 3px!important;color:#8292a4!important;font-size:9px!important;letter-spacing:.075em!important}
+#ng8-pins .ng8-pin-head b{font-size:9px!important;color:#aab8c6!important}
+#ng8-pins .ng8-pin-list{
+  max-height:min(56vh,520px)!important;overflow-x:hidden!important;overflow-y:auto!important;
+  overscroll-behavior:contain!important;scrollbar-gutter:stable!important;scrollbar-width:thin!important;
+}
+#ng8-pins a[data-ng8-pin="1"]{
+  grid-template-columns:24px minmax(0,1fr) auto!important;gap:6px!important;min-height:36px!important;
+  margin:1px 0!important;padding:4px 7px!important;border:1px solid transparent!important;border-radius:7px!important;
+  background:transparent!important;box-shadow:inset 2px 0 color-mix(in srgb,var(--ng-project,#607080) 62%,transparent)!important;
+}
+#ng8-pins a[data-ng8-pin="1"]:hover,#ng8-pins a[data-ng8-pin="1"]:focus-visible{
+  background:color-mix(in srgb,var(--ng-project,#607080) 11%,#15202a 89%)!important;
+  border-color:color-mix(in srgb,var(--ng-project,#607080) 25%,transparent)!important;
+}
+#ng8-pins a[data-ng8-pin="1"].ng8-active-project{background:color-mix(in srgb,var(--ng-project,#607080) 15%,#15202a 85%)!important;border-color:color-mix(in srgb,var(--ng-project,#607080) 34%,transparent)!important}
+#ng8-pins a[data-ng8-pin="1"] i{width:20px!important;height:20px!important;border-radius:6px!important}
+#ng8-pins a[data-ng8-pin="1"] span{font-size:12px!important;font-weight:550!important}
+#ng8-pins a[data-ng8-pin="1"] small{font-size:8.5px!important;color:#8190a1!important}
+
+/* Prompt coach: one compact affordance. Full technical prompt appears only on explicit demand. */
+#ng8-coach[data-ng100-coach="1"]{
+  position:relative!important;inset:auto!important;z-index:20!important;width:min(920px,calc(100% - 16px))!important;
+  margin:0 auto 6px!important;border:0!important;border-radius:10px!important;background:transparent!important;box-shadow:none!important;overflow:visible!important;
+}
+#ng8-coach .ng131-coach-bar{display:flex;align-items:center;justify-content:flex-end;gap:7px;min-height:30px;padding:0 4px}
+#ng8-coach .ng131-coach-kind{color:#77899a;font:700 8.5px/1.2 Consolas,monospace;letter-spacing:.07em}
+#ng8-coach .ng131-coach-toggle{min-height:28px;padding:4px 9px;border:1px solid #344554;border-radius:999px;background:#101821!important;color:#aebdcc!important;font:700 9.5px/1.2 Consolas,monospace;cursor:pointer}
+#ng8-coach .ng131-coach-toggle:hover,#ng8-coach .ng131-coach-toggle:focus-visible{background:#18232e!important;color:#eef6fc!important;border-color:#4d6477!important}
+#ng8-coach .ng131-coach-detail{margin-top:4px;border:1px solid #324352;border-radius:10px;background:#0d151e!important;box-shadow:0 12px 34px rgba(0,0,0,.28);overflow:hidden}
+#ng8-coach .ng131-coach-detail[hidden]{display:none!important}
+#ng8-coach .ng100-prompt-preview{max-height:min(38vh,340px);margin:0;padding:11px 13px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;color:#c9d5df;background:#0c141c!important;font:11px/1.48 Consolas,monospace}
+#ng8-coach .ng100-prompt-actions{display:flex;justify-content:flex-end;gap:6px;padding:7px 9px;border-top:1px solid #273744;background:#101923!important}
+#ng8-coach .ng100-prompt-actions button{min-height:30px;padding:4px 10px;border:1px solid #33495b;border-radius:7px;background:#17222d!important;color:#d7e2eb!important;font:700 9px Consolas,monospace;cursor:pointer}
+#ng8-coach .ng100-prompt-actions button:hover,#ng8-coach .ng100-prompt-actions button:focus-visible{border-color:#57728a!important;background:#1d2b38!important;color:#fff!important}
+
+/* Right tools become a small reveal-on-demand dock, not a permanent column. */
+#ng8-rail{
+  top:50%!important;right:7px!important;bottom:auto!important;width:38px!important;height:auto!important;max-height:250px!important;
+  padding:4px 2px!important;border:1px solid rgba(88,111,132,.32)!important;border-radius:12px!important;
+  background:rgba(8,14,20,.86)!important;box-shadow:0 10px 34px rgba(0,0,0,.28)!important;
+  transform:translate(29px,-50%)!important;opacity:.25!important;transition:transform .16s ease,opacity .16s ease!important;
+}
+#ng8-rail:hover,#ng8-rail:focus-within{transform:translate(0,-50%)!important;opacity:1!important}
+#ng8-rail button{width:32px!important;height:34px!important;margin:1px!important;border-radius:8px!important;font-size:15px!important}
+#ng8-rail>span{min-height:6px;flex:0 0 6px!important}
+html[data-ng131-surface="home"] #ng8-rail,html[data-ng131-surface="utility"] #ng8-rail{opacity:0!important;pointer-events:none!important;transform:translate(38px,-50%)!important;transition:none!important}
+
+/* Status becomes a passive capsule; no full-width blue OS bar. */
+#ng8-status{
+  left:9px!important;right:auto!important;bottom:8px!important;width:auto!important;max-width:min(520px,calc(100vw - 18px))!important;height:24px!important;
+  display:flex!important;grid-template-columns:none!important;align-items:center!important;gap:8px!important;padding:0 9px!important;
+  border:1px solid rgba(92,116,136,.34)!important;border-radius:999px!important;background:rgba(8,15,21,.84)!important;
+  color:#bac7d3!important;box-shadow:0 6px 22px rgba(0,0,0,.28)!important;opacity:.68!important;transition:opacity .15s ease!important;
+}
+#ng8-status:hover,#ng8-status:focus-within,#ng8-status.running{opacity:1!important}
+#ng8-status strong,#ng8-status [data-q]{display:none!important}
+#ng8-status .ng8-version{font-size:9.5px!important;color:#9dadbc!important}
+#ng8-status .ng8-status-project{max-width:180px!important;font-size:9.5px!important;color:#c7d3dd!important}
+#ng8-status .ng8-core-state{display:none!important;margin-left:auto!important;font-size:9px!important}
+#ng8-status.running .ng8-core-state{display:inline!important;color:#f0c86a!important}
+html[data-ng131-surface="home"] #ng8-status{opacity:.42!important}
+
+/* Side panel floats over content and leaves the host layout untouched. */
+#ng8-panel{right:10px!important;top:10px!important;bottom:10px!important;width:min(360px,calc(100vw - 20px))!important;border:1px solid #2d3d4b!important;border-radius:12px!important;transform:translateX(calc(100% + 24px))!important;box-shadow:0 18px 52px rgba(0,0,0,.42)!important}
+#ng8-panel.open{transform:translateX(0)!important}
+
+/* Quick Open = command palette, not a second page. */
+#ng8-quick{padding:12vh 12px 24px!important;background:rgba(0,0,0,.43)!important;backdrop-filter:blur(2px)}
+#ng8-quick>div{width:min(720px,100%)!important;max-height:min(72vh,650px)!important;border:1px solid #3a4a58!important;border-radius:12px!important;box-shadow:0 22px 70px rgba(0,0,0,.58)!important}
+#ng8-quick input{min-height:46px!important;padding:11px 13px!important;font-size:14px!important}
+#ng8-quick section{max-height:min(54vh,500px)!important}
+#ng8-quick section button{min-height:38px!important;height:auto!important;padding:6px 9px!important}
+#ng8-quick footer{font-size:8.5px!important}
+
+/* Focus and target size are non-negotiable. */
+#ng8-rail button:focus-visible,#ng8-panel button:focus-visible,#ng8-panel a:focus-visible,#ng8-quick button:focus-visible,#ng8-quick input:focus-visible,#ng8-pins a:focus-visible,#ng8-coach button:focus-visible{outline:2px solid #78cfff!important;outline-offset:2px!important}
+
+@media(max-width:760px){
+  #ng8-rail{display:none!important}
+  #ng8-status{bottom:6px!important;left:6px!important;max-width:calc(100vw - 12px)!important}
+  #ng8-status .ng8-version{display:none!important}
+  #ng8-pins[data-ng131-mounted="1"]{width:calc(100% - 10px)!important;max-width:calc(100% - 10px)!important;margin:5px!important}
+  #ng8-pins .ng8-pin-list{max-height:min(48vh,420px)!important}
+  #ng8-quick{padding-top:7vh!important}
+  #ng8-coach[data-ng100-coach="1"]{width:calc(100% - 8px)!important}
+}
+@media(prefers-reduced-motion:reduce){#ng8-rail,#ng8-status,#ng8-panel{transition:none!important}#ng8-quick{backdrop-filter:none!important}}

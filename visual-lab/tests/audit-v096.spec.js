@@ -96,17 +96,19 @@ test('bottom status geometry is invariant across all activity labels',async()=>{
   }finally{await rt.close();}
 });
 
-test('Matrix, three Terminator easter eggs and BY SKYNET are actually mounted',async()=>{
+test('Matrix and Terminator easter eggs remain mounted while quiet v131 hides BY SKYNET from the passive status capsule',async()=>{
   const rt=await launch();
   try{
     await expect(rt.page.locator('#ng8-matrix')).toBeVisible({timeout:4000});
     await expect(rt.page.locator('.ng8-bot')).toHaveCount(3);
     await expect(rt.page.locator('#ng8-status>strong')).toHaveText('BY SKYNET');
-    const centered=await rt.page.evaluate(()=>{
-      const bar=document.getElementById('ng8-status').getBoundingClientRect(),mark=document.querySelector('#ng8-status>strong').getBoundingClientRect();
-      return Math.abs((mark.left+mark.width/2)-(bar.left+bar.width/2));
+    const quiet=await rt.page.evaluate(()=>{
+      const bar=document.getElementById('ng8-status'),mark=bar.querySelector(':scope>strong'),style=getComputedStyle(mark),r=bar.getBoundingClientRect();
+      return{display:style.display,width:r.width,height:r.height,viewport:innerWidth};
     });
-    expect(centered).toBeLessThanOrEqual(1);
+    expect(quiet.display).toBe('none');
+    expect(quiet.width).toBeLessThanOrEqual(Math.min(520,quiet.viewport-18)+1);
+    expect(quiet.height).toBeLessThanOrEqual(26);
   }finally{await rt.close();}
 });
 

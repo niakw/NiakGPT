@@ -7,6 +7,7 @@
   const PROJECT='a[href*="/g/g-p-"]';
   const CHAT='a[href*="/c/"]';
   const PRIMARY=/^(?:\/?$|\/new(?:\/|$)|\/search(?:\/|$)|\/library(?:\/|$)|\/images?(?:\/|$)|\/apps?(?:\/|$)|\/codex(?:\/|$))/i;
+  const SIDEBAR_CANDIDATE='[data-testid="conversation-sidebar"],[data-testid*="sidebar" i],nav,aside';
   let timer=0,observer=null;
 
   const visible=el=>{if(!(el instanceof HTMLElement)||!el.isConnected)return false;const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden';};
@@ -28,8 +29,7 @@
     return n;
   }
   function findSidebar(){
-    const selectors='[data-testid="conversation-sidebar"],[data-testid*="sidebar" i],nav,aside';
-    const candidates=[...new Set([...document.querySelectorAll(selectors)].filter(el=>!el.closest(OWN)))];
+    const candidates=[...new Set([...document.querySelectorAll(SIDEBAR_CANDIDATE)].filter(el=>!el.closest(OWN)))];
     const ranked=candidates.map(el=>[el,score(el)]).filter(([,n])=>Number.isFinite(n)).sort((a,b)=>b[1]-a[1]);
     const winner=ranked[0];
     if(!winner||winner[1]<25)return null;
@@ -55,16 +55,21 @@
     const chat=[...root.querySelectorAll(CHAT)].find(a=>!own(a)&&!a.getAttribute('href')?.includes('/g/g-p-'));
     return topChild(root,chat);
   }
+  function movePreservingScroll(box,move){
+    const list=box?.querySelector?.(':scope>.ng8-pin-list'),before=list?.scrollTop||0;
+    move();
+    if(list&&before>0){list.scrollTop=before;requestAnimationFrame(()=>{if(list.isConnected&&Math.abs(list.scrollTop-before)>1)list.scrollTop=before;});}
+  }
   function repairPins(){
     const box=document.getElementById('ng8-pins'),root=findSidebar();
     if(!box||!root)return false;
     const section=nativeProjectSection(root);
     if(section?.parentElement){
-      if(box.parentElement!==section.parentElement||box.nextElementSibling!==section)section.parentElement.insertBefore(box,section);
+      if(box.parentElement!==section.parentElement||box.nextElementSibling!==section)movePreservingScroll(box,()=>section.parentElement.insertBefore(box,section));
     }else{
       const anchor=fallbackAnchor(root);
-      if(anchor?.parentElement){if(box.parentElement!==anchor.parentElement||box.nextElementSibling!==anchor)anchor.parentElement.insertBefore(box,anchor);}
-      else if(box.parentElement!==root)root.appendChild(box);
+      if(anchor?.parentElement){if(box.parentElement!==anchor.parentElement||box.nextElementSibling!==anchor)movePreservingScroll(box,()=>anchor.parentElement.insertBefore(box,anchor));}
+      else if(box.parentElement!==root)movePreservingScroll(box,()=>root.appendChild(box));
     }
     box.dataset.ng131Mounted='1';box.dataset.ng131SidebarVerified='1';
     document.documentElement.dataset.ng131Sidebar='verified';
@@ -85,9 +90,17 @@
   }
   function reconcile(){timer=0;surface();repairPins();enhanceA11y();}
   function schedule(ms=70){clearTimeout(timer);timer=setTimeout(reconcile,ms);}
+  function structuralNode(node){
+    if(!(node instanceof Element))return false;
+    if(node.id==='ng8-pins'||node.matches?.(SIDEBAR_CANDIDATE)||node.matches?.(`${PROJECT},${CHAT}`))return true;
+    return !!node.querySelector?.(`#ng8-pins,${SIDEBAR_CANDIDATE},${PROJECT},${CHAT}`);
+  }
+  function relevant(records){
+    return records.some(r=>[...r.addedNodes,...r.removedNodes].some(structuralNode));
+  }
   function start(){
     surface();schedule(0);
-    observer?.disconnect();observer=new MutationObserver(records=>{if(records.some(r=>r.addedNodes.length||r.removedNodes.length))schedule(90);});observer.observe(document.documentElement,{childList:true,subtree:true});
+    observer?.disconnect();observer=new MutationObserver(records=>{if(relevant(records))schedule(90);});observer.observe(document.documentElement,{childList:true,subtree:true});
     for(const d of[120,420,1000,2200,4500])setTimeout(()=>schedule(0),d);
   }
   document.addEventListener('niakgpt:pins-rendered',()=>schedule(0));
@@ -95,6 +108,7 @@
   window.addEventListener('popstate',()=>schedule(20));
   if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>schedule(20));
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)schedule(0);});
+  window.addEventListener('pageshow',()=>schedule(0));
   window.addEventListener('pagehide',()=>observer?.disconnect(),{once:true});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();

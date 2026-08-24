@@ -9,6 +9,7 @@
   const PRIMARY=/^(?:\/?$|\/new(?:\/|$)|\/search(?:\/|$)|\/library(?:\/|$)|\/images?(?:\/|$)|\/apps?(?:\/|$)|\/codex(?:\/|$))/i;
   const SIDEBAR_CANDIDATE='[data-testid="conversation-sidebar"],[data-testid*="sidebar" i],nav,aside';
   let timer=0,observer=null;
+  const projectScrollGuard={list:null,top:0,dir:0,until:0,repairing:false,seq:0};
 
   const visible=el=>{if(!(el instanceof HTMLElement)||!el.isConnected)return false;const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden';};
   const text=el=>String(el?.getAttribute?.('aria-label')||el?.textContent||'').replace(/\s+/g,' ').trim();
@@ -60,6 +61,22 @@
     move();
     if(list&&before>0){list.scrollTop=before;requestAnimationFrame(()=>{if(list.isConnected&&Math.abs(list.scrollTop-before)>1)list.scrollTop=before;});}
   }
+  function projectListFromTarget(target){return target instanceof Element?target.closest('#ng8-pins>.ng8-pin-list'):null;}
+  function projectScrollMax(list){return list instanceof HTMLElement?Math.max(0,list.scrollHeight-list.clientHeight):0;}
+  function stabilizeProjectScroll(seq=projectScrollGuard.seq){
+    const g=projectScrollGuard,list=g.list;if(seq!==g.seq||performance.now()>g.until||!(list instanceof HTMLElement)||!list.isConnected)return;
+    const max=projectScrollMax(list);if(max<=0)return;
+    const wanted=Math.min(max,Math.max(0,g.top)),current=list.scrollTop;
+    const wrongWay=g.dir>0?current<wanted-3:g.dir<0?current>wanted+3:false;
+    if(!wrongWay)return;
+    g.repairing=true;list.scrollTop=wanted;document.documentElement.dataset.ng131ScrollGuard=`restore:${Math.round(wanted)}`;queueMicrotask(()=>{g.repairing=false;});
+  }
+  function armProjectScrollGuard(list,dir=0){
+    if(!(list instanceof HTMLElement))return;
+    const g=projectScrollGuard,seq=++g.seq;g.list=list;g.dir=dir;g.until=performance.now()+1800;
+    const capture=()=>{if(seq!==g.seq||!list.isConnected)return;const max=projectScrollMax(list);if(max<=0)return;const top=Math.min(max,Math.max(0,list.scrollTop));if(dir>0)g.top=Math.max(g.top,top);else g.top=top;document.documentElement.dataset.ng131ScrollGuard=`user:${Math.round(g.top)}`;};
+    requestAnimationFrame(capture);for(const delay of[35,90,180,360,700,1100,1550])setTimeout(()=>{capture();stabilizeProjectScroll(seq);},delay);
+  }
   function markVerified(box){
     // A native Projects authority pass can briefly leave a stale suppression marker on
     // an ancestor while v121 is moving the managed block.  Clear only markers that
@@ -73,6 +90,7 @@
     box.style.setProperty('pointer-events','auto','important');
     box.style.setProperty('z-index','20','important');
     for(const el of box.querySelectorAll('a[data-ng8-pin="1"],.ng96-pin-entry,.ng96-chat-entry,.ng113-native-actions'))el.style.setProperty('pointer-events','auto','important');
+    stabilizeProjectScroll();
     document.documentElement.dataset.ng131Sidebar='verified';
     window.__NIAKGPT_DIAGNOSTICS__?.set('ux-v131','OK · sidebar vérifiée · hitboxes actives · chrome discret');
     return true;
@@ -128,12 +146,16 @@
     surface();schedule(0);bindObserver();
     for(const d of[120,420,1000,2200,4500])setTimeout(()=>schedule(0),d);
   }
+  document.addEventListener('wheel',event=>{const list=projectListFromTarget(event.target);if(list)armProjectScrollGuard(list,Math.sign(Number(event.deltaY)||0));},{capture:true,passive:true});
+  document.addEventListener('keydown',event=>{const list=projectListFromTarget(event.target);if(!list)return;const dir=/^(ArrowDown|PageDown|End| )$/.test(event.key)?1:/^(ArrowUp|PageUp|Home)$/.test(event.key)?-1:0;if(dir)armProjectScrollGuard(list,dir);},true);
+  document.addEventListener('pointerdown',event=>{const list=projectListFromTarget(event.target);if(!list)return;projectScrollGuard.seq++;projectScrollGuard.list=list;projectScrollGuard.top=list.scrollTop;projectScrollGuard.dir=0;projectScrollGuard.until=0;},{capture:true,passive:true});
+  document.addEventListener('scroll',event=>{const list=event.target instanceof HTMLElement&&event.target.matches('#ng8-pins>.ng8-pin-list')?event.target:null,g=projectScrollGuard;if(!list||list!==g.list||performance.now()>g.until||g.repairing)return;const max=projectScrollMax(list);if(max<=0)return;const top=Math.min(max,Math.max(0,list.scrollTop));if(g.dir>0){if(top>=g.top-2)g.top=Math.max(g.top,top);else stabilizeProjectScroll();}else if(g.dir<0){if(top<=g.top+2)g.top=top;else stabilizeProjectScroll();}else g.top=top;},true);
   document.addEventListener('niakgpt:pins-rendered',()=>schedule(0));
   document.addEventListener('niakgpt:sidebar-projects-reconcile',()=>schedule(40));
   window.addEventListener('popstate',()=>schedule(20));
   if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>schedule(20));
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)schedule(0);});
   window.addEventListener('pageshow',()=>{bindObserver();schedule(0);});
-  window.addEventListener('pagehide',()=>{observer?.disconnect();observer=null;clearTimeout(timer);});
+  window.addEventListener('pagehide',()=>{observer?.disconnect();observer=null;clearTimeout(timer);projectScrollGuard.seq++;projectScrollGuard.list=null;projectScrollGuard.until=0;});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();

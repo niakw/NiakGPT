@@ -19,6 +19,7 @@
   function replacementAction(kind,id){
     return [...document.querySelectorAll('#ng8-pins .ng113-native-actions')].find(b=>clean(b.dataset.ng123Action||b.dataset.ng113Actions)===kind&&clean(b.dataset.ng123Id||b.dataset.ng113Id)===id)||null;
   }
+  function menuMatches(g){const menu=document.getElementById('ng123-action-menu');return !!menu&&menu.dataset.kind===g.kind&&menu.dataset.id===g.id;}
   function fallback(g){
     if(!g||g.clickSeen||Date.now()-g.at>1500)return;
     if(g.type==='chat'){
@@ -26,7 +27,11 @@
       return;
     }
     if(g.type==='action'){
-      const menu=document.getElementById('ng123-action-menu');if(menu?.dataset.id===g.id)return;
+      const open=menuMatches(g);
+      // Fallback must complete the state transition that the original gesture intended,
+      // not blindly click again. A missed click-observation used to reopen a menu that
+      // had just closed (or close one that had just opened) on Firefox/WebKit.
+      if(g.wasOpen?!open:open)return;
       const b=replacementAction(g.kind,g.id);if(b instanceof HTMLElement)b.click();
     }
   }
@@ -38,7 +43,10 @@
     if(!(action||chat))return;
     root().dataset.ng129PinInteraction='1';
     if(chat){gesture={type:'chat',href:chat.getAttribute('href')||chat.href||'',chatId:clean(chat.dataset.chat)||cid(chat.getAttribute('href')),at:Date.now(),point:event,pathAt:location.pathname,clickSeen:false};}
-    else{gesture={type:'action',kind:clean(action.dataset.ng123Action||action.dataset.ng113Actions)||(/project/.test(action.className)?'project':'chat'),id:clean(action.dataset.ng123Id||action.dataset.ng113Id),at:Date.now(),point:event,pathAt:location.pathname,clickSeen:false};}
+    else{
+      const kind=clean(action.dataset.ng123Action||action.dataset.ng113Actions)||(/project/.test(action.className)?'project':'chat'),id=clean(action.dataset.ng123Id||action.dataset.ng113Id),menu=document.getElementById('ng123-action-menu');
+      gesture={type:'action',kind,id,wasOpen:!!menu&&menu.dataset.kind===kind&&menu.dataset.id===id,at:Date.now(),point:event,pathAt:location.pathname,clickSeen:false};
+    }
     armClear();
   },true);
   document.addEventListener('click',event=>{
@@ -51,5 +59,5 @@
     const g=gesture;if(!g||event.button!==0)return;if(dist(g.point,event)>10||Date.now()-g.at>1300){clear();return;}
     setTimeout(()=>fallback(g),90);setTimeout(clear,220);
   },true);
-  document.addEventListener('pointercancel',clear,true);window.addEventListener('blur',clear);window.addEventListener('pagehide',clear,{once:true});
+  document.addEventListener('pointercancel',clear,true);window.addEventListener('blur',clear);window.addEventListener('pagehide',clear);
 })();

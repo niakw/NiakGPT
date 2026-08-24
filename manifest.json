@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.77",
+  "version": "0.9.76",
   "description": "NiakGPT : Projects fiables, continuité longue et interface native-first discrète sur ChatGPT.",
   "permissions": [
     "storage",
@@ -60,7 +60,6 @@
         "https://chatgpt.com/*"
       ],
       "js": [
-        "ux-v131.js",
         "boot-gate-v100.js",
         "composer-continuation-v128.js",
         "long-run-watchdog-v129.js",

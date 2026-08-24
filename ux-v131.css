@@ -1,6 +1,8 @@
 /* NiakGPT 0.9.76 / v131 — native-first, quiet-by-default UX.
    This is the final visual authority: NiakGPT stays useful without taking over ChatGPT. */
 
+/* Stable shell styling applies from document_start while hidden, so verification never creates a visual jump. */
+#ng8-pins{border:0!important;border-top:1px solid #2b3540!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}
 /* Never expose a Project block until the v131 placement guard has verified the real left sidebar. */
 #ng8-pins:not([data-ng131-mounted="1"]){visibility:hidden!important;opacity:0!important;pointer-events:none!important}
 #ng8-pins[data-ng131-mounted="1"]{visibility:visible!important;opacity:1!important;pointer-events:auto!important}

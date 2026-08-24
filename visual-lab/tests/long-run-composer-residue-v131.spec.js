@@ -1,13 +1,25 @@
 const {test,expect,chromium}=require('@playwright/test');
 const fs=require('node:fs');
 const path=require('node:path');
+const {execFileSync}=require('node:child_process');
 
 const ROOT=path.resolve(__dirname,'..','..');
 const watchdog=fs.readFileSync(path.join(ROOT,'long-run-watchdog-v129.js'),'utf8');
 const LEGACY='--- NIAKGPT LONG RUN — REPRISE AUTOMATIQUE ---';
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+async function closeRuntime(context,browser){
+  const braveMac=!!process.env.NIAKGPT_EXECUTABLE_PATH&&process.platform==='darwin';
+  if(!braveMac){await context.close().catch(()=>{});await browser.close().catch(()=>{});return;}
+  for(const signal of ['-TERM','-KILL']){
+    try{execFileSync('/usr/bin/pkill',[signal,'-f','Brave Browser'],{stdio:'ignore'});}catch{}
+    await sleep(signal==='-TERM'?350:120);
+    if(!browser.isConnected())break;
+  }
+}
 
 test('automatic long-run resume never parks generated protocol in the composer',async()=>{
-  const browser=await chromium.launch({headless:true});
+  const browser=await chromium.launch({executablePath:process.env.NIAKGPT_EXECUTABLE_PATH||undefined,headless:process.env.NIAKGPT_HEADLESS==='0'?false:true});
   const context=await browser.newContext({viewport:{width:1100,height:720}});
   const page=await context.newPage();
   const fixture=`<!doctype html><html><body>
@@ -44,6 +56,6 @@ test('automatic long-run resume never parks generated protocol in the composer',
     await expect.poll(()=>page.locator('#prompt-textarea').inputValue(),{timeout:1800}).toBe('');
     expect(await page.evaluate(()=>window.__sent.length)).toBe(1);
   }finally{
-    await context.close();await browser.close();
+    await closeRuntime(context,browser);
   }
 });

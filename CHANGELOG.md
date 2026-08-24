@@ -1,3 +1,16 @@
+# NiakGPT 0.9.76 — UX native-first intégrale et reprise longue sûre
+
+- Ajout de `ux-v131.js/css` comme garde UX finale : sélection de la vraie sidebar gauche, exposition de `#ng8-pins` uniquement après vérification du host et disparition de la réservation permanente de largeur/hauteur autour de ChatGPT.
+- `sidebar-projects-v121.js` reste propriétaire du catalogue/placement incrémental ; les nœuds Projects, leur ordre, le focus et les scrolls catalogue/drawers sont conservés pendant les rafraîchissements de cache, tout en laissant un nouveau geste utilisateur reprendre immédiatement la main.
+- Rail droit transformé en dock discret, masqué sur l’accueil/surfaces utilitaires ; barre basse remplacée par une capsule passive. Les easter eggs Matrix/Terminator restent montés, mais `BY SKYNET` n’occupe plus la capsule passive.
+- Prompteur adaptatif converti en contrôle compact opt-in `Optimiser`, ouvrable explicitement ou via `Alt+P`, repliable avec `Escape`, sans requête réseau ni envoi automatique.
+- Continuité parallèle raccourcie en `↳ Suite en parallèle` ; après un envoi natif, seul le préfixe NiakGPT est retiré si le composer contrôlé ne s’est pas vidé, sans effacer un texte modifié par l’utilisateur.
+- `long-run-watchdog-v129.js` passe à une fenêtre par défaut de 6 min 30, n’écrit rien tant qu’aucun vrai candidat Envoyer n’existe, protège tout brouillon utilisateur et ne nettoie que les protocoles automatiques exacts qu’il connaît. Une modification utilisateur, même contenant encore le marqueur NiakGPT, n’est jamais effacée.
+- `interruption-guard-v119.js` restaure correctement l’incident chiffré asynchrone et empêche une écriture cryptographique obsolète d’écraser un état plus récent.
+- Gates renforcés : session humaine complète, scroll réel, menus/hitboxes/clavier/dialogues, remounts, routes accueil/utilitaires/Project/chat, continuité de limite, erreurs réseau, travail logique >10 min, résidus composer et protection des modifications utilisateur.
+- Nouvelle CI `NiakGPT UX Integral v131` screenshot-driven sur Chromium / Firefox / WebKit, validation focused Live Stability sur Chromium + Brave stable macOS, matrice Current Finalization multi-OS/multi-engine et packaging vérifié.
+- README et architecture resynchronisés sur 0.9.76 avant livraison.
+
 # NiakGPT 0.9.68 — Autorité Projects unique, menus isolés et boot cache déterministe
 
 - `sidebar-projects-authority-v112.js` devient l’unique propriétaire de la visibilité des Projects natifs ; `sidebar-authority-v107.js` et `sidebar-expando-guard-v108.js` restent uniquement dans les régressions historiques et ne sont plus injectés/empaquetés.
@@ -50,7 +63,7 @@
 
 - Remplace les anciens contrôles de renommage custom par les menus d’actions ChatGPT natifs complets pour Projects et conversations lorsque la ligne native est disponible.
 - Retire `project-pins-v090.js` du runtime afin d’éviter un second propriétaire de synchronisation des Projects.
-- Ajoute une autorité monotone pour les titres et affectations Project afin qu’un cache ancien ou un titre d’onglet obsolète ne remplace plus l’état serveur connu.
+- Ajoute une autorité monotone pour les titres et affectations Project afin qu’un cache ancien ou un titre d’onglet obsolète ne remplace plus un titre serveur connu.
 - Rend le fil d’Ariane canonique et entièrement lié : `Accueil > Project > Chat`, sans utiliser `OUT` comme nom de Project.
 - Ajoute l’état non-lu, sa remise à zéro à l’ouverture et le signal immédiat lorsqu’une réponse se termine hors vue.
 - Ajoute `conversation-load-guard-v113.js` pour relâcher les optimisations NiakGPT tant que le contenu natif de la conversation n’est pas encore rendu.

@@ -87,6 +87,10 @@
     if(!p||performance.now()>p.until){pendingProjectScroll=null;return null;}
     return p;
   }
+  function noteUserScrollIntent(){
+    userScrollIntentAt=performance.now();pendingProjectScroll=null;pendingScrollSeq++;
+    document.documentElement.dataset.ng121ScrollGuard='user-input';
+  }
   function captureProjectScroll(reason='cache'){
     const list=document.querySelector('#ng8-pins>.ng8-pin-list');if(!(list instanceof HTMLElement))return null;
     const max=Math.max(0,list.scrollHeight-list.clientHeight);if(max<=0)return null;
@@ -229,9 +233,9 @@
     reconcile();
   }
 
-  document.addEventListener('wheel',event=>{if(event.target instanceof Element&&event.target.closest('#ng8-pins>.ng8-pin-list'))userScrollIntentAt=performance.now();},{capture:true,passive:true});
-  document.addEventListener('touchmove',event=>{if(event.target instanceof Element&&event.target.closest('#ng8-pins>.ng8-pin-list'))userScrollIntentAt=performance.now();},{capture:true,passive:true});
-  document.addEventListener('keydown',event=>{if(event.target instanceof Element&&event.target.closest('#ng8-pins>.ng8-pin-list')&&/^(ArrowUp|ArrowDown|PageUp|PageDown|Home|End| )$/.test(event.key))userScrollIntentAt=performance.now();},true);
+  document.addEventListener('wheel',event=>{if(event.target instanceof Element&&event.target.closest('#ng8-pins>.ng8-pin-list'))noteUserScrollIntent();},{capture:true,passive:true});
+  document.addEventListener('touchmove',event=>{if(event.target instanceof Element&&event.target.closest('#ng8-pins>.ng8-pin-list'))noteUserScrollIntent();},{capture:true,passive:true});
+  document.addEventListener('keydown',event=>{if(event.target instanceof Element&&event.target.closest('#ng8-pins>.ng8-pin-list')&&/^(ArrowUp|ArrowDown|PageUp|PageDown|Home|End| )$/.test(event.key))noteUserScrollIntent();},true);
   document.addEventListener('scroll',event=>{const target=event.target instanceof Element?event.target:null;if(target?.matches?.('#ng8-pins>.ng8-pin-list')){projectScrollMemory=target.scrollTop;const p=activePendingScroll(),recentIntent=performance.now()-userScrollIntentAt<500;if(p&&(userScrollIntentAt>p.userIntentAt||(recentIntent&&Math.abs(target.scrollTop-p.top)>2)))pendingProjectScroll=null;}},true);
   document.addEventListener('focusin',event=>{const target=event.target instanceof HTMLElement?event.target:null;if(target?.closest('#ng8-pins')){lastPinFocus=target;lastPinFocusAt=performance.now();}else if(target&&target!==document.body&&target!==document.documentElement){lastPinFocus=null;lastPinFocusAt=0;}},true);
   document.addEventListener('focusout',event=>{const target=event.target instanceof HTMLElement?event.target:null;if(target?.closest('#ng8-pins')&&(!event.relatedTarget||event.relatedTarget===document.body||event.relatedTarget===document.documentElement)){lastPinFocus=target;lastPinFocusAt=performance.now();}},true);

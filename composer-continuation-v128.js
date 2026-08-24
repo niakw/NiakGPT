@@ -31,6 +31,7 @@
   const preexistingActivity=()=>ACTIVE_STATES.has(activityState())||nativeGenerationBusy();
   const editorText=editor=>String(editor?('value'in editor?editor.value:editor.innerText||editor.textContent||''):'');
   const compact=value=>String(value||'').replace(/\s+/g,' ').trim().toLowerCase();
+  const userTurns=()=>[...document.querySelectorAll('[data-message-author-role="user"]')];
 
   function visibleEditor(scope=document){
     const editors=[...scope.querySelectorAll(COMPOSER_SEL)].filter(visible);
@@ -67,7 +68,7 @@
         range.selectNodeContents(editor);selection?.removeAllRanges();selection?.addRange(range);
         let inserted=false;
         try{inserted=!!document.execCommand?.('insertText',false,value);}catch{}
-        if(!inserted||(value&& !MARKER_RX.test(editorText(editor)))){
+        if(!inserted||(value&&!MARKER_RX.test(editorText(editor)))){
           editor.textContent=value;
           editor.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:value?'insertText':'deleteContentBackward',data:value||null}));
         }
@@ -77,17 +78,18 @@
     return false;
   }
 
-  function sentTurnExists(raw,payload){
+  function sentTurnExists(raw,payload,baselineUserCount){
     const rawNeedle=compact(raw).slice(0,180),payloadNeedle=compact(payload).slice(0,180);
     if(!rawNeedle&&!payloadNeedle)return false;
-    const turns=[...document.querySelectorAll('[data-message-author-role="user"]')].slice(-5);
-    return turns.some(turn=>{
+    const turns=userTurns();
+    if(turns.length<=baselineUserCount)return false;
+    return turns.slice(baselineUserCount).some(turn=>{
       const value=compact(turn.innerText||turn.textContent||'');
       return !!value&&((rawNeedle&&value.includes(rawNeedle))||(payloadNeedle&&value.includes(payloadNeedle)));
     });
   }
 
-  function cleanupAfterNativeSend(editor,raw,payload){
+  function cleanupAfterNativeSend(editor,raw,payload,baselineUserCount){
     const token=++cleanupToken,rawTrim=raw.trim(),payloadTrim=payload.trim();
     let attempts=0;
     const check=()=>{
@@ -95,13 +97,13 @@
       const current=editorText(editor).trim();
       if(!current)return;
       if(current!==payloadTrim&&current!==rawTrim)return; // Never erase text the user changed after clicking Send.
-      if(sentTurnExists(raw,payload)){
+      if(sentTurnExists(raw,payload,baselineUserCount)){
         setEditorText(editor,'');
         document.documentElement.dataset.ng128ComposerCleanup='confirmed-clear';
         return;
       }
       // The host occasionally accepts the click but leaves our capture-phase prefix in its controlled draft.
-      // Strip only NiakGPT's protocol immediately; preserve the user's exact text until send is observable.
+      // Strip only NiakGPT's protocol immediately; preserve the user's exact text until a new sent turn is observable.
       if(current===payloadTrim){
         setEditorText(editor,raw);
         document.documentElement.dataset.ng128ComposerCleanup='prefix-stripped';
@@ -122,10 +124,10 @@
     }
     const raw=editorText(editor);
     if(!raw.trim()||MARKER_RX.test(raw)||CANCEL_RX.test(raw))return false;
-    const payload=`${PREFIX}${raw}`;
+    const payload=`${PREFIX}${raw}`,baselineUserCount=userTurns().length;
     const applied=setEditorText(editor,payload);
     if(applied){
-      cleanupAfterNativeSend(editor,raw,payload);
+      cleanupAfterNativeSend(editor,raw,payload,baselineUserCount);
       document.dispatchEvent(new CustomEvent('niakgpt:parallel-continue',{detail:{state:activityState(),source,at:Date.now()}}));
       window.__NIAKGPT_DIAGNOSTICS__?.set('parallel-continue',`CONTINUE · ${activityState()||'native-busy'} · ${source}`);
     }

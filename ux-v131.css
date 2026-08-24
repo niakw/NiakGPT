@@ -13,7 +13,7 @@ body.ng8-panel-open main{margin-right:0!important}
 #ng8-pins[data-ng131-mounted="1"]{
   width:calc(100% - 14px)!important;max-width:calc(100% - 14px)!important;min-height:0!important;
   margin:6px 7px 8px!important;padding:3px 0 5px!important;
-  border:0!important;border-top:1px solid color-mix(in srgb,var(--ng8-current-project) 26%,#2b3540 74%)!important;
+  border:0!important;border-top:1px solid #2b3540!important;
   border-radius:0!important;background:transparent!important;box-shadow:none!important;contain:layout style!important;
 }
 #ng8-pins .ng8-pin-head{min-height:27px!important;padding:5px 7px 3px!important;color:#8292a4!important;font-size:9px!important;letter-spacing:.075em!important}

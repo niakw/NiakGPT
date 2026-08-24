@@ -15,7 +15,7 @@
   const MESSAGE=`${MARKER} — Continue exactement la tâche en cours au dernier point utile, jusqu’à finalisation et vérification, sans résumé ni confirmation intermédiaire.`;
   const CANCEL_RX=/^\s*(?:stop\b|stoppe\b|arr(?:ê|e)te\b|annule\b|cancel\b|abort\b|interromps\b|laisse\s+tomber\b|ne\s+continue\s+pas\b)/i;
   const SEND_RX=/(?:^|\b)(?:send|envoyer|submit)(?:\b|$)/i;
-  let segmentTimer=0,retryTimer=0,guardTimer=0,segmentStartedAt=0,due=false,suppressed=false,lastAutoAt=0,forcedRunning=false,writing=false;
+  let segmentTimer=0,retryTimer=0,guardTimer=0,primeTimer=0,segmentStartedAt=0,due=false,suppressed=false,lastAutoAt=0,forcedRunning=false,writing=false;
 
   const root=()=>document.documentElement;
   const activity=()=>String(root().dataset.ng86Activity||'').toLowerCase();
@@ -29,10 +29,14 @@
   const editor=()=>editors().at(-1)||null;
   const editorText=ed=>String(ed?('value'in ed?ed.value:ed.innerText||ed.textContent||''):'').trim();
 
-  function sendButton(ed){
-    const scope=ed?.closest?.('form,[data-type*="composer" i],[class*="composer" i]')||document;
-    const buttons=[...scope.querySelectorAll('button')].filter(b=>visible(b)&&!b.disabled&&b.getAttribute('aria-disabled')!=='true');
+  function buttonScope(ed){return ed?.closest?.('form,[data-type*="composer" i],[class*="composer" i]')||document;}
+  function sendCandidate(ed){
+    const buttons=[...buttonScope(ed).querySelectorAll('button')];
     return buttons.find(b=>SEND_RX.test(`${b.getAttribute('aria-label')||''} ${b.getAttribute('data-testid')||''} ${b.title||''}`))||null;
+  }
+  function sendButton(ed){
+    const button=sendCandidate(ed);
+    return button&&visible(button)&&!button.disabled&&button.getAttribute('aria-disabled')!=='true'?button:null;
   }
   function setEditor(ed,text){
     if(!ed)return false;
@@ -40,9 +44,13 @@
       writing=true;
       if('value'in ed){const proto=Object.getPrototypeOf(ed),setter=Object.getOwnPropertyDescriptor(proto,'value')?.set;setter?setter.call(ed,text):(ed.value=text);}
       else{ed.focus({preventScroll:true});ed.textContent=text;}
-      ed.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:text}));
-      return AUTO_RX.test(editorText(ed));
+      ed.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:text?'insertText':'deleteContentBackward',data:text||null}));
+      return text===''?!editorText(ed):AUTO_RX.test(editorText(ed));
     }catch{return false;}finally{writing=false;}
+  }
+  function clearAutoDraft(ed){
+    if(ed&&AUTO_RX.test(editorText(ed))){setEditor(ed,'');root().dataset.ng129Watchdog='auto-draft-cleared';return true;}
+    return false;
   }
 
   function syncNativeBusyGuard(){
@@ -50,13 +58,43 @@
     if(stop){root().dataset.ng129NativeBusy='1';if(root().dataset.ng8Running!=='1'){root().dataset.ng8Running='1';forcedRunning=true;}}
     else{delete root().dataset.ng129NativeBusy;if(forcedRunning&&!ACTIVE.has(state)){delete root().dataset.ng8Running;forcedRunning=false;}}
   }
-  function clearTimers({keepDue=false}={}){clearTimeout(segmentTimer);clearTimeout(retryTimer);segmentTimer=retryTimer=0;segmentStartedAt=0;if(!keepDue)due=false;}
+  function clearTimers({keepDue=false}={}){clearTimeout(segmentTimer);clearTimeout(retryTimer);clearTimeout(primeTimer);segmentTimer=retryTimer=primeTimer=0;segmentStartedAt=0;if(!keepDue)due=false;}
   function scheduleGuard(){clearTimeout(guardTimer);guardTimer=setTimeout(()=>{guardTimer=0;syncNativeBusyGuard();if(busy()||due)scheduleGuard();},10000);}
   function armSegment(reset=false){
     if(suppressed)return;syncNativeBusyGuard();if(!busy())return;if(segmentTimer&&!reset)return;clearTimeout(segmentTimer);segmentStartedAt=Date.now();segmentTimer=setTimeout(()=>{segmentTimer=0;due=true;attemptResume('segment-deadline');},segmentMs());scheduleGuard();root().dataset.ng129Watchdog='armed';
   }
   function retryDue(delay=RETRY_MS){
     if(!due||suppressed)return;clearTimeout(retryTimer);retryTimer=setTimeout(()=>{retryTimer=0;attemptResume('retry');},delay);
+  }
+  function dispatchPrimed(source,ed){
+    if(!due||suppressed||!ed?.isConnected)return false;
+    const current=editorText(ed);
+    if(!AUTO_RX.test(current))return false;
+    const button=sendButton(ed);
+    if(!button){
+      clearAutoDraft(ed);root().dataset.ng129Watchdog='waiting-send-control';retryDue();return false;
+    }
+    due=false;lastAutoAt=Date.now();root().dataset.ng129Watchdog='sending';
+    document.dispatchEvent(new CustomEvent('niakgpt:long-run-resume',{detail:{source,at:lastAutoAt,elapsed:segmentStartedAt?lastAutoAt-segmentStartedAt:0}}));
+    queueMicrotask(()=>{
+      try{
+        button.click();root().dataset.ng129Watchdog='sent';window.__NIAKGPT_DIAGNOSTICS__?.set('long-run-watchdog','REPRISE · tour automatique mis en file après fenêtre longue');
+        // Some controlled composers keep the injected text after accepting the click. It is never user-authored,
+        // so remove it quickly if the host did not clear it itself.
+        setTimeout(()=>{if(AUTO_RX.test(editorText(ed)))clearAutoDraft(ed);},220);
+      }catch{clearAutoDraft(ed);due=true;retryDue();}
+      setTimeout(()=>armSegment(true),450);
+    });
+    return true;
+  }
+  function primeAndDispatch(source,ed){
+    if(!due||suppressed||!ed?.isConnected)return false;
+    if(!sendCandidate(ed)){root().dataset.ng129Watchdog='waiting-send-control';retryDue();return false;}
+    if(!setEditor(ed,MESSAGE)){retryDue();return false;}
+    root().dataset.ng129Watchdog='primed';
+    clearTimeout(primeTimer);
+    primeTimer=setTimeout(()=>{primeTimer=0;dispatchPrimed(source,ed);},PRIME_RETRY_MS);
+    return true;
   }
   function attemptResume(source){
     syncNativeBusyGuard();if(!due||suppressed)return false;
@@ -65,25 +103,14 @@
     let draft=editorText(ed);
     if(draft&&!AUTO_RX.test(draft)){root().dataset.ng129Watchdog='draft-protected';retryDue();return false;}
 
-    if(!draft){
-      if(!setEditor(ed,MESSAGE)){retryDue();return false;}
-      draft=editorText(ed);
-      root().dataset.ng129Watchdog='primed';
+    // Clean stale automatic text left by an older build. Never let NiakGPT occupy the user's composer while waiting.
+    if(draft&&AUTO_RX.test(draft)){
+      const button=sendButton(ed);
+      if(button)return dispatchPrimed(source,ed);
+      clearAutoDraft(ed);draft='';
     }
 
-    const button=sendButton(ed);
-    if(!button){
-      root().dataset.ng129Watchdog=busy()?'primed-active':'primed-idle';
-      retryDue(PRIME_RETRY_MS);return false;
-    }
-    due=false;lastAutoAt=Date.now();root().dataset.ng129Watchdog='sending';
-    document.dispatchEvent(new CustomEvent('niakgpt:long-run-resume',{detail:{source,at:lastAutoAt,elapsed:segmentStartedAt?lastAutoAt-segmentStartedAt:0}}));
-    queueMicrotask(()=>{
-      try{button.click();root().dataset.ng129Watchdog='sent';window.__NIAKGPT_DIAGNOSTICS__?.set('long-run-watchdog','REPRISE · tour automatique mis en file après fenêtre longue');}
-      catch{due=true;retryDue();}
-      setTimeout(()=>armSegment(true),450);
-    });
-    return true;
+    return primeAndDispatch(source,ed);
   }
 
   function userTextForTarget(target){const b=target instanceof Element?target.closest('button'):null;if(b&&SEND_RX.test(`${b.getAttribute('aria-label')||''} ${b.getAttribute('data-testid')||''} ${b.title||''}`))return editorText(editor());return'';}
@@ -95,5 +122,5 @@
   window.addEventListener('online',()=>{if(due)attemptResume('online');});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){syncNativeBusyGuard();if(due)attemptResume('visible');else armSegment();}});
   window.addEventListener('pagehide',()=>{clearTimers();clearTimeout(guardTimer);},{once:true});
-  setTimeout(()=>{syncNativeBusyGuard();armSegment();},250);
+  setTimeout(()=>{syncNativeBusyGuard();const ed=editor();if(ed&&AUTO_RX.test(editorText(ed)))clearAutoDraft(ed);armSegment();},250);
 })();

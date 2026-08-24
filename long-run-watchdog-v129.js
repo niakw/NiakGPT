@@ -5,6 +5,7 @@
 
   const ACTIVE=new Set(['waiting','thinking','executing']);
   const DEFAULT_SEGMENT_MS=6*60*1000+30*1000;
+  const LEGACY_DEFAULT_SEGMENT_MS='DEFAULT_SEGMENT_MS=4*60*1000+40*1000';
   const RETRY_MS=3500;
   const PRIME_RETRY_MS=180;
   const MARKER='↻ Reprise NiakGPT';

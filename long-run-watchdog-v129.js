@@ -5,7 +5,6 @@
 
   const ACTIVE=new Set(['waiting','thinking','executing']);
   const DEFAULT_SEGMENT_MS=6*60*1000+30*1000;
-  const LEGACY_DEFAULT_SEGMENT_MS='DEFAULT_SEGMENT_MS=4*60*1000+40*1000';
   const RETRY_MS=3500;
   const PRIME_RETRY_MS=180;
   const MARKER='↻ Reprise NiakGPT';
@@ -13,6 +12,7 @@
   const LEGACY_PARALLEL_HEADER='--- CONTINUE — AJOUT EN PARALLÈLE ---';
   const AUTO_RX=/(?:↻\s*Reprise NiakGPT|---\s*NIAKGPT LONG RUN\s*[—–-]\s*REPRISE AUTOMATIQUE\s*---)/i;
   const MESSAGE=`${MARKER} — Continue exactement la tâche en cours au dernier point utile, jusqu’à finalisation et vérification, sans résumé ni confirmation intermédiaire.`;
+  const LEGACY_MESSAGE=`${LEGACY_PARALLEL_HEADER}\n${LEGACY_MARKER}\nPoursuis exactement la tâche déjà en cours là où elle en est. Ne fais ni résumé intermédiaire ni demande de confirmation. Termine toutes les étapes de la demande initiale, vérifie le résultat et ne t'arrête qu'une fois le travail réellement terminé. Si le tour précédent vient d'être interrompu par une limite de durée, reprends immédiatement au dernier point utile.`;
   const CANCEL_RX=/^\s*(?:stop\b|stoppe\b|arr(?:ê|e)te\b|annule\b|cancel\b|abort\b|interromps\b|laisse\s+tomber\b|ne\s+continue\s+pas\b)/i;
   const SEND_RX=/(?:^|\b)(?:send|envoyer|submit)(?:\b|$)/i;
   let segmentTimer=0,retryTimer=0,guardTimer=0,primeTimer=0,segmentStartedAt=0,due=false,suppressed=false,lastAutoAt=0,forcedRunning=false,writing=false;
@@ -28,6 +28,8 @@
   const editors=()=>[...document.querySelectorAll('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')].filter(visible);
   const editor=()=>editors().at(-1)||null;
   const editorText=ed=>String(ed?('value'in ed?ed.value:ed.innerText||ed.textContent||''):'').trim();
+  const normalized=v=>String(v||'').replace(/\r/g,'').trim();
+  const knownAutoDraft=v=>{const text=normalized(v);return text===MESSAGE||text===LEGACY_MESSAGE;};
 
   function buttonScope(ed){return ed?.closest?.('form,[data-type*="composer" i],[class*="composer" i]')||document;}
   function sendCandidate(ed){
@@ -45,11 +47,11 @@
       if('value'in ed){const proto=Object.getPrototypeOf(ed),setter=Object.getOwnPropertyDescriptor(proto,'value')?.set;setter?setter.call(ed,text):(ed.value=text);}
       else{ed.focus({preventScroll:true});ed.textContent=text;}
       ed.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:text?'insertText':'deleteContentBackward',data:text||null}));
-      return text===''?!editorText(ed):AUTO_RX.test(editorText(ed));
+      return text===''?!editorText(ed):knownAutoDraft(editorText(ed));
     }catch{return false;}finally{writing=false;}
   }
   function clearAutoDraft(ed){
-    if(ed&&AUTO_RX.test(editorText(ed))){setEditor(ed,'');root().dataset.ng129Watchdog='auto-draft-cleared';return true;}
+    if(ed&&knownAutoDraft(editorText(ed))){setEditor(ed,'');root().dataset.ng129Watchdog='auto-draft-cleared';return true;}
     return false;
   }
 
@@ -69,7 +71,7 @@
   function dispatchPrimed(source,ed){
     if(!due||suppressed||!ed?.isConnected)return false;
     const current=editorText(ed);
-    if(!AUTO_RX.test(current))return false;
+    if(!knownAutoDraft(current))return false;
     const button=sendButton(ed);
     if(!button){
       clearAutoDraft(ed);root().dataset.ng129Watchdog='waiting-send-control';retryDue();return false;
@@ -79,9 +81,9 @@
     queueMicrotask(()=>{
       try{
         button.click();root().dataset.ng129Watchdog='sent';window.__NIAKGPT_DIAGNOSTICS__?.set('long-run-watchdog','REPRISE · tour automatique mis en file après fenêtre longue');
-        // Some controlled composers keep the injected text after accepting the click. It is never user-authored,
-        // so remove it quickly if the host did not clear it itself.
-        setTimeout(()=>{if(AUTO_RX.test(editorText(ed)))clearAutoDraft(ed);},220);
+        // Clear only the exact generated protocol. If the user changed even one character after the click,
+        // the watchdog no longer owns the draft and must leave it untouched.
+        setTimeout(()=>{if(knownAutoDraft(editorText(ed)))clearAutoDraft(ed);},220);
       }catch{clearAutoDraft(ed);due=true;retryDue();}
       setTimeout(()=>armSegment(true),450);
     });
@@ -101,10 +103,10 @@
     if(Date.now()-lastAutoAt<Math.min(segmentMs()*.7,60000)){retryDue();return false;}
     const ed=editor();if(!ed){retryDue();return false;}
     let draft=editorText(ed);
-    if(draft&&!AUTO_RX.test(draft)){root().dataset.ng129Watchdog='draft-protected';retryDue();return false;}
+    if(draft&&!knownAutoDraft(draft)){root().dataset.ng129Watchdog='draft-protected';retryDue();return false;}
 
-    // Clean stale automatic text left by an older build. Never let NiakGPT occupy the user's composer while waiting.
-    if(draft&&AUTO_RX.test(draft)){
+    // Clean only an exact stale automatic draft from a known NiakGPT build. Anything modified by the user is protected.
+    if(draft&&knownAutoDraft(draft)){
       const button=sendButton(ed);
       if(button)return dispatchPrimed(source,ed);
       clearAutoDraft(ed);draft='';
@@ -122,5 +124,5 @@
   window.addEventListener('online',()=>{if(due)attemptResume('online');});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){syncNativeBusyGuard();if(due)attemptResume('visible');else armSegment();}});
   window.addEventListener('pagehide',()=>{clearTimers();clearTimeout(guardTimer);},{once:true});
-  setTimeout(()=>{syncNativeBusyGuard();const ed=editor();if(ed&&AUTO_RX.test(editorText(ed)))clearAutoDraft(ed);armSegment();},250);
+  setTimeout(()=>{syncNativeBusyGuard();const ed=editor();if(ed&&knownAutoDraft(editorText(ed)))clearAutoDraft(ed);armSegment();},250);
 })();

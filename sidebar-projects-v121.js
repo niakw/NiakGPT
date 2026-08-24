@@ -16,6 +16,7 @@
   const PRIMARY_PATH=/^(?:\/?$|\/new(?:\/|$)|\/search(?:\/|$)|\/library(?:\/|$)|\/images?(?:\/|$)|\/apps?(?:\/|$)|\/codex(?:\/|$))/i;
   let cache={projects:[],chats:[],counts:{}},governance={hiddenProjectIds:[],coreProjectIds:[]};
   let observer=null,observedRoot=null,internal=false,timer=0,renderEpoch=0,lastPinFocus=null,lastPinFocusAt=0,bootstrapObserver=null,projectScrollMemory=0;
+  let pendingProjectScroll=null,pendingScrollSeq=0,userScrollIntentAt=0;
   const sessionOrder=new Map();let sessionSeq=0;
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
@@ -77,12 +78,38 @@
   }
   function restoreProjectScroll(list,value){
     if(!list||!Number.isFinite(value))return;
-    if(Math.abs(list.scrollTop-value)>1)list.scrollTop=value;
+    const max=Math.max(0,list.scrollHeight-list.clientHeight),wanted=Math.min(Math.max(0,value),max);
+    if(Math.abs(list.scrollTop-wanted)>1)list.scrollTop=wanted;
     projectScrollMemory=list.scrollTop;
+  }
+  function activePendingScroll(){
+    const p=pendingProjectScroll;
+    if(!p||performance.now()>p.until){pendingProjectScroll=null;return null;}
+    return p;
+  }
+  function captureProjectScroll(reason='cache'){ 
+    const list=document.querySelector('#ng8-pins>.ng8-pin-list');if(!(list instanceof HTMLElement))return null;
+    const max=Math.max(0,list.scrollHeight-list.clientHeight);if(max<=0)return null;
+    const top=Math.min(max,Math.max(0,list.scrollTop));projectScrollMemory=top;
+    const seq=++pendingScrollSeq;
+    pendingProjectScroll={top,max,reason,seq,at:performance.now(),until:performance.now()+1200,userIntentAt:userScrollIntentAt};
+    return pendingProjectScroll;
+  }
+  function restorePendingScroll(source='reconcile'){
+    const p=activePendingScroll(),list=document.querySelector('#ng8-pins>.ng8-pin-list');if(!p||!(list instanceof HTMLElement))return false;
+    if(userScrollIntentAt>p.userIntentAt){pendingProjectScroll=null;return false;}
+    restoreProjectScroll(list,p.top);document.documentElement.dataset.ng121ScrollGuard=`${source}:${Math.round(list.scrollTop)}`;return true;
+  }
+  function settlePendingScroll(source='reconcile'){
+    const p=activePendingScroll();if(!p)return;
+    const seq=p.seq;
+    const apply=()=>{const current=activePendingScroll();if(!current||current.seq!==seq)return;restorePendingScroll(source);};
+    apply();requestAnimationFrame(()=>{apply();requestAnimationFrame(apply);});
+    for(const delay of[40,120,260,520,900])setTimeout(apply,delay);
   }
   function place(box){
     const root=navRoot();if(!root||!box)return false;let moved=false;
-    const list=box.querySelector(':scope>.ng8-pin-list'),scrollBefore=list?list.scrollTop:projectScrollMemory;
+    const list=box.querySelector(':scope>.ng8-pin-list'),pending=activePendingScroll(),scrollBefore=pending?.top??(list?list.scrollTop:projectScrollMemory);
     const section=nativeProjectSection();
     if(section?.parentElement){
       if(box.parentElement!==section.parentElement||box.nextElementSibling!==section){section.parentElement.insertBefore(box,section);moved=true;}
@@ -92,7 +119,7 @@
       if(tail?.parentElement){if(box.parentElement!==tail.parentElement||tail.nextElementSibling!==box){tail.insertAdjacentElement('afterend',box);moved=true;}box.dataset.ng121Placement='after-primary';box.dataset.ng119Placement='after-primary-v121';}
       else if(box.parentElement!==root){root.appendChild(box);moved=true;box.dataset.ng121Placement='sidebar-tail';box.dataset.ng119Placement='sidebar-tail-v121';}
     }
-    if(moved&&list){restoreProjectScroll(list,scrollBefore);requestAnimationFrame(()=>{if(box.isConnected&&list.isConnected)restoreProjectScroll(list,scrollBefore);});}
+    if(list&&(moved||pending)){restoreProjectScroll(list,scrollBefore);requestAnimationFrame(()=>{if(box.isConnected&&list.isConnected)restoreProjectScroll(list,scrollBefore);});}
     box.hidden=false;box.removeAttribute('aria-hidden');box.dataset.ng121PlacementReady='1';document.documentElement.dataset.ng121PinsReady='1';document.documentElement.dataset.ng119PinsReady='1';restoreFocusedPin(box,moved);return true;
   }
 
@@ -139,7 +166,7 @@
   }
   function renderCatalog(box){
     const projects=canonicalProjects(),wanted=new Set(projects.map(p=>p.id)),sig=catalogSignature(projects);let structural=false;
-    const listBefore=box.querySelector(':scope>.ng8-pin-list'),projectScroll=listBefore?listBefore.scrollTop:projectScrollMemory;
+    const listBefore=box.querySelector(':scope>.ng8-pin-list'),pending=activePendingScroll(),projectScroll=pending?.top??(listBefore?listBefore.scrollTop:projectScrollMemory);
     const drawerScroll=new Map([...box.querySelectorAll('.ng96-pin-drawer')].map(d=>[normalizePid(d.dataset.pid),d.querySelector('.ng96-folder-list')?.scrollTop||0]));
     internal=true;const epoch=++renderEpoch;
     try{
@@ -163,12 +190,13 @@
       }
       const count=head.querySelector(':scope>b');if(count&&count.textContent!==String(projects.length))count.textContent=String(projects.length);
       box.dataset.ng121CatalogSig=sig;box.dataset.ng121CatalogCount=String(projects.length);box.dataset.ng121IdentityStable='1';
-      if(list.scrollTop!==projectScroll)list.scrollTop=projectScroll;projectScrollMemory=list.scrollTop;
+      restoreProjectScroll(list,projectScroll);
       for(const d of box.querySelectorAll('.ng96-pin-drawer')){const sc=d.querySelector('.ng96-folder-list'),old=drawerScroll.get(normalizePid(d.dataset.pid));if(sc&&Number.isFinite(old)&&sc.scrollTop!==old)sc.scrollTop=old;}
       // Do not clear app-v090's data-ng8-signature. Clearing it caused repeated destructive
       // legacy rebuilds and disconnected action buttons during user clicks.
     }finally{queueMicrotask(()=>{if(renderEpoch===epoch)internal=false;});}
     if(structural)document.dispatchEvent(new CustomEvent('niakgpt:pins-rendered',{detail:{count:projects.length,shown:projects.length,source:'sidebar-projects-v121'}}));
+    if(pending)settlePendingScroll('catalog');
     window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',`OK · ${projects.length}/${projects.length} Projects NiakGPT · catalogue complet · nœuds stables · boucle legacy cassée`);
     return projects.length;
   }
@@ -178,7 +206,7 @@
     const rx=/^(?:bonjour|bonsoir|salut|hello|hi)(?:\s+[\p{L}\p{N}._'-]{1,40})?[!,.? ]*$|^(?:par quoi commençons-nous|comment puis-je vous aider|que puis-je faire pour vous|qu[’']est-ce qu[’']on fait|how can i help|what can i help with|what(?:'|’)s on your mind)[?!. ]*$/iu;
     for(const el of main.querySelectorAll('h1,h2,[role="heading"],[data-testid*="welcome" i]')){const text=clean(el.textContent);if(text&&text.length<=140&&rx.test(text))el.classList.add('ng119-native-home-greeting');}
   }
-  function reconcile(){clearTimeout(timer);timer=0;if(internal)return;const box=ensureBox();if(!box){bind();return;}renderCatalog(box);place(box);bind();hideWelcome();window.__NIAKGPT_DIAGNOSTICS__?.set('sidebar-ux-119',`OK · Projects ${box.dataset.ng121Placement||'stable'} · autorité v121 unique`);}
+  function reconcile(){clearTimeout(timer);timer=0;if(internal)return;const box=ensureBox();if(!box){bind();return;}renderCatalog(box);place(box);restorePendingScroll('reconcile');bind();hideWelcome();window.__NIAKGPT_DIAGNOSTICS__?.set('sidebar-ux-119',`OK · Projects ${box.dataset.ng121Placement||'stable'} · autorité v121 unique`);}
   function schedule(delay=0){clearTimeout(timer);timer=setTimeout(reconcile,delay);}
   function relevant(records){for(const r of records){for(const n of [...r.addedNodes,...r.removedNodes]){if(!(n instanceof Element))continue;if(n.id==='ng8-pins'||n.querySelector?.('#ng8-pins')||n.matches?.('a[href*="/g/g-p-"],[data-ng112-native-projects]')||n.querySelector?.('a[href*="/g/g-p-"],[data-ng112-native-projects]'))return true;}}return false;}
   function bind(){
@@ -194,18 +222,21 @@
   }
   async function load(){
     try{const raw=await chrome.storage.local.get([CACHE_KEY,GOV_KEY]);cache=raw[CACHE_KEY]||cache;governance={...governance,...(raw[GOV_KEY]||{})};}catch{}
-    const bus=window.__NIAKGPT_CACHE_BUS__;if(bus){try{const raw=await bus.get();if(raw)cache=raw;}catch{}try{bus.subscribe(raw=>{if(raw&&typeof raw==='object'){cache=raw;schedule(0);}});}catch{}}
+    const bus=window.__NIAKGPT_CACHE_BUS__;if(bus){try{const raw=await bus.get();if(raw)cache=raw;}catch{}try{bus.subscribe(raw=>{if(raw&&typeof raw==='object'){captureProjectScroll('cache-bus');cache=raw;schedule(0);}});}catch{}}
     reconcile();
   }
 
-  document.addEventListener('scroll',event=>{const target=event.target instanceof Element?event.target:null;if(target?.matches?.('#ng8-pins>.ng8-pin-list'))projectScrollMemory=target.scrollTop;},true);
+  document.addEventListener('wheel',event=>{if(event.target instanceof Element&&event.target.closest('#ng8-pins>.ng8-pin-list'))userScrollIntentAt=performance.now();},{capture:true,passive:true});
+  document.addEventListener('touchmove',event=>{if(event.target instanceof Element&&event.target.closest('#ng8-pins>.ng8-pin-list'))userScrollIntentAt=performance.now();},{capture:true,passive:true});
+  document.addEventListener('keydown',event=>{if(event.target instanceof Element&&event.target.closest('#ng8-pins>.ng8-pin-list')&&/^(ArrowUp|ArrowDown|PageUp|PageDown|Home|End| )$/.test(event.key))userScrollIntentAt=performance.now();},true);
+  document.addEventListener('scroll',event=>{const target=event.target instanceof Element?event.target:null;if(target?.matches?.('#ng8-pins>.ng8-pin-list')){projectScrollMemory=target.scrollTop;const p=activePendingScroll();if(p&&userScrollIntentAt>p.userIntentAt){pendingProjectScroll=null;}}},true);
   document.addEventListener('focusin',event=>{const target=event.target instanceof HTMLElement?event.target:null;if(target?.closest('#ng8-pins')){lastPinFocus=target;lastPinFocusAt=performance.now();}else if(target&&target!==document.body&&target!==document.documentElement){lastPinFocus=null;lastPinFocusAt=0;}},true);
   document.addEventListener('focusout',event=>{const target=event.target instanceof HTMLElement?event.target:null;if(target?.closest('#ng8-pins')&&(!event.relatedTarget||event.relatedTarget===document.body||event.relatedTarget===document.documentElement)){lastPinFocus=target;lastPinFocusAt=performance.now();}},true);
   document.addEventListener('click',event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;const a=event.target instanceof Element?event.target.closest('#ng8-pins a[data-ng8-pin="1"]'):null;if(a)event.preventDefault();},true);
   document.addEventListener('auxclick',event=>{const a=event.target instanceof Element?event.target.closest('#ng8-pins a[data-ng8-pin="1"]'):null;if(a)event.preventDefault();},true);
-  try{chrome.storage.onChanged.addListener((changes,area)=>{if(area!=='local')return;if(changes[CACHE_KEY])cache=changes[CACHE_KEY].newValue||cache;if(changes[GOV_KEY])governance={...governance,...(changes[GOV_KEY].newValue||{})};if(changes[CACHE_KEY]||changes[GOV_KEY])schedule(0);});}catch{}
-  document.addEventListener('niakgpt:server-projects-ready',()=>schedule(0));document.addEventListener('niakgpt:server-indexed',()=>schedule(0));document.addEventListener('niakgpt:recovery-complete',()=>schedule(0));document.addEventListener('niakgpt:sidebar-projects-reconcile',()=>schedule(0));
+  try{chrome.storage.onChanged.addListener((changes,area)=>{if(area!=='local')return;if(changes[CACHE_KEY]||changes[GOV_KEY])captureProjectScroll('storage');if(changes[CACHE_KEY])cache=changes[CACHE_KEY].newValue||cache;if(changes[GOV_KEY])governance={...governance,...(changes[GOV_KEY].newValue||{})};if(changes[CACHE_KEY]||changes[GOV_KEY]){schedule(0);settlePendingScroll('storage');}});}catch{}
+  document.addEventListener('niakgpt:server-projects-ready',()=>{captureProjectScroll('server-projects');schedule(0);});document.addEventListener('niakgpt:server-indexed',()=>{captureProjectScroll('server-index');schedule(0);});document.addEventListener('niakgpt:recovery-complete',()=>{captureProjectScroll('recovery');schedule(0);});document.addEventListener('niakgpt:sidebar-projects-reconcile',()=>{captureProjectScroll('reconcile-event');schedule(0);});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){bind();schedule(0);}});window.addEventListener('popstate',()=>schedule(0));if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>schedule(0));
-  window.addEventListener('pageshow',()=>{bind();schedule(0);});window.addEventListener('pagehide',()=>{observer?.disconnect();bootstrapObserver?.disconnect();clearTimeout(timer);},{once:true});
+  window.addEventListener('pageshow',()=>{bind();schedule(0);});window.addEventListener('pagehide',()=>{observer?.disconnect();bootstrapObserver?.disconnect();clearTimeout(timer);pendingProjectScroll=null;},{once:true});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',load,{once:true});else load();
 })();

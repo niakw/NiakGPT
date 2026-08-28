@@ -12,9 +12,36 @@ on:
       - 'visual-lab/**'
       - 'labs/**'
       - 'README.md'
+      - 'README.fr.md'
+      - 'ARCHITECTURE.md'
+      - 'CONTRIBUTING.md'
       - 'PRIVACY.md'
       - 'SECURITY.md'
+      - 'TESTING_TRUTH.md'
+      - 'TROUBLESHOOTING.md'
       - 'CHANGELOG.md'
+      - 'RELEASE_NOTES_*.md'
+      - 'HOTFIX_NOTES_*.md'
+      - '.github/workflows/public-gate.yml'
+  pull_request:
+    paths:
+      - 'manifest.json'
+      - '*.js'
+      - '*.css'
+      - 'tools/**'
+      - 'visual-lab/**'
+      - 'labs/**'
+      - 'README.md'
+      - 'README.fr.md'
+      - 'ARCHITECTURE.md'
+      - 'CONTRIBUTING.md'
+      - 'PRIVACY.md'
+      - 'SECURITY.md'
+      - 'TESTING_TRUTH.md'
+      - 'TROUBLESHOOTING.md'
+      - 'CHANGELOG.md'
+      - 'RELEASE_NOTES_*.md'
+      - 'HOTFIX_NOTES_*.md'
       - '.github/workflows/public-gate.yml'
 
 permissions:
@@ -41,10 +68,11 @@ jobs:
       - name: Capture tested commit
         run: echo "NIAKGPT_TESTED_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
-      - name: Validate runtime and hot-path invariants
+      - name: Validate runtime, hot-path and repository invariants
         run: |
           node tools/check-runtime.mjs
           node tools/check-hotpath-v096.mjs
+          node tools/check-repository-hygiene.mjs
 
       - name: Check JavaScript syntax from manifest
         run: |
@@ -62,9 +90,9 @@ jobs:
         working-directory: visual-lab
         run: npm ci --no-audit --no-fund
 
-      - name: Install Chromium
+      - name: Install Playwright browsers used by the current gate
         working-directory: visual-lab
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium firefox webkit
 
       - name: Run current visual and real unpacked-extension tests
         working-directory: visual-lab
@@ -80,6 +108,8 @@ jobs:
           unzip -Z1 "$ZIP" > /tmp/niakgpt-public-package-files.txt
           grep -qx 'manifest.json' /tmp/niakgpt-public-package-files.txt
           grep -qx 'background-v100.js' /tmp/niakgpt-public-package-files.txt
+          grep -qx 'README.md' /tmp/niakgpt-public-package-files.txt
+          grep -qx 'README.fr.md' /tmp/niakgpt-public-package-files.txt
           unzip -p "$ZIP" manifest.json | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const m=JSON.parse(s);if(m.background?.service_worker!=='background-v100.js')process.exit(1);})"
           for forbidden in 'app-v08-safe.js' 'project-governance-v085.js' 'project-pins-v085.js' 'multitab-v083.js' 'chronology-v081.js' 'polish-v081.js' 'onboarding-v100.js'; do
             if grep -Fxq "$forbidden" /tmp/niakgpt-public-package-files.txt; then

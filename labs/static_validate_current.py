@@ -31,10 +31,14 @@ if manifest.get('host_permissions')!=['https://chatgpt.com/*']: fail('host permi
 
 # Release-facing documentation must never lag behind the installable manifest again.
 readme=read('README.md')
+readme_fr=read('README.fr.md')
 changelog=read('CHANGELOG.md')
 architecture=read('ARCHITECTURE.md')
 if f'version-{version}-' not in readme: fail('README version badge drift')
-if f'Version actuelle : {version}' not in readme: fail('README current version drift')
+if f'Current version: {version}' not in readme: fail('English README current version drift')
+if f'Version actuelle : {version}' not in readme_fr: fail('French README current version drift')
+if 'README.fr.md' not in readme: fail('English README missing French language link')
+if 'README.md' not in readme_fr: fail('French README missing English language link')
 if not changelog.startswith(f'# NiakGPT {version} '): fail('CHANGELOG latest release drift')
 if f'architecture {version}' not in architecture: fail('ARCHITECTURE version drift')
 

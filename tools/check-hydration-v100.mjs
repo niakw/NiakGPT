@@ -138,6 +138,6 @@ for(const token of ['live-stability-v129.spec.js','Brave stable','NIAKGPT_EXECUT
 
 if(!fs.existsSync('TESTING_TRUTH.md'))fail('testing truth contract missing');
 const truth=read('TESTING_TRUTH.md');
-for(const token of ['not an authenticated live ChatGPT session','Legacy naming warning','Recovery rule (0.9.74+)'])need(truth,token,'testing truth/recovery contract incomplete');
+for(const token of ['authenticated live evidence','Legacy naming warning','Recovery baseline rule'])need(truth,token,'testing truth/recovery contract incomplete');
 
 console.log(`NiakGPT ${manifest.version} current runtime invariants: OK`);

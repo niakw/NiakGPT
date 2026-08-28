@@ -1,18 +1,26 @@
 # Runtime integration scenarios
 
-Le Visual Lab ne valide pas seulement des captures statiques. `tests/runtime-extension.spec.js` charge la vraie extension non empaquetée dans Chromium sur un `https://chatgpt.com` mocké.
+The Visual Lab tests more than static screenshots. Its runtime suites exercise deterministic ChatGPT-shaped surfaces and, for selected gates, load the real unpacked Manifest V3 extension.
 
-Les scénarios de référence couvrent notamment :
+Reference scenarios include:
 
-- première installation : onboarding visible, dismissible et persistant après reload ;
-- upgrade : aucun onboarding forcé lorsqu’un état NiakGPT persistant existe déjà ;
-- bootstrap de l’extension à `document_start` ;
-- un seul bloc Projects géré par NiakGPT ;
-- compteurs Projects avec première page sans cursor inventé et pagination opaque ;
-- état réseau `ATTENTE` puis `RÉFLEXION / ANALYSE` ;
-- déplacement natif d’un chat, vérification serveur, verrou manuel et déverrouillage explicite ;
-- Safe Mode : surfaces non essentielles coupées et rôle WORKER cédé ;
-- Command Palette : raccourci clavier et changement réel de profil ;
-- deux onglets ChatGPT : exactement un WORKER.
+- first install and upgrade behavior;
+- `document_start` bootstrap and hydration races;
+- exactly one managed NiakGPT Projects block;
+- verified left-sidebar placement instead of central/temporary lookalikes;
+- stable Project order and catalogue/drawer scroll;
+- user scroll taking priority over stale restoration timers;
+- Project/chat action menus across remounts and BFCache;
+- waiting/thinking/executing activity transitions;
+- Project move, manual lock and explicit unlock;
+- Safe Mode and WORKER/CLIENT coordination;
+- Command Palette/Quick Open;
+- two-tab coordination with exactly one WORKER;
+- composer continuation residue cleanup;
+- long-run watchdog behavior and user-draft protection;
+- quiet home-shell geometry and accessibility;
+- conversation-limit continuity and exact Project targeting.
 
-Une régression sur l’un de ces comportements doit faire échouer le workflow Visual Lab plutôt que d’être masquée par une assertion plus permissive.
+A regression in a declared scenario should fail the relevant workflow rather than be hidden by a looser assertion.
+
+See [../TESTING_TRUTH.md](../TESTING_TRUTH.md) for the evidence level of each test class.

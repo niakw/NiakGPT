@@ -1,5 +1,15 @@
 # NiakGPT 0.9.76 — UX native-first intégrale et reprise longue sûre
 
+## Documentation & maintenance refresh — 2026-08-28
+
+- `README.md` becomes the primary English landing page and `README.fr.md` provides the full French version with reciprocal language links.
+- Privacy, security, troubleshooting, contributing, testing and Visual Lab documentation were rewritten around the current 0.9.76/v131 behavior instead of historical 0.9.52/early-0.9.76 assumptions.
+- Current 0.9.76 release/hotfix notes now reflect the 6m30 watchdog, composer-residue protection, BFCache recovery and native-first UX baseline.
+- Added `tools/check-repository-hygiene.mjs` and wired it into the main check workflow.
+- Removed four top-level runtime files with zero repository references and no production/package role.
+- Added a weekly GitHub Actions purge workflow that keeps a short recent diagnostic window while removing older completed runs/artifacts.
+
+
 - Ajout de `ux-v131.js/css` comme garde UX finale : sélection de la vraie sidebar gauche, exposition de `#ng8-pins` uniquement après vérification du host et disparition de la réservation permanente de largeur/hauteur autour de ChatGPT.
 - `sidebar-projects-v121.js` reste propriétaire du catalogue/placement incrémental ; les nœuds Projects, leur ordre, le focus et les scrolls catalogue/drawers sont conservés pendant les rafraîchissements de cache, tout en laissant un nouveau geste utilisateur reprendre immédiatement la main.
 - Rail droit transformé en dock discret, masqué sur l’accueil/surfaces utilitaires ; barre basse remplacée par une capsule passive. Les easter eggs Matrix/Terminator restent montés, mais `BY SKYNET` n’occupe plus la capsule passive.

@@ -1,12 +1,29 @@
-# NiakGPT 0.9.76 hotfix
+# NiakGPT 0.9.76 — consolidated hotfix notes
 
-This hotfix addresses live regressions reported after the 0.9.76 merge:
+The 0.9.76 line received several post-merge hardening passes that are now part of the v131 baseline.
 
-- hydration-safe runtime bootstrap to reduce React hydration collisions;
-- shell retention when ChatGPT remounts and removes the NiakGPT right rail/panel/status nodes;
-- long-run watchdog now primes the composer before resolving the native send/queue control, matching real Brave/ChatGPT behavior;
-- Project menu now opens ChatGPT's real native **Paramètres du projet** dialog rather than approximating settings;
-- native conversation-limit CTA inside the assistant turn is intercepted before ChatGPT's last-message-only handoff and sends the full NiakGPT continuity capsule/history;
-- focused Chromium/Brave fixture coverage reproduces the real empty-composer send-control behavior, shell remount, native Project settings modal, and in-turn native limit CTA.
+## Fixed
 
-The specific console 404 reported for a slugged `/backend-api/gizmos/g-p-…-niakgpt/conversations` URL is not emitted by NiakGPT's normalized Project-conversation calls (NiakGPT strips the route slug before its own Project id requests). It is therefore tracked as a native ChatGPT request unless new evidence ties it to an extension RPC.
+- hydration-safe runtime bootstrap and retry;
+- shell recovery after ChatGPT remounts;
+- verified left-sidebar placement before Projects become visible;
+- Project catalogue/drawer scroll stability during cache churn;
+- active user scroll cancelling stale restoration work;
+- Project/chat action hit-testing and remount-safe menu ownership;
+- BFCache observer rebinding;
+- native Project settings routing;
+- controlled-composer residue cleanup;
+- long-run watchdog safety around Stop/Send controls;
+- user-modified draft protection;
+- native conversation-limit continuity with exact Project preservation;
+- async interruption-state race protection.
+
+## Current long-run behavior
+
+The original 4m40 experimental timing is no longer the release behavior. The current default watchdog window is **6 min 30**.
+
+Automatic resume text is not written while only a native Stop control is available. A short resume can be sent only when the composer is safe and a real Send candidate exists.
+
+## Validation
+
+The consolidated baseline is exercised by static/runtime/package gates, cross-engine UX fixtures, MV3 runtime fixtures, BFCache/scroll/action regressions and focused macOS Brave stable coverage.

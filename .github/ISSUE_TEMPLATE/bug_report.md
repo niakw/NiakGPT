@@ -1,38 +1,44 @@
 ---
 name: Bug report
-about: Create a report to help us improve
-title: ''
-labels: ''
+about: Report a reproducible NiakGPT regression
+title: "[Bug] "
+labels: bug
 assignees: ''
-
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+## Environment
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+- NiakGPT version:
+- Browser + version:
+- OS:
+- ChatGPT surface: Home / Project / conversation / other
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+## What happened?
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+Describe the observed behavior clearly.
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
+## Expected behavior
 
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+What should have happened instead?
 
-**Additional context**
-Add any other context about the problem here.
+## Reproduction
+
+1.
+2.
+3.
+
+## Evidence
+
+Add screenshots or a short screen recording when the issue is visual or interaction-related.
+
+If useful, include an **anonymized** NiakGPT diagnostic.
+
+## Regression details
+
+- Did this work in a previous NiakGPT version?
+- Does reloading the extension + ChatGPT change the result?
+- Does Safe Mode change the result?
+
+## Privacy check
+
+Do **not** include conversation content, cookies, tokens, authorization headers, private Project names or other unnecessary personal data.

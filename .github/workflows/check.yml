@@ -28,6 +28,9 @@ jobs:
       - name: Validate hot-path invariants
         run: node tools/check-hotpath-v096.mjs
 
+      - name: Validate repository hygiene
+        run: node tools/check-repository-hygiene.mjs
+
       - name: Check JavaScript syntax from manifest
         run: |
           node - <<'NODE' > /tmp/niakgpt-js.txt
@@ -53,7 +56,7 @@ jobs:
           grep -qx 'sidebar-metadata-v118.js' /tmp/niakgpt-package-files.txt
           grep -qx 'sidebar-metadata-v118.css' /tmp/niakgpt-package-files.txt
           grep -qx 'sidebar-projects-authority-v112.js' /tmp/niakgpt-package-files.txt
-          for doc in README.md LICENSE PRIVACY.md SECURITY.md CHANGELOG.md; do
+          for doc in README.md README.fr.md LICENSE PRIVACY.md SECURITY.md CHANGELOG.md; do
             grep -qx "$doc" /tmp/niakgpt-package-files.txt || {
               echo "Required release document missing from ZIP: $doc"
               exit 1

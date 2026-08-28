@@ -2,69 +2,104 @@
 
 ## Modèle de sécurité
 
-NiakGPT s’exécute uniquement sur `https://chatgpt.com/*` et s’appuie sur la session ChatGPT déjà ouverte dans le navigateur.
+NiakGPT 0.9.76 s’exécute uniquement sur `https://chatgpt.com/*` et utilise la session ChatGPT déjà ouverte dans le navigateur.
 
-L’extension ne demande pas de clé API OpenAI et ne stocke pas volontairement le jeton d’accès de session dans `chrome.storage` ou sur un serveur externe.
+L’extension ne demande pas de clé API OpenAI et ne stocke volontairement ni cookie de session ni jeton d’accès dans un serveur NiakGPT externe.
 
-## Endpoints internes
+## Permissions
 
-Certaines fonctions utilisent des endpoints internes employés par l’interface web de ChatGPT. Ces endpoints ne constituent pas une API publique garantie.
+Le manifest courant demande uniquement :
 
-Conséquences :
+```text
+storage
+scripting
+https://chatgpt.com/*
+```
 
-- leur schéma peut changer ;
-- une réponse HTTP inhabituelle ne doit jamais être interprétée comme une réussite sans garde ;
-- les requêtes passent par le bridge et une liste de chemins autorisés ;
-- le broker gère la sérialisation, la déduplication utile et le circuit breaker 429 ;
-- **tout GET complet `/backend-api/conversation/{id}` initié par NiakGPT est refusé avant réseau**.
+Toute nouvelle permission Chrome ou tout nouveau domaine dans `host_permissions` est une modification de sécurité et doit être justifié, documenté et testé explicitement.
+
+## Endpoints internes ChatGPT
+
+Certaines fonctions utilisent des endpoints internes employés par l’interface web de ChatGPT. Ils ne constituent pas une API publique garantie.
+
+Règles :
+
+- chemins bornés par le bridge ;
+- pas de remplacement global de `window.fetch` ;
+- réponses inhabituelles traitées comme échec, pas comme réussite implicite ;
+- déduplication/circuit breaker sur les chemins concernés ;
+- **tout GET complet `/backend-api/conversation/{id}` initié par NiakGPT est refusé avant réseau** ;
+- mutation sensible suivie d’une convergence/vérification adaptée lorsqu’elle est disponible.
 
 ## Project Governance
 
 Un déplacement automatisé de conversation :
 
-1. passe par le garde Governance ;
-2. effectue un `PATCH` vers la destination ;
-3. utilise l’accusé de réception de la mutation et met à jour l’état local ;
-4. laisse l’inventaire serveur léger ultérieur confirmer la convergence globale, sans relire la conversation complète.
+1. passe par les gardes Governance ;
+2. cible une destination exacte ;
+3. utilise l’accusé de réception de la mutation ;
+4. met à jour l’état local avec une autorité temporelle cohérente ;
+5. laisse les inventaires légers confirmer la convergence globale.
 
-Un déplacement manuel n’est verrouillé localement qu’après un geste utilisateur fiable et récent.
+Une action manuelle récente reste prioritaire sur l’automatisation.
 
-NiakGPT n’essaie pas de supprimer automatiquement un Project serveur à partir d’un endpoint supposé ou non vérifié.
+NiakGPT n’invente pas d’endpoint de suppression de Project et ne doit jamais lancer une mutation destructive non observée/certifiée.
 
-## Injection et contenu
+## Injection, DOM et HTML
 
-Les textes dynamiques insérés dans les interfaces NiakGPT sont échappés lorsqu’ils proviennent de titres, noms de Projects ou métadonnées externes. Les composants qui n’ont pas besoin de HTML privilégient `textContent`.
+Les données dynamiques issues de titres, Projects et métadonnées sont insérées avec des primitives sûres lorsque du HTML n’est pas nécessaire.
 
-Le prompteur et la continuité n’envoient jamais automatiquement le contenu du composer.
+Les modules doivent préférer `textContent` et éviter toute interpolation HTML de contenu utilisateur non maîtrisé.
 
-## Données locales
+## Automatisation du composer
 
-La 0.9.52 ne maintient plus de cache complet JSON de conversations. Les versions historiques pouvaient laisser des données IndexedDB dans le profil navigateur ; ces reliquats doivent être considérés comme des données locales sensibles jusqu’à leur purge.
+Le prompteur est opt-in et n’envoie rien automatiquement.
 
-Un utilisateur ayant accès au profil navigateur local peut potentiellement accéder aux préférences, index et capsules locales de la même manière qu’aux autres données de site locales.
+Les automatismes de continuité/reprise sont bornés :
 
-## Permissions
+- aucun envoi si un brouillon utilisateur est présent ou a été modifié ;
+- aucun envoi tant qu’un vrai contrôle Envoyer n’est pas disponible ;
+- nettoyage limité aux marqueurs automatiques exacts connus ;
+- commandes explicites d’arrêt/annulation prioritaires ;
+- pas de boucle de reload automatique.
 
-Toute nouvelle permission Chrome ou tout nouveau domaine dans `host_permissions` doit être considéré comme une modification de sécurité et justifié explicitement.
+## Vérifications, challenges et sécurité du service
 
-## Signalement d’un problème
+NiakGPT ne contourne jamais un challenge, CAPTCHA ou iframe de vérification ChatGPT.
 
-Le dépôt étant public, un rapport de bug public ne doit jamais contenir de données de conversation, cookies, jetons ou identifiants de session. Pour une vulnérabilité ou un rapport sensible, utiliser un canal privé de sécurité lorsqu’il est disponible.
+Pendant une vérification native, les requêtes NiakGPT doivent se mettre en attente/échouer proprement. Une reprise native éventuelle ne peut être tentée qu’après disparition du signal de challenge.
 
-Un rapport technique non sensible peut contenir :
+## Données locales sensibles
 
-- version NiakGPT ;
-- navigateur et version ;
-- étapes minimales de reproduction ;
-- comportement attendu et observé ;
-- diagnostic NiakGPT après vérification qu’il ne contient aucune donnée sensible.
+Les index et états locaux doivent être traités comme des données privées du profil navigateur. Un utilisateur ou logiciel ayant accès au profil navigateur peut potentiellement lire ces données.
 
-## Secrets
+Les fixtures, logs et artefacts CI ne doivent contenir ni conversation réelle, ni Project privé, ni cookie, ni token.
 
-Ne jamais joindre :
+## Secrets à ne jamais publier
+
+Ne jamais joindre à une issue, PR ou diagnostic public :
 
 - cookies de session ;
 - en-têtes `Authorization` ;
 - contenu brut de `/api/auth/session` ;
 - exports de conversation non anonymisés ;
+- identifiants privés inutiles ;
 - données personnelles non nécessaires à la reproduction.
+
+## Signaler une vulnérabilité
+
+Pour un problème non sensible, ouvrir une issue avec :
+
+- version NiakGPT ;
+- navigateur/version ;
+- étapes minimales ;
+- résultat attendu/observé ;
+- diagnostic anonymisé.
+
+Pour une vulnérabilité ou un rapport contenant des informations sensibles, utiliser un canal privé de sécurité GitHub lorsqu’il est disponible au lieu d’une issue publique.
+
+## Voir aussi
+
+- [PRIVACY.md](PRIVACY.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [TESTING_TRUTH.md](TESTING_TRUTH.md)

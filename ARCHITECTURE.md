@@ -334,3 +334,16 @@ Les anciens labs restent disponibles pour les régressions historiques, même lo
 ## Dépendance à ChatGPT
 
 NiakGPT s’appuie sur le DOM et certains endpoints internes de ChatGPT. Cette dépendance reste intrinsèquement fragile. La réponse architecturale est donc : propriétaires uniques, mutations minimales, fallback natif, tests sur remounts réels et garde-fous qui échouent bruyamment plutôt que d’empiler de nouveaux overrides concurrents.
+
+
+## Maintenance du dépôt
+
+Le dépôt sépare explicitement **runtime de production**, **outils/labs** et **patrimoine de régression**.
+
+- `tools/package-extension.mjs` construit le ZIP depuis les fichiers réellement déclarés par le manifest et l’injecteur ;
+- `tools/check-repository-hygiene.mjs` refuse les sorties générées, archives accidentelles et runtimes racine orphelins ;
+- les anciens modules encore référencés par des labs restent dans le dépôt mais sont interdits dans le package installable ;
+- un fichier JS/CSS racine qui n’est ni expédié ni référencé par un test/document est considéré comme inutile et doit être supprimé ;
+- l’historique GitHub Actions est purgé automatiquement chaque semaine avec une courte fenêtre de rétention pour le diagnostic.
+
+Cette distinction permet de garder l’historique utile sans transformer la release en accumulation de code mort.

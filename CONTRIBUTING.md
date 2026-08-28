@@ -1,105 +1,119 @@
-# Contribuer à NiakGPT
+# Contributing to NiakGPT
 
-NiakGPT vise une expérience power-user dense sans faire payer cette puissance par un runtime lourd ou imprévisible. Les contributions sont donc évaluées autant sur leur **coût permanent** et leur **réversibilité** que sur leur résultat visuel.
+Thank you for helping improve NiakGPT. The project aims for a dense power-user experience **without turning ChatGPT into a heavier or less predictable application**.
 
-## Avant de modifier le runtime
+A contribution is evaluated on correctness, runtime cost, reversibility, accessibility and regression coverage.
 
-Lire :
+## Read first
 
-- [`ARCHITECTURE.md`](ARCHITECTURE.md) ;
-- [`PRIVACY.md`](PRIVACY.md) ;
-- [`SECURITY.md`](SECURITY.md) ;
-- [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md).
+Before changing runtime behavior, read:
 
-## Règles non négociables
+- [ARCHITECTURE.md](ARCHITECTURE.md)
+- [PRIVACY.md](PRIVACY.md)
+- [SECURITY.md](SECURITY.md)
+- [TESTING_TRUTH.md](TESTING_TRUTH.md)
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 
-### ChatGPT uniquement
+## Non-negotiable rules
 
-Ne pas ajouter de domaine à `host_permissions` sans nécessité explicite et revue de confidentialité/sécurité.
+### Keep the host scope narrow
 
-### Pas de télémétrie silencieuse
+Do not add host permissions beyond `https://chatgpt.com/*` without an explicit security/privacy review.
 
-Aucune analytics, aucun pixel, aucun serveur NiakGPT, aucune transmission externe implicite.
+### No silent telemetry
 
-### Manuel > automatique
+No analytics, tracking pixel, advertising SDK or implicit NiakGPT server upload.
 
-Ne jamais modifier une conversation verrouillée manuellement sans action explicite de l’utilisateur.
+### User intent beats automation
 
-### Ne pas inventer des APIs
+Never overwrite a user-modified draft, manual Project move, explicit cancellation or manually locked conversation.
 
-Les endpoints internes sont fragiles. Une fonction basée sur un endpoint nouveau doit être :
+### One owner per UI responsibility
 
-- observée sur l’interface réelle ;
-- limitée à un chemin précis dans le bridge ;
-- testée avec un comportement d’échec sûr ;
-- vérifiée après écriture lorsque c’est pertinent.
+Before adding a DOM observer or renderer, identify the existing authority. Do not create a second owner for the same Project visibility, placement, action menu or continuity state.
 
-### Pas de polling global
+### No global polling
 
-Une nouvelle fonction ne doit pas introduire un `setInterval` qui rescane le document ou la sidebar.
+Do not add whole-document `setInterval` scanning. Prefer targeted MutationObservers, storage events, route events, `BroadcastChannel`, `navigator.locks` and bounded idle work.
 
-Préférer événements, mutations ciblées, storage changes, BroadcastChannel et travail idle.
+### Do not invent internal APIs
 
-## Données privées
+New ChatGPT-internal endpoints must be observed on the real interface, narrowly allow-listed, fail-safe and regression-tested.
 
-Ne jamais committer :
+## Privacy in fixtures
 
-- nom réel d’un utilisateur ;
-- adresse e-mail personnelle ;
-- noms de Projects privés ;
-- contenu de conversation réel ;
-- cookies ou jetons ;
-- exports bruts de session.
+Never commit:
 
-Les fixtures du Visual Lab doivent utiliser des noms génériques.
+- a real conversation body;
+- personal email addresses;
+- private Project names;
+- cookies/tokens;
+- raw authenticated session exports.
 
-## Direction artistique
+Use deterministic fictional fixtures.
 
-La couleur doit transmettre de l’information :
+## UX and accessibility
 
-- Project ;
-- état d’activité ;
-- sélection ;
-- niveau de priorité.
+Custom interactive controls must have:
 
-Éviter de transformer chaque surface en accent différent. La DA doit rester cohérente avec une logique de workspace/IDE.
+- an accessible name;
+- visible keyboard focus;
+- reasonable keyboard behavior;
+- correct state semantics;
+- predictable Escape/close behavior when relevant.
 
-Lors d’un changement visuel important, ajouter ou mettre à jour une scène Playwright et inspecter le screenshot généré.
+For significant UI changes, add or update a deterministic Playwright scene and inspect the generated evidence.
 
-## Accessibilité
+## Performance checklist
 
-Tout contrôle custom interactif doit avoir :
+For any DOM-reactive feature, ask:
 
-- un nom accessible ;
-- un focus visible ;
-- un usage clavier raisonnable ;
-- un état ARIA si l’apparence masque l’élément natif ;
-- une fermeture accessible pour les dialogues.
+1. Can an existing event be reused?
+2. Can observation be scoped to one container?
+3. Can the work be delayed until idle?
+4. Does every tab need to run it?
+5. Should Safe Mode disable it?
+6. What happens on an 80+ turn conversation?
+7. What happens after React remount or BFCache restore?
 
-Les dialogues doivent restituer le focus lorsque c’est possible.
+## Repository hygiene
 
-## Performance
+Do not commit generated output such as:
 
-Pour toute nouvelle fonctionnalité qui réagit au DOM, demander :
+- `dist/`;
+- `node_modules/`;
+- `playwright-report/`;
+- `test-results/`;
+- temporary logs/backups;
+- random ZIPs outside explicitly documented historical archives.
 
-1. Est-ce que l’événement existe déjà ?
-2. Peut-on écouter uniquement le conteneur concerné ?
-3. Le travail peut-il être reporté en idle ?
-4. Un CLIENT doit-il vraiment l’exécuter ?
-5. Safe Mode doit-il la désactiver ?
-6. Quel est son comportement sur un fil de 80+ tours ?
+Top-level runtime JS/CSS must either be shipped or be referenced by a documented regression/test path. Unreferenced runtime files are treated as repository garbage.
 
-## Tests locaux
+Run:
 
-### Invariants
+```bash
+node tools/check-repository-hygiene.mjs
+```
+
+## Local validation
+
+### Runtime invariants
 
 ```bash
 node tools/check-runtime.mjs
 ```
 
-### Syntaxe
+### Repository hygiene
 
-Les fichiers réellement chargés par le manifest doivent passer `node --check`.
+```bash
+node tools/check-repository-hygiene.mjs
+```
+
+### Packaging
+
+```bash
+node tools/package-extension.mjs
+```
 
 ### Visual Lab
 
@@ -110,56 +124,42 @@ npx playwright install chromium
 npm test
 ```
 
-Le Visual Lab inclut des tests avec la vraie extension unpacked chargée dans Chromium.
+## Selector changes
 
-### Packaging
+Prefer stable semantic signals in this order:
 
-```bash
-node tools/package-extension.mjs
-```
+1. `data-testid`;
+2. ARIA/role;
+3. canonical href;
+4. stable structural relationship;
+5. generated CSS class only as a last resort.
 
-Le ZIP installable doit :
+Critical selector changes must include a reproduction fixture and a false-positive check.
 
-- avoir `manifest.json` à sa racine ;
-- ne contenir aucun fichier de test ;
-- ne contenir aucun ancien moteur inactif ;
-- inclure tous les scripts déclarés dans le manifest, y compris le service worker.
+## Release documentation
 
-## Modifier un sélecteur ChatGPT
+`manifest.json` is the runtime version source of truth.
 
-Éviter les sélecteurs basés sur des classes CSS générées lorsqu’un `data-testid`, un attribut ARIA, un href stable ou une structure sémantique existe.
+For a release-facing change, keep synchronized:
 
-Si un sélecteur critique change :
+- `README.md`;
+- `README.fr.md`;
+- `CHANGELOG.md`;
+- current release notes;
+- architecture/privacy/security docs when behavior changes.
 
-- ajouter une fixture/reproduction ;
-- tester l’absence de faux positifs ;
-- prévoir un fallback raisonnable ;
-- ne pas étendre un sélecteur à tout le document juste pour « être sûr ».
+Historical release notes should remain historical; correct them only when they contain a factual error about that release.
 
-## Ajouter une automatisation
+## Pull request acceptance
 
-Une automatisation doit toujours préciser :
+A substantial change is not complete because one screenshot looks right. It should pass the relevant combination of:
 
-- quelles conversations sont candidates ;
-- quelles conversations sont protégées ;
-- le seuil de confiance ;
-- le comportement ambigu ;
-- la vérification de résultat ;
-- son comportement multi-onglets ;
-- son comportement Safe Mode.
+- static/runtime invariants;
+- repository hygiene;
+- clean packaging;
+- deterministic browser fixtures;
+- cross-engine experience gates;
+- real MV3 runtime fixtures;
+- focused Brave/macOS coverage when the change affects that path.
 
-## Versions
-
-Le manifest est la source de vérité de la version runtime. La documentation dérivée doit être synchronisée automatiquement plutôt que modifiée à plusieurs endroits manuellement.
-
-## Critère d’acceptation
-
-Une contribution importante n’est pas « finie » parce qu’elle fonctionne sur une capture ou une seule session.
-
-Elle doit idéalement passer :
-
-- invariants statiques ;
-- tests visuels concernés ;
-- tests unpacked réels concernés ;
-- packaging ;
-- Public Quality Gate avant release.
+A real user screenshot that contradicts a fixture is a regression signal. Update the fixture to reproduce the production shape before declaring the fix covered.

@@ -1,224 +1,198 @@
-# Dépannage NiakGPT
+# Dépannage — NiakGPT
 
-Ce guide privilégie les diagnostics qui expliquent **quel module attend quoi**, plutôt qu’un simple état `ATTENTE` sans contexte.
+Ce guide cible les pannes réellement utiles à diagnostiquer : **quel module attend quoi, quel état est propriétaire, et quel comportement est sûr**.
 
-## Mise à jour locale
-
-Après avoir remplacé le dossier de l’extension :
+## 1. Après une mise à jour
 
 1. ouvrir `chrome://extensions` ;
 2. cliquer **Recharger** sur NiakGPT ;
 3. recharger les onglets ChatGPT déjà ouverts ;
-4. vérifier la version dans la barre basse.
+4. vérifier que la version affichée est bien **0.9.76**.
 
-Éviter de fusionner un ancien dossier avec un nouveau ZIP : remplacer le dossier complet permet de ne pas conserver d’anciens fichiers inutiles.
+Éviter de fusionner un ancien dossier avec un nouveau ZIP. Remplacer le dossier complet empêche de conserver des fichiers obsolètes.
 
-## Une conversation reste sur CHARGEMENT
+## 2. Projects n’apparaît pas ou apparaît au mauvais endroit
+
+Le comportement attendu :
+
+- un seul `#ng8-pins` ;
+- uniquement dans la vraie sidebar gauche ;
+- invisible tant que le host n’a pas été vérifié par v131 ;
+- catalogue scrollable indépendamment lorsque nécessaire.
+
+Actions :
+
+1. recharger l’extension puis l’onglet ;
+2. vérifier qu’aucun ancien dossier/ancienne version n’est encore chargé ;
+3. ouvrir le diagnostic NiakGPT ;
+4. relever les états `pins-ui`, `sidebar-ux-119` et `ux-v131`.
+
+Si le bloc apparaît au centre de la page ou au-dessus du shell ChatGPT, c’est une régression à signaler avec capture d’écran.
+
+## 3. Le scroll Projects remonte tout seul
+
+Depuis la passe v131, un geste utilisateur réel doit avoir priorité sur toute restauration de scroll déjà programmée.
+
+À relever :
+
+- position avant/après ;
+- si le mouvement arrive pendant un refresh de cache ;
+- si un Project vient d’être ouvert/fermé ;
+- navigateur et OS ;
+- valeur éventuelle de `data-ng121-scroll-guard` sur `<html>`.
+
+## 4. Le bouton “…” ne répond pas
+
+Les actions Project/chat doivent rester cliquables même après un remount React ou un retour BFCache.
+
+Tester :
+
+- second clic sur le même bouton : le menu doit se fermer ;
+- `Escape` : le menu doit se fermer ;
+- clic extérieur : le menu doit se fermer ;
+- après navigation retour/avant : le bouton doit rester fonctionnel.
+
+Si le bouton est visible mais non cliquable, joindre une capture + diagnostic. Le v131 force les hitboxes du bloc vérifié à rester actives.
+
+## 5. Une conversation reste en chargement
 
 Vérifier :
 
-- le composer est-il monté ?
-- les tours de conversation sont-ils visibles ?
-- ChatGPT lui-même affiche-t-il encore un skeleton/chargement ?
+- le composer natif est-il monté ?
+- les tours sont-ils visibles ?
+- ChatGPT affiche-t-il encore un skeleton/état de chargement ?
 - le diagnostic indique-t-il une erreur du tracker ?
 
-Le tracker NiakGPT est conçu pour survivre à `document_start`, même lorsque `<body>` n’existe pas encore. Un état `CHARGEMENT` permanent est donc une régression à signaler.
+NiakGPT doit se retirer plutôt que masquer un contenu natif non prêt.
 
-## La barre basse affiche PRÊT alors que ChatGPT travaille
+## 6. L’état NiakGPT semble faux pendant une génération
 
-Les sources d’état sont :
+La capsule d’état utilise plusieurs signaux :
 
-1. requête de génération détectée → `ATTENTE` ;
-2. réponse réseau/indices de raisonnement → `RÉFLEXION / ANALYSE` ;
-3. croissance de la réponse → `EXÉCUTION` ;
-4. erreur visible → `ERREUR`.
+1. requête/génération active ;
+2. indices de raisonnement ;
+3. croissance de réponse ;
+4. bouton Stop natif ;
+5. erreurs visibles.
 
-Si la barre et la sidebar divergent, relever :
+Si l’état diverge de ChatGPT, relever :
 
 - version NiakGPT ;
-- état `data-ng86-activity` sur `<html>` ;
-- présence du bouton Stop natif ;
-- si la génération se produit dans le même onglet ou un autre.
+- `data-ng86-activity` sur `<html>` ;
+- présence du bouton Stop ;
+- même onglet ou autre onglet.
 
-## Plusieurs onglets deviennent WORKER
+## 7. Un message “Suite en parallèle” reste dans le composer
+
+Cela ne doit pas arriver après un envoi confirmé.
+
+Le runtime courant retire **uniquement son propre préfixe** lorsque ChatGPT laisse un composer contrôlé visuellement rempli. Il ne doit jamais effacer un texte que l’utilisateur a modifié.
+
+Si un ancien protocole long est encore présent :
+
+1. recharger l’extension ;
+2. recharger l’onglet ;
+3. ne pas modifier le brouillon avant de vérifier s’il est nettoyé ;
+4. si le texte persiste, fournir le texte exact et une capture.
+
+## 8. Une reprise longue occupe le composer pendant que ChatGPT travaille
+
+Cela ne doit plus arriver.
+
+Le watchdog ne doit pas écrire sa reprise tant qu’aucun vrai contrôle **Envoyer** n’est disponible. La présence du seul bouton **Arrêter de générer** signifie que la reprise reste armée en interne, sans polluer le champ.
+
+Fenêtre par défaut actuelle : **6 min 30**.
+
+## 9. Un brouillon utilisateur disparaît
+
+C’est une régression critique.
+
+NiakGPT doit conserver :
+
+- tout brouillon présent avant une reprise automatique ;
+- tout texte modifié par l’utilisateur ;
+- tout brouillon qui ne correspond plus exactement au protocole automatique connu.
+
+Joindre immédiatement une reproduction minimale, navigateur, OS et capture.
+
+## 10. Plusieurs onglets deviennent WORKER
 
 Le comportement attendu est **exactement un WORKER**.
 
 Causes possibles :
 
-- navigateur sans support `navigator.locks` et fallback défaillant ;
-- onglets ouverts pendant une mise à jour de l’extension ;
-- ancien script encore chargé dans un onglet non rechargé.
+- fallback `navigator.locks` défaillant ;
+- onglets restés ouverts pendant une mise à jour ;
+- ancien runtime encore chargé.
 
-Action : recharger l’extension puis tous les onglets ChatGPT. Si le problème persiste, copier le diagnostic des deux onglets.
+Action : recharger l’extension puis tous les onglets ChatGPT.
 
-## Un gros fil ralentit
+## 11. Un gros fil ralentit
 
 Activer **Safe Mode** depuis le Centre de contrôle.
 
-Safe Mode doit couper :
+Safe Mode doit réduire/couper les surfaces non essentielles. Si le fil reste lent, la part restante est probablement liée au rendu natif ChatGPT ou à la taille de la conversation.
 
-- Matrix ;
-- coach ;
-- animations ;
-- pins natifs ;
-- auto-resync ;
-- rôle WORKER.
+## 12. Compteurs Project incomplets
 
-Si le fil reste lourd en Safe Mode, la part restante est probablement principalement liée au rendu ChatGPT lui-même ou à la taille du fil.
+`?` signifie qu’un compteur fiable n’a pas pu être établi.
 
-## Le nombre de chats d’un Project affiche ?
+`…` signifie généralement que l’indexation n’est pas terminée ou est volontairement différée.
 
-`?` signifie que le Project n’a pas pu être compté de façon fiable.
-
-Le chemin attendu :
-
-- première requête sans cursor ;
-- `limit=20` ;
-- pages suivantes avec cursor opaque renvoyé par ChatGPT ;
-- fallback sans `limit` si le backend retourne `422`.
-
-Ne jamais corriger ce problème en ajoutant arbitrairement `cursor=0`.
-
-## Le nombre reste …
-
-`…` indique généralement que l’indexation du Project n’est pas encore passée.
-
-Elle peut être volontairement différée si :
+L’indexation peut attendre si :
 
 - l’onglet est CLIENT ;
 - une génération est en cours ;
 - Safe Mode est actif ;
 - l’onglet est caché ;
-- un autre Project est en cours d’indexation.
+- une autre tâche Project est déjà active.
 
-## Le bloc Projects apparaît plusieurs fois
-
-Il doit exister **exactement un** `#ng8-pins`.
-
-`sidebar-host-v090.js` est chargé pour réparer automatiquement :
-
-- les hosts en dehors de la sidebar ;
-- les doublons créés par une ancienne session ;
-- les changements de structure de la sidebar.
-
-Si plusieurs blocs persistent après reload complet, il s’agit d’une régression runtime.
-
-## Un chat a été reclassé après un déplacement manuel
+## 13. Un chat a été reclassé après un déplacement manuel
 
 Cela ne doit pas arriver.
 
-Un déplacement manuel doit :
+Un déplacement manuel récent doit être mémorisé et protégé contre l’automatisation. Vérifier le diagnostic Governance et l’état serveur léger.
 
-1. être détecté ;
-2. être relu côté serveur ;
-3. recevoir un verrou local ;
-4. afficher un cadenas ;
-5. être exclu de l’auto-resync.
+## 14. Vérification/CAPTCHA ChatGPT
 
-Si le cadenas n’apparaît pas, vérifier le diagnostic Governance et la destination serveur réelle.
+NiakGPT ne contourne pas et ne manipule pas les challenges.
 
-## Le cadenas bloque un chat que je veux reclasser automatiquement
+Pendant une vérification, les fonctions NiakGPT dépendant du bridge doivent se mettre en attente ou échouer proprement. Une reprise native n’est autorisée qu’après disparition du signal de challenge.
 
-Cliquer explicitement sur le cadenas pour retirer le verrou. À partir de ce moment seulement, la conversation redevient candidate à l’automatisation.
-
-## Les pins natifs ne se synchronisent pas
-
-La synchro est volontairement suspendue lorsque :
-
-- l’onglet n’est pas WORKER ;
-- une génération est en cours ;
-- Safe Mode est actif ;
-- la fonction pins est désactivée ;
-- l’onglet est caché.
-
-NiakGPT ne doit annoncer un pin natif qu’après vérification dans l’interface native.
-
-## Quick Open ne trouve pas un chat récent
+## 15. Quick Open ne trouve pas une conversation récente
 
 Vérifier :
 
-- si l’index global a terminé sa mise à jour ;
-- si le chat existe dans le cache partagé ;
-- si la conversation vient d’être créée dans un autre onglet ;
-- si le titre a été mis à jour par ChatGPT après création.
+- index global terminé ;
+- conversation présente dans le cache partagé ;
+- création récente dans un autre onglet ;
+- titre modifié ensuite par ChatGPT.
 
-Quick Open doit rester utilisable depuis le cache même sur un CLIENT.
+Quick Open doit rester utilisable depuis le cache sur un CLIENT.
 
-## Le coach n’apparaît pas
+## 16. Réinitialisation
 
-Le coach est volontairement caché lorsque :
+En dernier recours :
 
-- le prompt contient trop peu de texte ;
-- le composer n’est pas encore monté ;
-- une phase active lourde est en cours ;
-- Safe Mode est actif ;
-- le réglage coach est désactivé.
+1. exporter la configuration si nécessaire ;
+2. réinitialiser les données NiakGPT depuis le Centre de contrôle ;
+3. recharger l’extension ;
+4. recharger ChatGPT.
 
-Il ne doit jamais recouvrir le champ de saisie ou les pièces jointes.
+La réinitialisation NiakGPT ne supprime pas les conversations/Projects stockés par ChatGPT.
 
-## Le panneau Activité est difficile à fermer
+## Signaler une régression
 
-NiakGPT ajoute un bouton de fermeture accessible au panneau détecté. Si le bouton n’apparaît plus, ChatGPT a probablement changé la structure du panneau.
+Joindre idéalement :
 
-Relever le texte/titre du panneau et, si possible, son `data-testid`/rôle plutôt que de créer un sélecteur basé sur une classe CSS générée.
+- version NiakGPT ;
+- navigateur + version ;
+- OS ;
+- route concernée (accueil, Project, conversation) ;
+- étapes exactes ;
+- capture ;
+- diagnostic anonymisé.
 
-## Les couleurs ChatGPT reviennent
+Ne jamais publier cookies, tokens, contenu privé ou `Authorization`.
 
-NiakGPT force ses propres surfaces et variables, mais ChatGPT peut introduire de nouveaux composants qui n’utilisent pas les variables existantes.
-
-Lors d’une régression, identifier le composant précis :
-
-- bulle utilisateur ;
-- bouton d’envoi ;
-- icône Project ;
-- menu ;
-- focus ring ;
-- panneau Activité.
-
-Éviter un override global de tous les boutons : cibler le composant concerné.
-
-## Cache chaud incohérent
-
-Depuis le Centre de contrôle : **Purger cache chaud**, puis recharger.
-
-Le cache chaud est une accélération. Une purge ne doit pas supprimer les conversations ChatGPT.
-
-## Index Projects incohérent
-
-Utiliser **Reconstruire l’index**. Cela efface l’index NiakGPT et le reconstruit progressivement ; cela ne supprime pas les Projects ChatGPT.
-
-## Réinitialiser uniquement l’apparence
-
-Utiliser **Réinitialiser préférences** dans le Centre de contrôle. Les verrous manuels et la gouvernance doivent rester conservés.
-
-## Effacement complet NiakGPT
-
-La commande d’effacement complet supprime les données locales NiakGPT après double confirmation.
-
-Elle ne doit pas supprimer les conversations/Projects stockés par ChatGPT.
-
-## Diagnostic à partager
-
-Utiliser **Copier diagnostic**.
-
-Avant partage, vérifier qu’il contient uniquement des métadonnées techniques. Ne jamais partager :
-
-- cookies ;
-- jetons ;
-- contenu brut de `/api/auth/session` ;
-- conversations privées ;
-- exports complets non anonymisés.
-
-## Après une mise à jour de ChatGPT
-
-Si plusieurs fonctions cessent de fonctionner simultanément :
-
-1. vérifier d’abord la structure DOM et les endpoints internes ;
-2. reproduire dans le Visual Lab si possible ;
-3. ajouter une fixture correspondant à la nouvelle structure ;
-4. corriger le runtime ;
-5. faire passer le test unpacked réel ;
-6. refaire le Public Quality Gate.
-
-Le but n’est pas de masquer rapidement le symptôme par un scan plus large, mais de rétablir une hypothèse précise et testée.
+Voir aussi [TESTING_TRUTH.md](TESTING_TRUTH.md), [SECURITY.md](SECURITY.md) et [PRIVACY.md](PRIVACY.md).

@@ -1,20 +1,37 @@
 ---
 name: Feature request
-about: Suggest an idea for this project
-title: ''
-labels: ''
+about: Propose a focused NiakGPT improvement
+title: "[Feature] "
+labels: enhancement
 assignees: ''
-
 ---
 
-**Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+## Problem
 
-**Describe the solution you'd like**
-A clear and concise description of what you want to happen.
+What workflow or limitation are you trying to improve?
 
-**Describe alternatives you've considered**
-A clear and concise description of any alternative solutions or features you've considered.
+## Proposed behavior
 
-**Additional context**
-Add any other context or screenshots about the feature request here.
+Describe the smallest useful solution.
+
+## Why it belongs in NiakGPT
+
+Explain how it improves Projects, navigation, long-thread performance, continuity, accessibility or local-first productivity.
+
+## UX / safety constraints
+
+Mention anything that must not happen, for example:
+
+- do not overwrite user drafts;
+- do not add permanent polling;
+- keep the UI native-first;
+- preserve keyboard accessibility;
+- remain local-first.
+
+## Alternatives considered
+
+Optional.
+
+## Evidence / mockup
+
+Optional screenshots or examples are welcome. Please anonymize private ChatGPT content.

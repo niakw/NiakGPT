@@ -1,42 +1,56 @@
 # NiakGPT Visual Lab
 
-Environnement local de contrôle visuel pour la DA et les layouts NiakGPT. Il ne fait pas partie du runtime de l'extension et ne s'exécute jamais sur ChatGPT.
+The Visual Lab is NiakGPT's deterministic browser-testing environment. It is a **development/test surface only** and is never injected into ChatGPT production pages.
 
-Le labo charge directement les CSS de production du dépôt sur une fixture qui reproduit les zones importantes de ChatGPT : sidebar, Projects, Récents, conversation, code, composer, coach, panneau Activité, barre d'état et Project Governance.
+## What it covers
 
-## Scènes
+Fixtures model the parts of ChatGPT that NiakGPT depends on:
 
-Les paramètres d'URL permettent de reproduire rapidement des états :
+- native left sidebar and Projects;
+- Project/chat drawers and action menus;
+- conversation content and long-thread states;
+- composer, prompt coach and continuity markers;
+- activity/status surfaces;
+- route changes, React-style remounts and BFCache recovery;
+- home, Project and conversation layouts.
 
-- `?state=ready`
-- `?state=loading`
-- `?state=waiting`
-- `?state=thinking`
-- `?state=executing`
-- `?state=error`
-- `?scene=heavy&state=executing`
-- `?scene=activity&state=executing`
-- `?scene=governance`
+The lab also contains real MV3 extension-on-fixture tests that load the unpacked extension in a browser process.
 
-## Local
+## Evidence boundary
+
+A green Visual Lab proves behavior against its deterministic fixture. It does **not** prove the latest authenticated ChatGPT production DOM.
+
+See [../TESTING_TRUTH.md](../TESTING_TRUTH.md).
+
+## Local setup
 
 ```bash
 cd visual-lab
-npm install
+npm ci
 npx playwright install chromium
 npm test
 ```
 
-Pour explorer manuellement :
+For manual exploration:
 
 ```bash
 npm run serve
 ```
 
-Puis ouvrir `http://127.0.0.1:4173/visual-lab/`.
+Then open:
 
-## CI
+```text
+http://127.0.0.1:4173/visual-lab/
+```
 
-Le workflow Visual Lab lance Chromium, vérifie les débordements/chevauchements essentiels et produit des captures dans l'artefact `niakgpt-visual-lab`. Les screenshots sont destinés à être inspectés après chaque modification importante de DA.
+## Browser matrix
 
-Le labo ne remplace pas un test final sur le vrai site ChatGPT : il sert de boucle rapide et déterministe pour éliminer la majorité des régressions visuelles avant le test réel.
+Targeted workflows exercise Chromium, Firefox and WebKit. Some runtime gates additionally load the actual MV3 extension in Chromium or Brave.
+
+## Artifacts
+
+CI screenshots and reports are uploaded as short-retention GitHub Actions artifacts. They are evidence, not repository source files, and must not be committed under `playwright-report/`, `test-results/` or generated artifact directories.
+
+## Regression policy
+
+A production screenshot that exposes a shape the fixture does not model should lead to a new/updated fixture before the corresponding runtime fix is considered covered.

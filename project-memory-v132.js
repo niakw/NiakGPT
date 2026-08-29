@@ -20,6 +20,7 @@
   const parseTime = v => { const n = Number(v); if (Number.isFinite(n) && n > 0) return n > 1e12 ? n : n * 1000; const d = Date.parse(String(v || '')); return Number.isFinite(d) ? d : 0; };
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const defaults = { autoSync: true, injectOnNewChat: true };
+  let prefsCache = Object.assign({}, defaults), prefsReady = false;
 
   function send(message) {
     return new Promise(resolve => {
@@ -59,14 +60,17 @@
   }
 
   async function prefs() {
-    try { return Object.assign({}, defaults, (await chrome.storage.local.get(PREFS_KEY))[PREFS_KEY] || {}); }
-    catch { return Object.assign({}, defaults); }
+    try { prefsCache = Object.assign({}, defaults, (await chrome.storage.local.get(PREFS_KEY))[PREFS_KEY] || {}); }
+    catch { prefsCache = Object.assign({}, defaults); }
+    prefsReady = true;
+    return Object.assign({}, prefsCache);
   }
 
   async function setPrefs(next) {
-    const value = Object.assign({}, defaults, next || {});
-    await chrome.storage.local.set({ [PREFS_KEY]: value });
-    return value;
+    prefsCache = Object.assign({}, defaults, next || {});
+    prefsReady = true;
+    await chrome.storage.local.set({ [PREFS_KEY]: prefsCache });
+    return Object.assign({}, prefsCache);
   }
 
   async function state(patch) {
@@ -249,10 +253,18 @@
       for (let at = 0; at < full.length; at += CHUNK) chunks.push(full.slice(at, at + CHUNK));
       const base = ppath(project.id, 'conversations/' + safe(chat.id)), files = [];
       chunks.forEach((text, part) => files.push({ path: base + '/part-' + String(part + 1).padStart(3,'0') + '.md', content:text }));
+      for (let stale = chunks.length; stale < Number(old && old.parts || 0); stale++) {
+        files.push({
+          path: base + '/part-' + String(stale + 1).padStart(3,'0') + '.md',
+          content:'# Superseded\n\nThis chunk is no longer part of the current conversation snapshot. Use Git history for the previous revision.\n'
+        });
+      }
       const sig = signals(rows);
-      files.push({ path: base + '/index.json', content: JSON.stringify({ schema:1, id:chat.id, title:one(chat.title || data.title || 'Conversation'), updated:Math.max(updated, parseTime(data.update_time), Date.now()), parts:chunks.length, messages:rows.length, signals:sig }, null, 2) + '\n' });
+      const canonicalUpdated = Math.max(updated, parseTime(data.update_time)) || Date.now();
+      const chatIndex = { schema:1, id:chat.id, title:one(chat.title || data.title || 'Conversation'), updated:canonicalUpdated, capturedAt:new Date().toISOString(), parts:chunks.length, messages:rows.length, signals:sig };
+      files.push({ path: base + '/index.json', content: JSON.stringify(chatIndex, null, 2) + '\n' });
       await commit(files, 'NiakGPT memory: ' + one(project.name || project.id) + ' / ' + one(chat.title || chat.id));
-      idx.conversations[chat.id] = { id:chat.id, title:one(chat.title || data.title || 'Conversation'), updated:Math.max(updated, parseTime(data.update_time), Date.now()), parts:chunks.length, messages:rows.length, signals:sig };
+      idx.conversations[chat.id] = chatIndex;
       changed++;
       await sleep(300);
     }
@@ -363,9 +375,8 @@
     } catch { return false; }
   }
 
-  async function inject(ed) {
-    const p = await prefs();
-    if (!p.injectOnNewChat || !contextProject || !contextText || !visible(ed)) return;
+  function inject(ed) {
+    if (!prefsReady || !prefsCache.injectOnNewChat || !contextProject || !contextText || !visible(ed)) return;
     if (document.querySelector('[data-message-author-role="user"]')) return;
     const raw = editorText(ed); if (!raw.trim() || raw.startsWith('NIAKGPT PROJECT MEMORY —')) return;
     const key = 'niakgpt-memory-v132:' + contextProject + ':' + location.pathname;
@@ -429,5 +440,5 @@
   if (window.navigation && window.navigation.addEventListener) window.navigation.addEventListener('navigatesuccess',route);
   window.addEventListener('pageshow',() => { refreshContext(); resume(); schedule(15000); });
 
-  refreshContext(); resume(); schedule(18000);
+  prefs().finally(() => { refreshContext(); resume(); schedule(18000); });
 })();

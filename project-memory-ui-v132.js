@@ -139,8 +139,9 @@
   }
 
   const observer = new MutationObserver(records => {
-    if (records.some(record => [...record.addedNodes].some(node => node instanceof Element && (node.id === 'ng90-control' || node.querySelector && node.querySelector('#ng90-control'))))) schedule(40);
-    else if (document.querySelector('#ng90-control.open')) schedule(120);
+    const controlAdded = records.some(record => [...record.addedNodes].some(node => node instanceof Element && (node.id === 'ng90-control' || node.querySelector && node.querySelector('#ng90-control'))));
+    const openWithoutMemory = !!document.querySelector('#ng90-control.open .ng90-grid') && !document.querySelector('#ng90-control [data-ng132-memory]');
+    if (controlAdded || openWithoutMemory) schedule(40);
   });
   observer.observe(document.documentElement,{childList:true,subtree:true});
 

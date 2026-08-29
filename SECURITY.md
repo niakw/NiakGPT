@@ -74,6 +74,10 @@ Le contexte GitHub complet n’est pas injecté dans le composer.
 
 Le texte utilisateur reste prioritaire et Project Memory ne doit pas transformer les messages suivants du même fil.
 
+## Project Governance
+
+Les mutations de rattachement Project restent sous le contrat de gouvernance existant : une action manuelle récente reste prioritaire, les destinations sont exactes et aucune suppression/mutation destructive n’est inventée.
+
 ## Endpoints internes ChatGPT
 
 Les autres règles du bridge restent inchangées :

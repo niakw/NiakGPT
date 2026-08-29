@@ -8,6 +8,7 @@
   const STATE_KEY = 'niakgpt-project-memory-state-v132';
   const CONTEXT_KEY = 'niakgpt-project-memory-context-v132';
   const QUEUE_KEY = 'niakgpt-project-memory-queue-v132';
+  const MEMORY_LOCK = 'niakgpt-project-memory-sync-v132';
   const MAX_STATE = 18000;
   const CHUNK = 360000;
   let seq = 0, syncing = false, autoTimer = 0, routeTimer = 0;
@@ -283,9 +284,11 @@
   async function deepInventory() {
     let raw = await cache(), list = projects(raw);
     if (!list.some(p => p.count > 0 && !p.indexed)) return list;
+    if (!await waitIdle(90000)) return list;
     document.dispatchEvent(new CustomEvent('niakgpt:force-server-index', { detail:{ source:'project-memory-v132' } }));
     const end = Date.now() + 90000;
-    while (Date.now() < end && !busy()) {
+    while (Date.now() < end) {
+      if (busy() || document.hidden) { await sleep(1000); continue; }
       await sleep(1000); raw = await cache(); list = projects(raw);
       if (!list.some(p => p.count > 0 && !p.indexed)) break;
     }
@@ -297,8 +300,17 @@
   }
 
   async function bootstrap(options) {
+    const opt = options || {};
+    if (navigator.locks && navigator.locks.request && opt.__lockHeld !== true) {
+      let lockedResult = { ok:true, skipped:'sync_owned_by_other_tab' };
+      await navigator.locks.request(MEMORY_LOCK,{mode:'exclusive',ifAvailable:true},async lock => {
+        if (!lock) return;
+        lockedResult = await bootstrap(Object.assign({},opt,{__lockHeld:true}));
+      });
+      return lockedResult;
+    }
     if (syncing) return { ok:false, error:'sync_already_running' };
-    const opt = options || {}, st = await send({ type:'niakgpt:memory-status-v132' });
+    const st = await send({ type:'niakgpt:memory-status-v132' });
     if (!st || !st.connected) return { ok:false, error:st && st.configured ? 'github_token_missing' : 'not_connected' };
     syncing = true;
     try {
@@ -323,8 +335,13 @@
     } finally { syncing = false; }
   }
 
+  const autoOwner = () => {
+    const role = String(document.documentElement.dataset.ng8TabRole || '').toLowerCase();
+    return !role || role === 'worker';
+  };
+
   async function resume() {
-    if (syncing) return;
+    if (syncing || !autoOwner()) return;
     try {
       const q = (await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY], p = await prefs();
       if (q && q.pending && q.pending.length && p.autoSync) bootstrap({ force:q.force, projectIds:q.pending });
@@ -333,8 +350,9 @@
 
   async function schedule(delay) {
     clearTimeout(autoTimer);
-    if (!(await prefs()).autoSync) return;
+    if (!autoOwner() || !(await prefs()).autoSync) return;
     autoTimer = setTimeout(async () => {
+      if (!autoOwner()) return;
       if (busy() || document.hidden) return schedule(15000);
       const st = await send({ type:'niakgpt:memory-status-v132' });
       if (st && st.connected) bootstrap({ force:false });
@@ -433,6 +451,10 @@
     if (area === 'local' && changes[CONTEXT_KEY]) refreshContext();
   });
   document.addEventListener('niakgpt:activity-changed', () => { if (!busy()) schedule(5000); });
+  document.addEventListener('niakgpt:tab-role-changed', event => {
+    if (event.detail && event.detail.role === 'worker') { resume(); schedule(2500); }
+    else clearTimeout(autoTimer);
+  });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { refreshContext(); resume(); } });
 
   function route() { clearTimeout(routeTimer); routeTimer = setTimeout(refreshContext,120); }

@@ -22,7 +22,7 @@ async function runScenario(failFile=''){
       return[];
     }}
   };
-  vm.runInNewContext(source,{chrome,console,setTimeout,clearTimeout,Promise,Number,String,Date},{filename:'background-v100.js'});
+  vm.runInNewContext(source,{chrome,console,setTimeout,clearTimeout,Promise,Number,String,Date,importScripts(){}},{filename:'background-v100.js'});
   assert(typeof onMessage==='function','background did not register runtime message listener');
   const response=await new Promise((resolve,reject)=>{
     const timeout=setTimeout(()=>reject(new Error(`response timeout for ${failFile||'success'}`)),1000);

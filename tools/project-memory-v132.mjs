@@ -45,6 +45,9 @@ assert.match(runtime, /function inject\(ed\)/);
 assert.doesNotMatch(runtime, /async function inject\(ed\)/);
 assert.match(runtime, /prefsReady/);
 assert.match(runtime, /canonicalUpdated/);
+assert.match(runtime, /MEMORY_LOCK/);
+assert.match(runtime, /autoOwner/);
+assert.match(runtime, /niakgpt:tab-role-changed/);
 assert.match(runtime, /PROJECT_STATE\.md/);
 assert.match(runtime, /NIAKGPT PROJECT MEMORY — CHECKPOINT RÉCUPÉRÉ/);
 assert.match(runtime, /Superseded/);
@@ -63,5 +66,8 @@ assert.doesNotMatch(fixture, /github_pat_|ghp_|Authorization:/);
 const packager = fs.readFileSync('tools/package-extension.mjs','utf8');
 assert.match(packager, /importScripts/);
 assert.match(packager, /project-memory-background-v132\.js/);
+
+assert.ok(fs.existsSync('visual-lab/project-memory-v132.mjs'),'Project Memory browser gate missing');
+assert.ok(fs.existsSync('.github/workflows/project-memory-v132.yml'),'Project Memory workflow missing');
 
 console.log('PROJECT_MEMORY_V132_PASS');

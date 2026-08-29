@@ -31,6 +31,9 @@ jobs:
       - name: Validate repository hygiene
         run: node tools/check-repository-hygiene.mjs
 
+      - name: Validate private Project Memory v132
+        run: node tools/project-memory-v132.mjs
+
       - name: Check JavaScript syntax from manifest
         run: |
           node - <<'NODE' > /tmp/niakgpt-js.txt

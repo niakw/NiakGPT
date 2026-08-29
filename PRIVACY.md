@@ -105,7 +105,8 @@ NiakGPT utilise notamment :
 - `chrome.storage.local` pour préférences, index, gouvernance, queues de reprise et checkpoints locaux ;
 - `chrome.storage.session` pour le token GitHub non persistant ;
 - `sessionStorage` pour certains états de continuité temporaires ;
-- `localStorage` / IndexedDB pour certains caches et mécanismes historiques encore utilisés par le runtime.
+- `localStorage` / IndexedDB pour certains caches et mécanismes historiques encore utilisés par le runtime ;
+- `BroadcastChannel` et `navigator.locks` pour la coordination locale multi-onglets, notamment afin qu’un seul WORKER exécute la synchronisation automatique Project Memory.
 
 ## Déconnexion, suppression et export
 

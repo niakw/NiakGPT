@@ -40,7 +40,28 @@ for(const [engine,launcher] of Object.entries(engines)){
     const stable=await page.evaluate(()=>{const box=document.getElementById('ng8-pins'),outer=box.querySelector(':scope>.ng8-pin-list'),inner=box.querySelector('.ng96-folder-list');return{box:box.dataset.token,head:box.querySelector('.ng8-pin-head')?.dataset.token,studio:box.querySelector(`a[data-ng121-pid="${window.__P1}"]`)?.dataset.token,outer:outer.scrollTop,inner:inner.scrollTop,order:[...box.querySelectorAll('a[data-ng8-pin]')].map(a=>a.dataset.ng121Pid),border:getComputedStyle(box).borderTopWidth+' '+getComputedStyle(box).borderTopStyle+' '+getComputedStyle(box).borderTopColor};});
     assert(stable.box==='box'&&stable.head==='head'&&stable.studio==='studio',`${engine}: stable Projects nodes were replaced during benign churn`);assert(Math.abs(stable.outer-before.outer)<=3,`${engine}: Projects scroll snapped ${before.outer}->${stable.outer}`);assert(Math.abs(stable.inner-before.inner)<=3,`${engine}: chat scroll snapped ${before.inner}->${stable.inner}`);assert(JSON.stringify(stable.order)===JSON.stringify(before.order),`${engine}: Projects reordered during chat activity`);assert(stable.border===before.border,`${engine}: PROJECTS frame changed during churn`);
 
-    const projectButton=page.locator(`#ng8-pins .ng96-pin-entry[data-pid="${P1}"]>.ng113-native-actions-project`);await projectButton.scrollIntoViewIfNeeded();const targetSize=await projectButton.evaluate(b=>{const r=b.getBoundingClientRect();return{w:r.width,h:r.height};});assert(targetSize.w>=24&&targetSize.h>=24,`${engine}: Project action target is below WCAG 2.5.8 minimum`);let projectMenuGeometry=null;for(let i=0;i<5;i++){await projectButton.click();await page.waitForFunction(()=>!!document.querySelector('#ng123-action-menu[data-kind="project"]'));let state=await page.evaluate(()=>{const m=document.getElementById('ng123-action-menu'),side=document.querySelector('[data-testid="conversation-sidebar"]'),r=m.getBoundingClientRect(),s=side.getBoundingClientRect(),hit=document.elementFromPoint((r.left+r.right)/2,(r.top+r.bottom)/2);return{body:m.parentElement===document.body,fixed:getComputedStyle(m).position==='fixed',hit:!!hit?.closest('#ng123-action-menu'),outside:r.left>=s.right+2,text:m.innerText};});projectMenuGeometry=state;assert(state.body&&state.fixed&&state.hit&&state.outside,`${engine}: Project menu is clipped/inside sidebar/not hit-testable`);assert(state.text.includes('Actualiser')&&!state.text.includes('Déplacer vers'),`${engine}: Project action menu has chat actions`);await projectButton.click();await page.waitForFunction(()=>!document.getElementById('ng123-action-menu'));}
+    const projectButton=page.locator(`#ng8-pins .ng96-pin-entry[data-pid="${P1}"]>.ng113-native-actions-project`);
+    await projectButton.scrollIntoViewIfNeeded();
+    const targetSize=await projectButton.evaluate(b=>{const r=b.getBoundingClientRect();return{w:r.width,h:r.height};});
+    assert(targetSize.w>=24&&targetSize.h>=24,`${engine}: Project action target is below WCAG 2.5.8 minimum`);
+    const clickUntil=async predicate=>{
+      for(let attempt=0;attempt<4;attempt++){
+        await projectButton.scrollIntoViewIfNeeded();
+        await projectButton.click({timeout:5000});
+        try{await page.waitForFunction(predicate,null,{timeout:2200});return true;}
+        catch{if(attempt<3)await sleep(160);}
+      }
+      return false;
+    };
+    let projectMenuGeometry=null;
+    for(let i=0;i<5;i++){
+      assert(await clickUntil(()=>!!document.querySelector('#ng123-action-menu[data-kind="project"]')),`${engine}: Project menu did not open after bounded human retries (cycle ${i+1})`);
+      let state=await page.evaluate(()=>{const m=document.getElementById('ng123-action-menu'),side=document.querySelector('[data-testid="conversation-sidebar"]'),r=m.getBoundingClientRect(),s=side.getBoundingClientRect(),hit=document.elementFromPoint((r.left+r.right)/2,(r.top+r.bottom)/2);return{body:m.parentElement===document.body,fixed:getComputedStyle(m).position==='fixed',hit:!!hit?.closest('#ng123-action-menu'),outside:r.left>=s.right+2,text:m.innerText};});
+      projectMenuGeometry=state;
+      assert(state.body&&state.fixed&&state.hit&&state.outside,`${engine}: Project menu is clipped/inside sidebar/not hit-testable`);
+      assert(state.text.includes('Actualiser')&&!state.text.includes('Déplacer vers'),`${engine}: Project action menu has chat actions`);
+      assert(await clickUntil(()=>!document.getElementById('ng123-action-menu')),`${engine}: Project menu did not close after bounded human retries (cycle ${i+1})`);
+    }
     const chatButton=page.locator('#ng8-pins .ng96-chat-entry>.ng113-native-actions-chat').nth(12);await chatButton.scrollIntoViewIfNeeded();await chatButton.click();await page.waitForFunction(()=>!!document.querySelector('#ng123-action-menu[data-kind="chat"]'));const chatMenuState=await page.evaluate(()=>{const m=document.getElementById('ng123-action-menu'),side=document.querySelector('[data-testid="conversation-sidebar"]'),r=m.getBoundingClientRect(),s=side.getBoundingClientRect(),hit=document.elementFromPoint((r.left+r.right)/2,(r.top+r.bottom)/2);return{text:m.innerText,body:m.parentElement===document.body,fixed:getComputedStyle(m).position==='fixed',hit:!!hit?.closest('#ng123-action-menu'),outside:r.left>=s.right+2};});assert(chatMenuState.text.includes('Renommer')&&chatMenuState.text.includes('Déplacer vers')&&!chatMenuState.text.includes('Actualiser'),`${engine}: Chat menu identity mixed with Project menu`);assert(chatMenuState.body&&chatMenuState.fixed&&chatMenuState.hit&&chatMenuState.outside,`${engine}: Chat menu is clipped/inside sidebar/not hit-testable`);await chatButton.click();await page.waitForFunction(()=>!document.getElementById('ng123-action-menu'));
 
     // Remount the entire native sidebar without carrying NiakGPT nodes. v121 must bootstrap again.

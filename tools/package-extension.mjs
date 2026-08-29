@@ -14,6 +14,7 @@ for(const name of ['MAIN_RUNTIME','ISOLATED_RUNTIME']){
   if(!body)throw new Error(`Missing ${name}`);
   for(const hit of body.matchAll(/'([^']+)'/g))files.add(hit[1]);
 }
+for(const call of bg.matchAll(/importScripts\((.*?)\)/gs))for(const hit of call[1].matchAll(/['"]([^'"]+)['"]/g))files.add(hit[1]);
 for(const file of [...Object.values(m.icons||{}),...Object.values(m.action?.default_icon||{})])files.add(file);
 for(const file of ['README.md','README.fr.md','LICENSE','PRIVACY.md','SECURITY.md','CHANGELOG.md'])if(fs.existsSync(file))files.add(file);
 
@@ -30,7 +31,8 @@ for(const required of [
   'analysis-bridge-v112.js','reclassify-deep-v112.js','performance-guard-v112.js','performance-guard-v112.css','home-layout-v112.js','home-layout-v112.css',
   'matrix-guardian-v112.js','matrix-guardian-v112.css','turn-headers-v112.js','continuity-v112.js','native-da-v112.css','sidebar-icons-v114.js','sidebar-icons-v114.css','cache-bus-v096.js',
   'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','chat-attention-v113.css','native-actions-v113.css','conversation-load-guard-v113.js',
-  'activity-ui-v097.js','side-panels-v096.js','live-fixes-v104.js','live-fixes-v106.js','project-links-v106.js','live-fixes-v104.css','continuity-v100.js'
+  'activity-ui-v097.js','side-panels-v096.js','live-fixes-v104.js','live-fixes-v106.js','project-links-v106.js','live-fixes-v104.css','continuity-v100.js',
+  'project-memory-background-v132.js','project-memory-v132.js','project-memory-ui-v132.js','project-memory-v132.css'
 ])if(!fs.existsSync(path.join(build,required)))throw new Error(`Runtime omitted from ZIP: ${required}`);
 for(const requiredDoc of ['README.md','README.fr.md','LICENSE','PRIVACY.md','SECURITY.md','CHANGELOG.md'])if(!fs.existsSync(path.join(build,requiredDoc)))throw new Error(`Required release document omitted from ZIP: ${requiredDoc}`);
 for(const dead of [

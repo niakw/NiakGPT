@@ -1,0 +1,103 @@
+#ng90-control .ng90-grid > section[data-ng132-memory]{
+  grid-column:1/-1;
+}
+.ng132-memory-status{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  padding:10px 12px;
+  border:1px solid color-mix(in srgb,currentColor 18%,transparent);
+  border-radius:12px;
+  margin-bottom:10px;
+}
+.ng132-memory-status.ok{border-color:color-mix(in srgb,#35c96f 45%,transparent)}
+.ng132-memory-status.error{border-color:color-mix(in srgb,#ff6262 55%,transparent)}
+.ng132-memory-status small,
+.ng132-memory-form small,
+.ng132-option small,
+.ng132-memory-info span{
+  opacity:.72;
+  line-height:1.35;
+}
+.ng132-memory-form{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+}
+.ng132-memory-form>label{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  min-width:0;
+}
+.ng132-memory-form>label>span{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.ng132-memory-form input[type="text"],
+.ng132-memory-form input[type="password"]{
+  width:100%;
+  min-width:0;
+  box-sizing:border-box;
+  border:1px solid color-mix(in srgb,currentColor 16%,transparent);
+  background:color-mix(in srgb,currentColor 4%,transparent);
+  color:inherit;
+  border-radius:9px;
+  padding:9px 10px;
+  font:inherit;
+}
+.ng132-memory-form .ng132-token{grid-column:1/-1}
+.ng132-memory-form .ng132-remember{
+  grid-column:1/-1;
+  flex-direction:row;
+  align-items:flex-start;
+  gap:9px;
+  padding:8px 0 2px;
+}
+.ng132-memory-form .ng132-remember input{margin-top:3px}
+.ng132-memory-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  margin:10px 0;
+}
+.ng132-memory-actions button{
+  border:1px solid color-mix(in srgb,currentColor 18%,transparent);
+  background:color-mix(in srgb,currentColor 6%,transparent);
+  color:inherit;
+  border-radius:9px;
+  padding:8px 10px;
+  font:inherit;
+  cursor:pointer;
+}
+.ng132-memory-actions button:disabled{opacity:.42;cursor:not-allowed}
+.ng132-option{
+  display:flex;
+  align-items:flex-start;
+  gap:9px;
+  padding:8px 0;
+}
+.ng132-option>input{margin-top:3px}
+.ng132-option>span{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.ng132-memory-info{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  padding:8px 10px;
+  margin-top:7px;
+  border-radius:9px;
+  background:color-mix(in srgb,currentColor 4%,transparent);
+}
+@media(max-width:760px){
+  .ng132-memory-form{grid-template-columns:1fr}
+  .ng132-memory-form .ng132-token,
+  .ng132-memory-form .ng132-remember{grid-column:1}
+}
+@media(prefers-reduced-motion:reduce){
+  .ng132-memory-actions button{transition:none!important}
+}

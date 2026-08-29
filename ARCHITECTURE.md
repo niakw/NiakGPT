@@ -1,16 +1,17 @@
 # Architecture de NiakGPT
 
-NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.76 privilégie quatre propriétés : **faible coût runtime**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
+NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.77 privilégie quatre propriétés : **faible coût runtime**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
 
 ## Périmètre
 
-Le manifest limite NiakGPT à :
+Le manifest 0.9.77 déclare :
 
 ```text
 https://chatgpt.com/*
+https://api.github.com/*
 ```
 
-Aucun serveur NiakGPT n’est requis. Les caches, réglages, états de gouvernance et verrous restent dans le profil navigateur local.
+Aucun serveur NiakGPT n’est requis. Les caches, réglages, états de gouvernance et verrous restent dans le profil navigateur local. `api.github.com` n’est utilisé que par Project Memory après configuration explicite d’un dépôt mémoire privé.
 
 ## Deux mondes d’exécution
 
@@ -40,9 +41,61 @@ Le reste du produit vit dans le monde isolé :
 - gros fils et performance ;
 - coordination multi-onglets ;
 - profils, Control Center, coach et diagnostics ;
+- Project Memory v132 : synchronisation privée, checkpoint et UI de configuration ;
 - garde UX finale `ux-v131.js`.
 
 Les fichiers sont injectés séquentiellement par `background-v100.js` après le boot gate. `ux-v131.js` est volontairement le dernier runtime isolé : il vérifie le host réel et applique les invariants UX finaux sans reprendre la propriété métier des modules précédents.
+
+## Project Memory v132 — transport privé opt-in
+
+Project Memory sépare volontairement **le transport GitHub** de **la logique Project**.
+
+`project-memory-background-v132.js` est chargé dans le service worker par `importScripts()`. Il est l’unique propriétaire des appels `api.github.com` et de la gestion du token. Il :
+
+- normalise dépôt, branche, racine et chemins ;
+- refuse toute racine/path traversal ;
+- vérifie `private: true` et refuse un dépôt archivé ;
+- revérifie le caractère privé avant lecture/écriture ;
+- conserve le fine-grained token dans `chrome.storage.session` par défaut ;
+- n’écrit le token dans `chrome.storage.local` que sur choix explicite « mémoriser » ;
+- borne les batches Git et ne force jamais une ref de branche.
+
+`project-memory-v132.js` vit dans le monde isolé. Il possède :
+
+- le bootstrap des Projects non vides déjà présents dans l’index NiakGPT ;
+- la queue persistante de synchronisation/reprise ;
+- l’archive séquentielle des conversations ;
+- l’extraction bornée de signaux tâches / décisions / architecture ;
+- le `PROJECT_STATE.md` compact ;
+- la synchro incrémentale basée sur le timestamp canonique du fil ;
+- le cache local du checkpoint ;
+- l’injection **une seule fois** du checkpoint au premier message d’un nouveau fil Project.
+
+`project-memory-ui-v132.js` ne possède aucun transport. Il ajoute la configuration au Control Center et appelle l’API isolée du module mémoire.
+
+### Lecture complète d’un fil
+
+Le contrat historique « pas de GET conversation complet en fonctionnement normal » reste vrai.
+
+`page-bridge.js` n’autorise `GET /backend-api/conversation/{id}` que si la requête porte explicitement `memoryBootstrap: true`. Cette exception reste dans le broker unique, respecte `nativeBusy`, les gaps réseau et le circuit breaker 429. Elle sert uniquement à la copie privée activée par l’utilisateur.
+
+### Stockage canonique
+
+```text
+<root mémoire>/
+├── niakgpt-memory.json
+└── projects/<project-id>/
+    ├── project.json
+    ├── index.json
+    ├── PROJECT_STATE.md
+    └── conversations/<conversation-id>/
+        ├── index.json
+        └── part-001.md ...
+```
+
+L’historique complet est un stockage durable. Le checkpoint est la surface de contexte normale. NiakGPT ne réinjecte donc pas tout l’historique à chaque prompt.
+
+**Invariant de confidentialité : le dépôt public NiakGPT n’est jamais une destination de mémoire utilisateur. Les fixtures publiques sous `test/` sont exclusivement synthétiques.**
 
 ## Invariant 1 — sanitation du cache avant les consommateurs
 
@@ -313,7 +366,7 @@ peuvent être suspendus, tandis que composer, lecture, navigation et interface n
 
 Une modification architecturale n’est considérée terminée que si le niveau de preuve correspondant existe.
 
-La 0.9.76 utilise notamment :
+La 0.9.77 utilise notamment :
 
 1. `tools/check-hydration-v100.mjs` — invariants runtime et ordre de boot ;
 2. `labs/static_validate_current.py` — syntaxe, manifest, package/runtime, propriétaires uniques ;

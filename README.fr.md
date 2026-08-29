@@ -6,7 +6,7 @@
   <p>Projects · performance des longs fils · continuité · navigation · productivité ciblée</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.76-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.77-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -22,7 +22,7 @@ NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
 
-> **Version actuelle : 0.9.76.** La passe UX v131 rend NiakGPT plus discrète, vérifie la vraie sidebar gauche avant d’afficher Projects, protège le scroll et les brouillons utilisateur, fiabilise les actions Project/chat malgré les remounts et garde les reprises longues compactes.
+> **Version actuelle : 0.9.77.** Project Memory v132 ajoute une continuité GitHub privée optionnelle tout en conservant l’UX native-first v131, les protections des longs fils et les reprises bornées.
 
 ## Points forts
 
@@ -75,6 +75,21 @@ NiakGPT distingue trois cas :
 
 Le texte utilisateur reste toujours prioritaire : un brouillon modifié n’est jamais effacé simplement parce qu’il contient encore un marqueur NiakGPT.
 
+### Project Memory privé (optionnel)
+
+NiakGPT 0.9.77 peut associer, depuis le Centre de contrôle, un **dépôt GitHub privé choisi par l’utilisateur** à la continuité des Projects.
+
+- connexion explicite et désactivée par défaut ;
+- le dépôt sélectionné est vérifié comme **privé avant l’initialisation puis avant chaque lecture/écriture** ;
+- à la première connexion, tous les Projects ChatGPT existants non vides déjà indexés par NiakGPT sont amorcés ;
+- description/instructions du Project, snapshots d’historique, signaux de tâches/décisions/architecture et checkpoint compact `PROJECT_STATE.md` sont stockés sous une racine mémoire dédiée ;
+- après le bootstrap, seuls les fils dont le timestamp a changé sont relus ;
+- l’historique complet reste dans GitHub et **n’est pas réinjecté à chaque prompt** ;
+- dans un nouveau fil du Project, NiakGPT peut ajouter une seule fois le checkpoint borné au premier message utilisateur ;
+- la synchro se met en pause pendant une génération, une attente, une exécution ou une vérification ChatGPT, et une file interrompue peut reprendre ensuite.
+
+Le dépôt public `niakw/NiakGPT` n’est jamais utilisé pour stocker la mémoire utilisateur. Un fine-grained token GitHub limité au dépôt privé choisi est recommandé ; par défaut, le token reste uniquement en stockage de session navigateur, sauf si l’utilisateur demande explicitement de le mémoriser sur l’appareil.
+
 ### Interface discrète et native-first
 
 La couche UX v131 retire l’effet « seconde application autour de ChatGPT » :
@@ -86,19 +101,20 @@ La couche UX v131 retire l’effet « seconde application autour de ChatGPT » :
 - surfaces d’accueil/utilitaires débarrassées du chrome NiakGPT non essentiel ;
 - focus visible et `prefers-reduced-motion` intégrés au contrat.
 
-### Local-first par conception
+### Cœur local-first, synchro privée optionnelle
 
-NiakGPT demande actuellement uniquement :
+Le cœur de NiakGPT reste local-first. La version 0.9.77 déclare :
 
 ```text
 storage
 scripting
 https://chatgpt.com/*
+https://api.github.com/*
 ```
 
-Aucune télémétrie NiakGPT, aucun SDK publicitaire et aucune analytics externe. Les préférences, index, états de gouvernance et métadonnées de reprise restent dans le profil navigateur sauf export explicite de l’utilisateur.
+Aucune télémétrie NiakGPT, aucun SDK publicitaire, aucune analytics et aucun compte cloud NiakGPT. Le domaine GitHub n’est utilisé **qu’après configuration de Project Memory par l’utilisateur** ; sans configuration, Project Memory n’émet aucun trafic GitHub. Préférences, index, gouvernance et reprise restent locaux, tandis que le dépôt mémoire optionnel reste sous le contrôle de l’utilisateur.
 
-Voir [Confidentialité](PRIVACY.md) et [Sécurité](SECURITY.md) pour le modèle exact.
+Voir [Confidentialité](PRIVACY.md) et [Sécurité](SECURITY.md) pour le modèle exact des données, du token et du réseau.
 
 ## Installation
 
@@ -139,6 +155,7 @@ NiakGPT est une extension **Manifest V3** avec une surface de privilèges volont
 - **Projects :** une autorité de visibilité, un propriétaire du catalogue/placement, une garde UX finale.
 - **Multi-onglets :** coordination WORKER/CLIENT via des primitives locales du navigateur.
 - **Reprise :** chemins natifs bornés ; aucun contournement de challenge et aucune boucle de reload automatique.
+- **Project Memory :** transport GitHub isolé côté worker + synchroniseur Project isolé ; vérification du dépôt privé obligatoire et contexte normal limité à un checkpoint compact.
 
 Voir [ARCHITECTURE.md](ARCHITECTURE.md) pour l’ordre runtime et les invariants détaillés.
 
@@ -170,7 +187,7 @@ Une fixture verte ne remplace **jamais** une capture utilisateur réelle qui la 
 | [README.md](README.md) | README anglais |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture runtime et invariants de propriété |
 | [CHANGELOG.md](CHANGELOG.md) | Historique détaillé |
-| [RELEASE_NOTES_0.9.76.md](RELEASE_NOTES_0.9.76.md) | Résumé de la release courante |
+| [RELEASE_NOTES_0.9.77.md](RELEASE_NOTES_0.9.77.md) | Résumé de la release courante |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnostic et reprise |
 | [PRIVACY.md](PRIVACY.md) | Données locales et comportement réseau |
 | [SECURITY.md](SECURITY.md) | Modèle de sécurité et signalement |

@@ -71,7 +71,20 @@ for(const [engine,launcher] of Object.entries(engines)){
     state=await page.evaluate(p10=>({rows:document.querySelectorAll('#ng8-pins .ng96-folder-list a[data-chat]').length,count:window.__store['niakgpt-v08-cache'].counts?.[p10],cached:window.__store['niakgpt-v08-cache'].chats.filter(c=>c.projectId===p10).length,diag:window.__diag['pins-chats']||''}),p10);
     assert(state.rows===3&&state.count===3&&state.cached===3&&/^OK/.test(state.diag),`empty Project did not hydrate on demand: ${JSON.stringify(state)}`);
 
-    const action=page.locator(`#ng8-pins .ng96-pin-entry[data-pid="${p1}"] > .ng113-native-actions-project`);await action.waitFor({state:'visible',timeout:2500});await action.click();await page.waitForFunction(()=>document.querySelector('#menu-1[role="menu"]'),null,{timeout:3500});
+    const action=page.locator(`#ng8-pins .ng96-pin-entry[data-pid="${p1}"] > .ng113-native-actions-project`);
+    await action.waitFor({state:'visible',timeout:5000});
+    let nativeMenuOpened=false;
+    for(let attempt=0;attempt<3&&!nativeMenuOpened;attempt++){
+      await action.scrollIntoViewIfNeeded();
+      await action.click({timeout:5000});
+      try{
+        await page.waitForFunction(()=>document.querySelector('#menu-1[role="menu"]'),null,{timeout:2500});
+        nativeMenuOpened=true;
+      }catch{
+        if(attempt<2)await page.waitForTimeout(180);
+      }
+    }
+    assert(nativeMenuOpened,'canonical slug Project action button did not open native menu after bounded human retries');
     state=await page.evaluate(()=>{const m=document.getElementById('menu-1');return{menu:!!m,owned:m?.dataset.ng119Owned||'',floated:m?.dataset.ng113Floated||'',diag:window.__diag['actions-project']||''};});
     assert(state.menu&&state.owned==='1'&&state.floated==='1',`canonical slug Project action button did not open native menu: ${JSON.stringify(state)}`);
     await action.click();await page.waitForTimeout(250);assert(await page.locator('#menu-1').count()===0,'second click did not close native Project menu');

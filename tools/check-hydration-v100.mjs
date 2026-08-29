@@ -8,9 +8,9 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 
 const manifest=JSON.parse(read('manifest.json'));
 if(manifest.manifest_version!==3)fail('manifest_version drift');
-if(manifest.version!=='0.9.76')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.77')fail(`unexpected release ${manifest.version}`);
 same(manifest.permissions,['storage','scripting'],'permissions mismatch');
-same(manifest.host_permissions,['https://chatgpt.com/*'],'host scope mismatch');
+same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*'],'host scope mismatch');
 const staticRuntime=['boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'];
 same(manifest.content_scripts.flatMap(x=>x.js||[]),staticRuntime,'unexpected static runtime');
 
@@ -22,7 +22,8 @@ same(main,['page-bridge.js'],'MAIN runtime mismatch');
 const required=[
   'sidebar-metadata-v118.js','sidebar-projects-authority-v112.js','sidebar-projects-v121.js','sidebar-ux-v119.js','pin-folders-v096.js','app-v090.js','sidebar-actions-v123.js','folder-scroll-anchor-v124.js','project-native-name-sync-v124.js',
   'home-layout-v112.js','analysis-bridge-v112.js','reclassify-deep-v112.js','matrix-guardian-v112.js','performance-guard-v112.js','turn-headers-v112.js',
-  'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','continuity-v112.js','interruption-guard-v119.js'
+  'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','continuity-v112.js','interruption-guard-v119.js',
+  'project-memory-v132.js','project-memory-ui-v132.js'
 ];
 for(const file of required)if(!isolated.includes(file))fail(`current runtime missing ${file}`);
 for(const file of ['project-pins-v090.js','native-rename-v112.js','breadcrumb-v100.js','sidebar-authority-v107.js','sidebar-expando-guard-v108.js','sidebar-projects-authority-v109.js','sidebar-projects-authority-v110.js','sidebar-projects-authority-v111.js','native-actions-controller-v119.js','native-actions-v113.js',...staticRuntime.slice(1)])if(isolated.includes(file))fail(`legacy/conflicting runtime loaded ${file}`);
@@ -46,10 +47,17 @@ if(idx('project-native-name-sync-v124.js')<=idx('sidebar-actions-v123.js'))fail(
 if(idx('interruption-guard-v119.js')<=idx('continuity-v112.js'))fail('interruption guard must load after continuity capture handler');
 
 for(const file of isolated.filter(x=>x!=='retro-loader-v097.js'))forbid(read(file),'setInterval(',`permanent polling in ${file}`);
-for(const file of [...main,...isolated,'background-v100.js',...staticRuntime])if(!fs.existsSync(file))fail(`missing runtime ${file}`);
+for(const file of [...main,...isolated,'background-v100.js','project-memory-background-v132.js',...staticRuntime])if(!fs.existsSync(file))fail(`missing runtime ${file}`);
 
 const bridge=read('page-bridge.js');
-need(bridge,'const nativeFetch = window.fetch.bind(window);');need(bridge,'conversation_detail_get_disabled');need(bridge,'project_move_requires_governance');forbid(bridge,'window.fetch =');forbid(bridge,'globalThis.fetch =');
+need(bridge,'const nativeFetch = window.fetch.bind(window);');need(bridge,'conversation_detail_get_disabled');need(bridge,'d.memoryBootstrap !== true');need(bridge,'project_move_requires_governance');forbid(bridge,'window.fetch =');forbid(bridge,'globalThis.fetch =');
+
+const memoryBackend=read('project-memory-background-v132.js');
+for(const token of ['memory_repository_must_be_private','meta?.private !== true','chrome.storage.session','niakgpt:memory-connect-v132'])need(memoryBackend,token,'Project Memory backend invariant incomplete');
+const memoryRuntime=read('project-memory-v132.js');
+for(const token of ['PROJECT_STATE.md','canonicalUpdated','prefsReady','function inject(ed)','memoryBootstrap: memoryBootstrap === true','MEMORY_LOCK','autoOwner','niakgpt:tab-role-changed'])need(memoryRuntime,token,'Project Memory runtime invariant incomplete');
+forbid(memoryRuntime,'async function inject(ed)','Project Memory send-time injection must be synchronous');
+
 const gate=read('boot-gate-v100.js');
 for(const token of ['waitDomInteractive','waitForChatShell','restorePendingContinuity','guardUpdateOnboarding','injectRuntime','for(const delay of [0,240,720])','safeToMutate=!!document.body'])need(gate,token,'fast/retry bootstrap contract incomplete');
 forbid(gate,'location.reload(','boot gate must never reload ChatGPT');
@@ -108,7 +116,7 @@ for(const token of ['LIVE_KEY','nativeAt','pendingUserAt','pendingAssistantAt','
 forbid(turnHeaders,'setInterval(','turn headers must stay event-driven');
 
 const manifestText=JSON.stringify(manifest.content_scripts);
-for(const css of ['sidebar-metadata-v118.css','sidebar-projects-authority-v112.css','sidebar-ux-v119.css','native-actions-v113.css','sidebar-actions-v123.css','interruption-guard-v119.css','chat-attention-v113.css','performance-guard-v112.css','sidebar-icons-v114.css','live-stability-v129.css'])need(manifestText,css,`${css} missing from manifest`);
+for(const css of ['sidebar-metadata-v118.css','sidebar-projects-authority-v112.css','sidebar-ux-v119.css','native-actions-v113.css','sidebar-actions-v123.css','interruption-guard-v119.css','chat-attention-v113.css','performance-guard-v112.css','sidebar-icons-v114.css','live-stability-v129.css','project-memory-v132.css'])need(manifestText,css,`${css} missing from manifest`);
 for(const css of ['native-rename-v112.css','sidebar-authority-v107.css','sidebar-expando-guard-v108.css','sidebar-projects-authority-v109.css','sidebar-projects-authority-v110.css','sidebar-projects-authority-v111.css','native-ux-v125.css','native-ux-v126.css','sidebar-truth-v127.css'])forbid(manifestText,css,`${css} still wired`);
 
 for(const file of ['visual-lab/sidebar-session-ux-v123.mjs','visual-lab/tests/sidebar-human-ux-v123.spec.js','visual-lab/tests/activity-long-running-v124.spec.js','visual-lab/experience-gate-v116.mjs','visual-lab/false-positive-signals-v121.mjs','visual-lab/live-sidebar-state-v122.mjs','visual-lab/user-reported-regressions-v120.mjs','visual-lab/parallel-continue-v128.mjs','visual-lab/tests/composer-continuation-runtime-v128.spec.js','visual-lab/tests/live-stability-v129.spec.js'])if(!fs.existsSync(file))fail(`required current regression gate missing ${file}`);

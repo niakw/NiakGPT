@@ -25,9 +25,9 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.76': fail(f"version={version}")
+if version!='0.9.77': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting']: fail('permissions drift')
-if manifest.get('host_permissions')!=['https://chatgpt.com/*']: fail('host permissions drift')
+if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*']: fail('host permissions drift')
 
 # Release-facing documentation must never lag behind the installable manifest again.
 readme=read('README.md')
@@ -57,7 +57,8 @@ if main!=['page-bridge.js']: fail(f'MAIN_RUNTIME={main!r}')
 required={
     'sidebar-metadata-v118.js','sidebar-projects-authority-v112.js','sidebar-projects-v121.js','sidebar-ux-v119.js','pin-folders-v096.js','app-v090.js','sidebar-actions-v123.js',
     'home-layout-v112.js','analysis-bridge-v112.js','reclassify-deep-v112.js','matrix-guardian-v112.js','performance-guard-v112.js','turn-headers-v112.js','continuity-v112.js',
-    'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','interruption-guard-v119.js','ux-v131.js'
+    'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','interruption-guard-v119.js',
+    'project-memory-v132.js','project-memory-ui-v132.js','ux-v131.js'
 }
 missing_runtime=sorted(required-set(isolated))
 if missing_runtime: fail('current runtime missing: '+', '.join(missing_runtime))
@@ -82,6 +83,9 @@ for cs in manifest.get('content_scripts',[]):
     refs.update(cs.get('js',[]))
     refs.update(cs.get('css',[]))
 refs.add(manifest.get('background',{}).get('service_worker',''))
+background=read('background-v100.js')
+for import_body in re.findall(r"importScripts\((.*?)\)",background,re.S):
+    refs.update(re.findall(r"['\"]([^'\"]+\.js)['\"]",import_body))
 refs.update((manifest.get('icons') or {}).values())
 refs.update((manifest.get('action',{}).get('default_icon') or {}).values())
 missing=sorted(x for x in refs if x and not (ROOT/x).exists())
@@ -116,6 +120,20 @@ parallel=read('composer-continuation-v128.js')
 for token in ('↳ Suite en parallèle','LEGACY_HEADER','waiting','thinking','executing','nativeGenerationBusy','idleTriggerUntil','CANCEL_RX','prepareParallelContinuation','niakgpt:parallel-continue','isContentEditable','execCommand','cleanupAfterNativeSend','ng128ComposerCleanup','prefix-stripped'):
     if token not in parallel: fail('parallel continuation incomplete '+token)
 if 'setInterval(' in parallel: fail('parallel continuation must remain event-driven')
+
+memory_bg=read('project-memory-background-v132.js')
+for token in ('memory_repository_must_be_private','verifiedPrivateAt','chrome.storage.session','niakgpt:memory-connect-v132','niakgpt:memory-commit-v132','git/refs/heads'):
+    if token not in memory_bg: fail('Project Memory backend incomplete '+token)
+memory=read('project-memory-v132.js')
+for token in ('memoryBootstrap: memoryBootstrap === true','PROJECT_STATE.md','conversations/','sync_already_running','injectOnNewChat','NIAKGPT PROJECT MEMORY — CHECKPOINT RÉCUPÉRÉ','canonicalUpdated','MEMORY_LOCK','autoOwner','niakgpt:tab-role-changed'):
+    if token not in memory: fail('Project Memory runtime incomplete '+token)
+bridge=read('page-bridge.js')
+if "d.memoryBootstrap !== true" not in bridge or 'conversation_detail_get_disabled' not in bridge: fail('Project Memory full-history bridge guard incomplete')
+if 'project-memory-v132.css' not in css_runtime: fail('Project Memory UI CSS missing from manifest')
+if not (ROOT/'visual-lab/project-memory-v132.mjs').exists(): fail('Project Memory browser UX gate missing')
+if not (ROOT/'.github/workflows/project-memory-v132.yml').exists(): fail('Project Memory workflow missing')
+fixture=read('test/x.md')
+if 'Synthetic test data only' not in fixture or 'No real user text.' not in fixture: fail('Project Memory public lab fixture is not explicitly synthetic')
 
 watchdog=read('long-run-watchdog-v129.js')
 for token in ('DEFAULT_SEGMENT_MS','6*60*1000+30*1000','↻ Reprise NiakGPT','LEGACY_MARKER','LEGACY_MESSAGE','AUTO_RX','knownAutoDraft','nativeStop','draft-protected','attemptResume','niakgpt:long-run-resume','CANCEL_RX','sendCandidate','waiting-send-control','clearAutoDraft'):
@@ -164,7 +182,7 @@ package_tool=read('tools/package-extension.mjs')
 for token in (
     'sidebar-actions-v123.js','sidebar-actions-v123.css','native-actions-controller-v119.js','native-actions-v113.js','composer-continuation-v128.js',
     'long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js','live-stability-v129.css',
-    'ux-v131.js','ux-v131.css'
+    'ux-v131.js','ux-v131.css','project-memory-background-v132.js','project-memory-v132.js','project-memory-ui-v132.js','project-memory-v132.css'
 ):
     if token not in package_tool: fail('package runtime policy missing '+token)
 

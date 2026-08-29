@@ -1,3 +1,25 @@
+# NiakGPT 0.9.77 — Project Memory GitHub privé et continuité durable
+
+## Project Memory v132 — 2026-08-29
+
+- ajout d’un **dépôt GitHub privé choisi par l’utilisateur** comme mémoire durable optionnelle des Projects ;
+- vérification obligatoire `private: true` à la connexion puis avant les lectures/écritures ; dépôt archivé refusé ;
+- fine-grained token conservé en session par défaut, persistance locale uniquement sur choix explicite ;
+- bootstrap automatique de tous les Projects existants non vides : description/instructions, historique des fils, tâches, décisions, contraintes et signaux d’architecture ;
+- historique complet découpé sous `projects/<id>/conversations/<id>/` et checkpoint compact `PROJECT_STATE.md` ;
+- après bootstrap, synchronisation incrémentale des seuls fils dont le timestamp canonique a changé ;
+- queue de synchronisation persistante et reprise après interruption ;
+- pause des lectures lourdes pendant génération/vérification ChatGPT et conservation du broker/circuit breaker existant ;
+- `GET /backend-api/conversation/{id}` complet toujours interdit hors requête explicite `memoryBootstrap: true` ;
+- restauration du checkpoint une seule fois au premier message d’un nouveau fil Project, sans gonfler les prompts suivants ;
+- intégration au Control Center avec connexion, synchro, resync complet, déconnexion et options dédiées ;
+- ajout de la permission hôte `https://api.github.com/*`, sans trafic GitHub tant que Project Memory n’est pas configuré ;
+- packaging renforcé pour inclure les workers chargés via `importScripts()` ;
+- nouveaux gates statiques Project Memory + fixture publique synthétique `test/x.md` sans donnée utilisateur ni secret ;
+- documentation Privacy/Security/Architecture mise à jour pour distinguer clairement dépôt privé, token, historique Git et absence de chiffrement E2E applicatif dans cette version.
+
+---
+
 # NiakGPT 0.9.76 — UX native-first intégrale et reprise longue sûre
 
 ## Documentation & maintenance refresh — 2026-08-28

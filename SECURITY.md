@@ -2,104 +2,127 @@
 
 ## Modèle de sécurité
 
-NiakGPT 0.9.76 s’exécute uniquement sur `https://chatgpt.com/*` et utilise la session ChatGPT déjà ouverte dans le navigateur.
+NiakGPT 0.9.77 est une extension Manifest V3 dont le cœur reste local-first. Project Memory v132 ajoute un canal GitHub **optionnel**, réservé à un dépôt privé choisi par l’utilisateur.
 
-L’extension ne demande pas de clé API OpenAI et ne stocke volontairement ni cookie de session ni jeton d’accès dans un serveur NiakGPT externe.
+L’extension ne demande pas de clé API OpenAI et ne stocke volontairement ni cookie de session ChatGPT ni jeton d’accès ChatGPT dans un serveur NiakGPT externe.
 
-## Permissions
+## Permissions et domaines
 
-Le manifest courant demande uniquement :
+Le manifest demande :
 
 ```text
 storage
 scripting
 https://chatgpt.com/*
+https://api.github.com/*
 ```
 
-Toute nouvelle permission Chrome ou tout nouveau domaine dans `host_permissions` est une modification de sécurité et doit être justifié, documenté et testé explicitement.
+`api.github.com` est utilisé uniquement par Project Memory après configuration. Ajouter un domaine ou une permission reste une modification de sécurité qui doit être documentée et couverte par les gates.
 
-## Endpoints internes ChatGPT
+## Frontière Project Memory
 
-Certaines fonctions utilisent des endpoints internes employés par l’interface web de ChatGPT. Ils ne constituent pas une API publique garantie.
+Règles obligatoires :
 
-Règles :
+1. aucune destination mémoire n’est implicite ;
+2. le dépôt est fourni par l’utilisateur ;
+3. la connexion échoue si GitHub ne déclare pas le dépôt `private: true` ;
+4. la confidentialité du dépôt est revérifiée avant les lectures/écritures ;
+5. un dépôt archivé est refusé ;
+6. les chemins sont normalisés et les traversées `..` sont rejetées ;
+7. les écritures sont bornées en nombre de fichiers et en taille ;
+8. la mise à jour de branche n’utilise pas `force: true` ;
+9. un conflit de tête de branche provoque au plus une reconstruction/retry, jamais un écrasement forcé ;
+10. le dépôt public NiakGPT n’est jamais une destination spéciale ou par défaut.
 
-- chemins bornés par le bridge ;
-- pas de remplacement global de `window.fetch` ;
-- réponses inhabituelles traitées comme échec, pas comme réussite implicite ;
-- déduplication/circuit breaker sur les chemins concernés ;
-- **tout GET complet `/backend-api/conversation/{id}` initié par NiakGPT est refusé avant réseau** ;
-- mutation sensible suivie d’une convergence/vérification adaptée lorsqu’elle est disponible.
+Le dépôt privé protège l’accès par GitHub ; **NiakGPT 0.9.77 n’ajoute pas de chiffrement applicatif E2E des fichiers mémoire**. Toute personne ou application disposant d’un accès suffisant au dépôt peut lire son contenu.
+
+## Token GitHub
+
+Le modèle recommandé est un **fine-grained PAT limité au seul dépôt mémoire**.
+
+Le token doit disposer uniquement des droits nécessaires aux métadonnées et au contenu du dépôt. Éviter les tokens classiques ou les droits organisation/account inutiles.
+
+Par défaut, le token vit dans `chrome.storage.session`. La persistance dans `chrome.storage.local` n’est utilisée que si l’utilisateur active explicitement « Mémoriser le jeton sur cet appareil ».
+
+Conséquences :
+
+- un profil navigateur compromis peut exposer le token ;
+- un token mémorisé augmente la fenêtre d’exposition ;
+- révoquer le token dans GitHub invalide immédiatement les futures synchronisations ;
+- le token ne doit jamais être copié dans un diagnostic, une issue ou une fixture.
+
+Les erreurs retournées à l’UI nettoient les préfixes de tokens GitHub connus.
+
+## Historique complet ChatGPT
+
+Les `GET /backend-api/conversation/{id}` complets restent **bloqués par défaut** dans `page-bridge.js`.
+
+Ils ne sont autorisés que lorsqu’une requête Project Memory porte explicitement `memoryBootstrap: true`. Même dans ce cas :
+
+- la requête utilise le broker réseau unique ;
+- aucune récupération n’est lancée pendant une génération ChatGPT ou une vérification ;
+- le circuit breaker/rate-limit reste actif ;
+- le module de synchronisation travaille séquentiellement et reprend sa queue après interruption.
+
+Cette exception existe uniquement pour créer/actualiser l’archive privée demandée par l’utilisateur.
+
+## Prompt et restauration de contexte
+
+Le contexte GitHub complet n’est pas injecté dans le composer.
+
+`PROJECT_STATE.md` est borné et peut être ajouté une seule fois au premier prompt d’un nouveau fil Project. Le chemin d’envoi doit rester synchrone au geste Envoyer afin d’éviter qu’un clic natif parte avant l’injection.
+
+Le texte utilisateur reste prioritaire et Project Memory ne doit pas transformer les messages suivants du même fil.
 
 ## Project Governance
 
-Un déplacement automatisé de conversation :
+Les mutations de rattachement Project restent sous le contrat de gouvernance existant : une action manuelle récente reste prioritaire, les destinations sont exactes et aucune suppression/mutation destructive n’est inventée.
 
-1. passe par les gardes Governance ;
-2. cible une destination exacte ;
-3. utilise l’accusé de réception de la mutation ;
-4. met à jour l’état local avec une autorité temporelle cohérente ;
-5. laisse les inventaires légers confirmer la convergence globale.
+## Endpoints internes ChatGPT
 
-Une action manuelle récente reste prioritaire sur l’automatisation.
+Les autres règles du bridge restent inchangées :
 
-NiakGPT n’invente pas d’endpoint de suppression de Project et ne doit jamais lancer une mutation destructive non observée/certifiée.
+- chemins autorisés explicitement ;
+- pas de remplacement global de `window.fetch` ;
+- réponses inhabituelles = échec, pas réussite implicite ;
+- déduplication et circuit breaker ;
+- mutations Projects gouvernées ;
+- aucune mutation destructive inventée.
 
-## Injection, DOM et HTML
+## DOM, HTML et UI
 
-Les données dynamiques issues de titres, Projects et métadonnées sont insérées avec des primitives sûres lorsque du HTML n’est pas nécessaire.
+Les données dynamiques doivent utiliser `textContent` ou être échappées avant interpolation HTML.
 
-Les modules doivent préférer `textContent` et éviter toute interpolation HTML de contenu utilisateur non maîtrisé.
+Le Control Center ne doit pas se rerendre en boucle pendant la saisie d’un dépôt/token : la section Project Memory est réinsérée uniquement lorsque le Control Center apparaît ou lorsqu’un événement mémoire réel nécessite un rafraîchissement.
 
-## Automatisation du composer
+## Vérifications et challenges
 
-Le prompteur est opt-in et n’envoie rien automatiquement.
+NiakGPT ne contourne jamais CAPTCHA, challenge ou iframe de vérification ChatGPT.
 
-Les automatismes de continuité/reprise sont bornés :
-
-- aucun envoi si un brouillon utilisateur est présent ou a été modifié ;
-- aucun envoi tant qu’un vrai contrôle Envoyer n’est pas disponible ;
-- nettoyage limité aux marqueurs automatiques exacts connus ;
-- commandes explicites d’arrêt/annulation prioritaires ;
-- pas de boucle de reload automatique.
-
-## Vérifications, challenges et sécurité du service
-
-NiakGPT ne contourne jamais un challenge, CAPTCHA ou iframe de vérification ChatGPT.
-
-Pendant une vérification native, les requêtes NiakGPT doivent se mettre en attente/échouer proprement. Une reprise native éventuelle ne peut être tentée qu’après disparition du signal de challenge.
-
-## Données locales sensibles
-
-Les index et états locaux doivent être traités comme des données privées du profil navigateur. Un utilisateur ou logiciel ayant accès au profil navigateur peut potentiellement lire ces données.
-
-Les fixtures, logs et artefacts CI ne doivent contenir ni conversation réelle, ni Project privé, ni cookie, ni token.
+Pendant une vérification, les requêtes NiakGPT — y compris Project Memory — sont suspendues ou échouent proprement.
 
 ## Secrets à ne jamais publier
 
-Ne jamais joindre à une issue, PR ou diagnostic public :
+Ne jamais joindre à une issue, PR, fixture ou diagnostic public :
 
+- token GitHub ;
 - cookies de session ;
 - en-têtes `Authorization` ;
 - contenu brut de `/api/auth/session` ;
-- exports de conversation non anonymisés ;
-- identifiants privés inutiles ;
-- données personnelles non nécessaires à la reproduction.
+- conversation réelle non anonymisée ;
+- nom d’un dépôt mémoire privé inutile à la reproduction ;
+- données personnelles non nécessaires.
+
+Le fichier public `test/x.md` est réservé à des données synthétiques.
 
 ## Signaler une vulnérabilité
 
-Pour un problème non sensible, ouvrir une issue avec :
+Pour un problème non sensible, ouvrir une issue avec version, navigateur, étapes minimales et diagnostic anonymisé.
 
-- version NiakGPT ;
-- navigateur/version ;
-- étapes minimales ;
-- résultat attendu/observé ;
-- diagnostic anonymisé.
-
-Pour une vulnérabilité ou un rapport contenant des informations sensibles, utiliser un canal privé de sécurité GitHub lorsqu’il est disponible au lieu d’une issue publique.
+Pour un rapport sensible, utiliser un canal privé GitHub Security lorsqu’il est disponible.
 
 ## Voir aussi
 
 - [PRIVACY.md](PRIVACY.md)
-- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [ARCHITECTURE.md](ARCHITECTURE.md)
 - [TESTING_TRUTH.md](TESTING_TRUTH.md)

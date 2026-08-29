@@ -316,9 +316,10 @@
       return;
     }
 
-    // Full conversation payloads are intentionally forbidden: they are expensive on long threads
-    // and all NiakGPT features now rely on list/project metadata + local DOM/cache state.
-    if (method === 'GET' && conversationRx.test(path)) {
+    // Full conversation payloads stay forbidden during normal runtime. Project Memory may
+    // request one explicitly during a user-enabled private GitHub bootstrap/sync. Those reads
+    // still pass through the single broker, native-busy guard, gap and rate-limit circuit.
+    if (method === 'GET' && conversationRx.test(path) && d.memoryBootstrap !== true) {
       document.dispatchEvent(new CustomEvent(RES,{detail:{id,ok:false,status:0,data:null,error:'conversation_detail_get_disabled',transport:'guard'}}));
       return;
     }

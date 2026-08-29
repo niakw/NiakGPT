@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.76",
-  "description": "NiakGPT : Projects fiables, continuité longue et interface native-first discrète sur ChatGPT.",
+  "version": "0.9.77",
+  "description": "NiakGPT : Projects fiables, continuité longue et mémoire Project privée opt-in via GitHub.",
   "permissions": [
     "storage",
     "scripting"
   ],
   "host_permissions": [
-    "https://chatgpt.com/*"
+    "https://chatgpt.com/*",
+    "https://api.github.com/*"
   ],
   "background": {
     "service_worker": "background-v100.js"
@@ -26,6 +27,7 @@
         "governance-v085.css",
         "activity-v086.css",
         "control-center-v090.css",
+        "project-memory-v132.css",
         "core-v090.css",
         "profiles-v100.css",
         "commands-v100.css",

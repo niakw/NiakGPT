@@ -41,12 +41,12 @@ for(const invariant of [
 }
 
 const privacy=fs.readFileSync('PRIVACY.md','utf8');
-for(const disclosure of ['chrome.storage.local','IndexedDB','BroadcastChannel','aucune analytics']){
+for(const disclosure of ['chrome.storage.local','chrome.storage.session','IndexedDB','BroadcastChannel','aucune analytics','api.github.com','dépôt privé']){
   if(!privacy.includes(disclosure))throw new Error(`Privacy disclosure missing: ${disclosure}`);
 }
 
 const security=fs.readFileSync('SECURITY.md','utf8');
-for(const disclosure of ['Project Governance','Authorization','Permissions','Secrets']){
+for(const disclosure of ['Project Governance','Authorization','Permissions','Secrets','fine-grained PAT','memoryBootstrap']){
   if(!security.includes(disclosure))throw new Error(`Security guidance missing: ${disclosure}`);
 }
 

@@ -55,7 +55,7 @@ need(bridge,'const nativeFetch = window.fetch.bind(window);');need(bridge,'conve
 const memoryBackend=read('project-memory-background-v132.js');
 for(const token of ['memory_repository_must_be_private','meta?.private !== true','chrome.storage.session','niakgpt:memory-connect-v132'])need(memoryBackend,token,'Project Memory backend invariant incomplete');
 const memoryRuntime=read('project-memory-v132.js');
-for(const token of ['PROJECT_STATE.md','canonicalUpdated','prefsReady','function inject(ed)','memoryBootstrap: memoryBootstrap === true'])need(memoryRuntime,token,'Project Memory runtime invariant incomplete');
+for(const token of ['PROJECT_STATE.md','canonicalUpdated','prefsReady','function inject(ed)','memoryBootstrap: memoryBootstrap === true','MEMORY_LOCK','autoOwner','niakgpt:tab-role-changed'])need(memoryRuntime,token,'Project Memory runtime invariant incomplete');
 forbid(memoryRuntime,'async function inject(ed)','Project Memory send-time injection must be synchronous');
 
 const gate=read('boot-gate-v100.js');

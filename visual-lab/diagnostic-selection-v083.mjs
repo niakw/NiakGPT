@@ -39,10 +39,6 @@ for(const [engine,launcher] of Object.entries(selected)){
         set(k,v){own[k]=v;},
         snapshot(){return {...own,...window.__externalDiag};}
       };
-      document.documentElement.dataset.ng8TabRole='client';
-      document.documentElement.dataset.ng86Activity='ready';
-      document.documentElement.dataset.ng90Matrix='off';
-      document.documentElement.dataset.ng90Eggs='off';
     });
     await page.route('https://chatgpt.com/**',route=>route.fulfill({
       status:200,
@@ -50,10 +46,19 @@ for(const [engine,launcher] of Object.entries(selected)){
       body:'<!doctype html><html><head><style>aside[data-testid="conversation-sidebar"]{position:fixed;left:0;top:0;width:300px;height:780px}main{margin-left:320px}</style></head><body><aside data-testid="conversation-sidebar"><a href="/">ChatGPT</a><a href="/search">Recherche</a></aside><main><div data-message-author-role="assistant">Conversation</div></main></body></html>'
     }));
     await page.goto('https://chatgpt.com/c/11111111-1111-4111-8111-111111111111',{waitUntil:'domcontentloaded'});
+    await page.evaluate(()=>{
+      document.documentElement.dataset.ng8TabRole='client';
+      document.documentElement.dataset.ng86Activity='ready';
+      document.documentElement.dataset.ng90Matrix='off';
+      document.documentElement.dataset.ng90Eggs='off';
+    });
     await page.addScriptTag({content:source});
     await page.waitForSelector('#ng8-rail button[data-tab="diag"]',{timeout:4000});
     await page.locator('#ng8-rail button[data-tab="diag"]').evaluate(button=>button.click());
     await page.waitForFunction(()=>document.querySelector('#ng8-panel')?.innerText.includes('ONE'),null,{timeout:3000});
+    // Isolate the field regression from first-boot churn: the user is copying an already
+    // open diagnostic while live module metrics continue to change.
+    await page.waitForTimeout(700);
 
     const selectedText=await page.evaluate(()=>{
       const panel=document.getElementById('ng8-panel'),diag=panel.querySelector('.ng8-diag');
@@ -75,7 +80,7 @@ for(const [engine,launcher] of Object.entries(selected)){
       sameNode:window.__diagNodeBefore===document.querySelector('#ng8-panel .ng8-diag'),
       text:document.getElementById('ng8-panel')?.innerText||''
     }));
-    assert(held.selected.includes('ONE'),engine+': diagnostic update destroyed the active text selection');
+    assert(held.selected.includes('ONE'),engine+': diagnostic update destroyed the active text selection: '+JSON.stringify(held));
     assert(held.sameNode,engine+': diagnostic DOM rerendered while text was selected');
     assert(!held.text.includes('TWO'),engine+': diagnostic content updated during active selection');
 

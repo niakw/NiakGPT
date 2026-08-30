@@ -1,17 +1,18 @@
 # Architecture de NiakGPT
 
-NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.78 privilégie quatre propriétés : **faible coût runtime**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
+NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.79 privilégie quatre propriétés : **faible coût runtime**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
 
 ## Périmètre
 
-Le manifest 0.9.78 déclare :
+Le manifest 0.9.79 déclare :
 
 ```text
 https://chatgpt.com/*
 https://api.github.com/*
+https://github.com/login/*
 ```
 
-Aucun serveur NiakGPT n’est requis. Les caches, réglages, états de gouvernance et verrous restent dans le profil navigateur local. `api.github.com` n’est utilisé que par Project Memory après configuration explicite d’un dépôt mémoire privé.
+Aucun serveur NiakGPT n’est requis. Les caches, réglages, états de gouvernance et verrous restent dans le profil navigateur local. Project Memory utilise `api.github.com`, la permission `identity` et l’échange OAuth borné sur `github.com/login/*` uniquement après un geste explicite de connexion.
 
 ## Deux mondes d’exécution
 
@@ -57,8 +58,11 @@ Project Memory sépare volontairement **le transport GitHub** de **la logique Pr
 - refuse toute racine/path traversal ;
 - vérifie `private: true` et refuse un dépôt archivé ;
 - revérifie le caractère privé avant lecture/écriture ;
-- conserve le fine-grained token dans `chrome.storage.session` par défaut ;
-- n’écrit le token dans `chrome.storage.local` que sur choix explicite « mémoriser » ;
+- possède le parcours principal **GitHub App Manifest → installation GitHub → OAuth → liste des dépôts autorisés → choix du coffre** ;
+- crée une GitHub App privée propre au profil utilisateur, sans secret partagé dans le dépôt public ;
+- valide les deux `state` et les callbacks `chromiumapp.org` avant échange du code ;
+- conserve le user access token en session et le refresh token/client secret de cette GitHub App personnelle dans le profil local ; le PEM renvoyé par GitHub est jeté ;
+- maintient le fine-grained PAT historique uniquement comme fallback avancé ;
 - borne les batches Git et ne force jamais une ref de branche ;
 - sait créer le premier blob/tree/commit/ref d’un dépôt privé totalement vide ;
 - ne persiste token/configuration qu’après initialisation GitHub réussie.
@@ -74,7 +78,7 @@ Project Memory sépare volontairement **le transport GitHub** de **la logique Pr
 - le cache local du checkpoint ;
 - l’injection **une seule fois** du checkpoint au premier message d’un nouveau fil Project.
 
-`project-memory-ui-v132.js` ne possède aucun transport. Il ajoute la configuration au Control Center et appelle l’API isolée du module mémoire. Un échec de connexion conserve les champs saisis et expose une action de retry ; il ne remonte jamais comme erreur du runtime critique.
+`project-memory-ui-v132.js` ne possède aucun transport. Il expose d’abord « Se connecter avec GitHub », puis le compte et les dépôts privés réellement autorisés ; le PAT manuel est relégué dans une section avancée. Un échec conserve les valeurs utiles et ne remonte jamais comme erreur du runtime critique.
 
 ### Lecture complète d’un fil
 
@@ -98,7 +102,7 @@ Le contrat historique « pas de GET conversation complet en fonctionnement norma
 
 L’historique complet est un stockage durable. Le checkpoint est la surface de contexte normale. NiakGPT ne réinjecte donc pas tout l’historique à chaque prompt.
 
-**Invariant de confidentialité : le dépôt public NiakGPT n’est jamais une destination de mémoire utilisateur. Les fixtures publiques sous `test/` sont exclusivement synthétiques. Le dépôt public et ses GitHub Actions ne possèdent aucun credential vers un coffre utilisateur et ne connaissent pas son nom ; l’association dépôt coffre + secret d’accès n’existe que localement dans le navigateur.**
+**Invariant de confidentialité : le dépôt public NiakGPT n’est jamais une destination de mémoire utilisateur. Les fixtures publiques sous `test/` sont exclusivement synthétiques. Le dépôt public et ses GitHub Actions ne possèdent aucun credential vers un coffre utilisateur et ne connaissent pas son nom ; la GitHub App privée, ses identifiants, le choix de dépôt et les tokens n’existent que dans le profil navigateur/GitHub de l’utilisateur.**
 
 ## Invariant 1 — sanitation du cache avant les consommateurs
 
@@ -369,7 +373,7 @@ peuvent être suspendus, tandis que composer, lecture, navigation et interface n
 
 Une modification architecturale n’est considérée terminée que si le niveau de preuve correspondant existe.
 
-La 0.9.78 utilise notamment :
+La 0.9.79 utilise notamment :
 
 1. `tools/check-hydration-v100.mjs` — invariants runtime et ordre de boot ;
 2. `labs/static_validate_current.py` — syntaxe, manifest, package/runtime, propriétaires uniques ;

@@ -99,7 +99,7 @@ for(const token of ['nativeLimitControl','CONTINUITÉ NIAKGPT','markCurrentOut',
 for(const token of ['setInterval(','location.reload('])forbid(nativeHandoff,token,'native continuity handoff must stay bounded');
 
 const app=read('app-v090.js');
-for(const token of ['panelSelectionActive','diagnosticSelectionHeld','syncDiagnosticSelectionLock','selectionchange','diagSelectionGesture','S.diagTimer=setTimeout(retry,280)'])need(app,token,'diagnostic selection stability incomplete');
+for(const token of ['panelSelectionActive','diagnosticSelectionHeld','syncDiagnosticSelectionLock','releaseDiagnosticSelection','selectionchange','diagSelectionGesture','sticky read/copy mode','S.diagTimer=setTimeout(retry,280)'])need(app,token,'diagnostic selection stability incomplete');
 for(const token of ['MutationObserver(queueMainNodes)','function renderPins()','window.__NIAKGPT_SIDEBAR_PROJECTS_121__','niakgpt:sidebar-projects-reconcile'])need(app,token,'app/v121 cooperative ownership incomplete');
 need(app,"label.textContent=String(turn.innerText||turn.textContent||'')",'TOC DOM text must stay textContent');
 forbid(app,'function routeTick()');

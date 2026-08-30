@@ -28,7 +28,7 @@ It adds a native-first layer for Projects, navigation, long conversations, conti
 
 ### Hydration-safe startup
 
-NiakGPT may load at `document_start`, but its pre-runtime modules now stay dormant until the boot gate declares ChatGPT's initial React hydration stable. Before that signal they install no observers, timers, HTML attributes or DOM mutations. A dedicated Chromium/Firefox/WebKit regression lab snapshots the SSR-shaped DOM and fails if any NiakGPT pre-runtime changes it early.
+NiakGPT JavaScript no longer runs at `document_start`: the bootstrap group now starts at `document_idle`, then waits for stable host node identities, a long DOM quiet window, two idle scheduler turns and animation frames before any NiakGPT mutation. A dedicated Chromium/Firefox/WebKit lab simulates late React work via `MessageChannel` and fails if NiakGPT activates during a false-calm window.
 
 ### Projects that behave like part of ChatGPT
 

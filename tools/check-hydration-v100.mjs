@@ -74,6 +74,8 @@ for(const file of staticRuntime.slice(1)){
   need(src,"window.addEventListener('niakgpt:host-hydrated-v100',init,{once:true})",`pre-runtime must wait exactly once for hydration: ${file}`);
 }
 if(!fs.existsSync('visual-lab/hydration-barrier-v080.mjs'))fail('SSR hydration barrier browser gate missing');
+const hydrationLab=read('visual-lab/hydration-barrier-v080.mjs');
+for(const token of ["const BOOT='boot-gate-v100.js'",'manifestOrderedSource','boot gate opened hydration barrier before its quiet window','manifest-order SSR immutability + boot-gate activation'])need(hydrationLab,token,'full manifest-order hydration lab incomplete');
 
 
 const parallel=read('composer-continuation-v128.js');

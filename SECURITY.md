@@ -2,7 +2,7 @@
 
 ## Modèle de sécurité
 
-NiakGPT 0.9.78 est une extension Manifest V3 dont le cœur reste local-first. Project Memory v132 ajoute un canal GitHub **optionnel**, réservé à un dépôt privé choisi par l’utilisateur.
+NiakGPT 0.9.79 est une extension Manifest V3 dont le cœur reste local-first. Project Memory v132 ajoute un canal GitHub **optionnel**, réservé à un dépôt privé choisi par l’utilisateur.
 
 L’extension ne demande pas de clé API OpenAI et ne stocke volontairement ni cookie de session ChatGPT ni jeton d’accès ChatGPT dans un serveur NiakGPT externe.
 
@@ -13,11 +13,13 @@ Le manifest demande :
 ```text
 storage
 scripting
+identity
 https://chatgpt.com/*
 https://api.github.com/*
+https://github.com/login/*
 ```
 
-`api.github.com` est utilisé uniquement par Project Memory après configuration. Ajouter un domaine ou une permission reste une modification de sécurité qui doit être documentée et couverte par les gates.
+`api.github.com` est utilisé uniquement par Project Memory après configuration. `identity` ouvre le flux interactif GitHub et `github.com/login/*` est limité à l’échange/renouvellement OAuth. Ajouter un domaine ou une permission reste une modification de sécurité qui doit être documentée et couverte par les gates.
 
 ## Frontière Project Memory
 
@@ -35,26 +37,29 @@ Règles obligatoires :
 10. le dépôt public NiakGPT n’est jamais une destination spéciale ou par défaut ;
 11. un dépôt privé sans commit est initialisé par un premier commit/ref sans exiger une branche préexistante ;
 12. Project Memory est optionnel : une erreur de son backend ou de ses scripts ne peut pas rendre le bootstrap Projects/sidebar en échec ;
-13. les GitHub Actions du dépôt public NiakGPT ne reçoivent aucun secret, ne connaissent aucun dépôt coffre utilisateur et n’exécutent aucun smoke test contre un vrai coffre privé.
+13. les GitHub Actions du dépôt public NiakGPT ne reçoivent aucun secret, ne connaissent aucun dépôt coffre utilisateur et n’exécutent aucun smoke test contre un vrai coffre privé ;
+14. le parcours GitHub App valide un `state` aléatoire et l’URL de retour Chromium avant tout échange de code ;
+15. le sélecteur refuse tout dépôt qui n’est pas présent dans la liste des dépôts autorisés de l’installation GitHub App ;
+16. la clé privée PEM de la GitHub App créée via manifest flow n’est jamais persistée ni utilisée.
 
-Le dépôt privé protège l’accès par GitHub ; **NiakGPT 0.9.78 n’ajoute pas de chiffrement applicatif E2E des fichiers mémoire**. Toute personne ou application disposant d’un accès suffisant au dépôt peut lire son contenu.
+Le dépôt privé protège l’accès par GitHub ; **NiakGPT 0.9.79 n’ajoute pas de chiffrement applicatif E2E des fichiers mémoire**. Toute personne ou application disposant d’un accès suffisant au dépôt peut lire son contenu.
 
-## Token GitHub
+## Authentification GitHub
 
-Le modèle recommandé est un **fine-grained PAT limité au seul dépôt mémoire**. Ce PAT est le secret d’accès du coffre côté navigateur ; ce n’est pas un Repository secret du dépôt public NiakGPT.
+Le parcours recommandé utilise une **GitHub App privée créée pour l’utilisateur via le GitHub App Manifest flow**, puis `chrome.identity.launchWebAuthFlow` capture uniquement les retours vers l’URL `https://<extension-id>.chromiumapp.org/*`.
 
-Le token doit disposer uniquement des droits nécessaires aux métadonnées et au contenu du dépôt. Éviter les tokens classiques ou les droits organisation/account inutiles.
+Propriétés de sécurité :
 
-Par défaut, le token vit dans `chrome.storage.session`. La persistance dans `chrome.storage.local` n’est utilisée que si l’utilisateur active explicitement « Mémoriser le jeton sur cet appareil ».
+- aucun client secret OAuth/GitHub App partagé n’est compilé dans l’extension publique ;
+- le `state` du manifest flow et celui de l’installation/OAuth sont distincts, aléatoires et vérifiés ;
+- la GitHub App demande uniquement **Contents: write** et **Metadata: read** ;
+- GitHub affiche son propre écran d’installation et de sélection des dépôts ;
+- les appels de lecture/écriture continuent à revérifier `private: true` et `archived: false` ;
+- le user access token actif reste en `chrome.storage.session` ; le refresh token et le client secret de la GitHub App personnelle sont locaux au profil navigateur ;
+- le PEM/private key renvoyé à la création n’est pas stocké ;
+- les formats `github_pat_`, `ghp_`, `ghu_`, `ghr_` et autres préfixes GitHub connus sont nettoyés des erreurs exposées.
 
-Conséquences :
-
-- un profil navigateur compromis peut exposer le token ;
-- un token mémorisé augmente la fenêtre d’exposition ;
-- révoquer le token dans GitHub invalide immédiatement les futures synchronisations ;
-- le token ne doit jamais être copié dans un diagnostic, une issue ou une fixture.
-
-Les erreurs retournées à l’UI nettoient les préfixes de tokens GitHub connus.
+Un profil navigateur compromis peut exposer ces identifiants locaux. Le fallback **fine-grained PAT** reste disponible dans « Avancé » pour les environnements qui interdisent l’installation de GitHub Apps ; sa persistance locale reste opt-in.
 
 ## Historique complet ChatGPT
 

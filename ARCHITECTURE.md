@@ -30,7 +30,7 @@ Le gate `visual-lab/hydration-barrier-v080.mjs` reproduit maintenant deux rempla
 
 ## Invariant réseau 0.9.85 — ChatGPT natif gagne toujours
 
-`page-bridge.js` traite désormais tout envoi, génération, vérification, incident réseau ou reprise de connexion comme une priorité native. Les GET NiakGPT déjà en vol sont annulés, les nouveaux appels internes sont bloqués pendant une fenêtre calme, et une erreur réseau n’est plus rejouée via un second transport XHR. Project Memory est opportuniste : il attend l’inactivité humaine et espace les lectures complètes d’historique.
+`page-bridge.js` traite désormais tout envoi, génération, vérification, incident réseau ou reprise de connexion comme une priorité native. Les GET NiakGPT déjà en vol sont annulés, les nouveaux appels internes sont bloqués pendant une fenêtre calme, et une erreur réseau n’est plus rejouée via un second transport XHR. `analysis-bridge-v112.js` ne possède plus de transport ChatGPT direct : analyse, indexation et Project Memory convergent vers ce broker unique. Project Memory est opportuniste : il attend l’inactivité humaine et espace les lectures complètes d’historique. Une lecture de drawer explicitement déclenchée par l’utilisateur peut ignorer uniquement la fenêtre post-réponse une fois ChatGPT réellement `ready`; elle reste interdite pendant génération, vérification ou incident réseau. `interruption-guard-v119.js` ne clique plus automatiquement sur « Réessayer ».
 
 ## Invariant Pins 0.9.85 — le launcher Projects suffit
 

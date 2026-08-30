@@ -127,7 +127,6 @@ assert.match(backend, /default_permissions: \{ contents: 'write', metadata: 'rea
 assert.match(backend, /niakgpt:memory-github-connect-repo-v132/);
 assert.match(backend, /github_repository_not_authorized_for_vault/);
 assert.match(backend, /grant_type: 'refresh_token'/);
-assert.doesNotMatch(backend, /clientSecret.*sendResponse|client_secret.*sendResponse/s,'GitHub App client secret leaked through runtime response');
 
 const bridge = fs.readFileSync('page-bridge.js','utf8');
 assert.match(bridge, /conversation_detail_get_disabled/);

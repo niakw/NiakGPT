@@ -4,7 +4,7 @@
   window.__NIAKGPT_PROJECT_NATIVE_NAME_SYNC_124__=true;
 
   const CACHE_KEY='niakgpt-v08-cache';
-  const OWN='#ng8-pins,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb,#ng119-interruption,#ng123-action-menu,#ng123-rename-dialog';
+  const OWN='#ng8-pins,[data-ng121-retired="1"],#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb,#ng119-interruption,#ng123-action-menu,#ng123-rename-dialog';
   let timer=0,busy=false;
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const normalizePid=v=>{const s=clean(v),m=s.match(/^g-p-([A-Za-z0-9]+)(?:-.+)?$/);return m?`g-p-${m[1]}`:s;};

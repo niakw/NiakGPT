@@ -10,7 +10,7 @@ const manifest=JSON.parse(read('manifest.json'));
 if(manifest.manifest_version!==3)fail('manifest_version drift');
 if(manifest.version!=='0.9.82')fail(`unexpected release ${manifest.version}`);
 same(manifest.permissions,['storage','scripting','identity'],'permissions mismatch');
-same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*'],'host scope mismatch');
+same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*'],'host scope mismatch');
 const staticRuntime=['boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'];
 same(manifest.content_scripts.flatMap(x=>x.js||[]),staticRuntime,'unexpected static runtime');
 const jsScripts=manifest.content_scripts.filter(x=>(x.js||[]).length);

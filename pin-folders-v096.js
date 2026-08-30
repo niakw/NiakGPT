@@ -30,7 +30,7 @@
 
   function rpc(path,{timeout=18000}={}){
     const id=`ng96-folder-${Date.now()}-${++rpcSeq}`;
-    return new Promise(resolve=>{const t=setTimeout(()=>{off();resolve({ok:false,status:0,error:'rpc_timeout'});},timeout),h=e=>{if(e.detail?.id!==id)return;off();resolve(e.detail);},off=()=>{clearTimeout(t);document.removeEventListener('niakgpt:rpc-response',h);};document.addEventListener('niakgpt:rpc-response',h);document.dispatchEvent(new CustomEvent('niakgpt:rpc-request',{detail:{id,path,method:'GET'}}));});
+    return new Promise(resolve=>{const t=setTimeout(()=>{off();resolve({ok:false,status:0,error:'rpc_timeout'});},timeout),h=e=>{if(e.detail?.id!==id)return;off();resolve(e.detail);},off=()=>{clearTimeout(t);document.removeEventListener('niakgpt:rpc-response',h);};document.addEventListener('niakgpt:rpc-response',h);document.dispatchEvent(new CustomEvent('niakgpt:rpc-request',{detail:{id,path,method:'GET',foreground:true}}));});
   }
   function projectSnapshotSignature(raw,pid){
     if(!pid)return'';const chats=(raw?.chats||[]).filter(c=>normalizePid(c?.projectId)===pid).map(c=>[c.id,c.title||'',normalizePid(c.projectId||pid)]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])));return JSON.stringify([raw?.counts?.[pid]??null,chats]);
@@ -94,8 +94,15 @@
       const bus=window.__NIAKGPT_CACHE_BUS__;if(bus?.update){const next=await bus.update(merge);if(next)acceptCache(next);}else{const raw=(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||cache,next=merge(raw);await chrome.storage.local.set({[CACHE_KEY]:next});acceptCache(next);}
     }catch{}
   }
+  function projectInventoryComplete(pid){
+    pid=normalizePid(pid);const current=chatsFor(pid).length;
+    const indexed=(cache.indexedProjectIds||[]).some(id=>normalizePid(id)===pid);
+    const direct=Object.entries(cache.counts||{}).find(([id])=>normalizePid(id)===pid)?.[1];
+    const expected=Number(direct);
+    return indexed&&Number.isFinite(expected)&&expected>=0&&current>=expected;
+  }
   async function hydrateProject(pid){
-    pid=normalizePid(pid);if(!pid||chatsFor(pid).length)return;
+    pid=normalizePid(pid);if(!pid||projectInventoryComplete(pid))return;
     const state=loadState.get(pid);if(state==='loading'||state==='ready-empty')return;
     if(bridgeBusy()){loadState.set(pid,'waiting');window.__NIAKGPT_DIAGNOSTICS__?.set('pins-chats',`ATTENTE · ${pid} · reprise après réponse ChatGPT`);if(openPid===pid){drawerDirty=true;schedule(40);}return;}
     loadState.set(pid,'loading');if(openPid===pid){drawerDirty=true;schedule(0);}window.__NIAKGPT_DIAGNOSTICS__?.set('pins-chats',`CHARGEMENT · ${pid}`);

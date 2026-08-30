@@ -4,7 +4,7 @@
   window.__NIAKGPT_SIDEBAR_ACTIONS_123__=true;
 
   const CACHE_KEY='niakgpt-v08-cache';
-  const OWN='#ng8-pins,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb,#ng119-interruption,#ng123-action-menu,#ng123-rename-dialog';
+  const OWN='#ng8-pins,[data-ng121-retired="1"],#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb,#ng119-interruption,#ng123-action-menu,#ng123-rename-dialog';
   const MENU_SEL='[role="menu"],[data-radix-menu-content]';
   let cache={projects:[],chats:[]},box=null,observer=null,boot=null,timer=0,rpcSeq=0,state=null;
 

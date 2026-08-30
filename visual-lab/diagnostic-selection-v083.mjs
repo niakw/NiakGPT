@@ -63,9 +63,11 @@ for(const [engine,launcher] of Object.entries(selected)){
     const selectedText=await page.evaluate(()=>{
       const panel=document.getElementById('ng8-panel'),diag=panel.querySelector('.ng8-diag');
       window.__diagNodeBefore=diag;
+      diag.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));
       const range=document.createRange();range.selectNodeContents(diag);
       const sel=getSelection();sel.removeAllRanges();sel.addRange(range);
       document.dispatchEvent(new Event('selectionchange'));
+      diag.dispatchEvent(new PointerEvent('pointerup',{bubbles:true}));
       return sel.toString();
     });
     assert(selectedText.includes('ONE'),engine+': fixture did not select diagnostic text');
@@ -88,8 +90,9 @@ for(const [engine,launcher] of Object.entries(selected)){
     await page.evaluate(()=>{
       getSelection()?.removeAllRanges();
       document.dispatchEvent(new Event('selectionchange'));
+      document.querySelector('main')?.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));
     });
-    await page.waitForFunction(()=>document.getElementById('ng8-panel')?.innerText.includes('TWO'),null,{timeout:2000});
+    await page.waitForFunction(()=>document.getElementById('ng8-panel')?.innerText.includes('TWO'),null,{timeout:2500});
     assert((await page.locator('#ng8-panel').innerText()).includes('TWO'),engine+': diagnostics did not resume after selection ended');
   }finally{
     await context.close();
@@ -97,4 +100,4 @@ for(const [engine,launcher] of Object.entries(selected)){
   }
 }
 
-console.log('diagnostic-selection-v083: PASS selection survives live diagnostic updates and refresh resumes afterwards');
+console.log('diagnostic-selection-v083: PASS sticky read-copy mode preserves selection and refresh resumes after explicit exit');

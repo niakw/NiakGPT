@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.84",
-  "description": "NiakGPT : Projects stables après hydratation tardive, continuité longue et Project Memory GitHub visible-tab auto-récupérable.",
+  "version": "0.9.85",
+  "description": "NiakGPT : priorité absolue au flux natif ChatGPT, Pins ancrés sur le launcher Projects et Project Memory opportuniste.",
   "permissions": [
     "storage",
     "scripting",

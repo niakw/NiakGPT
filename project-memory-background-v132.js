@@ -378,8 +378,50 @@
     };
   }
 
+  async function launchIdentityFlow(url) {
+    const parsed = new URL(String(url || ''));
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') throw new Error('github_auth_url_invalid_scheme');
+    return chrome.identity.launchWebAuthFlow({ url: parsed.toString(), interactive: true });
+  }
+
+  async function launchManifestRegistrationTab(flow) {
+    if (!chrome?.tabs?.create || !chrome?.tabs?.remove || !chrome?.tabs?.onUpdated || !chrome?.tabs?.onRemoved) throw new Error('github_tabs_api_unavailable');
+    const expected = new URL(clean(flow?.manifestRedirect));
+    const tab = await chrome.tabs.create({ url: chrome.runtime.getURL('github-vault-start.html'), active: true });
+    const tabId = Number(tab?.id);
+    if (!Number.isInteger(tabId)) throw new Error('github_manifest_tab_missing');
+
+    return new Promise((resolve, reject) => {
+      let done = false;
+      const finish = (error, value) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timeout);
+        try { chrome.tabs.onUpdated.removeListener(onUpdated); } catch {}
+        try { chrome.tabs.onRemoved.removeListener(onRemoved); } catch {}
+        if (!error) { try { chrome.tabs.remove(tabId); } catch {} }
+        if (error) reject(error); else resolve(value);
+      };
+      const onUpdated = (id, changeInfo, currentTab) => {
+        if (id !== tabId) return;
+        const candidate = clean(changeInfo?.url || currentTab?.pendingUrl || currentTab?.url);
+        if (!candidate) return;
+        let parsed;
+        try { parsed = new URL(candidate); } catch { return; }
+        if (parsed.origin !== expected.origin || parsed.pathname !== expected.pathname) return;
+        try { finish(null, validateRedirect(candidate, flow.manifestRedirect, flow.manifestState)); }
+        catch (error) { finish(error); }
+      };
+      const onRemoved = id => { if (id === tabId) finish(new Error('github_manifest_registration_cancelled')); };
+      const timeout = setTimeout(() => finish(new Error('github_manifest_registration_timeout')), 4 * 60_000);
+      chrome.tabs.onUpdated.addListener(onUpdated);
+      chrome.tabs.onRemoved.addListener(onRemoved);
+    });
+  }
+
   async function startGitHubLogin() {
     if (!chrome?.identity?.launchWebAuthFlow || !chrome?.identity?.getRedirectURL) throw new Error('github_identity_api_unavailable');
+    if (!chrome?.tabs?.create || !chrome?.tabs?.onUpdated) throw new Error('github_tabs_api_unavailable');
 
     const manifestRedirect = chrome.identity.getRedirectURL('niakgpt-github-manifest');
     const installRedirect = chrome.identity.getRedirectURL('niakgpt-github-install');
@@ -405,11 +447,7 @@
       let auth = await readGitHubAppAuth();
 
       if (!auth) {
-        const manifestResult = await chrome.identity.launchWebAuthFlow({
-          url: chrome.runtime.getURL('github-vault-start.html'),
-          interactive: true
-        });
-        const manifestCode = validateRedirect(manifestResult, manifestRedirect, flow.manifestState);
+        const manifestCode = await launchManifestRegistrationTab(flow);
         const created = await directGitHubJson(API + '/app-manifests/' + encodeURIComponent(manifestCode) + '/conversions', { method: 'POST' });
 
         const appId = Number(created?.id || 0);
@@ -438,7 +476,7 @@
       }
 
       const installUrl = 'https://github.com/apps/' + encodeURIComponent(auth.appSlug) + '/installations/new?state=' + encodeURIComponent(flow.installState);
-      const installResult = await chrome.identity.launchWebAuthFlow({ url: installUrl, interactive: true });
+      const installResult = await launchIdentityFlow(installUrl);
       validateStateRedirect(installResult, installRedirect, flow.installState);
 
       const authorizeUrl = new URL('https://github.com/login/oauth/authorize');
@@ -447,7 +485,7 @@
       authorizeUrl.searchParams.set('state', flow.oauthState);
       authorizeUrl.searchParams.set('code_challenge', flow.codeChallenge);
       authorizeUrl.searchParams.set('code_challenge_method', 'S256');
-      const oauthResult = await chrome.identity.launchWebAuthFlow({ url: authorizeUrl.toString(), interactive: true });
+      const oauthResult = await launchIdentityFlow(authorizeUrl.toString());
       const oauthCode = validateRedirect(oauthResult, oauthRedirect, flow.oauthState);
       const tokenData = await oauthTokenRequest({
         client_id: auth.clientId,
@@ -833,7 +871,9 @@
       initializeConnection,
       validateRedirect,
       validateStateRedirect,
-      pkceChallenge
+      pkceChallenge,
+      launchIdentityFlow,
+      launchManifestRegistrationTab
     };
   }
 })();

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.79",
-  "description": "NiakGPT : Projects fiables, continuité longue et mémoire Project GitHub privée avec connexion et choix du dépôt.",
+  "version": "0.9.80",
+  "description": "NiakGPT : Projects fiables, continuité longue et mémoire GitHub privée avec barrière d’hydratation React.",
   "permissions": [
     "storage",
     "scripting",

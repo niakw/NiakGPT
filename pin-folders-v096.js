@@ -113,7 +113,7 @@
     pid=normalizePid(pid);if(!pid||projectInventoryComplete(pid))return;
     const state=loadState.get(pid);if(state==='loading')return;
     if(bridgeBusy()){loadState.set(pid,'waiting');window.__NIAKGPT_DIAGNOSTICS__?.set('pins-chats',`ATTENTE · ${pid} · reprise après réponse ChatGPT`);if(openPid===pid){drawerDirty=true;schedule(40);}return;}
-    loadState.set(pid,'loading');if(openPid===pid){drawerDirty=true;schedule(0);}window.__NIAKGPT_DIAGNOSTICS__?.set('pins-chats',`CHARGEMENT · ${pid}`);
+    loadState.set(pid,'loading');if(openPid===pid&&!chatsFor(pid).length){drawerDirty=true;schedule(0);}window.__NIAKGPT_DIAGNOSTICS__?.set('pins-chats',`CHARGEMENT · ${pid}`);
     const out=new Map(),seen=new Set();let cursor=null,error='';
     for(let page=0;page<40;page++){
       if(bridgeBusy()){error='native_busy';break;}
@@ -124,7 +124,7 @@
       const next=nextCursor(r.data);if(!items.length||next==null||next==='')break;const key=String(next);if(seen.has(key))break;seen.add(key);cursor=next;
     }
     if(error){
-      const waiting=error==='native_busy'||/native_busy|bridge-pause/i.test(error);loadState.set(pid,waiting?'waiting':'error');window.__NIAKGPT_DIAGNOSTICS__?.set('pins-chats',`${waiting?'ATTENTE':'ERREUR'} · ${pid} · ${String(error).slice(0,80)}`);if(openPid===pid){drawerDirty=true;schedule(80);}return;
+      const waiting=error==='native_busy'||/native_busy|bridge-pause/i.test(error);loadState.set(pid,waiting?'waiting':'error');window.__NIAKGPT_DIAGNOSTICS__?.set('pins-chats',`${waiting?'ATTENTE':'ERREUR'} · ${pid} · ${String(error).slice(0,80)}`);if(openPid===pid&&!chatsFor(pid).length){drawerDirty=true;schedule(80);}return;
     }
     const list=[...out.values()].sort((a,b)=>(b.updated||0)-(a.updated||0));await publishProjectChats(pid,list);loadState.set(pid,list.length?'ready':'ready-empty');window.__NIAKGPT_DIAGNOSTICS__?.set('pins-chats',`OK · ${pid} · ${list.length} chats`);if(openPid===pid){drawerDirty=true;schedule(0);}
   }

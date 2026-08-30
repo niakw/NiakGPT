@@ -101,7 +101,10 @@
   async function nativeProjectRename(projectId,next){
     for(let attempt=0;attempt<2;attempt++){
       if(await nativeProjectRenameAttempt(projectId,next,attempt))return true;
-      document.querySelectorAll('.lab-inline-menu,[data-radix-menu-content][data-state="open"]').forEach(m=>{if(outsideOwn(m))m.remove?.();});
+      // A failed first probe can leave ChatGPT's native menu open. Ask that surface to close
+      // through its normal Escape contract before retrying; never remove native DOM directly.
+      const openNative=[...document.querySelectorAll(MENU_SEL)].find(m=>outsideOwn(m)&&visible(m));
+      if(openNative)openNative.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',code:'Escape',bubbles:true,cancelable:true}));
       await sleep(160);
     }
     return false;

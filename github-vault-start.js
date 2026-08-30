@@ -18,19 +18,14 @@
 
     const form = document.createElement('form');
     form.method = 'POST';
-    form.action = 'https://github.com/settings/apps/new';
+    form.action = 'https://github.com/settings/apps/new?state=' + encodeURIComponent(response.state);
 
     const manifest = document.createElement('input');
     manifest.type = 'hidden';
     manifest.name = 'manifest';
     manifest.value = JSON.stringify(response.manifest);
 
-    const state = document.createElement('input');
-    state.type = 'hidden';
-    state.name = 'state';
-    state.value = response.state;
-
-    form.append(manifest, state);
+    form.append(manifest);
     document.body.appendChild(form);
     if (status) status.textContent = 'Redirection sécurisée vers GitHub…';
     form.submit();

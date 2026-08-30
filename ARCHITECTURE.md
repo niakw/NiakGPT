@@ -1,10 +1,10 @@
 # Architecture de NiakGPT
 
-NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.84 privilégie quatre propriétés : **faible coût runtime**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
+NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.85 privilégie cinq propriétés : **faible coût runtime**, **priorité absolue au flux natif ChatGPT**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
 
 ## Périmètre
 
-Le manifest 0.9.84 déclare :
+Le manifest 0.9.85 déclare :
 
 ```text
 https://chatgpt.com/*
@@ -26,6 +26,15 @@ Cette combinaison corrige un angle mort de 0.9.80 : React peut continuer son sch
 Jusqu’au signal final, `composer-continuation-v128.js`, `long-run-watchdog-v129.js`, `pin-interaction-rescue-v129.js`, `project-menu-augment-v129.js` et `continuity-native-handoff-v129.js` restent dormants et ne lancent **aucun observer, timer, interception ou mutation DOM**.
 
 Le gate `visual-lab/hydration-barrier-v080.mjs` reproduit maintenant deux remplacements tardifs du shell via `MessageChannel`, après de fausses périodes de calme, et exige que NiakGPT reste inactif jusqu’à la stabilité finale sur Chromium, Firefox et WebKit.
+
+
+## Invariant réseau 0.9.85 — ChatGPT natif gagne toujours
+
+`page-bridge.js` traite désormais tout envoi, génération, vérification, incident réseau ou reprise de connexion comme une priorité native. Les GET NiakGPT déjà en vol sont annulés, les nouveaux appels internes sont bloqués pendant une fenêtre calme, et une erreur réseau n’est plus rejouée via un second transport XHR. Project Memory est opportuniste : il attend l’inactivité humaine et espace les lectures complètes d’historique.
+
+## Invariant Pins 0.9.85 — le launcher Projects suffit
+
+`sidebar-projects-v121.js` accepte le launcher natif visible `/projects` comme ancre autoritaire même lorsque ChatGPT n’a pas encore hydraté les liens `/g/g-p-*`. Le bloc est explicitement libellé **PINS · PROJECTS** afin d’éviter toute confusion avec la surface native.
 
 ## Invariant DOM 0.9.84 — hydratation tardive, remount direct, jamais de reparenting des Pins
 

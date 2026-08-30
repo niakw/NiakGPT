@@ -140,14 +140,14 @@ for(const [engine,launcher] of Object.entries(engines)){
     assert(bridgePause?.error==='native_busy'&&bridgePause?.transport==='bridge-pause',`bridge did not pause during verification: ${JSON.stringify(bridgePause)}`);
     assert(verifyState.challengeClicks===0&&verifyState.calls===beforeCalls&&verifyState.draft==='brouillon vérification',`verification was bypassed or draft changed: ${JSON.stringify(verifyState)}`);
     await page.evaluate(()=>document.getElementById('verify-alert')?.remove());
-    await page.waitForFunction(()=>window.__retryClicks===1&&document.documentElement.dataset.ng105Verification!=='1',null,{timeout:3500});
-    assert(await page.evaluate(()=>window.__retryClicks)===1,'verification recovery did not use native Retry exactly once');
+    await page.waitForFunction(()=>document.documentElement.dataset.ng105Verification!=='1'&&!document.getElementById('ng119-interruption'),null,{timeout:3500});
+    assert(await page.evaluate(()=>window.__retryClicks)===0,'verification recovery must never auto-click native Retry');
 
     await page.evaluate(()=>{document.getElementById('ng119-interruption')?.remove();window.addRetry();const ed=document.getElementById('prompt-textarea');ed.value='brouillon connexion à conserver';ed.dispatchEvent(new InputEvent('input',{bubbles:true,data:'brouillon connexion à conserver'}));window.addSignal('network-alert','Connexion perdue');});
     await page.waitForFunction(()=>document.querySelector('#ng119-interruption[data-type="network"]'),null,{timeout:3000});
     await page.evaluate(()=>{const ed=document.getElementById('prompt-textarea');ed.value='';ed.dispatchEvent(new InputEvent('input',{bubbles:true,data:null}));document.getElementById('network-alert')?.remove();window.dispatchEvent(new Event('online'));});
-    await page.waitForFunction(()=>window.__retryClicks===1&&document.getElementById('prompt-textarea').value==='brouillon connexion à conserver',null,{timeout:3500});
-    assert(await page.evaluate(()=>window.__retryClicks)===1,'connection-lost recovery retried more than once');
+    await page.waitForFunction(()=>!document.getElementById('ng119-interruption')&&document.getElementById('prompt-textarea').value==='brouillon connexion à conserver',null,{timeout:3500});
+    assert(await page.evaluate(()=>window.__retryClicks)===0,'connection-lost recovery must never auto-click native Retry');
 
     await page.evaluate(()=>{document.getElementById('ng119-interruption')?.remove();window.addSignal('limit-alert','Cette conversation est trop longue. Commencez un nouveau chat pour continuer.');});
     await page.waitForFunction(()=>document.querySelector('#ng119-interruption[data-type="limit"] .ng100-continue:not(:disabled)'),null,{timeout:3000});

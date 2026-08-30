@@ -6,7 +6,30 @@ const require = createRequire(import.meta.url);
 
 const localStore = {};
 const sessionStore = {};
+const tabUpdatedListeners = new Set();
+const tabRemovedListeners = new Set();
+let createdAuthTab = null;
+let removedAuthTab = null;
+const identityCalls = [];
 globalThis.chrome = {
+  runtime: {
+    getURL(path) { return 'chrome-extension://lopeiincnbjihmoahcbogokeniojgobk/' + String(path || ''); }
+  },
+  identity: {
+    async launchWebAuthFlow(details) { identityCalls.push(details); return details.url; }
+  },
+  tabs: {
+    async create(options) { createdAuthTab = {...options,id:77}; return createdAuthTab; },
+    async remove(id) { removedAuthTab = id; },
+    onUpdated: {
+      addListener(fn) { tabUpdatedListeners.add(fn); },
+      removeListener(fn) { tabUpdatedListeners.delete(fn); }
+    },
+    onRemoved: {
+      addListener(fn) { tabRemovedListeners.add(fn); },
+      removeListener(fn) { tabRemovedListeners.delete(fn); }
+    }
+  },
   storage: {
     local: {
       async get(key) {
@@ -38,6 +61,26 @@ assert.match(memory.safeError(new Error('bad github_pat_ABCDEF1234567890')), /\[
 assert.doesNotMatch(memory.safeError(new Error('bad github_pat_ABCDEF1234567890')), /ABCDEF1234567890/);
 assert.equal(memory.validateRedirect('https://abcdefghijklmnop.chromiumapp.org/oauth?code=abc&state=state-1','https://abcdefghijklmnop.chromiumapp.org/oauth','state-1'),'abc');
 assert.throws(()=>memory.validateRedirect('https://abcdefghijklmnop.chromiumapp.org/oauth?code=abc&state=evil','https://abcdefghijklmnop.chromiumapp.org/oauth','state-1'),/github_oauth_state_mismatch/);
+await assert.rejects(()=>memory.launchIdentityFlow('chrome-extension://lopeiincnbjihmoahcbogokeniojgobk/github-vault-start.html'),/github_auth_url_invalid_scheme/);
+await memory.launchIdentityFlow('https://github.com/login/oauth/authorize?client_id=synthetic');
+assert.equal(identityCalls.length,1);
+assert.match(identityCalls[0].url,/^https:\/\/github\.com\/login\/oauth\/authorize/);
+
+const manifestFlow = {
+  manifestRedirect:'https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/niakgpt-github-manifest',
+  manifestState:'manifest-state-1'
+};
+const manifestPromise = memory.launchManifestRegistrationTab(manifestFlow);
+await new Promise(resolve=>setTimeout(resolve,0));
+assert.equal(createdAuthTab.url,'chrome-extension://lopeiincnbjihmoahcbogokeniojgobk/github-vault-start.html');
+assert.equal(createdAuthTab.active,true);
+for (const fn of [...tabUpdatedListeners]) {
+  fn(77,{url:'https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/niakgpt-github-manifest?code=manifest-code-1&state=manifest-state-1'},{});
+}
+assert.equal(await manifestPromise,'manifest-code-1');
+assert.equal(removedAuthTab,77);
+assert.equal(tabUpdatedListeners.size,0);
+assert.equal(tabRemovedListeners.size,0);
 assert.equal(memory.MAX_FILES, 32);
 assert.ok(memory.MAX_BATCH_BYTES >= 5 * 1024 * 1024);
 
@@ -95,9 +138,9 @@ assert.equal(localStore['niakgpt-project-memory-config-v132'],undefined,'failed 
 assert.equal(sessionStore['niakgpt-project-memory-session-token-v132'],undefined,'failed connect persisted token');
 
 const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
-assert.equal(manifest.version, '0.9.81');
+assert.equal(manifest.version, '0.9.82');
 assert.deepEqual(manifest.permissions, ['storage','scripting','identity']);
-assert.deepEqual(manifest.host_permissions, ['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*']);
+assert.deepEqual(manifest.host_permissions, ['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']);
 
 const background = fs.readFileSync('background-v100.js','utf8');
 assert.match(background, /try\{\s*importScripts\('project-memory-background-v132\.js'\)/s);
@@ -121,6 +164,10 @@ assert.match(backend, /github_initial_content_commit_failed/);
 assert.match(backend, /refs\/heads/);
 assert.doesNotMatch(backend, /github_pat_[A-Za-z0-9_]{20,}/);
 assert.match(backend, /chrome\.identity\.launchWebAuthFlow/);
+assert.match(backend, /launchManifestRegistrationTab/);
+assert.match(backend, /chrome\.tabs\.create\(\{ url: chrome\.runtime\.getURL\('github-vault-start\.html'\), active: true \}\)/);
+assert.doesNotMatch(backend, /launchWebAuthFlow\(\{\s*url:\s*chrome\.runtime\.getURL/s);
+assert.match(backend, /github_auth_url_invalid_scheme/);
 assert.match(backend, /app-manifests\//);
 assert.match(backend, /request_oauth_on_install: false/);
 assert.match(backend, /setup_url: clean\(flow\.installRedirect\)/);

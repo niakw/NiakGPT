@@ -25,7 +25,7 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.80': fail(f"version={version}")
+if version!='0.9.81': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting','identity']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*']: fail('host permissions drift')
 
@@ -48,8 +48,11 @@ expected_static=[
     'pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'
 ]
 if static_js!=expected_static: fail(f'static runtime drift: {static_js!r}')
+js_content_scripts=[cs for cs in manifest.get('content_scripts',[]) if cs.get('js')]
+if any(cs.get('run_at')!='document_idle' for cs in js_content_scripts): fail('all NiakGPT JS content scripts must run at document_idle')
+if any(cs.get('run_at')=='document_start' and cs.get('js') for cs in manifest.get('content_scripts',[])): fail('document_start JS forbidden after hydration regression')
 hydration_gate=read('boot-gate-v100.js')
-for token in ('waitForQuiet(650,4000)','__NIAKGPT_HOST_HYDRATED_100__','niakgpt:host-hydrated-v100'):
+for token in ('waitForQuiet(1200,7000)','waitStableHostIdentity(1600,8500)','idleTurn(2200)','requestIdleCallback','__NIAKGPT_HOST_HYDRATED_100__','niakgpt:host-hydrated-v100'):
     if token not in hydration_gate: fail('boot hydration barrier incomplete '+token)
 for file in expected_static[1:]:
     src=read(file)

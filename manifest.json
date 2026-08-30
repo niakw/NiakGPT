@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.80",
-  "description": "NiakGPT : Projects fiables, continuité longue et mémoire GitHub privée avec barrière d’hydratation React.",
+  "version": "0.9.81",
+  "description": "NiakGPT : Projects fiables, continuité longue et mémoire GitHub privée avec démarrage post-hydratation renforcé.",
   "permissions": [
     "storage",
     "scripting",
@@ -71,7 +71,7 @@
         "project-menu-augment-v129.js",
         "continuity-native-handoff-v129.js"
       ],
-      "run_at": "document_start"
+      "run_at": "document_idle"
     },
     {
       "matches": [

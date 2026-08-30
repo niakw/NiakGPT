@@ -184,7 +184,7 @@ assert.match(ui,/data-ng132-use-repo/);
 assert.ok(fs.existsSync('github-vault-start.html'),'GitHub manifest launcher HTML missing');
 assert.ok(fs.existsSync('github-vault-start.js'),'GitHub manifest launcher JS missing');
 const launcher=fs.readFileSync('github-vault-start.js','utf8');
-assert.match(launcher,/github\.com\/settings\/apps\/new/);
+assert.match(launcher,/github\.com\/settings\/apps\/new\?state=/);
 assert.match(launcher,/niakgpt:memory-github-manifest-v132/);
 
 console.log('PROJECT_MEMORY_V132_PASS');

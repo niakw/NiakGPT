@@ -6,7 +6,7 @@
   <p>Projects · performance des longs fils · continuité · navigation · productivité ciblée</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.83-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.84-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -22,7 +22,7 @@ NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
 
-> **Version actuelle : 0.9.83.** Les Pins refusent désormais les surfaces Projects natives cachées/précoces et restent sous la vraie navigation primaire ChatGPT ; Project Memory réapparaît même si le Centre de contrôle était déjà ouvert et recrée automatiquement une file persistante pour un coffre connecté mais jamais synchronisé.
+> **Version actuelle : 0.9.84.** Les Pins attendent désormais la vraie navigation native pendant l’hydratation tardive de ChatGPT et neutralisent/remontent un bloc neuf si un meilleur slot Projects apparaît ensuite, au lieu de rester figés en haut. Project Memory conserve ses contrôles GitHub pendant les mises à jour live et réserve le verrou de synchronisation à un onglet visible afin que la file persistante progresse réellement.
 
 ## Points forts
 
@@ -36,7 +36,7 @@ Le JavaScript NiakGPT ne s’exécute plus à `document_start` : le bootstrap d�
 - conversations accessibles directement en dépliant un Project ;
 - le clic sur le nom ouvre/ferme le tiroir sans navigation surprise ;
 - ordre, identité DOM, focus et scroll conservés pendant les refreshs de cache, remounts React, navigation SPA et retours BFCache ;
-- montage direct unique des Pins : si ChatGPT remplace sa sidebar, l’ancien nœud NiakGPT est neutralisé sur place et un nouveau bloc est monté directement dans le nouveau shell actif, sans déplacer le même nœud entre deux branches React ;
+- montage direct unique des Pins : si ChatGPT remplace sa sidebar **ou révèle un meilleur slot natif après une hydratation tardive**, l’ancien nœud NiakGPT est neutralisé sur place et un nouveau bloc est monté directement dans l’emplacement devenu autoritaire, sans déplacer le même nœud entre deux branches React ;
 - placement explicitement **sous la navigation primaire visible de ChatGPT** : une surface Projects native cachée/inert ou située au-dessus des contrôles principaux ne peut plus aspirer le catalogue NiakGPT en haut de la sidebar ;
 - conversation courante, dates, compteurs et états d’attention visibles ;
 - recherche locale dans les gros Projects ;

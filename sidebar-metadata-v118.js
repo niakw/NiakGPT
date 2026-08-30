@@ -6,7 +6,7 @@
 
   const CACHE_KEY='niakgpt-v08-cache';
   const DATA_LOCK='niakgpt-data-mutation-v100';
-  const OWN='#ng8-pins,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb';
+  const OWN='#ng8-pins,[data-ng121-retired="1"],#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb';
   let sidebarObserver=null,sidebarNode=null,bootstrapObserver=null,timer=0,stopped=false,cacheUnsub=null,sanitizeTask=null,lifecycleEpoch=0,pendingRaw=undefined,pendingReplay=false,runtimeRetryTimer=0,runtimeRawSeq=0;
   const ownWriteSignatures=new Set(),rawSequences=new WeakMap();
 

@@ -3,7 +3,7 @@
   if (location.hostname !== 'chatgpt.com' || window.__NIAKGPT_PROJECT_MEMORY_UI_132__) return;
   window.__NIAKGPT_PROJECT_MEMORY_UI_132__ = true;
 
-  let renderTimer = 0, rendering = false;
+  let renderTimer = 0, rendering = false, rebuildRequested = false;
   const esc = value => String(value == null ? '' : value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const api = () => window.__NIAKGPT_PROJECT_MEMORY__;
 
@@ -14,12 +14,21 @@
     catch { return new Date(n).toLocaleString(); }
   }
 
+  function syncPercent(s) {
+    const total=Number(s?.projectTotal||0),done=Number(s?.projectDone||0);
+    if(!total)return 0;
+    const chatTotal=Number(s?.chatTotal||0),chatDone=Number(s?.chatDone||0);
+    const partial=done<total&&chatTotal>0?Math.max(0,Math.min(1,chatDone/chatTotal)):0;
+    return Math.max(0,Math.min(100,Math.round(((done+partial)/total)*100)));
+  }
+
   function statusText(snapshot) {
     const s = snapshot && snapshot.state || {};
     const github = snapshot && snapshot.github || {};
+    if (s.mode === 'preparing') return 'Préparation de l’inventaire · ' + Number(s.inventoryPending || 0) + ' Project(s) à compléter';
     if (s.mode === 'syncing') {
-      const p = Number(s.projectTotal || 0) ? Math.round((Number(s.projectDone || 0) / Number(s.projectTotal || 1)) * 100) : 0;
-      const chat = s.chatTitle ? ' · ' + s.chatTitle : '';
+      const p = syncPercent(s);
+      const chat = s.chatTitle ? ' · ' + s.chatTitle + (Number(s.chatTotal||0) ? ' (' + Number(s.chatDone||0) + '/' + Number(s.chatTotal||0) + ')' : '') : '';
       return 'Synchronisation ' + p + '% · ' + (s.projectName || s.projectId || 'Project') + chat;
     }
     if (s.mode === 'error') return 'Erreur · ' + String(s.error || 'synchronisation interrompue');
@@ -58,11 +67,14 @@
       const config = snapshot.config || {};
       const prefs = snapshot.prefs || {};
       const github = snapshot.github || {};
-      const repositories = Array.isArray(github.repositories) ? github.repositories : [];
+      let repositories = Array.isArray(github.repositories) ? github.repositories.slice() : [];
       const connected = snapshot.connected === true;
       const configured = snapshot.configured === true;
-      const githubConnected = github.authenticated === true;
+      // Keep the configured GitHub view stable during token refresh/session transitions. A
+      // temporary token miss must not make the repository controls disappear under the user.
+      const githubConnected = github.authenticated === true || (configured && config.authMode === 'github-app');
       const githubRegistered = github.registered === true;
+      if(config.authMode==='github-app'&&config.repo&&!repositories.some(item=>item.fullName===config.repo))repositories.unshift({fullName:config.repo,defaultBranch:config.branch||'main'});
       const selectedRepo = repositories.some(item => item.fullName === config.repo) ? config.repo : (repositories[0]?.fullName || '');
       const selectedMeta = repositories.find(item => item.fullName === selectedRepo) || {};
       const branchValue = config.authMode === 'github-app' && config.repo === selectedRepo ? (config.branch || selectedMeta.defaultBranch || 'main') : (selectedMeta.defaultBranch || 'main');
@@ -95,9 +107,34 @@
 
       const queuePending = Array.isArray(snapshot.queue?.pending) ? snapshot.queue.pending.length : 0;
       const stateInfo = snapshot.state || {};
-      const progressText = queuePending
-        ? ('File persistante · ' + queuePending + ' Project(s) restant(s)')
-        : (Number(stateInfo.lastSyncAt || 0) ? ('Dernière synchro · ' + humanDate(stateInfo.lastSyncAt) + ' · ' + Number(stateInfo.changed || 0) + ' fil(s) modifié(s)') : 'Aucune synchronisation complète enregistrée');
+      const progressText = stateInfo.mode === 'syncing' && Number(stateInfo.chatTotal || 0)
+        ? ('Progression · ' + syncPercent(stateInfo) + '% · conversation ' + Number(stateInfo.chatDone || 0) + '/' + Number(stateInfo.chatTotal || 0))
+        : queuePending
+          ? ('File persistante · ' + queuePending + ' Project(s) restant(s)')
+          : (Number(stateInfo.lastSyncAt || 0) ? ('Dernière synchro · ' + humanDate(stateInfo.lastSyncAt) + ' · ' + Number(stateInfo.changed || 0) + ' fil(s) modifié(s)') : 'Aucune synchronisation complète enregistrée');
+
+      const viewKey=githubConnected?'github':'login';
+      const liveOnly=section.dataset.ng132Built==='1'&&section.dataset.ng132View===viewKey&&!rebuildRequested;
+      if(liveOnly){
+        const statusBox=section.querySelector('.ng132-memory-status');
+        if(statusBox){
+          statusBox.classList.toggle('error',stateInfo.mode==='error');
+          statusBox.classList.toggle('ok',connected&&stateInfo.mode!=='error');
+          const strong=statusBox.querySelector('b'),small=statusBox.querySelector('small');
+          if(strong)strong.textContent=statusText(snapshot);
+          if(small)small.textContent=progressText;
+        }
+        const sync=section.querySelector('[data-ng132-sync]'),force=section.querySelector('[data-ng132-force]'),disconnect=section.querySelector('[data-ng132-disconnect]');
+        if(sync)sync.disabled=!connected;
+        if(force)force.disabled=!connected;
+        if(disconnect)disconnect.disabled=!configured;
+        const useRepo=section.querySelector('[data-ng132-use-repo]');
+        if(useRepo&&!useRepo.disabled)useRepo.textContent=connected&&config.authMode==='github-app'?'Revérifier ce dépôt':'Utiliser ce dépôt';
+        return;
+      }
+      rebuildRequested=false;
+      section.dataset.ng132Built='1';
+      section.dataset.ng132View=viewKey;
 
       section.innerHTML =
         '<h3>PROJECT MEMORY · COFFRE GITHUB PRIVÉ</h3>' +
@@ -147,7 +184,7 @@
           githubLogin.textContent = 'Réessayer avec GitHub';
           return;
         }
-        schedule(50);
+        schedule(50,true);
       };
 
       const repoSelect = section.querySelector('[data-ng132-repo-select]');
@@ -174,7 +211,7 @@
           return;
         }
         status.textContent = 'Coffre connecté · bootstrap planifié · ' + Number(result.queuedProjects || 0) + ' Project(s)';
-        schedule(50);
+        schedule(50,true);
       };
 
       const refreshRepos = section.querySelector('[data-ng132-refresh-repos]');
@@ -188,7 +225,7 @@
           refreshRepos.textContent = 'Réessayer';
           return;
         }
-        schedule(50);
+        schedule(50,true);
       };
 
       const manageRepos = section.querySelector('[data-ng132-manage-repos]');
@@ -201,7 +238,7 @@
       if (githubLogout) githubLogout.onclick = async () => {
         if (!confirm('Déconnecter GitHub de NiakGPT sur cet appareil ? Le dépôt et son contenu restent intacts.')) return;
         await memory.githubLogout();
-        schedule(50);
+        schedule(50,true);
       };
 
       const repo = section.querySelector('[data-ng132-repo]');
@@ -242,7 +279,7 @@
           return;
         }
         token.value = '';
-        schedule(50);
+        schedule(50,true);
       };
 
       section.querySelector('[data-ng132-sync]').onclick = async () => {
@@ -265,7 +302,7 @@
       section.querySelector('[data-ng132-disconnect]').onclick = async () => {
         if (!confirm('Déconnecter Project Memory ? Les fichiers déjà présents dans le dépôt privé restent intacts.')) return;
         await memory.disconnect(false);
-        schedule(50);
+        schedule(50,true);
       };
 
       section.querySelector('[data-ng132-auto]').onchange = async event => {
@@ -281,7 +318,8 @@
     }
   }
 
-  function schedule(delay) {
+  function schedule(delay, force) {
+    if(force)rebuildRequested=true;
     clearTimeout(renderTimer);
     renderTimer = setTimeout(render, delay == null ? 80 : delay);
   }

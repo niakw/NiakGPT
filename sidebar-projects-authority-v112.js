@@ -3,7 +3,7 @@
   if(location.hostname!=='chatgpt.com'||window.__NIAKGPT_PROJECTS_AUTHORITY_112__)return;
   window.__NIAKGPT_PROJECTS_AUTHORITY_112__=true;
 
-  const OWN='#ng8-pins,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb';
+  const OWN='#ng8-pins,[data-ng121-retired="1"],#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb';
   const MARK='data-ng112-native-projects';
   const LEGACY='ng112-native-projects-authoritative';
   let observer=null,timer=0,stopped=false,observedRoots=[];

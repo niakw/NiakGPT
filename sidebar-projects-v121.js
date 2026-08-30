@@ -14,10 +14,11 @@
   const PROJECT_RX=/\/g\/(g-p-[^/?#]+)(?:\/|$)/i;
   const QUEUE=new Set(['a classer','hors projet / a classer','hors projet/a classer','unclassified','to classify']);
   const PRIMARY_PATH=/^(?:\/?$|\/new(?:\/|$)|\/search(?:\/|$)|\/library(?:\/|$)|\/images?(?:\/|$)|\/apps?(?:\/|$)|\/codex(?:\/|$))/i;
+  const PRIMARY_LABEL=/^(?:chatgpt|nouveau chat|new chat|rechercher|search|bibliotheque|library|images?|apps?|codex)$/i;
   let cache={projects:[],chats:[],counts:{}},governance={hiddenProjectIds:[],coreProjectIds:[]};
   let observer=null,observedRoot=null,internal=false,timer=0,renderEpoch=0,lastPinFocus=null,lastPinFocusAt=0,bootstrapObserver=null,projectScrollMemory=0;
   let pendingProjectScroll=null,pendingScrollSeq=0,userScrollIntentAt=0,userScrollEpoch=0,retiredSeq=0;
-  const sessionOrder=new Map(),mountParentByBox=new WeakMap();let sessionSeq=0;
+  const sessionOrder=new Map(),mountParentByBox=new WeakMap(),mountTargetByBox=new WeakMap();let sessionSeq=0;
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -46,19 +47,39 @@
     return candidates.map(el=>[el,score(el)]).filter(([,n])=>Number.isFinite(n)).sort((a,b)=>b[1]-a[1])[0]?.[0]||null;
   }
   function projectLinks(scope){return [...scope.querySelectorAll?.('a[href*="/g/g-p-"]')||[]].filter(a=>!isOwn(a));}
-  function hasPrimary(scope){return [...scope.querySelectorAll?.('a[href]')||[]].some(a=>PRIMARY_PATH.test(a.getAttribute('href')||''));}
+  function primaryControl(el){
+    if(!(el instanceof Element)||isOwn(el)||!visiblePlacementNode(el))return false;
+    const href=el.getAttribute?.('href')||'';
+    if(href){
+      let path=href;
+      try{path=new URL(href,location.origin).pathname;}catch{}
+      // An anchor's route is authoritative. Never reinterpret /c/... or /g/... as a primary
+      // command merely because its visible title happens to be "Nouveau chat" / "ChatGPT".
+      return PRIMARY_PATH.test(path);
+    }
+    const label=norm(el.getAttribute?.('aria-label')||el.getAttribute?.('data-testid')||el.textContent);
+    return PRIMARY_LABEL.test(label)||/(?:^|[-_\s])(?:new[-_\s]?chat|nouveau[-_\s]?chat|sidebar[-_\s]?new)(?:$|[-_\s])/i.test(label);
+  }
+  function primaryControls(scope){return [...scope.querySelectorAll?.('a[href],button,[role="button"]')||[]].filter(primaryControl);}
+  function hasPrimary(scope){return primaryControls(scope).length>0;}
   function nativeProjectSection(root=navRoot()){
     if(!root)return null;
     const box=document.getElementById('ng8-pins');
     const marked=[...root.querySelectorAll('[data-ng112-native-projects="1"]')].filter(el=>!box||!el.contains(box));
     const labels=[...root.querySelectorAll('h1,h2,h3,[role="heading"],span,div,button,a')].filter(el=>!isOwn(el)&&projectLabel(el.getAttribute?.('aria-label')||el.textContent));
     for(const seed of [...labels,...marked]){
-      let node=seed;
+      let node=seed,labelCandidate=null;
+      const seedIsLabel=projectLabel(seed.getAttribute?.('aria-label')||seed.textContent);
       for(let depth=0;depth<7&&node&&node!==root&&node!==document.body;depth++,node=node.parentElement){
-        const links=projectLinks(node);if(!links.length&&node.getAttribute?.('data-ng112-native-projects')!=='1')continue;
+        const links=projectLinks(node),markedNode=node.getAttribute?.('data-ng112-native-projects')==='1';
         if(hasPrimary(node))continue;
-        return node;
+        if(links.length||markedNode)return node;
+        if(seedIsLabel&&!labelCandidate&&depth>0&&visiblePlacementNode(node)){
+          const r=node.getBoundingClientRect();
+          if(r.width>=120&&r.height>=18&&r.height<=260)labelCandidate=node;
+        }
       }
+      if(labelCandidate)return labelCandidate;
     }
     const link=projectLinks(root)[0];
     if(link){let node=link;for(let depth=0;depth<7&&node?.parentElement&&node.parentElement!==root;depth++,node=node.parentElement){const parent=node.parentElement;if(projectLinks(parent).length>=1&&!hasPrimary(parent))return parent;}}
@@ -66,8 +87,8 @@
   }
   function primaryTail(root=navRoot()){
     if(!root)return null;let best=null,bestTop=-Infinity;
-    for(const a of root.querySelectorAll('a[href]')){
-      if(isOwn(a)||!PRIMARY_PATH.test(a.getAttribute('href')||''))continue;const r=a.getBoundingClientRect();if(r.bottom>bestTop){best=a;bestTop=r.bottom;}
+    for(const a of primaryControls(root)){
+      const r=a.getBoundingClientRect();if(r.bottom>bestTop){best=a;bestTop=r.bottom;}
     }
     if(!best)return null;
     let node=best;
@@ -114,8 +135,17 @@
   function captureProjectScroll(reason='cache'){
     const list=document.querySelector('#ng8-pins>.ng8-pin-list');if(!(list instanceof HTMLElement))return null;
     const max=Math.max(0,list.scrollHeight-list.clientHeight);if(max<=0)return null;
+    const now=performance.now(),existing=activePendingScroll();
+    // Coalesce a burst of cache/index events onto the first stable scroll anchor. Layout can move
+    // scrollTop transiently while rows/drawers update; recapturing that transient value on every
+    // event turns a few pixels of layout drift into a visible jump. Real user input clears the
+    // pending anchor through noteUserScrollIntent(), so human scrolling always wins immediately.
+    if(existing&&existing.userIntentEpoch===userScrollEpoch&&userScrollIntentAt<=existing.userIntentAt){
+      document.documentElement.dataset.ng121ScrollGuard=`coalesced:${reason}:${Math.round(existing.top)}`;
+      return existing;
+    }
     const top=Math.min(max,Math.max(0,list.scrollTop));projectScrollMemory=top;
-    const now=performance.now(),recentUser=now-userScrollIntentAt<600;
+    const recentUser=now-userScrollIntentAt<600;
     if(recentUser){
       // A reconcile may arrive in the same task as wheel/touch/key input, before the browser has
       // applied the user's new scroll position. Never arm the pre-input top. Bind a deferred
@@ -177,11 +207,41 @@
     if(tail?.parentElement&&(!box||(!tail.contains(box)&&!box.contains(tail.parentElement)))){
       return{parent:tail.parentElement,before:tail.nextSibling,mode:'after-primary',legacy:'after-primary-v121'};
     }
-    if(!box||!box.contains(root))return{parent:root,before:null,mode:'sidebar-tail',legacy:'sidebar-tail-v121'};
+    // Never mount at a generic sidebar tail while ChatGPT is still hydrating. That fallback
+    // can become the visual top of the sidebar once native controls are inserted later.
     return null;
+  }
+  function placementSatisfied(box,target){
+    if(!box?.isConnected||!target||box.parentElement!==target.parent)return false;
+    if(target.before===box)return true; // already immediately after the selected primary tail
+    return box.nextSibling===target.before;
+  }
+  function originalPlacementStillSafe(root,box,ideal=null){
+    const original=mountTargetByBox.get(box);
+    if(!root||!box?.isConnected||!original||box.parentElement!==original.parent)return false;
+    // A genuine late native Projects section is an authority upgrade, not an equivalent
+    // reclassification: a catalogue originally mounted after primary controls must remount once
+    // before that newly arrived native section.
+    if(original.mode==='after-primary'&&ideal?.mode==='native-projects'&&ideal.before!==original.before)return false;
+    const anchorIntact=original.before?original.before.isConnected&&original.before.parentElement===original.parent&&box.nextSibling===original.before:box.nextSibling===null;
+    if(!anchorIntact)return false;
+    const tail=primaryTail(root);
+    if(!tail?.isConnected)return false;
+    const order=tail.compareDocumentPosition(box);
+    if(!(order&Node.DOCUMENT_POSITION_FOLLOWING))return false;
+    const tr=tail.getBoundingClientRect(),br=box.getBoundingClientRect();
+    return br.top>=tr.bottom-4;
   }
   function retireStaleBox(box){
     if(!box||!box.isConnected||box.dataset.ng121Retired==='1')return;
+    // Capture the live scroll synchronously before retirement. A React/sidebar remount can land
+    // between a human wheel gesture and the browser's later scroll event; relying only on that
+    // event loses the position and makes the fresh catalogue jump back to the top.
+    const liveList=box.querySelector(':scope>.ng8-pin-list');
+    if(liveList instanceof HTMLElement){
+      const max=Math.max(0,liveList.scrollHeight-liveList.clientHeight);
+      if(max>0)projectScrollMemory=Math.min(max,Math.max(0,liveList.scrollTop));
+    }
     box.dataset.ng121Retired='1';box.hidden=true;box.setAttribute('aria-hidden','true');box.style.setProperty('pointer-events','none','important');
     box.id='ng8-pins-retired-'+(++retiredSeq);
   }
@@ -291,14 +351,24 @@
       retireStaleBox(box);box=null;
     }
     if(box?.dataset.ng121Retired==='1')box=null;
+    if(box?.isConnected){
+      const ideal=placementTarget(root,box);
+      if(ideal&&!placementSatisfied(box,ideal)&&!originalPlacementStillSafe(root,box,ideal)){
+        // Preserve the direct-once invariant: never reparent the same React-adjacent node.
+        // Retire only for a genuinely new/invalid slot. Equivalent authority reclassification
+        // must not rebuild a stable catalogue whose original anchor is still intact below primary nav.
+        retireStaleBox(box);box=null;
+      }
+    }
     if(!box){
       const target=placementTarget(root,null);if(!target)return null;
       box=document.createElement('section');box.id='ng8-pins';box.hidden=true;box.dataset.ng121MountPolicy='direct-once';
       if(!safeInsert(target.parent,box,target.before))return null;
-      mountParentByBox.set(box,target.parent);
+      mountParentByBox.set(box,target.parent);mountTargetByBox.set(box,{parent:target.parent,before:target.before,mode:target.mode});
       box.dataset.ng121Placement=target.mode;box.dataset.ng119Placement=target.legacy;box.dataset.ng121MountCount='1';
     }else if(!mountedParent&&box.parentElement){
       mountParentByBox.set(box,box.parentElement);
+      mountTargetByBox.set(box,{parent:box.parentElement,before:box.nextSibling,mode:box.dataset.ng121Placement||'stable-once'});
     }
     return box;
   }
@@ -309,10 +379,32 @@
   }
   function reconcile(){clearTimeout(timer);timer=0;if(internal)return;const box=ensureBox();if(!box){bind();return;}renderCatalog(box);place(box);restorePendingScroll('reconcile');bind();hideWelcome();window.__NIAKGPT_DIAGNOSTICS__?.set('sidebar-ux-119',`OK · Projects ${box.dataset.ng121Placement||'stable'} · autorité v121 unique`);}
   function schedule(delay=0){clearTimeout(timer);timer=setTimeout(reconcile,delay);}
-  function relevant(records){for(const r of records){for(const n of [...r.addedNodes,...r.removedNodes]){if(!(n instanceof Element))continue;if(n.id==='ng8-pins'||n.querySelector?.('#ng8-pins')||n.matches?.('a[href*="/g/g-p-"],[data-ng112-native-projects]')||n.querySelector?.('a[href*="/g/g-p-"],[data-ng112-native-projects]'))return true;}}return false;}
+  function placementSignal(node){
+    if(!(node instanceof Element))return false;
+    if(node.matches?.('a[href*="/g/g-p-"],[data-ng112-native-projects]'))return true;
+    if(primaryControl(node))return true;
+    if([...node.querySelectorAll?.('a[href],button,[role="button"]')||[]].some(primaryControl))return true;
+    return !!node.querySelector?.('a[href*="/g/g-p-"],[data-ng112-native-projects]');
+  }
+  function relevant(records){for(const r of records){for(const n of [...r.addedNodes,...r.removedNodes]){if(!(n instanceof Element))continue;if(n.id==='ng8-pins'||n.querySelector?.('#ng8-pins')||placementSignal(n))return true;}}return false;}
   function bind(){
     const root=navRoot();if(!root){armBootstrap();return;}if(root===observedRoot&&observer)return;
-    observer?.disconnect();observedRoot=root;observer=new MutationObserver(records=>{if(internal)return;if(relevant(records))reconcile();});observer.observe(root,{childList:true,subtree:true});
+    observer?.disconnect();observedRoot=root;observer=new MutationObserver(records=>{
+      if(internal||!relevant(records))return;
+      // Let React/ChatGPT finish the current mutation batch before reconciling. Chromium usually
+      // settles in the same turn, while Firefox/WebKit can expose a transient parent/slot for a
+      // few frames. A bounded verification pass repairs external displacement without polling.
+      // Repair in the MutationObserver microtask, before the next paint, so an externally
+      // displaced catalogue never produces a visible bad frame. Keep the bounded delayed check
+      // as a second chance for React/browser trees that expose a transient slot in this microtask.
+      reconcile();
+      setTimeout(()=>{
+        const liveRoot=navRoot(),box=document.getElementById('ng8-pins');
+        if(!liveRoot)return;
+        const target=box?.isConnected&&liveRoot.contains(box)?placementTarget(liveRoot,box):null;
+        if(!box||!liveRoot.contains(box)||(target&&!placementSatisfied(box,target)))schedule(0);
+      },180);
+    });observer.observe(root,{childList:true,subtree:true});
     if(root.parentElement)observer.observe(root.parentElement,{childList:true,subtree:false});
     bootstrapObserver?.disconnect();bootstrapObserver=null;
   }

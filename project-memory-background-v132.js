@@ -369,43 +369,47 @@
     await chrome.storage.session.set({ [GITHUB_APP_FLOW_KEY]: flow });
 
     try {
-      const manifestResult = await chrome.identity.launchWebAuthFlow({
-        url: chrome.runtime.getURL('github-vault-start.html'),
-        interactive: true
-      });
-      const manifestCode = validateRedirect(manifestResult, manifestRedirect, flow.manifestState);
-      const created = await directGitHubJson(API + '/app-manifests/' + encodeURIComponent(manifestCode) + '/conversions', { method: 'POST' });
+      let auth = await readGitHubAppAuth();
 
-      const appId = Number(created?.id || 0);
-      const appSlug = clean(created?.slug);
-      const clientId = clean(created?.client_id);
-      const clientSecret = clean(created?.client_secret);
-      if (!appId || !appSlug || !clientId || !clientSecret) throw new Error('github_app_manifest_conversion_incomplete');
+      if (!auth) {
+        const manifestResult = await chrome.identity.launchWebAuthFlow({
+          url: chrome.runtime.getURL('github-vault-start.html'),
+          interactive: true
+        });
+        const manifestCode = validateRedirect(manifestResult, manifestRedirect, flow.manifestState);
+        const created = await directGitHubJson(API + '/app-manifests/' + encodeURIComponent(manifestCode) + '/conversions', { method: 'POST' });
 
-      let auth = {
-        schema: 1,
-        appId,
-        appSlug,
-        clientId,
-        clientSecret,
-        refreshToken: '',
-        refreshExpiresAt: 0,
-        persistentAccessToken: '',
-        accountLogin: '',
-        accountAvatar: '',
-        repositories: [],
-        installations: [],
-        createdAt: Date.now(),
-        updatedAt: Date.now()
-      };
-      await writeGitHubAppAuth(auth);
+        const appId = Number(created?.id || 0);
+        const appSlug = clean(created?.slug);
+        const clientId = clean(created?.client_id);
+        const clientSecret = clean(created?.client_secret);
+        if (!appId || !appSlug || !clientId || !clientSecret) throw new Error('github_app_manifest_conversion_incomplete');
 
-      const installUrl = 'https://github.com/apps/' + encodeURIComponent(appSlug) + '/installations/new?state=' + encodeURIComponent(flow.oauthState);
+        auth = {
+          schema: 1,
+          appId,
+          appSlug,
+          clientId,
+          clientSecret,
+          refreshToken: '',
+          refreshExpiresAt: 0,
+          persistentAccessToken: '',
+          accountLogin: '',
+          accountAvatar: '',
+          repositories: [],
+          installations: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        };
+        await writeGitHubAppAuth(auth);
+      }
+
+      const installUrl = 'https://github.com/apps/' + encodeURIComponent(auth.appSlug) + '/installations/new?state=' + encodeURIComponent(flow.oauthState);
       const oauthResult = await chrome.identity.launchWebAuthFlow({ url: installUrl, interactive: true });
       const oauthCode = validateRedirect(oauthResult, oauthRedirect, flow.oauthState);
       const tokenData = await oauthTokenRequest({
-        client_id: clientId,
-        client_secret: clientSecret,
+        client_id: auth.clientId,
+        client_secret: auth.clientSecret,
         code: oauthCode,
         redirect_uri: oauthRedirect
       });
@@ -418,15 +422,8 @@
         repositories: listing.repositories,
         installations: listing.installations,
         manageUrl: listing.manageUrl,
-        appSlug
+        appSlug: auth.appSlug
       };
-    } catch (error) {
-      const auth = await readGitHubAppAuth();
-      if (auth && !auth.accountLogin && !auth.refreshToken && !auth.persistentAccessToken) {
-        await chrome.storage.local.remove(GITHUB_APP_AUTH_KEY);
-        await clearGitHubAppSession();
-      }
-      throw error;
     } finally {
       try { await chrome.storage.session.remove(GITHUB_APP_FLOW_KEY); } catch {}
     }

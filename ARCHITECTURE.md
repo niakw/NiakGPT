@@ -406,7 +406,7 @@ peuvent être suspendus, tandis que composer, lecture, navigation et interface n
 
 Une modification architecturale n’est considérée terminée que si le niveau de preuve correspondant existe.
 
-La 0.9.82 utilise notamment :
+La 0.9.83 utilise notamment :
 
 1. `tools/check-hydration-v100.mjs` — invariants runtime et ordre de boot ;
 2. `labs/static_validate_current.py` — syntaxe, manifest, package/runtime, propriétaires uniques ;
@@ -420,7 +420,10 @@ La 0.9.82 utilise notamment :
 10. matrice Ubuntu / Windows / macOS ;
 11. extension MV3 réellement chargée sous Chromium sur les trois OS ;
 12. gate prioritaire Brave stable réel sur macOS ;
-13. packaging propre et validation statique de l’autorité finale.
+13. `pins-primary-slot-v083.mjs` — placement Pins sous la navigation native même en présence de surfaces Projects cachées/précoces ;
+14. `diagnostic-selection-v083.mjs` — sélection/copier stable pendant les mises à jour live du diagnostic ;
+15. `project-memory-v132.mjs` — auto-render du coffre et recréation persistante de bootstrap pour un coffre connecté/non synchronisé ;
+16. packaging propre et validation statique de l’autorité finale.
 
 Les anciens labs restent disponibles pour les régressions historiques, même lorsque leurs anciens modules ne font plus partie du runtime de production.
 

@@ -117,6 +117,25 @@
     return Array.from(raw, byte => byte.toString(16).padStart(2, '0')).join('');
   }
 
+  function base64Url(bytes) {
+    let binary = '';
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  }
+
+  function randomPkceVerifier() {
+    const raw = new Uint8Array(32);
+    crypto.getRandomValues(raw);
+    return base64Url(raw);
+  }
+
+  async function pkceChallenge(verifier) {
+    const value = clean(verifier);
+    if (!/^[A-Za-z0-9._~-]{43,128}$/.test(value)) throw new Error('github_oauth_invalid_pkce_verifier');
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+    return base64Url(new Uint8Array(digest));
+  }
+
   async function readGitHubAppAuth() {
     try {
       const raw = (await chrome.storage.local.get(GITHUB_APP_AUTH_KEY))[GITHUB_APP_AUTH_KEY];
@@ -322,11 +341,16 @@
     };
   }
 
-  function validateRedirect(actual, expected, state) {
+  function validateStateRedirect(actual, expected, state) {
     const url = new URL(String(actual || ''));
     const target = new URL(String(expected || ''));
     if (url.origin !== target.origin || url.pathname !== target.pathname) throw new Error('github_oauth_invalid_redirect');
     if (clean(url.searchParams.get('state')) !== clean(state)) throw new Error('github_oauth_state_mismatch');
+    return url;
+  }
+
+  function validateRedirect(actual, expected, state) {
+    const url = validateStateRedirect(actual, expected, state);
     const code = clean(url.searchParams.get('code'));
     if (!code) throw new Error(clean(url.searchParams.get('error')) || 'github_oauth_code_missing');
     return code;
@@ -344,10 +368,12 @@
         description: 'Connecteur privé Project Memory pour ce profil NiakGPT.',
         redirect_url: clean(flow.manifestRedirect),
         callback_urls: [clean(flow.oauthRedirect)],
+        setup_url: clean(flow.installRedirect),
+        setup_on_update: false,
         public: false,
         default_events: [],
         default_permissions: { contents: 'write', metadata: 'read' },
-        request_oauth_on_install: true
+        request_oauth_on_install: false
       }
     };
   }
@@ -356,13 +382,20 @@
     if (!chrome?.identity?.launchWebAuthFlow || !chrome?.identity?.getRedirectURL) throw new Error('github_identity_api_unavailable');
 
     const manifestRedirect = chrome.identity.getRedirectURL('niakgpt-github-manifest');
+    const installRedirect = chrome.identity.getRedirectURL('niakgpt-github-install');
     const oauthRedirect = chrome.identity.getRedirectURL('niakgpt-github-oauth');
+    const pkceVerifier = randomPkceVerifier();
+    const codeChallenge = await pkceChallenge(pkceVerifier);
     const flow = {
-      schema: 1,
+      schema: 2,
       manifestState: randomState(),
+      installState: randomState(),
       oauthState: randomState(),
       manifestRedirect,
+      installRedirect,
       oauthRedirect,
+      pkceVerifier,
+      codeChallenge,
       appName: 'NiakGPT Vault ' + randomState(4),
       startedAt: Date.now()
     };
@@ -404,14 +437,24 @@
         await writeGitHubAppAuth(auth);
       }
 
-      const installUrl = 'https://github.com/apps/' + encodeURIComponent(auth.appSlug) + '/installations/new?state=' + encodeURIComponent(flow.oauthState);
-      const oauthResult = await chrome.identity.launchWebAuthFlow({ url: installUrl, interactive: true });
+      const installUrl = 'https://github.com/apps/' + encodeURIComponent(auth.appSlug) + '/installations/new?state=' + encodeURIComponent(flow.installState);
+      const installResult = await chrome.identity.launchWebAuthFlow({ url: installUrl, interactive: true });
+      validateStateRedirect(installResult, installRedirect, flow.installState);
+
+      const authorizeUrl = new URL('https://github.com/login/oauth/authorize');
+      authorizeUrl.searchParams.set('client_id', auth.clientId);
+      authorizeUrl.searchParams.set('redirect_uri', oauthRedirect);
+      authorizeUrl.searchParams.set('state', flow.oauthState);
+      authorizeUrl.searchParams.set('code_challenge', flow.codeChallenge);
+      authorizeUrl.searchParams.set('code_challenge_method', 'S256');
+      const oauthResult = await chrome.identity.launchWebAuthFlow({ url: authorizeUrl.toString(), interactive: true });
       const oauthCode = validateRedirect(oauthResult, oauthRedirect, flow.oauthState);
       const tokenData = await oauthTokenRequest({
         client_id: auth.clientId,
         client_secret: auth.clientSecret,
         code: oauthCode,
-        redirect_uri: oauthRedirect
+        redirect_uri: oauthRedirect,
+        code_verifier: flow.pkceVerifier
       });
       const saved = await persistGitHubTokenResponse(auth, tokenData);
       auth = saved.auth;
@@ -788,7 +831,9 @@
       tryGetRef,
       connect,
       initializeConnection,
-      validateRedirect
+      validateRedirect,
+      validateStateRedirect,
+      pkceChallenge
     };
   }
 })();

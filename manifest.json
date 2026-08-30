@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.82",
-  "description": "NiakGPT : Projects stables sans reparenting React, continuité longue et mémoire GitHub privée.",
+  "version": "0.9.83",
+  "description": "NiakGPT : Projects ancrés sous la navigation native, continuité longue et Project Memory GitHub auto-récupérable.",
   "permissions": [
     "storage",
     "scripting",

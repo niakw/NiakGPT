@@ -38,13 +38,10 @@ test('real MV3 static continuation layer prefixes only pre-existing parallel wor
     const page=context.pages()[0]||await context.newPage();
     await page.goto(`https://chatgpt.com/c/${CHAT}`,{waitUntil:'commit'});
     await expect(page.locator('#prompt-textarea')).toBeVisible({timeout:8000});
-    await expect.poll(
-      ()=>page.evaluate(()=>({
-        hydrated:window.__NIAKGPT_HOST_HYDRATED_100__===true,
-        parallel:window.__NIAKGPT_PARALLEL_CONTINUE_128__===true
-      })),
-      {timeout:12000,intervals:[80,120,180,260,400]}
-    ).toEqual({hydrated:true,parallel:true});
+    // Content-script globals live in Chrome's isolated world and are intentionally invisible
+    // to page.evaluate(). The shared DOM rail is created only after boot-gate hydration +
+    // runtime injection, so it is the correct cross-world readiness signal.
+    await expect(page.locator('#ng8-rail')).toBeVisible({timeout:12000});
 
     await page.locator('#prompt-textarea').fill('Message depuis une conversation au repos.');await page.locator('#send').click();
     await expect.poll(()=>page.evaluate(()=>window.__sent[0])).toBe('Message depuis une conversation au repos.');

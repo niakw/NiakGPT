@@ -1,7 +1,9 @@
 (() => {
   'use strict';
-  if(location.hostname!=='chatgpt.com'||window.__NIAKGPT_PROJECT_MENU_AUGMENT_129__)return;
-  window.__NIAKGPT_PROJECT_MENU_AUGMENT_129__=true;
+  if(location.hostname!=='chatgpt.com')return;
+  const init=()=>{
+    if(window.__NIAKGPT_PROJECT_MENU_AUGMENT_129__)return;
+    window.__NIAKGPT_PROJECT_MENU_AUGMENT_129__=true;
 
   const CACHE_KEY='niakgpt-v08-cache';
   const LEGACY_SETTINGS_LABEL='Personnaliser le Project';
@@ -98,4 +100,7 @@
   observer=new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes)if(node instanceof Element)scan(node);});observer.observe(document.documentElement,{childList:true,subtree:true});
   window.addEventListener('popstate',retryPendingSettings);if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',retryPendingSettings);window.addEventListener('pageshow',retryPendingSettings);
   window.addEventListener('pagehide',()=>observer?.disconnect(),{once:true});scan();
+  };
+  if(window.__NIAKGPT_HOST_HYDRATED_100__)init();
+  else window.addEventListener('niakgpt:host-hydrated-v100',init,{once:true});
 })();

@@ -29,6 +29,7 @@ document.addEventListener('keydown',event=>{const el=window.__editor();if(event.
 try{
   await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html; charset=utf-8',body:fixture}));
   await page.goto('https://chatgpt.com/c/11111111-1111-4111-8111-111111111111',{waitUntil:'domcontentloaded'});
+  await page.evaluate(()=>{window.__NIAKGPT_HOST_HYDRATED_100__=true;});
   await page.addScriptTag({content:script});
 
   await page.locator('#prompt-textarea').fill('Message normal');await page.locator('#send').click();

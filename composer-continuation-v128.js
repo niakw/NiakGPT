@@ -1,7 +1,9 @@
 (() => {
   'use strict';
-  if(location.hostname!=='chatgpt.com'||window.__NIAKGPT_PARALLEL_CONTINUE_128__)return;
-  window.__NIAKGPT_PARALLEL_CONTINUE_128__=true;
+  if(location.hostname!=='chatgpt.com')return;
+  const init=()=>{
+    if(window.__NIAKGPT_PARALLEL_CONTINUE_128__)return;
+    window.__NIAKGPT_PARALLEL_CONTINUE_128__=true;
 
   const COMPOSER_SEL='#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]';
   const ACTIVE_STATES=new Set(['waiting','thinking','executing']);
@@ -144,4 +146,7 @@
     const editor=editorForTarget(event.target);if(!editor)return;
     prepareParallelContinuation(editor,'enter');
   },true);
+  };
+  if(window.__NIAKGPT_HOST_HYDRATED_100__)init();
+  else window.addEventListener('niakgpt:host-hydrated-v100',init,{once:true});
 })();

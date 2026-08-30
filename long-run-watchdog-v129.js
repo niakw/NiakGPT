@@ -1,7 +1,9 @@
 (() => {
   'use strict';
-  if(location.hostname!=='chatgpt.com'||window.__NIAKGPT_LONG_RUN_WATCHDOG_129__)return;
-  window.__NIAKGPT_LONG_RUN_WATCHDOG_129__=true;
+  if(location.hostname!=='chatgpt.com')return;
+  const init=()=>{
+    if(window.__NIAKGPT_LONG_RUN_WATCHDOG_129__)return;
+    window.__NIAKGPT_LONG_RUN_WATCHDOG_129__=true;
 
   const ACTIVE=new Set(['waiting','thinking','executing']);
   const DEFAULT_SEGMENT_MS=6*60*1000+30*1000;
@@ -126,4 +128,7 @@
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){syncNativeBusyGuard();if(due)attemptResume('visible');else armSegment();}});
   window.addEventListener('pagehide',()=>{clearTimers();clearTimeout(guardTimer);},{once:true});
   setTimeout(()=>{syncNativeBusyGuard();const ed=editor();if(ed&&knownAutoDraft(editorText(ed)))clearAutoDraft(ed);armSegment();},250);
+  };
+  if(window.__NIAKGPT_HOST_HYDRATED_100__)init();
+  else window.addEventListener('niakgpt:host-hydrated-v100',init,{once:true});
 })();

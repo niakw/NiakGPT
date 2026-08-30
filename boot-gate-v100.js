@@ -50,7 +50,7 @@
     });
   }
   function nextFrames(){return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));}
-  async function waitHydrationStable(){await waitComplete();await waitForQuiet();await nextFrames();}
+  async function waitHydrationStable(){await waitComplete();await waitForQuiet(650,4000);await nextFrames();await sleep(120);await nextFrames();}
 
   function rememberShell(root){
     if(!(root instanceof Element))return;
@@ -146,7 +146,10 @@
 
   async function start(){
     await waitDomInteractive();await waitForChatShell();await waitHydrationStable();
-    safeToMutate=!!document.body;installShellRetention();
+    safeToMutate=!!document.body;
+    window.__NIAKGPT_HOST_HYDRATED_100__=true;
+    window.dispatchEvent(new Event('niakgpt:host-hydrated-v100'));
+    installShellRetention();
     await restorePendingContinuity();await guardUpdateOnboarding();
     const result=await injectRuntime();const deadline=performance.now()+9000;
     while(performance.now()<deadline){rememberShell(document.documentElement);if(runtimeShellReady())return;await sleep(120);}

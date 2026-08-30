@@ -8,7 +8,7 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 
 const manifest=JSON.parse(read('manifest.json'));
 if(manifest.manifest_version!==3)fail('manifest_version drift');
-if(manifest.version!=='0.9.79')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.80')fail(`unexpected release ${manifest.version}`);
 same(manifest.permissions,['storage','scripting','identity'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*'],'host scope mismatch');
 const staticRuntime=['boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'];
@@ -63,8 +63,20 @@ for(const token of ['PROJECT_STATE.md','canonicalUpdated','prefsReady','function
 forbid(memoryRuntime,'async function inject(ed)','Project Memory send-time injection must be synchronous');
 
 const gate=read('boot-gate-v100.js');
-for(const token of ['waitDomInteractive','waitForChatShell','restorePendingContinuity','guardUpdateOnboarding','injectRuntime','for(const delay of [0,240,720])','safeToMutate=!!document.body'])need(gate,token,'fast/retry bootstrap contract incomplete');
+for(const token of ['waitDomInteractive','waitForChatShell','restorePendingContinuity','guardUpdateOnboarding','injectRuntime','for(const delay of [0,240,720])','safeToMutate=!!document.body','waitForQuiet(650,4000)','__NIAKGPT_HOST_HYDRATED_100__','niakgpt:host-hydrated-v100'])need(gate,token,'fast/retry/hydration bootstrap contract incomplete');
 forbid(gate,'location.reload(','boot gate must never reload ChatGPT');
+const hydrationEvent='niakgpt:host-hydrated-v100';
+for(const file of staticRuntime.slice(1)){
+  const src=read(file);
+  need(src,'const init=()=>',`pre-runtime missing deferred init: ${file}`);
+  need(src,'window.__NIAKGPT_HOST_HYDRATED_100__',`pre-runtime missing hydration flag: ${file}`);
+  need(src,hydrationEvent,`pre-runtime missing hydration event: ${file}`);
+  need(src,"window.addEventListener('niakgpt:host-hydrated-v100',init,{once:true})",`pre-runtime must wait exactly once for hydration: ${file}`);
+}
+if(!fs.existsSync('visual-lab/hydration-barrier-v080.mjs'))fail('SSR hydration barrier browser gate missing');
+const hydrationLab=read('visual-lab/hydration-barrier-v080.mjs');
+for(const token of ["const BOOT='boot-gate-v100.js'",'manifestOrderedSource','boot gate opened hydration barrier before its quiet window','manifest-order SSR immutability + boot-gate activation'])need(hydrationLab,token,'full manifest-order hydration lab incomplete');
+
 
 const parallel=read('composer-continuation-v128.js');
 for(const token of ['--- CONTINUE — AJOUT EN PARALLÈLE ---','Poursuis le travail déjà en cours','waiting','thinking','executing','nativeGenerationBusy','idleTriggerUntil','CANCEL_RX','prepareParallelContinuation','niakgpt:parallel-continue','execCommand'])need(parallel,token,'parallel continuation contract incomplete');
@@ -133,7 +145,7 @@ for(const token of ['native long-running analysis stays active beyond 10 minutes
 const parallelGate=read('visual-lab/parallel-continue-v128.mjs');
 for(const token of ['idle+thinking+executing+cancel+native-stop+contenteditable+visual','parallel-continuation.png','chromium,firefox,webkit'])need(parallelGate,token,'parallel cross-engine/visual gate incomplete');
 const parallelRuntime=read('visual-lab/tests/composer-continuation-runtime-v128.spec.js');
-for(const token of ['real MV3 static continuation layer prefixes only pre-existing parallel work','Message depuis une conversation au repos.','Ajoute ce contrôle sans arrêter ce que tu fais.','annule'])need(parallelRuntime,token,'parallel real-extension gate incomplete');
+for(const token of ['real MV3 static continuation layer prefixes only pre-existing parallel work','Message depuis une conversation au repos.','Ajoute ce contrôle sans arrêter ce que tu fais.','annule',"page.locator('#ng8-rail')",'isolated world'])need(parallelRuntime,token,'parallel real-extension/hydration gate incomplete');
 const liveSpec=read('visual-lab/tests/live-stability-v129.spec.js');
 for(const token of ['NIAKGPT_EXECUTABLE_PATH','long-run recovery + remount-safe pins + Project context + native limit handoff','Brouillon utilisateur à préserver','draft-protected','Personnaliser le Project','CONTINUITÉ NIAKGPT'])need(liveSpec,token,'0.9.76 focused live stability gate incomplete');
 

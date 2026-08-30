@@ -6,7 +6,7 @@
   <p>Projects · performance des longs fils · continuité · navigation · productivité ciblée</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.79-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.80-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -22,9 +22,13 @@ NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
 
-> **Version actuelle : 0.9.79.** Project Memory reste optionnel et privé, sait initialiser un dépôt neuf sans commit et est désormais totalement isolé du chemin critique Projects/sidebar.
+> **Version actuelle : 0.9.80.** L’hydratation React initiale de ChatGPT passe désormais derrière une barrière stricte avant toute mutation NiakGPT ; Project Memory reste optionnel et privé.
 
 ## Points forts
+
+### Démarrage protégé contre les erreurs d’hydratation
+
+NiakGPT peut être chargé à `document_start`, mais ses modules pré-runtime restent désormais inactifs tant que le boot-gate n’a pas déclaré l’hydratation React initiale de ChatGPT stable. Avant ce signal : aucun observer, timer, attribut HTML ou mutation DOM NiakGPT. Un lab Chromium/Firefox/WebKit prend un snapshot du DOM de type SSR et échoue si un module NiakGPT le modifie trop tôt.
 
 ### Projects intégrés à ChatGPT
 
@@ -77,7 +81,7 @@ Le texte utilisateur reste toujours prioritaire : un brouillon modifié n’est 
 
 ### Project Memory privé (optionnel)
 
-NiakGPT 0.9.79 peut associer, depuis le Centre de contrôle, un **dépôt GitHub privé choisi par l’utilisateur** à la continuité des Projects, avec un parcours normal **Se connecter avec GitHub** puis choix du dépôt.
+NiakGPT 0.9.80 peut associer, depuis le Centre de contrôle, un **dépôt GitHub privé choisi par l’utilisateur** à la continuité des Projects, avec un parcours normal **Se connecter avec GitHub** puis choix du dépôt.
 
 - connexion explicite et désactivée par défaut ;
 - parcours normal **Se connecter avec GitHub → autorisation GitHub → choix du dépôt**, sans copier-coller de PAT ;
@@ -107,7 +111,7 @@ La couche UX v131 retire l’effet « seconde application autour de ChatGPT » :
 
 ### Cœur local-first, synchro privée optionnelle
 
-Le cœur de NiakGPT reste local-first. La version 0.9.79 déclare :
+Le cœur de NiakGPT reste local-first. La version 0.9.80 déclare :
 
 ```text
 storage
@@ -193,7 +197,7 @@ Une fixture verte ne remplace **jamais** une capture utilisateur réelle qui la 
 | [README.md](README.md) | README anglais |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture runtime et invariants de propriété |
 | [CHANGELOG.md](CHANGELOG.md) | Historique détaillé |
-| [RELEASE_NOTES_0.9.79.md](RELEASE_NOTES_0.9.79.md) | Résumé de la release courante |
+| [RELEASE_NOTES_0.9.80.md](RELEASE_NOTES_0.9.80.md) | Résumé de la release courante |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnostic et reprise |
 | [PRIVACY.md](PRIVACY.md) | Données locales et comportement réseau |
 | [SECURITY.md](SECURITY.md) | Modèle de sécurité et signalement |

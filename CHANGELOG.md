@@ -1,3 +1,16 @@
+# NiakGPT 0.9.80 — React hydration barrier hotfix
+
+## Hydration / affichage — 2026-08-30
+
+- correction de la course pouvant provoquer **React recoverable error #418** et casser l’affichage ChatGPT lorsque NiakGPT est chargé à `document_start` ;
+- `boot-gate-v100.js` impose désormais une barrière host-hydrated renforcée : chargement complet, calme DOM prolongé, frames de stabilisation puis signal `niakgpt:host-hydrated-v100` ;
+- les cinq modules pré-runtime (`composer-continuation`, `long-run-watchdog`, `pin-interaction-rescue`, `project-menu-augment`, `continuity-native-handoff`) restent totalement dormants avant ce signal ;
+- avant hydratation : aucun observer, timer, attribut HTML, interception ou mutation DOM NiakGPT ;
+- ajout de `visual-lab/hydration-barrier-v080.mjs` : snapshot d’un DOM SSR-shaped, vérification d’immuabilité avant barrière puis activation après signal sur Chromium, Firefox et WebKit ;
+- le nouveau lab est intégré au Public Quality Gate et les invariants statiques refusent toute réactivation précoce d’un module `document_start`.
+
+---
+
 # NiakGPT 0.9.79 — Connexion GitHub native et choix du coffre
 
 ## Project Memory GitHub UX — 2026-08-30

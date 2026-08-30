@@ -46,7 +46,7 @@ Le dépôt privé protège l’accès par GitHub ; **NiakGPT 0.9.81 n’ajoute p
 
 ## Intégrité du DOM pendant l’hydratation
 
-Les content scripts chargés à `document_start` ne modifient plus le DOM hôte avant le signal d’hydratation émis par le boot-gate. Cette barrière réduit les courses avec React, empêche NiakGPT d’altérer le HTML SSR avant réconciliation et évite qu’une extension fonctionnelle provoque elle-même un fallback d’hydratation complet de ChatGPT.
+Les content scripts JavaScript NiakGPT ne sont plus chargés à `document_start` : ils démarrent à `document_idle` puis restent inactifs jusqu’au signal d’hydratation émis par le boot-gate. Le gate vérifie aussi la stabilité d’identité des nœuds hôtes et laisse passer des tours idle du scheduler afin de ne pas confondre une pause DOM avec la fin réelle du travail React.
 
 ## Authentification GitHub
 

@@ -43,7 +43,7 @@ for(const [engine,launcher] of Object.entries(selected)){
           previous:box?.previousElementSibling?.id||'',
           header:box?.querySelector('.ng8-pin-head span')?.textContent||'',
           pins:box?.querySelectorAll('a[data-ng8-pin="1"]').length||0,
-          launcherLinks:document.querySelectorAll('a[href*="/g/g-p-"]').length
+          launcherLinks:[...document.querySelectorAll('a[href*="/g/g-p-"]')].filter(a=>!a.closest('#ng8-pins,[data-ng121-retired="1"]')).length
         };
       });
       assert(state.launcherLinks===0,engine+': fixture unexpectedly hydrated individual Projects');

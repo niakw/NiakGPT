@@ -413,14 +413,24 @@
     if(/^ATTENTE/i.test(String(merged.toc||'')))merged.toc=location.pathname.includes('/c/')?'VIDE · 0 bloc':'INACTIF · hors conversation';
     return Object.entries(merged);
   }
+  function panelSelectionActive(panel){
+    try{
+      const sel=window.getSelection?.();if(!sel||sel.isCollapsed||!sel.rangeCount)return false;
+      const range=sel.getRangeAt(0),node=range.commonAncestorContainer;
+      const host=node?.nodeType===Node.ELEMENT_NODE?node:node?.parentElement;
+      return !!(host&&panel?.contains(host)&&clean(sel.toString()));
+    }catch{return false;}
+  }
   function renderPanelIfDiag(){
     if(!(S.panelOpen&&S.tab==='diag')||S.diagTimer)return;
-    S.diagTimer=setTimeout(()=>{S.diagTimer=0;if(S.panelOpen&&S.tab==='diag')renderPanel();},70);
+    const retry=()=>{S.diagTimer=0;if(!(S.panelOpen&&S.tab==='diag'))return;const panel=document.getElementById('ng8-panel');if(panelSelectionActive(panel)){S.diagTimer=setTimeout(retry,280);return;}renderPanel();};
+    S.diagTimer=setTimeout(retry,70);
   }
   function liveTurns(){ S.turns=S.turns.filter(t=>t?.isConnected);return S.turns; }
   function renderPanel(){
     const panel=document.getElementById('ng8-panel');if(!panel)return;panel.classList.toggle('open',S.panelOpen);document.body.classList.toggle('ng8-panel-open',S.panelOpen);document.querySelectorAll('#ng8-rail [data-tab]').forEach(b=>b.classList.toggle('active',S.panelOpen&&b.dataset.tab===S.tab));if(!S.panelOpen)return;
     if(S.tab==='diag'){
+      if(panelSelectionActive(panel)){renderPanelIfDiag();return;}
       panel.innerHTML=`<header><div><small>DIAGNOSTIC</small><b>État des modules</b></div><button aria-label="Fermer">×</button></header><div class="ng8-diag">${diagnosticRows().map(([k,v])=>`<div><span>${esc(k)}</span><b class="${/^OK|^PRÊT/.test(String(v))?'ok':/^ERREUR/.test(String(v))?'err':'wait'}">${esc(v)}</b></div>`).join('')}</div>${S.errors.length?`<details class="ng8-errors"><summary>Dernières erreurs</summary>${S.errors.map(e=>`<code>${esc(e)}</code>`).join('')}</details>`:''}<div class="ng8-joke">☠ SYSTEM // SKYNET</div>`;
     }else if(S.tab==='toc'){
       const turns=liveTurns();health('toc',turns.length?`OK · ${turns.length} blocs`:'VIDE · 0 bloc');

@@ -153,11 +153,14 @@
 
   async function getAccessToken(force = false) {
     if (!force && cachedToken && Date.now() - tokenAt < 120000) return cachedToken;
+    if (nativeBusy()) return '';
+    const controller=new AbortController();activeGetControllers.add(controller);
     try {
       const r = await nativeFetch('/api/auth/session', {
         method: 'GET',
         credentials: 'include',
-        headers: { Accept: 'application/json' }
+        headers: { Accept: 'application/json' },
+        signal: controller.signal
       });
       if (!r.ok) return '';
       const session = await r.json();
@@ -166,6 +169,8 @@
       return cachedToken;
     } catch {
       return '';
+    } finally {
+      activeGetControllers.delete(controller);
     }
   }
 
@@ -372,7 +377,7 @@
     // Full conversation payloads stay forbidden during normal runtime. Project Memory may
     // request one explicitly during a user-enabled private GitHub bootstrap/sync. Those reads
     // still pass through the single broker, native-busy guard, gap and rate-limit circuit.
-    if (method === 'GET' && conversationRx.test(path) && d.memoryBootstrap !== true) {
+    if (method === 'GET' && conversationRx.test(path) && d.memoryBootstrap !== true && d.analysis !== true) {
       document.dispatchEvent(new CustomEvent(RES,{detail:{id,ok:false,status:0,data:null,error:'conversation_detail_get_disabled',transport:'guard'}}));
       return;
     }

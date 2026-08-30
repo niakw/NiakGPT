@@ -154,29 +154,47 @@ async function runJourney(){
     });
 
     await runStep('busy transition blocks backend work without freezing Project UX',async()=>{
-      const prime=await page.evaluate(()=>window.__uxRpc('/backend-api/conversations?offset=0&limit=100'));
-      expect(prime.ok).toBeTruthy();
-      const before=rt.traffic.projectCalls.length;
-      const blocked=await page.evaluate(async pid=>{
-        document.documentElement.dataset.ng86Activity='ready';
-        const pending=window.__uxRpc(`/backend-api/gizmos/${pid}/conversations?limit=20&cursor=777`);
-        setTimeout(()=>{document.documentElement.dataset.ng86Activity='thinking';document.documentElement.dataset.ng8Running='1';},35);
-        return pending;
-      },P1);
-      expect(blocked.ok).toBeFalsy();
-      expect(blocked.error).toBe('native_busy');
-      expect(rt.traffic.projectCalls.length).toBe(before);
+      // Fast-forward only the synthetic wall clock past any boot quarantine so this step can
+      // establish one baseline request without waiting 30 real seconds.
+      await page.evaluate(()=>{
+        window.__ngV085RealDateNow=Date.now;
+        window.__ngV085ClockOffset=31_000;
+        Date.now=()=>window.__ngV085RealDateNow()+window.__ngV085ClockOffset;
+      });
+      try{
+        const prime=await page.evaluate(()=>window.__uxRpc('/backend-api/conversations?offset=0&limit=100'));
+        expect(prime.ok).toBeTruthy();
+        const before=rt.traffic.projectCalls.length;
+        const blocked=await page.evaluate(async pid=>{
+          document.documentElement.dataset.ng86Activity='ready';
+          const pending=window.__uxRpc(`/backend-api/gizmos/${pid}/conversations?limit=20&cursor=777`);
+          setTimeout(()=>{document.documentElement.dataset.ng86Activity='thinking';document.documentElement.dataset.ng8Running='1';},35);
+          return pending;
+        },P1);
+        expect(blocked.ok).toBeFalsy();
+        expect(blocked.error).toBe('native_busy');
+        expect(rt.traffic.projectCalls.length).toBe(before);
 
-      await pin(page,P1).click();
-      await expect(pin(page,P1)).toBeFocused();
-      await expect(page.locator('#ng8-pins')).toBeVisible();
-      expect(page.url()).toBe(initialUrl);
-      await shot(page,'03-thinking-local-interaction.png');
+        await pin(page,P1).click();
+        await expect(pin(page,P1)).toBeFocused();
+        await expect(page.locator('#ng8-pins')).toBeVisible();
+        expect(page.url()).toBe(initialUrl);
+        await shot(page,'03-thinking-local-interaction.png');
 
-      await page.evaluate(()=>{document.documentElement.dataset.ng86Activity='ready';delete document.documentElement.dataset.ng8Running;});
-      const retry=await page.evaluate(pid=>window.__uxRpc(`/backend-api/gizmos/${pid}/conversations?limit=20&cursor=777`),P1);
-      expect(retry.ok).toBeTruthy();
-      expect(rt.traffic.projectCalls.length).toBe(before+1);
+        await page.evaluate(()=>{document.documentElement.dataset.ng86Activity='ready';delete document.documentElement.dataset.ng8Running;});
+        const quarantined=await page.evaluate(pid=>window.__uxRpc(`/backend-api/gizmos/${pid}/conversations?limit=20&cursor=777`),P1);
+        expect(quarantined.ok).toBeFalsy();
+        expect(quarantined.error).toBe('native_busy');
+        expect(rt.traffic.projectCalls.length).toBe(before);
+
+        // Once the 30s post-native quiet window has elapsed, the exact same queued work may run.
+        await page.evaluate(()=>{window.__ngV085ClockOffset=62_000;});
+        const retry=await page.evaluate(pid=>window.__uxRpc(`/backend-api/gizmos/${pid}/conversations?limit=20&cursor=777`),P1);
+        expect(retry.ok).toBeTruthy();
+        expect(rt.traffic.projectCalls.length).toBe(before+1);
+      }finally{
+        await page.evaluate(()=>{if(window.__ngV085RealDateNow){Date.now=window.__ngV085RealDateNow;delete window.__ngV085RealDateNow;delete window.__ngV085ClockOffset;}});
+      }
     });
 
     await runStep('focus, drawer content and action menu remain usable after stress',async()=>{

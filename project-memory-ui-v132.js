@@ -60,6 +60,7 @@
       const connected = snapshot.connected === true;
       const configured = snapshot.configured === true;
       const githubConnected = github.authenticated === true;
+      const githubRegistered = github.registered === true;
       const selectedRepo = repositories.some(item => item.fullName === config.repo) ? config.repo : (repositories[0]?.fullName || '');
       const selectedMeta = repositories.find(item => item.fullName === selectedRepo) || {};
       const branchValue = config.authMode === 'github-app' && config.repo === selectedRepo ? (config.branch || selectedMeta.defaultBranch || 'main') : (selectedMeta.defaultBranch || 'main');
@@ -70,7 +71,7 @@
         githubBlock =
           '<div class="ng132-github-connect">' +
             '<div><b>Connexion simple</b><small>GitHub ouvre son écran officiel, te demande les droits minimaux puis te laisse choisir exactement le ou les dépôts autorisés.</small></div>' +
-            '<button class="ng132-primary" data-ng132-github-login>Se connecter avec GitHub</button>' +
+            '<button class="ng132-primary" data-ng132-github-login>' + (githubRegistered ? 'Reprendre la connexion GitHub' : 'Se connecter avec GitHub') + '</button>' +
           '</div>';
       } else {
         githubBlock =

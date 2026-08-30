@@ -4,6 +4,7 @@
   window.__NIAKGPT_PIN_FOLDERS_096__ = true;
 
   const CACHE_KEY='niakgpt-v08-cache';
+  const PROJECT_CHAT_FRESH_MS=10*60*1000;
   const PIN_SEL='#ng8-pins a[data-ng8-pin="1"]';
   const SESSION_KEY='niakgpt-open-pin-folder-v096';
   const CHAT_ACTION_LABEL='Actions de la conversation (menu ChatGPT)';
@@ -88,7 +89,8 @@
       latest=latest&&typeof latest==='object'?latest:{};const chats=new Map((latest.chats||[]).filter(c=>c?.id).map(c=>[c.id,{...c}]));
       for(const c of list){const old=chats.get(c.id)||{};chats.set(c.id,{...old,...c,projectId:pid,updated:Math.max(parseTime(old.updated||old.update_time),parseTime(c.updated||c.update_time||c.create_time))});}
       const projectChats={...(latest.projectChats||{}),[pid]:list.map(c=>({...c,projectId:pid}))};
-      return{...latest,at:Date.now(),chats:[...chats.values()],projectChats,counts:{...(latest.counts||{}),[pid]:list.length},indexedProjectIds:[...new Set([...(latest.indexedProjectIds||[]),pid])]};
+      const projectChatInventoryAt={...(latest.projectChatInventoryAt||{}),[pid]:Date.now()};
+      return{...latest,at:Date.now(),chats:[...chats.values()],projectChats,projectChatInventoryAt,counts:{...(latest.counts||{}),[pid]:list.length},indexedProjectIds:[...new Set([...(latest.indexedProjectIds||[]),pid])]};
     };
     try{
       const bus=window.__NIAKGPT_CACHE_BUS__;if(bus?.update){const next=await bus.update(merge);if(next)acceptCache(next);}else{const raw=(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||cache,next=merge(raw);await chrome.storage.local.set({[CACHE_KEY]:next});acceptCache(next);}
@@ -99,7 +101,13 @@
     const indexed=(cache.indexedProjectIds||[]).some(id=>normalizePid(id)===pid);
     const direct=Object.entries(cache.counts||{}).find(([id])=>normalizePid(id)===pid)?.[1];
     const expected=Number(direct);
-    return indexed&&Number.isFinite(expected)&&expected>=0&&current>=expected;
+    const perProject=Object.entries(cache.projectChatInventoryAt||{}).find(([id])=>normalizePid(id)===pid)?.[1];
+    const freshAt=Math.max(Number(perProject)||0,Number(cache.serverIndexedAt)||0);
+    const fresh=freshAt>0&&Date.now()-freshAt<PROJECT_CHAT_FRESH_MS;
+    // indexedProjectIds/counts alone can describe a stale partial snapshot. A user opening a
+    // drawer must not be trapped forever at that old count: only a recent full server index or
+    // a recent foreground hydration is authoritative enough to suppress a refresh.
+    return fresh&&indexed&&Number.isFinite(expected)&&expected>=0&&current>=expected;
   }
   async function hydrateProject(pid){
     pid=normalizePid(pid);if(!pid||projectInventoryComplete(pid))return;

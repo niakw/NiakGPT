@@ -135,8 +135,17 @@
   function captureProjectScroll(reason='cache'){
     const list=document.querySelector('#ng8-pins>.ng8-pin-list');if(!(list instanceof HTMLElement))return null;
     const max=Math.max(0,list.scrollHeight-list.clientHeight);if(max<=0)return null;
+    const now=performance.now(),existing=activePendingScroll();
+    // Coalesce a burst of cache/index events onto the first stable scroll anchor. Layout can move
+    // scrollTop transiently while rows/drawers update; recapturing that transient value on every
+    // event turns a few pixels of layout drift into a visible jump. Real user input clears the
+    // pending anchor through noteUserScrollIntent(), so human scrolling always wins immediately.
+    if(existing&&existing.userIntentEpoch===userScrollEpoch&&userScrollIntentAt<=existing.userIntentAt){
+      document.documentElement.dataset.ng121ScrollGuard=`coalesced:${reason}:${Math.round(existing.top)}`;
+      return existing;
+    }
     const top=Math.min(max,Math.max(0,list.scrollTop));projectScrollMemory=top;
-    const now=performance.now(),recentUser=now-userScrollIntentAt<600;
+    const recentUser=now-userScrollIntentAt<600;
     if(recentUser){
       // A reconcile may arrive in the same task as wheel/touch/key input, before the browser has
       // applied the user's new scroll position. Never arm the pre-input top. Bind a deferred

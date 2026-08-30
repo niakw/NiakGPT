@@ -1,3 +1,15 @@
+# NiakGPT 0.9.81 — Late React scheduler hydration hotfix
+
+## Hydration / affichage — 2026-08-30
+
+- aucun JavaScript NiakGPT n’est désormais chargé à `document_start` ; le groupe bootstrap passe à `document_idle` ;
+- la barrière ne se fie plus au seul « DOM calme » : elle exige une identité stable des nœuds `nav/main/composer`, une fenêtre sans mutation prolongée, deux passages idle du scheduler et plusieurs frames ;
+- correction du cas réel où React continue sa réconciliation via `MessagePort` après une période sans mutation et remplace ensuite des nœuds différés ;
+- le lab d’hydratation reproduit deux remplacements tardifs du shell via `MessageChannel` après `load` et échoue si NiakGPT s’active pendant cette fausse stabilité ;
+- les modules continuité/watchdog/pins/menu/handoff restent dormants jusqu’au signal final `niakgpt:host-hydrated-v100`.
+
+---
+
 # NiakGPT 0.9.80 — React hydration barrier hotfix
 
 ## Hydration / affichage — 2026-08-30

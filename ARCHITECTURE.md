@@ -1,10 +1,10 @@
 # Architecture de NiakGPT
 
-NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.83 privilégie quatre propriétés : **faible coût runtime**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
+NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.84 privilégie quatre propriétés : **faible coût runtime**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
 
 ## Périmètre
 
-Le manifest 0.9.83 déclare :
+Le manifest 0.9.84 déclare :
 
 ```text
 https://chatgpt.com/*
@@ -27,7 +27,7 @@ Jusqu’au signal final, `composer-continuation-v128.js`, `long-run-watchdog-v12
 
 Le gate `visual-lab/hydration-barrier-v080.mjs` reproduit maintenant deux remplacements tardifs du shell via `MessageChannel`, après de fausses périodes de calme, et exige que NiakGPT reste inactif jusqu’à la stabilité finale sur Chromium, Firefox et WebKit.
 
-## Invariant DOM 0.9.83 — mount direct, slot natif vérifié, jamais de reparenting des Pins
+## Invariant DOM 0.9.84 — hydratation tardive, remount direct, jamais de reparenting des Pins
 
 Le bloc `#ng8-pins` n’est plus créé à un endroit provisoire puis déplacé. `sidebar-projects-v121.js` calcule d’abord son emplacement final dans la **sidebar visible et active**, puis crée le nœud directement à cet emplacement.
 
@@ -39,7 +39,7 @@ Si ChatGPT remonte sa sidebar pendant une conversation :
 4. aucun même nœud Pins ne change de parent après son premier mount ;
 5. les insertions internes passent par `safeInsert()`, qui refuse toute relation parent/descendant invalide.
 
-`ux-v131.js` exclut les shells cachés/inertes/`aria-hidden` et privilégie le shell réellement hit-testable. En 0.9.83, le **slot** est lui aussi validé : une surface Projects native cachée/inert ou située avant/au-dessus de la navigation primaire ChatGPT est rejetée. `primaryTail()` ne remonte plus dans un parent qui contient déjà des liens Project ou conversation. Le fallback est donc placé après le vrai groupe primaire (`ChatGPT`, Nouveau chat, Bibliothèque/Apps…) et non en tête de sidebar. `dom-node-stability-v082.mjs` couvre le remount sans reparenting et `pins-primary-slot-v083.mjs` reproduit explicitement une fausse surface Projects cachée au-dessus des contrôles natifs.
+`ux-v131.js` exclut les shells cachés/inertes/`aria-hidden` et privilégie le shell réellement hit-testable. En 0.9.84, le **slot** est lui aussi validé : une surface Projects native cachée/inert ou située avant/au-dessus de la navigation primaire ChatGPT est rejetée. `primaryTail()` ne remonte plus dans un parent qui contient déjà des liens Project ou conversation. Le fallback est donc placé après le vrai groupe primaire (`ChatGPT`, Nouveau chat, Bibliothèque/Apps…) et non en tête de sidebar. `dom-node-stability-v082.mjs` couvre le remount sans reparenting et `pins-primary-slot-v083.mjs` reproduit explicitement une fausse surface Projects cachée au-dessus des contrôles natifs.
 
 ## Deux mondes d’exécution
 
@@ -133,7 +133,7 @@ L’historique complet est un stockage durable. Le checkpoint est la surface de 
 
 **Invariant de confidentialité : le dépôt public NiakGPT n’est jamais une destination de mémoire utilisateur. Les fixtures publiques sous `test/` sont exclusivement synthétiques. Le dépôt public et ses GitHub Actions ne possèdent aucun credential vers un coffre utilisateur et ne connaissent pas son nom ; la GitHub App privée, ses identifiants, le choix de dépôt et les tokens n’existent que dans le profil navigateur/GitHub de l’utilisateur.**
 
-## Invariant UI 0.9.83 — une sélection utilisateur ne doit pas être détruite par les diagnostics
+## Invariant UI 0.9.84 — une sélection utilisateur ne doit pas être détruite par les diagnostics
 
 `app-v090.js` peut recevoir des événements de diagnostic fréquents. Tant qu’un `Selection/Range` natif non vide se trouve dans le panneau Diagnostic, le panneau ne reconstruit plus son `innerHTML`. Les mises à jour sont différées par un timer borné puis reprennent dès que la sélection est relâchée. `diagnostic-selection-v083.mjs` vérifie la conservation du même nœud DOM et du texte sélectionné pendant des changements d’état.
 
@@ -406,7 +406,7 @@ peuvent être suspendus, tandis que composer, lecture, navigation et interface n
 
 Une modification architecturale n’est considérée terminée que si le niveau de preuve correspondant existe.
 
-La 0.9.83 utilise notamment :
+La 0.9.84 utilise notamment :
 
 1. `tools/check-hydration-v100.mjs` — invariants runtime et ordre de boot ;
 2. `labs/static_validate_current.py` — syntaxe, manifest, package/runtime, propriétaires uniques ;

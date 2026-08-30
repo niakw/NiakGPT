@@ -32,12 +32,12 @@
   let rateLimitedUntil = 0;
   let rateStrike = 0;
   let rateClearTimer = 0;
-  let nativePriorityUntil = 0, nativeWasBusy = false;
+  let nativePriorityUntil = 0, backgroundPriorityUntil = 0, nativeWasBusy = false;
   const activeGetControllers = new Set();
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const now = () => Date.now();
   const cacheTTL = () => 1200;
-  const gapFor = (_path, method) => method === 'GET' ? 1250 : 650;
+  const gapFor = (path, method) => method !== 'GET' ? 650 : conversationRx.test(String(path||'')) ? 2500 : 650;
   const cacheKey = (path, method) => `${method}:${path}`;
   const baseNativeBusy = () => {
     const interruption=String(document.documentElement.dataset.ng119Interruption||'').toLowerCase();
@@ -53,9 +53,12 @@
       try { controller.abort(reason || 'native_priority'); } catch {}
     }
   };
-  const noteNativePriority = (ms, reason, abort = true) => {
-    nativePriorityUntil = Math.max(nativePriorityUntil, now() + Math.max(0, Number(ms) || 0));
+  const noteNativePriority = (shortMs, backgroundMs, reason, abort = true) => {
+    const at=now();
+    nativePriorityUntil = Math.max(nativePriorityUntil, at + Math.max(0, Number(shortMs) || 0));
+    backgroundPriorityUntil = Math.max(backgroundPriorityUntil, at + Math.max(0, Number(backgroundMs) || 0));
     document.documentElement.dataset.ng100NativePriorityUntil = String(nativePriorityUntil);
+    document.documentElement.dataset.ng100BackgroundPriorityUntil = String(backgroundPriorityUntil);
     document.documentElement.dataset.ng100NativePriorityReason = String(reason || 'native');
     if (abort) abortOwnGets(reason || 'native_priority');
   };
@@ -65,13 +68,15 @@
     if (busy) {
       nativeWasBusy = true;
       abortOwnGets(reason || interruption || 'native_busy');
-      if (interruption === 'verify' || interruption === 'network') noteNativePriority(120000, interruption, false);
+      if (interruption === 'verify' || interruption === 'network') noteNativePriority(15000,120000,interruption,false);
     } else if (nativeWasBusy) {
       nativeWasBusy = false;
-      noteNativePriority(30000, 'post-native-idle', false);
+      // UI/sidebar indexes may recover quickly after ChatGPT settles. Full conversation reads
+      // remain quarantined much longer so Project Memory / deep analysis cannot compete.
+      noteNativePriority(2500,45000,'post-native-idle',false);
     }
   };
-  const nativeBusy = () => baseNativeBusy() || now() < nativePriorityUntil;
+  const nativeBusy = path => baseNativeBusy() || now() < nativePriorityUntil || (conversationRx.test(String(path||'')) && now() < backgroundPriorityUntil);
   const nativeBusyResult = () => ({ok:false,status:0,data:null,error:'native_busy',transport:'bridge-pause'});
 
   function retryAfterMsFrom(value) {
@@ -151,9 +156,9 @@
     }
   }
 
-  async function getAccessToken(force = false, foreground = false) {
+  async function getAccessToken(force = false, foreground = false, path = '') {
     if (!force && cachedToken && Date.now() - tokenAt < 120000) return cachedToken;
-    if (foreground ? baseNativeBusy() : nativeBusy()) return '';
+    if (foreground ? baseNativeBusy() : nativeBusy(path)) return '';
     const controller=new AbortController();activeGetControllers.add(controller);
     try {
       const r = await nativeFetch('/api/auth/session', {
@@ -223,9 +228,9 @@
   async function backendFetchCore(path, method, body, forceToken = false, foreground = false) {
     // Explicit user reads (opening a Project drawer) may bypass only the post-native quiet
     // quarantine. They are still blocked by an active generation, verification or network incident.
-    const requestBusy=()=>foreground ? baseNativeBusy() : nativeBusy();
+    const requestBusy=()=>foreground ? baseNativeBusy() : nativeBusy(path);
     if (requestBusy()) return nativeBusyResult();
-    const token = await getAccessToken(forceToken, foreground);
+    const token = await getAccessToken(forceToken, foreground, path);
     if (!token) return { ok:false, status:401, data:null, error:'auth_session_missing', transport:'auth' };
 
     const originalPath = path;
@@ -317,16 +322,16 @@
   };
   document.addEventListener('click', event => {
     const button = event.target instanceof Element ? event.target.closest('button,[role="button"]') : null;
-    if (sendLike(button)) noteNativePriority(45000,'user-send');
+    if (sendLike(button)) noteNativePriority(10000,60000,'user-send');
   }, true);
   document.addEventListener('keydown', event => {
     if (event.key !== 'Enter' || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey || event.isComposing) return;
     const target = event.target instanceof Element ? event.target.closest(composerSelector) : null;
-    if (target) noteNativePriority(45000,'user-send-enter');
+    if (target) noteNativePriority(10000,60000,'user-send-enter');
   }, true);
   document.addEventListener('niakgpt:activity-changed',()=>refreshNativePriority('activity'));
-  window.addEventListener('offline',()=>noteNativePriority(120000,'offline'));
-  window.addEventListener('online',()=>noteNativePriority(30000,'online-recovery',false));
+  window.addEventListener('offline',()=>noteNativePriority(120000,120000,'offline'));
+  window.addEventListener('online',()=>noteNativePriority(10000,60000,'online-recovery',false));
   const nativeGuardObserver = new MutationObserver(records => {
     if (records.some(r => ['data-ng8-running','data-ng86-activity','data-ng105-verification','data-ng119-interruption'].includes(r.attributeName))) refreshNativePriority('native-state');
   });

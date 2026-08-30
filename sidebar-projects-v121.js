@@ -359,7 +359,10 @@
       // Let React/ChatGPT finish the current mutation batch before reconciling. Chromium usually
       // settles in the same turn, while Firefox/WebKit can expose a transient parent/slot for a
       // few frames. A bounded verification pass repairs external displacement without polling.
-      schedule(0);
+      // Repair in the MutationObserver microtask, before the next paint, so an externally
+      // displaced catalogue never produces a visible bad frame. Keep the bounded delayed check
+      // as a second chance for React/browser trees that expose a transient slot in this microtask.
+      reconcile();
       setTimeout(()=>{
         const liveRoot=navRoot(),box=document.getElementById('ng8-pins');
         if(!liveRoot)return;

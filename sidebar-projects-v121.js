@@ -50,7 +50,13 @@
   function primaryControl(el){
     if(!(el instanceof Element)||isOwn(el)||!visiblePlacementNode(el))return false;
     const href=el.getAttribute?.('href')||'';
-    if(href&&PRIMARY_PATH.test(href))return true;
+    if(href){
+      let path=href;
+      try{path=new URL(href,location.origin).pathname;}catch{}
+      // An anchor's route is authoritative. Never reinterpret /c/... or /g/... as a primary
+      // command merely because its visible title happens to be "Nouveau chat" / "ChatGPT".
+      return PRIMARY_PATH.test(path);
+    }
     const label=norm(el.getAttribute?.('aria-label')||el.getAttribute?.('data-testid')||el.textContent);
     return PRIMARY_LABEL.test(label)||/(?:^|[-_\s])(?:new[-_\s]?chat|nouveau[-_\s]?chat|sidebar[-_\s]?new)(?:$|[-_\s])/i.test(label);
   }

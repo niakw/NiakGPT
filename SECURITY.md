@@ -2,7 +2,7 @@
 
 ## Modèle de sécurité
 
-NiakGPT 0.9.80 est une extension Manifest V3 dont le cœur reste local-first. Project Memory v132 ajoute un canal GitHub **optionnel**, réservé à un dépôt privé choisi par l’utilisateur.
+NiakGPT 0.9.81 est une extension Manifest V3 dont le cœur reste local-first. Project Memory v132 ajoute un canal GitHub **optionnel**, réservé à un dépôt privé choisi par l’utilisateur.
 
 L’extension ne demande pas de clé API OpenAI et ne stocke volontairement ni cookie de session ChatGPT ni jeton d’accès ChatGPT dans un serveur NiakGPT externe.
 
@@ -42,7 +42,7 @@ Règles obligatoires :
 15. le sélecteur refuse tout dépôt qui n’est pas présent dans la liste des dépôts autorisés de l’installation GitHub App ;
 16. la clé privée PEM de la GitHub App créée via manifest flow n’est jamais persistée ni utilisée.
 
-Le dépôt privé protège l’accès par GitHub ; **NiakGPT 0.9.80 n’ajoute pas de chiffrement applicatif E2E des fichiers mémoire**. Toute personne ou application disposant d’un accès suffisant au dépôt peut lire son contenu.
+Le dépôt privé protège l’accès par GitHub ; **NiakGPT 0.9.81 n’ajoute pas de chiffrement applicatif E2E des fichiers mémoire**. Toute personne ou application disposant d’un accès suffisant au dépôt peut lire son contenu.
 
 ## Intégrité du DOM pendant l’hydratation
 

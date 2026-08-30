@@ -48,6 +48,14 @@ expected_static=[
     'pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'
 ]
 if static_js!=expected_static: fail(f'static runtime drift: {static_js!r}')
+hydration_gate=read('boot-gate-v100.js')
+for token in ('waitForQuiet(650,4000)','__NIAKGPT_HOST_HYDRATED_100__','niakgpt:host-hydrated-v100'):
+    if token not in hydration_gate: fail('boot hydration barrier incomplete '+token)
+for file in expected_static[1:]:
+    src=read(file)
+    for token in ('const init=()=>','window.__NIAKGPT_HOST_HYDRATED_100__',"window.addEventListener('niakgpt:host-hydrated-v100',init,{once:true})"):
+        if token not in src: fail('pre-runtime hydration gate incomplete '+file+' '+token)
+if not (ROOT/'visual-lab/hydration-barrier-v080.mjs').exists(): fail('SSR hydration barrier browser gate missing')
 css_runtime=[file for cs in manifest.get('content_scripts',[]) for file in cs.get('css',[])]
 if 'ux-v131.css' not in css_runtime: fail('v131 visual authority missing from manifest')
 

@@ -72,16 +72,39 @@
   }
   function stage(row){const staged=[];let n=row;while(n&&n!==document.body){const s=getComputedStyle(n);if(s.display==='none'||s.visibility==='hidden'||n.getAttribute?.('data-ng112-native-projects')==='1'){n.classList.add('ng123-native-stage');staged.push(n);}n=n.parentElement;}if(row&&!staged.includes(row)){row.classList.add('ng123-native-stage-leaf');staged.push(row);}return()=>staged.forEach(x=>x.classList.remove('ng123-native-stage','ng123-native-stage-leaf'));}
   function setNativeInput(input,value){try{const proto=Object.getPrototypeOf(input),setter=Object.getOwnPropertyDescriptor(proto,'value')?.set;setter?setter.call(input,value):input.value=value;input.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:value}));input.dispatchEvent(new Event('change',{bubbles:true}));return true;}catch{return false;}}
-  async function nativeProjectRename(projectId,next){
-    const row=exactProjectRow(projectId);if(!row)return false;const restore=stage(row),baselineMenus=new Set(document.querySelectorAll(MENU_SEL)),baselineDialogs=new Set(document.querySelectorAll('[role="dialog"]'));
+  async function nativeProjectRenameAttempt(projectId,next,attempt){
+    const row=exactProjectRow(projectId);if(!row){document.documentElement.dataset.ng123ProjectRename='row-missing';return false;}
+    const restore=stage(row),baselineMenus=new Set(document.querySelectorAll(MENU_SEL)),baselineDialogs=new Set(document.querySelectorAll('[role="dialog"]'));
     try{
-      row.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));await sleep(70);const trigger=menuButton(row);if(!trigger)return false;trigger.click();let menu=null;
-      for(const delay of [40,80,140,240]){await sleep(delay);menu=[...document.querySelectorAll(MENU_SEL)].find(m=>!baselineMenus.has(m)&&outsideOwn(m)&&visible(m));if(menu)break;}if(!menu)return false;
-      const rename=[...menu.querySelectorAll('[role="menuitem"],button')].find(x=>/^(renommer|rename)(\b|…|\.\.\.)/i.test(clean(x.textContent||x.getAttribute('aria-label'))));if(!rename)return false;menu.style.visibility='hidden';rename.click();
-      let dialog=null;for(const delay of [50,90,150,260,420]){await sleep(delay);dialog=[...document.querySelectorAll('[role="dialog"]')].find(d=>!baselineDialogs.has(d)&&outsideOwn(d)&&visible(d));if(dialog)break;}if(!dialog)return false;
-      const input=[...dialog.querySelectorAll('input,textarea')].find(i=>!i.disabled)||null;if(!input||!setNativeInput(input,next))return false;
-      const save=[...dialog.querySelectorAll('button')].find(b=>!b.disabled&&/^(enregistrer|save|renommer|rename|valider|confirm)$/i.test(clean(b.textContent||b.getAttribute('aria-label'))));if(!save)return false;save.click();setTimeout(()=>document.dispatchEvent(new CustomEvent('niakgpt:force-server-index')),500);return true;
-    }catch{return false;}finally{restore();}
+      row.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));await sleep(attempt?140:80);
+      const trigger=menuButton(row);if(!trigger){document.documentElement.dataset.ng123ProjectRename='trigger-missing';return false;}
+      trigger.click();let menu=null;
+      for(const delay of [50,100,180,300,460]){await sleep(delay);menu=[...document.querySelectorAll(MENU_SEL)].find(m=>!baselineMenus.has(m)&&outsideOwn(m)&&visible(m));if(menu)break;}
+      if(!menu){document.documentElement.dataset.ng123ProjectRename='menu-missing';return false;}
+      const rename=[...menu.querySelectorAll('[role="menuitem"],button')].find(x=>/^(renommer|rename)(\b|…|\.\.\.)/i.test(clean(x.textContent||x.getAttribute('aria-label'))));
+      if(!rename){document.documentElement.dataset.ng123ProjectRename='rename-item-missing';return false;}
+      menu.style.visibility='hidden';rename.click();let dialog=null;
+      for(const delay of [60,110,190,320,520,760]){await sleep(delay);dialog=[...document.querySelectorAll('[role="dialog"]')].find(d=>!baselineDialogs.has(d)&&outsideOwn(d)&&visible(d));if(dialog)break;}
+      if(!dialog){document.documentElement.dataset.ng123ProjectRename='dialog-missing';return false;}
+      const input=[...dialog.querySelectorAll('input,textarea')].find(i=>!i.disabled)||null;
+      if(!input||!setNativeInput(input,next)){document.documentElement.dataset.ng123ProjectRename='input-missing';return false;}
+      const save=[...dialog.querySelectorAll('button')].find(b=>!b.disabled&&/^(enregistrer|save|renommer|rename|valider|confirm)$/i.test(clean(b.textContent||b.getAttribute('aria-label'))));
+      if(!save){document.documentElement.dataset.ng123ProjectRename='save-missing';return false;}
+      save.click();document.documentElement.dataset.ng123ProjectRename='submitted';
+      // The native mutation may settle asynchronously. Do not hold the custom dialog open merely
+      // because React removes its modal a few frames later; the click itself is the authoritative
+      // accepted action, and the server-index refresh verifies the canonical result afterwards.
+      setTimeout(()=>document.dispatchEvent(new CustomEvent('niakgpt:force-server-index')),350);
+      return true;
+    }catch(error){document.documentElement.dataset.ng123ProjectRename='exception';return false;}finally{restore();}
+  }
+  async function nativeProjectRename(projectId,next){
+    for(let attempt=0;attempt<2;attempt++){
+      if(await nativeProjectRenameAttempt(projectId,next,attempt))return true;
+      document.querySelectorAll('.lab-inline-menu,[data-radix-menu-content][data-state="open"]').forEach(m=>{if(outsideOwn(m))m.remove?.();});
+      await sleep(160);
+    }
+    return false;
   }
 
   function renameDialog(kind,id,returnTo=null){

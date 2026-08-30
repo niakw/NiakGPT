@@ -51,7 +51,10 @@
 
   const busy = () => {
     const interruption=String(document.documentElement.dataset.ng119Interruption||'').toLowerCase();
-    const bridgePriorityUntil=Number(document.documentElement.dataset.ng100NativePriorityUntil||0);
+    const bridgePriorityUntil=Math.max(
+      Number(document.documentElement.dataset.ng100NativePriorityUntil||0),
+      Number(document.documentElement.dataset.ng100BackgroundPriorityUntil||0)
+    );
     return document.documentElement.dataset.ng8Running === '1' ||
       ['loading','waiting','thinking','executing'].includes(String(document.documentElement.dataset.ng86Activity || '').toLowerCase()) ||
       document.documentElement.dataset.ng105Verification === '1' ||

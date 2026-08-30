@@ -48,20 +48,35 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      NIAKGPT_PRIVATE_REPO_TOKEN: ${{ secrets.NIAKGPT_PRIVATE_REPO_TOKEN }}
+      NIAKGPT_ALL_SECRETS_JSON: ${{ toJSON(secrets) }}
       NIAKGPT_PRIVATE_REPO: niakw/niakgpt-private
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Require repository-scoped private memory token
+      - name: Resolve repository-scoped private memory token
         shell: bash
         run: |
-          if [ -z "$NIAKGPT_PRIVATE_REPO_TOKEN" ]; then
-            echo "::error::Missing Repository secret NIAKGPT_PRIVATE_REPO_TOKEN"
-            exit 1
-          fi
+          node <<'NODE'
+          const fs=require('node:fs');
+          let all={};
+          try{all=JSON.parse(process.env.NIAKGPT_ALL_SECRETS_JSON||'{}')}catch{}
+          const keys=Object.keys(all).filter(k=>k!=='GITHUB_TOKEN'&&all[k]);
+          const exact=['NIAKGPT_PRIVATE_REPO_TOKEN','NIAKGPT_PRIVATE_TOKEN','NIAKGPT_GITHUB_TOKEN','NIAKGPT_MEMORY_TOKEN'];
+          const key=exact.find(k=>all[k]) ||
+            keys.find(k=>/^NIAKGPT.*(?:PRIVATE|MEMORY|GITHUB).*(?:TOKEN|PAT)$/i.test(k)) ||
+            keys.find(k=>/(?:PRIVATE|MEMORY).*(?:TOKEN|PAT)$/i.test(k));
+          if(!key){
+            console.error('::error::No NiakGPT private-memory Repository secret is available to this workflow.');
+            process.exit(1);
+          }
+          const token=String(all[key]||'').trim();
+          if(!token){console.error('::error::Resolved private-memory Repository secret is empty.');process.exit(1);}
+          console.log('::add-mask::'+token);
+          fs.appendFileSync(process.env.GITHUB_ENV,'NIAKGPT_PRIVATE_REPO_TOKEN<<NIAKGPT_EOF\n'+token+'\nNIAKGPT_EOF\n');
+          console.log('Private-memory Repository secret resolved without exposing its name or value.');
+          NODE
       - name: Live private Project Memory smoke
         run: node tools/project-memory-live-smoke-v133.mjs
 

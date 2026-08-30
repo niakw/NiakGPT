@@ -118,8 +118,18 @@
   function emptyMessage(pid){const state=loadState.get(pid);if(state==='loading')return'Chargement des conversations…';if(state==='waiting')return'En attente de la fin de la réponse ChatGPT…';if(state==='error')return'Chargement impossible · reclique pour réessayer';if(state==='ready-empty')return'Aucune conversation dans ce Project';return'Chargement des conversations…';}
   function restoreDrawerScroll(pid,list,desired){
     desired=Math.max(0,Number(desired)||0);if(!(list instanceof HTMLElement)){if(desired)drawerScrollMemory.set(pid,desired);return;}if(!desired){drawerScrollMemory.set(pid,0);return;}
-    drawerScrollMemory.set(pid,desired);const apply=()=>{if(!list.isConnected)return;const max=Math.max(0,list.scrollHeight-list.clientHeight);if(max<=0){drawerScrollMemory.set(pid,desired);return;}const next=Math.min(desired,max);if(Math.abs(list.scrollTop-next)>1)list.scrollTop=next;drawerScrollMemory.set(pid,next);};
-    apply();queueMicrotask(apply);requestAnimationFrame(()=>{apply();requestAnimationFrame(apply);});
+    drawerScrollMemory.set(pid,desired);let settled=false;
+    const apply=()=>{
+      if(settled||!list.isConnected)return settled;
+      const max=Math.max(0,list.scrollHeight-list.clientHeight);
+      if(max<=0){drawerScrollMemory.set(pid,desired);return false;}
+      const next=Math.min(desired,max);if(Math.abs(list.scrollTop-next)>1)list.scrollTop=next;drawerScrollMemory.set(pid,next);settled=true;return true;
+    };
+    // Retry only while layout is not scrollable yet. Once restoration succeeds, never keep
+    // forcing the old position across later frames: a user can legitimately scroll immediately
+    // after opening the drawer and that interaction must win.
+    if(apply())return;
+    queueMicrotask(()=>{if(apply())return;requestAnimationFrame(()=>{if(apply())return;requestAnimationFrame(apply);});});
   }
   function renderDrawer(pid,anchor){
     pid=normalizePid(pid);const outer=document.querySelector('#ng8-pins>.ng8-pin-list'),outerScroll=outer?.scrollTop||0,previous=document.getElementById(drawerId(pid)),innerScroll=previous?.querySelector('.ng96-folder-list')?.scrollTop??drawerScrollMemory.get(pid)??0;if(previous){const old=previous.querySelector('.ng96-folder-list');if(old)drawerScrollMemory.set(pid,old.scrollTop);}closeDrawers();if(!pid||!anchor)return;

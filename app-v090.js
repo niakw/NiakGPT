@@ -18,7 +18,7 @@
     projects:[], projectById:new Map(), chats:[], chatById:new Map(), projectChats:new Map(), counts:new Map(), duplicates:new Map(),
     health:{bridge:'PRÊT',data:'CACHE',projects:'CACHE',quick:'PRÊT',coach:'INACTIF',toc:'INACTIF',performance:'PRÊT',matrix:'INACTIF',ui:'PRÊT'},
     errors:[], panelOpen:false, tab:'explorer', queue:[], queueTimer:0, indexing:false, indexComplete:false, generalLoaded:false,
-    mainObserver:null, sidebarObserver:null, mainRoot:null, sidebarRoot:null, mainTimer:0, sidebarTimer:0, sidebarNeedsPins:false, scanTimer:0, scanToken:0, scanRunning:false, scanRequested:false, diagTimer:0,
+    mainObserver:null, sidebarObserver:null, mainRoot:null, sidebarRoot:null, mainTimer:0, sidebarTimer:0, sidebarNeedsPins:false, scanTimer:0, scanToken:0, scanRunning:false, scanRequested:false, diagTimer:0, diagSelectionActive:false, diagSelectionGesture:false,
     cacheSaveTimer:0, lastCacheWriteAt:0, lastPath:location.pathname, projectsRefreshed:false, refreshingProjects:false,
     pendingMain:new Set(), turns:[], turnSeen:new WeakSet(), codeSeen:new WeakSet(), codeCount:0, turnTimeline:[], turnTimeById:new Map(), timelineRequestedFor:'',
     matrix:null, matrixCtx:null, matrixTimer:0, matrixResize:null, matrixCols:[], matrixW:0, matrixH:0,
@@ -421,16 +421,28 @@
       return !!(host&&panel?.contains(host)&&clean(sel.toString()));
     }catch{return false;}
   }
+  function diagnosticSelectionHeld(panel){
+    const active=panelSelectionActive(panel);
+    if(active)S.diagSelectionActive=true;
+    return S.diagSelectionGesture||S.diagSelectionActive||active;
+  }
+  function syncDiagnosticSelectionLock(){
+    if(!(S.panelOpen&&S.tab==='diag')){S.diagSelectionActive=false;S.diagSelectionGesture=false;return;}
+    const panel=document.getElementById('ng8-panel');
+    const active=panelSelectionActive(panel);
+    S.diagSelectionActive=active;
+    if(!active&&!S.diagSelectionGesture)renderPanelIfDiag();
+  }
   function renderPanelIfDiag(){
     if(!(S.panelOpen&&S.tab==='diag')||S.diagTimer)return;
-    const retry=()=>{S.diagTimer=0;if(!(S.panelOpen&&S.tab==='diag'))return;const panel=document.getElementById('ng8-panel');if(panelSelectionActive(panel)){S.diagTimer=setTimeout(retry,280);return;}renderPanel();};
+    const retry=()=>{S.diagTimer=0;if(!(S.panelOpen&&S.tab==='diag'))return;const panel=document.getElementById('ng8-panel');if(diagnosticSelectionHeld(panel)){S.diagTimer=setTimeout(retry,280);return;}renderPanel();};
     S.diagTimer=setTimeout(retry,70);
   }
   function liveTurns(){ S.turns=S.turns.filter(t=>t?.isConnected);return S.turns; }
   function renderPanel(){
     const panel=document.getElementById('ng8-panel');if(!panel)return;panel.classList.toggle('open',S.panelOpen);document.body.classList.toggle('ng8-panel-open',S.panelOpen);document.querySelectorAll('#ng8-rail [data-tab]').forEach(b=>b.classList.toggle('active',S.panelOpen&&b.dataset.tab===S.tab));if(!S.panelOpen)return;
     if(S.tab==='diag'){
-      if(panelSelectionActive(panel)){renderPanelIfDiag();return;}
+      if(diagnosticSelectionHeld(panel)){renderPanelIfDiag();return;}
       panel.innerHTML=`<header><div><small>DIAGNOSTIC</small><b>État des modules</b></div><button aria-label="Fermer">×</button></header><div class="ng8-diag">${diagnosticRows().map(([k,v])=>`<div><span>${esc(k)}</span><b class="${/^OK|^PRÊT/.test(String(v))?'ok':/^ERREUR/.test(String(v))?'err':'wait'}">${esc(v)}</b></div>`).join('')}</div>${S.errors.length?`<details class="ng8-errors"><summary>Dernières erreurs</summary>${S.errors.map(e=>`<code>${esc(e)}</code>`).join('')}</details>`:''}<div class="ng8-joke">☠ SYSTEM // SKYNET</div>`;
     }else if(S.tab==='toc'){
       const turns=liveTurns();health('toc',turns.length?`OK · ${turns.length} blocs`:'VIDE · 0 bloc');
@@ -621,6 +633,17 @@
   }
 
   function bindEvents(){
+    document.addEventListener('selectionchange',syncDiagnosticSelectionLock);
+    document.addEventListener('pointerdown',e=>{
+      if(!(S.panelOpen&&S.tab==='diag'))return;
+      const panel=document.getElementById('ng8-panel');
+      if(e.target instanceof Node&&panel?.contains(e.target))S.diagSelectionGesture=true;
+    },true);
+    document.addEventListener('pointerup',()=>{
+      if(!S.diagSelectionGesture)return;
+      S.diagSelectionGesture=false;
+      queueMicrotask(syncDiagnosticSelectionLock);
+    },true);
     document.addEventListener('keydown',e=>{if(e.altKey&&!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&String(e.key).toLowerCase()==='k'){e.preventDefault();openQuick();}},true);
     document.addEventListener('niakgpt:settings-changed',()=>{ensureMatrix();ensureBots();renderPins();});
     document.addEventListener('niakgpt:diagnostic-changed',()=>renderPanelIfDiag());

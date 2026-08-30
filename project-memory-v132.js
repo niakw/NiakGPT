@@ -425,6 +425,32 @@
     return r;
   }
 
+  async function githubLogin() {
+    const r = await send({ type:'niakgpt:memory-github-login-v132' });
+    if (r && r.ok) await state({mode:'github-ready',error:''});
+    return r;
+  }
+
+  async function githubRepositories() {
+    return send({ type:'niakgpt:memory-github-repositories-v132' });
+  }
+
+  async function githubConnectRepo(options) {
+    const r = await send(Object.assign({ type:'niakgpt:memory-github-connect-repo-v132' }, options || {}));
+    if (r && r.ok) { await state({mode:'connected',error:''}); bootstrap({force:false}); }
+    return r;
+  }
+
+  async function githubLogout() {
+    const r = await send({ type:'niakgpt:memory-github-logout-v132' });
+    if (r && r.ok) {
+      contextProject = ''; contextText = '';
+      try { await chrome.storage.local.remove(QUEUE_KEY); } catch {}
+      await state({mode:'disconnected',error:''});
+    }
+    return r;
+  }
+
   async function disconnect(forgetConfig) {
     const r = await send({ type:'niakgpt:memory-disconnect-v132', forgetConfig:forgetConfig === true });
     contextProject = ''; contextText = '';
@@ -440,7 +466,19 @@
     return Object.assign({}, remote, { state:local[STATE_KEY] || {}, prefs:Object.assign({},defaults,local[PREFS_KEY] || {}) });
   }
 
-  window.__NIAKGPT_PROJECT_MEMORY__ = { connect, disconnect, status, syncNow:o => bootstrap({force:o && o.force === true}), getPrefs:prefs, setPrefs, refreshContext };
+  window.__NIAKGPT_PROJECT_MEMORY__ = {
+    connect,
+    githubLogin,
+    githubRepositories,
+    githubConnectRepo,
+    githubLogout,
+    disconnect,
+    status,
+    syncNow:o => bootstrap({force:o && o.force === true}),
+    getPrefs:prefs,
+    setPrefs,
+    refreshContext
+  };
 
   document.addEventListener('click', event => {
     const btn = event.target instanceof Element ? event.target.closest('button') : null;

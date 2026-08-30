@@ -307,7 +307,34 @@
   }
 
   async function saveQueue(ids, force) {
-    try { await chrome.storage.local.set({ [QUEUE_KEY]:{ pending:ids, force:force === true, at:Date.now() } }); } catch {}
+    const pending=[...new Set((ids||[]).map(String).filter(Boolean))];
+    try { await chrome.storage.local.set({ [QUEUE_KEY]:{ pending, force:force === true, at:Date.now() } }); } catch {}
+    return pending;
+  }
+
+  async function primeBootstrapQueue(force=false) {
+    const raw=await cache(),ids=projects(raw).map(p=>p.id);
+    const pending=await saveQueue(ids,force);
+    const current=(await chrome.storage.local.get(STATE_KEY))[STATE_KEY]||{};
+    await state({
+      mode:pending.length?'queued':'connected',
+      projectDone:0,
+      projectTotal:pending.length,
+      queuedProjects:pending.length,
+      lastSyncAt:Number(current.lastSyncAt||0),
+      error:''
+    });
+    return pending;
+  }
+
+  async function ensureBootstrapQueued() {
+    const remote=await send({type:'niakgpt:memory-status-v132'});
+    if(!remote?.connected)return[];
+    let local={};try{local=await chrome.storage.local.get([STATE_KEY,QUEUE_KEY]);}catch{}
+    const st=local[STATE_KEY]||{},q=local[QUEUE_KEY]||{};
+    if(Number(st.lastSyncAt||0)>0)return Array.isArray(q.pending)?q.pending:[];
+    if(Array.isArray(q.pending)&&q.pending.length)return q.pending;
+    return primeBootstrapQueue(false);
   }
 
   async function bootstrap(options) {
@@ -421,7 +448,11 @@
 
   async function connect(options) {
     const r = await send(Object.assign({ type:'niakgpt:memory-connect-v132' }, options || {}));
-    if (r && r.ok) { await state({mode:'connected',error:''}); bootstrap({force:false}); }
+    if (r && r.ok) {
+      const pending=await primeBootstrapQueue(false);
+      resume();schedule(800);
+      return Object.assign({},r,{bootstrapQueued:true,queuedProjects:pending.length});
+    }
     return r;
   }
 
@@ -459,7 +490,11 @@
 
   async function githubConnectRepo(options) {
     const r = await send(Object.assign({ type:'niakgpt:memory-github-connect-repo-v132' }, options || {}));
-    if (r && r.ok) { await state({mode:'connected',error:''}); bootstrap({force:false}); }
+    if (r && r.ok) {
+      const pending=await primeBootstrapQueue(false);
+      resume();schedule(800);
+      return Object.assign({},r,{bootstrapQueued:true,queuedProjects:pending.length});
+    }
     return r;
   }
 
@@ -484,8 +519,13 @@
   async function status() {
     const remote = await send({type:'niakgpt:memory-status-v132'});
     let local = {};
-    try { local = await chrome.storage.local.get([STATE_KEY,PREFS_KEY]); } catch {}
-    return Object.assign({}, remote, { state:local[STATE_KEY] || {}, prefs:Object.assign({},defaults,local[PREFS_KEY] || {}) });
+    try { local = await chrome.storage.local.get([STATE_KEY,PREFS_KEY,QUEUE_KEY]); } catch {}
+    const queue=local[QUEUE_KEY]||{};
+    return Object.assign({}, remote, {
+      state:local[STATE_KEY] || {},
+      prefs:Object.assign({},defaults,local[PREFS_KEY] || {}),
+      queue:{pending:Array.isArray(queue.pending)?queue.pending.slice():[],force:queue.force===true,at:Number(queue.at||0)}
+    });
   }
 
   window.__NIAKGPT_PROJECT_MEMORY__ = {
@@ -520,6 +560,7 @@
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes[CACHE_KEY]) schedule(12000);
     if (area === 'local' && changes[CONTEXT_KEY]) refreshContext();
+    if (area === 'local' && changes[QUEUE_KEY] && autoOwner()) resume();
   });
   document.addEventListener('niakgpt:activity-changed', () => { if (!busy()) schedule(5000); });
   document.addEventListener('niakgpt:tab-role-changed', event => {
@@ -533,5 +574,10 @@
   if (window.navigation && window.navigation.addEventListener) window.navigation.addEventListener('navigatesuccess',route);
   window.addEventListener('pageshow',() => { refreshContext(); resume(); schedule(15000); });
 
-  prefs().finally(() => { refreshContext(); resume(); schedule(18000); });
+  prefs().finally(async() => {
+    refreshContext();
+    try{await ensureBootstrapQueued();}catch{}
+    resume();
+    schedule(18000);
+  });
 })();

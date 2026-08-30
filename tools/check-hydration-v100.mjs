@@ -128,8 +128,8 @@ for(const token of ['ng96-chat-entry','hydrateProject','publishProjectChats','dr
 forbid(folders,'ensureFullProjectInventory','pin-folders must not compete with v121 catalog ownership');
 
 const interruption=read('interruption-guard-v119.js');
-for(const token of ['LIMIT_RX','VERIFY_RX','NETWORK_RX','nativeRetry','markCurrentOut','ng100-continue','tryNativeRecovery','incident.retried','resumePrompt','continueFrom?.(chatId)','failed\\s+to\\s+fetch','persistedIncident','allowedType','type:allowedType'])need(interruption,token,'bounded interruption recovery/security incomplete');
-for(const token of ['setInterval(','location.reload(','challenge.click(','iframe.click('])forbid(interruption,token,'interruption guard must not bypass security or loop recovery');
+for(const token of ['LIMIT_RX','VERIFY_RX','NETWORK_RX','markCurrentOut','ng100-continue','tryNativeRecovery','restoreDraft','resumePrompt','data-ng119-resume','assistantTail','setVerificationPause','continueFrom?.(chatId)','failed\\s+to\\s+fetch','persistedIncident','allowedType','type:allowedType'])need(interruption,token,'bounded interruption recovery/security incomplete');
+for(const token of ['setInterval(','location.reload(','challenge.click(','iframe.click(','retry.click('])forbid(interruption,token,'interruption guard must not bypass security, auto-retry native generation, or loop recovery');
 
 const turnHeaders=read('turn-headers-v112.js');
 for(const token of ['LIVE_KEY','nativeAt','pendingUserAt','pendingAssistantAt','data-ng8-time','date/heure fiable prioritaire'])need(turnHeaders,token,'turn timestamp/header contract incomplete');

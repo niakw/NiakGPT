@@ -1,6 +1,6 @@
 # Confidentialité — NiakGPT
 
-NiakGPT 0.9.77 conserve un **cœur local-first** et ajoute Project Memory v132, une synchronisation GitHub privée **optionnelle et explicitement activée par l’utilisateur**.
+NiakGPT 0.9.78 conserve un **cœur local-first** et ajoute Project Memory v132, une synchronisation GitHub privée **optionnelle et explicitement activée par l’utilisateur**.
 
 ## Résumé
 
@@ -15,7 +15,7 @@ NiakGPT 0.9.77 conserve un **cœur local-first** et ajoute Project Memory v132, 
 
 ## Périmètre réseau
 
-Le manifest 0.9.77 déclare :
+Le manifest 0.9.78 déclare :
 
 ```text
 https://chatgpt.com/*
@@ -30,7 +30,7 @@ NiakGPT utilise la session ChatGPT déjà ouverte et un ensemble borné de surfa
 
 `https://api.github.com/*` est réservé à Project Memory. **Sans dépôt configuré, le module n’effectue pas de requête GitHub.**
 
-Lors de la connexion, NiakGPT vérifie le dépôt sélectionné via l’API GitHub. Si le dépôt n’est pas privé, l’initialisation est refusée. La confidentialité du dépôt est à nouveau vérifiée avant les lectures et écritures mémoire.
+Lors de la connexion, NiakGPT vérifie le dépôt sélectionné via l’API GitHub. Si le dépôt n’est pas privé, l’initialisation est refusée. Si le dépôt privé est neuf et ne contient encore aucun commit, NiakGPT peut créer son premier commit/ref pour initialiser la mémoire. La confidentialité du dépôt est à nouveau vérifiée avant les lectures et écritures mémoire.
 
 NiakGPT n’utilise pas le dépôt public `niakw/NiakGPT` pour stocker les données privées d’un utilisateur.
 
@@ -75,7 +75,7 @@ Cela peut contenir du **contenu privé de conversations**, les instructions/desc
 
 Le dépôt Git conserve un historique de versions : une ancienne version d’un fichier peut donc rester accessible dans l’historique Git jusqu’à suppression/réécriture volontaire de cet historique par le propriétaire du dépôt.
 
-Project Memory n’ajoute pas de chiffrement applicatif de bout en bout par-dessus GitHub dans la 0.9.77. La protection repose sur les contrôles d’accès du dépôt privé GitHub et du compte GitHub de l’utilisateur.
+Project Memory n’ajoute pas de chiffrement applicatif de bout en bout par-dessus GitHub dans la 0.9.78. La protection repose sur les contrôles d’accès du dépôt privé GitHub et du compte GitHub de l’utilisateur.
 
 ## Checkpoint envoyé à ChatGPT
 
@@ -96,7 +96,7 @@ Par défaut :
 
 Si l’utilisateur active **Mémoriser le jeton sur cet appareil**, une copie est conservée dans `chrome.storage.local`. Cette option augmente la commodité mais aussi l’impact d’un accès malveillant au profil navigateur.
 
-Le token n’est pas écrit dans le dépôt mémoire ni dans les diagnostics NiakGPT. Les erreurs connues sont nettoyées des formats de token GitHub avant affichage.
+Le token et la configuration ne sont persistés qu’après une initialisation GitHub réussie. En cas d’échec de connexion, le formulaire reste rempli dans l’UI pour permettre une correction locale ; le token n’est pas écrit dans le dépôt mémoire ni dans les diagnostics NiakGPT. Les erreurs connues sont nettoyées des formats de token GitHub avant affichage.
 
 ## Stockage local
 
@@ -104,7 +104,7 @@ NiakGPT utilise notamment :
 
 - `chrome.storage.local` pour préférences, index, gouvernance, queues de reprise et checkpoints locaux ;
 - `chrome.storage.session` pour le token GitHub non persistant ;
-- `sessionStorage` pour certains états de continuité temporaires ;
+- `sessionStorage` pour certains états de continuité temporaires, notamment un brouillon ou un extrait final de réponse partielle pendant une interruption réseau ; ces données sont bornées et chiffrées par le mécanisme d’incident avant persistance de session ;
 - `localStorage` / IndexedDB pour certains caches et mécanismes historiques encore utilisés par le runtime ;
 - `BroadcastChannel` et `navigator.locks` pour la coordination locale multi-onglets, notamment afin qu’un seul WORKER exécute la synchronisation automatique Project Memory.
 

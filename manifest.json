@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.77",
-  "description": "NiakGPT : Projects fiables, continuité longue et mémoire Project privée opt-in via GitHub.",
+  "version": "0.9.78",
+  "description": "NiakGPT : Projects fiables, continuité longue et mémoire Project GitHub privée isolée du runtime critique.",
   "permissions": [
     "storage",
     "scripting"

@@ -9,7 +9,7 @@ fs.rmSync(dist,{recursive:true,force:true});fs.mkdirSync(build,{recursive:true})
 const files=new Set(['manifest.json',m.background.service_worker]);
 for(const entry of m.content_scripts)for(const key of ['js','css'])for(const file of entry[key]||[])files.add(file);
 const bg=fs.readFileSync('background-v100.js','utf8');
-for(const name of ['MAIN_RUNTIME','ISOLATED_RUNTIME']){
+for(const name of ['MAIN_RUNTIME','ISOLATED_RUNTIME','OPTIONAL_RUNTIME']){
   const body=bg.match(new RegExp(`const ${name}=\\[(.*?)\\];`,'s'))?.[1];
   if(!body)throw new Error(`Missing ${name}`);
   for(const hit of body.matchAll(/'([^']+)'/g))files.add(hit[1]);

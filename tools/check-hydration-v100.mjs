@@ -8,7 +8,7 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 
 const manifest=JSON.parse(read('manifest.json'));
 if(manifest.manifest_version!==3)fail('manifest_version drift');
-if(manifest.version!=='0.9.77')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.78')fail(`unexpected release ${manifest.version}`);
 same(manifest.permissions,['storage','scripting'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*'],'host scope mismatch');
 const staticRuntime=['boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'];
@@ -16,15 +16,16 @@ same(manifest.content_scripts.flatMap(x=>x.js||[]),staticRuntime,'unexpected sta
 
 const background=read('background-v100.js');
 const runtimeList=name=>[...(background.match(new RegExp(`const ${name}=\\[(.*?)\\];`,'s'))?.[1]||'').matchAll(/'([^']+)'/g)].map(x=>x[1]);
-const main=runtimeList('MAIN_RUNTIME'),isolated=runtimeList('ISOLATED_RUNTIME');
+const main=runtimeList('MAIN_RUNTIME'),isolated=runtimeList('ISOLATED_RUNTIME'),optional=runtimeList('OPTIONAL_RUNTIME');
 same(main,['page-bridge.js'],'MAIN runtime mismatch');
 
 const required=[
   'sidebar-metadata-v118.js','sidebar-projects-authority-v112.js','sidebar-projects-v121.js','sidebar-ux-v119.js','pin-folders-v096.js','app-v090.js','sidebar-actions-v123.js','folder-scroll-anchor-v124.js','project-native-name-sync-v124.js',
   'home-layout-v112.js','analysis-bridge-v112.js','reclassify-deep-v112.js','matrix-guardian-v112.js','performance-guard-v112.js','turn-headers-v112.js',
-  'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','continuity-v112.js','interruption-guard-v119.js',
-  'project-memory-v132.js','project-memory-ui-v132.js'
+  'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','continuity-v112.js','interruption-guard-v119.js'
 ];
+same(optional,['project-memory-v132.js','project-memory-ui-v132.js'],'optional Project Memory runtime mismatch');
+for(const file of optional)if(isolated.includes(file))fail(`optional Project Memory leaked into critical runtime ${file}`);
 for(const file of required)if(!isolated.includes(file))fail(`current runtime missing ${file}`);
 for(const file of ['project-pins-v090.js','native-rename-v112.js','breadcrumb-v100.js','sidebar-authority-v107.js','sidebar-expando-guard-v108.js','sidebar-projects-authority-v109.js','sidebar-projects-authority-v110.js','sidebar-projects-authority-v111.js','native-actions-controller-v119.js','native-actions-v113.js',...staticRuntime.slice(1)])if(isolated.includes(file))fail(`legacy/conflicting runtime loaded ${file}`);
 
@@ -46,8 +47,11 @@ if(idx('folder-scroll-anchor-v124.js')<=idx('sidebar-actions-v123.js'))fail('fol
 if(idx('project-native-name-sync-v124.js')<=idx('sidebar-actions-v123.js'))fail('native Project name sync must load after sidebar actions');
 if(idx('interruption-guard-v119.js')<=idx('continuity-v112.js'))fail('interruption guard must load after continuity capture handler');
 
-for(const file of isolated.filter(x=>x!=='retro-loader-v097.js'))forbid(read(file),'setInterval(',`permanent polling in ${file}`);
-for(const file of [...main,...isolated,'background-v100.js','project-memory-background-v132.js',...staticRuntime])if(!fs.existsSync(file))fail(`missing runtime ${file}`);
+for(const file of [...isolated,...optional].filter(x=>x!=='retro-loader-v097.js'))forbid(read(file),'setInterval(',`permanent polling in ${file}`);
+for(const file of [...main,...isolated,...optional,'background-v100.js','project-memory-background-v132.js',...staticRuntime])if(!fs.existsSync(file))fail(`missing runtime ${file}`);
+
+for(const token of ["const OPTIONAL_RUNTIME=[","sendResponse({ok:!coreFailed","PROJECT_MEMORY_BACKEND_READY"])need(background,token,'Project Memory optional boot isolation incomplete');
+forbid(background,"item.includes(':project-memory-v132.js:')",'Project Memory must not be a critical coreFailed owner');
 
 const bridge=read('page-bridge.js');
 need(bridge,'const nativeFetch = window.fetch.bind(window);');need(bridge,'conversation_detail_get_disabled');need(bridge,'d.memoryBootstrap !== true');need(bridge,'project_move_requires_governance');forbid(bridge,'window.fetch =');forbid(bridge,'globalThis.fetch =');

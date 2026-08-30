@@ -87,17 +87,28 @@
         }
         button.disabled = true;
         button.textContent = 'Vérification du dépôt privé…';
-        const result = await memory.connect({
+        const draft = {
           repo: repo.value.trim(),
           branch: branch.value.trim(),
           root: root.value.trim(),
-          token: token.value.trim(),
+          token: token.value,
           rememberToken: remember.checked
-        });
-        token.value = '';
+        };
+        const result = await memory.connect(draft);
         if (!result || !result.ok) {
-          section.querySelector('.ng132-memory-status b').textContent = 'Connexion refusée · ' + String(result && result.error || 'erreur GitHub');
+          const status = section.querySelector('.ng132-memory-status b');
+          status.textContent = 'Connexion refusée · ' + String(result && result.error || 'erreur GitHub');
+          button.disabled = false;
+          button.textContent = 'Réessayer la connexion';
+          repo.value = draft.repo;
+          branch.value = draft.branch;
+          root.value = draft.root;
+          token.value = draft.token;
+          remember.checked = draft.rememberToken;
+          token.focus();
+          return;
         }
+        token.value = '';
         schedule(50);
       };
 
@@ -148,6 +159,7 @@
   document.addEventListener('niakgpt:project-memory-state',() => schedule(60));
   document.addEventListener('niakgpt:project-memory-synced',() => schedule(60));
   document.addEventListener('click',event => {
-    if (event.target instanceof Element && event.target.closest('#ng90-settings-btn')) schedule(120);
+    if (!(event.target instanceof Element) || !event.target.closest('#ng90-settings-btn')) return;
+    if (!document.querySelector('#ng90-control [data-ng132-memory]')) schedule(120);
   },true);
 })();

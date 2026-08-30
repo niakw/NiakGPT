@@ -12,6 +12,12 @@
 
   const clean = value => String(value ?? '').trim();
   const utf8Bytes = value => new TextEncoder().encode(String(value ?? '')).byteLength;
+  const base64Utf8 = value => {
+    const bytes = new TextEncoder().encode(String(value ?? ''));
+    let binary = '';
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary);
+  };
 
   function normalizeRepo(value) {
     let raw = clean(value);
@@ -144,6 +150,53 @@
     return github(token, `/repos/${repo}/git/ref/heads/${encodeURIComponent(branch)}`);
   }
 
+  async function tryGetRef(token, repo, branch) {
+    try {
+      return await getRef(token, repo, branch);
+    } catch (error) {
+      if (error?.status === 404 || error?.status === 409) return null;
+      throw error;
+    }
+  }
+
+  async function initializeEmptyRepo(token, config, markerContent) {
+    const existing = await tryGetRef(token, config.repo, config.branch);
+    if (existing?.object?.sha) return { initialized: false, ref: existing };
+
+    const meta = await verifyPrivateRepo(token, config.repo);
+    if (Number(meta?.size || 0) > 0) throw new Error('github_branch_missing');
+
+    // GitHub explicitly refuses POST /git/refs on an empty repository. The Contents
+    // endpoint is the supported way to create the very first commit/default branch.
+    const initBranch = normalizeBranch(meta?.default_branch || config.branch || 'main');
+    if (!initBranch) throw new Error('invalid_github_initial_branch');
+    const path = joinRoot(config.root, 'niakgpt-memory.json');
+    const created = await github(token, `/repos/${config.repo}/contents/${path.split('/').map(encodeURIComponent).join('/')}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: 'NiakGPT: initialize private Project Memory',
+        content: base64Utf8(markerContent)
+      })
+    });
+    const initialSha = clean(created?.commit?.sha);
+    if (!initialSha) throw new Error('github_initial_content_commit_failed');
+
+    if (config.branch !== initBranch) {
+      const baseRef = await getRef(token, config.repo, initBranch);
+      const sha = clean(baseRef?.object?.sha || initialSha);
+      if (!sha) throw new Error('github_initial_branch_head_missing');
+      await github(token, `/repos/${config.repo}/git/refs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ref: `refs/heads/${config.branch}`, sha })
+      });
+    }
+
+    const ready = await getRef(token, config.repo, config.branch);
+    return { initialized: true, sha: clean(ready?.object?.sha || initialSha), initBranch };
+  }
+
   async function readFileWith(token, config, relativePath) {
     const meta = await verifyPrivateRepo(token, config.repo);
     const path = joinRoot(config.root, relativePath);
@@ -244,10 +297,8 @@
     const meta = await verifyPrivateRepo(token, repo);
     const branch = normalizeBranch(detail?.branch || meta?.default_branch || 'main');
     if (!branch) throw new Error('invalid_github_branch');
-    await getRef(token, repo, branch);
 
     const rememberToken = detail?.rememberToken === true;
-    await saveToken(token, rememberToken);
     const now = Date.now();
     const config = {
       schema: 1,
@@ -267,13 +318,22 @@
       createdBy: 'NiakGPT',
       updatedAt: new Date(now).toISOString()
     };
-    await commitFilesWith(token, config, [{
-      path: 'niakgpt-memory.json',
-      content: JSON.stringify(marker, null, 2) + '\n'
-    }], 'NiakGPT: initialize private Project Memory');
+    const markerContent = JSON.stringify(marker, null, 2) + '\n';
+    const ref = await tryGetRef(token, repo, branch);
+    let initializedEmptyRepo = false;
+    if (!ref?.object?.sha) {
+      const initialized = await initializeEmptyRepo(token, config, markerContent);
+      initializedEmptyRepo = initialized.initialized === true;
+    } else {
+      await commitFilesWith(token, config, [{
+        path: 'niakgpt-memory.json',
+        content: markerContent
+      }], 'NiakGPT: initialize private Project Memory');
+    }
 
+    await saveToken(token, rememberToken);
     await writeConfig(config);
-    return { ok: true, config: { ...config, tokenAvailable: true }, repositoryPrivate: true };
+    return { ok: true, config: { ...config, tokenAvailable: true }, repositoryPrivate: true, initializedEmptyRepo };
   }
 
   async function status() {
@@ -348,7 +408,10 @@
       joinRoot,
       safeError,
       MAX_FILES,
-      MAX_BATCH_BYTES
+      MAX_BATCH_BYTES,
+      initializeEmptyRepo,
+      tryGetRef,
+      connect
     };
   }
 })();

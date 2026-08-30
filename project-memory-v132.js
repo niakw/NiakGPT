@@ -11,7 +11,8 @@
   const MEMORY_LOCK = 'niakgpt-project-memory-sync-v132';
   const MAX_STATE = 18000;
   const CHUNK = 360000;
-  let seq = 0, syncing = false, autoTimer = 0, routeTimer = 0;
+  const HISTORY_FETCH_GAP_MS = 3000;
+  let seq = 0, syncing = false, autoTimer = 0, routeTimer = 0, lastHistoryFetchAt = 0;
   let contextProject = '', contextText = '';
 
   const clean = v => String(v == null ? '' : v).replace(/\r/g, '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
@@ -47,9 +48,15 @@
     });
   }
 
-  const busy = () => document.documentElement.dataset.ng8Running === '1' ||
-    ['loading','waiting','thinking','executing'].includes(String(document.documentElement.dataset.ng86Activity || '').toLowerCase()) ||
-    document.documentElement.dataset.ng105Verification === '1';
+  const busy = () => {
+    const interruption=String(document.documentElement.dataset.ng119Interruption||'').toLowerCase();
+    return document.documentElement.dataset.ng8Running === '1' ||
+      ['loading','waiting','thinking','executing'].includes(String(document.documentElement.dataset.ng86Activity || '').toLowerCase()) ||
+      document.documentElement.dataset.ng105Verification === '1' ||
+      interruption === 'verify' ||
+      interruption === 'network' ||
+      navigator.onLine === false;
+  };
 
   async function waitIdle(limit) {
     const start = Date.now(), max = limit || 10 * 60 * 1000;
@@ -219,6 +226,10 @@
 
   async function fetchConversation(id, attempt) {
     if (!await waitIdle()) throw new Error('memory_sync_idle_timeout');
+    const elapsed=Date.now()-lastHistoryFetchAt;
+    if(lastHistoryFetchAt&&elapsed<HISTORY_FETCH_GAP_MS)await sleep(HISTORY_FETCH_GAP_MS-elapsed);
+    if (!await waitIdle()) throw new Error('memory_sync_idle_timeout');
+    lastHistoryFetchAt=Date.now();
     const r = await rpc('/backend-api/conversation/' + encodeURIComponent(id), true);
     if (r && r.ok) return r.data;
     const n = Number(attempt || 0);

@@ -8,11 +8,12 @@ const files=new Set();
 
 for(const entry of manifest.content_scripts||[])for(const file of entry.js||[])files.add(file);
 if(manifest.background?.service_worker)files.add(manifest.background.service_worker);
-for(const name of ['MAIN_RUNTIME','ISOLATED_RUNTIME']){
+for(const name of ['MAIN_RUNTIME','ISOLATED_RUNTIME','OPTIONAL_RUNTIME']){
   const body=background.match(new RegExp(`const ${name}=\\[(.*?)\\];`,'s'))?.[1];
   if(!body)throw new Error(`Missing ${name} runtime declaration`);
   for(const hit of body.matchAll(/'([^']+)'/g))files.add(hit[1]);
 }
+for(const call of background.matchAll(/importScripts\((.*?)\)/gs))for(const hit of call[1].matchAll(/['\"]([^'\"]+)['\"]/g))files.add(hit[1]);
 
 for(const file of files){
   if(!fs.existsSync(file))throw new Error(`Missing runtime JavaScript: ${file}`);

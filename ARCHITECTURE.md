@@ -1,10 +1,10 @@
 # Architecture de NiakGPT
 
-NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.77 privilégie quatre propriétés : **faible coût runtime**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
+NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.78 privilégie quatre propriétés : **faible coût runtime**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
 
 ## Périmètre
 
-Le manifest 0.9.77 déclare :
+Le manifest 0.9.78 déclare :
 
 ```text
 https://chatgpt.com/*
@@ -41,8 +41,9 @@ Le reste du produit vit dans le monde isolé :
 - gros fils et performance ;
 - coordination multi-onglets ;
 - profils, Control Center, coach et diagnostics ;
-- Project Memory v132 : synchronisation privée, checkpoint et UI de configuration ;
 - garde UX finale `ux-v131.js`.
+
+Project Memory v132 vit bien dans le monde isolé, mais **hors du runtime critique** : `background-v100.js` termine d’abord `ISOLATED_RUNTIME` jusqu’à `ux-v131.js`, répond au boot principal, puis tente `OPTIONAL_RUNTIME = [project-memory-v132.js, project-memory-ui-v132.js]` en best-effort.
 
 Les fichiers sont injectés séquentiellement par `background-v100.js` après le boot gate. `ux-v131.js` est volontairement le dernier runtime isolé : il vérifie le host réel et applique les invariants UX finaux sans reprendre la propriété métier des modules précédents.
 
@@ -50,7 +51,7 @@ Les fichiers sont injectés séquentiellement par `background-v100.js` après le
 
 Project Memory sépare volontairement **le transport GitHub** de **la logique Project**.
 
-`project-memory-background-v132.js` est chargé dans le service worker par `importScripts()`. Il est l’unique propriétaire des appels `api.github.com` et de la gestion du token. Il :
+`project-memory-background-v132.js` est chargé dans le service worker par un `importScripts()` protégé par `try/catch`. Son échec ne doit jamais empêcher le service worker principal d’enregistrer le bootstrap Projects. Il est l’unique propriétaire des appels `api.github.com` et de la gestion du token. Il :
 
 - normalise dépôt, branche, racine et chemins ;
 - refuse toute racine/path traversal ;
@@ -58,7 +59,9 @@ Project Memory sépare volontairement **le transport GitHub** de **la logique Pr
 - revérifie le caractère privé avant lecture/écriture ;
 - conserve le fine-grained token dans `chrome.storage.session` par défaut ;
 - n’écrit le token dans `chrome.storage.local` que sur choix explicite « mémoriser » ;
-- borne les batches Git et ne force jamais une ref de branche.
+- borne les batches Git et ne force jamais une ref de branche ;
+- sait créer le premier blob/tree/commit/ref d’un dépôt privé totalement vide ;
+- ne persiste token/configuration qu’après initialisation GitHub réussie.
 
 `project-memory-v132.js` vit dans le monde isolé. Il possède :
 
@@ -71,7 +74,7 @@ Project Memory sépare volontairement **le transport GitHub** de **la logique Pr
 - le cache local du checkpoint ;
 - l’injection **une seule fois** du checkpoint au premier message d’un nouveau fil Project.
 
-`project-memory-ui-v132.js` ne possède aucun transport. Il ajoute la configuration au Control Center et appelle l’API isolée du module mémoire.
+`project-memory-ui-v132.js` ne possède aucun transport. Il ajoute la configuration au Control Center et appelle l’API isolée du module mémoire. Un échec de connexion conserve les champs saisis et expose une action de retry ; il ne remonte jamais comme erreur du runtime critique.
 
 ### Lecture complète d’un fil
 
@@ -366,7 +369,7 @@ peuvent être suspendus, tandis que composer, lecture, navigation et interface n
 
 Une modification architecturale n’est considérée terminée que si le niveau de preuve correspondant existe.
 
-La 0.9.77 utilise notamment :
+La 0.9.78 utilise notamment :
 
 1. `tools/check-hydration-v100.mjs` — invariants runtime et ordre de boot ;
 2. `labs/static_validate_current.py` — syntaxe, manifest, package/runtime, propriétaires uniques ;

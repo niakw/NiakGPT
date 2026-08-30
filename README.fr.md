@@ -28,7 +28,7 @@ Elle ajoute une couche native-first pour les Projects, la navigation, les longue
 
 ### Démarrage protégé contre les erreurs d’hydratation
 
-NiakGPT peut être chargé à `document_start`, mais ses modules pré-runtime restent désormais inactifs tant que le boot-gate n’a pas déclaré l’hydratation React initiale de ChatGPT stable. Avant ce signal : aucun observer, timer, attribut HTML ou mutation DOM NiakGPT. Un lab Chromium/Firefox/WebKit prend un snapshot du DOM de type SSR et échoue si un module NiakGPT le modifie trop tôt.
+Le JavaScript NiakGPT ne s’exécute plus à `document_start` : le bootstrap démarre désormais à `document_idle`, puis attend l’identité stable des nœuds hôtes, une longue période de calme DOM, deux passages idle du scheduler et plusieurs frames avant toute mutation. Un lab Chromium/Firefox/WebKit simule du travail React tardif via `MessageChannel` et échoue si NiakGPT s’active pendant une fausse période de calme.
 
 ### Projects intégrés à ChatGPT
 

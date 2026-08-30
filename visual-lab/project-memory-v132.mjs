@@ -34,7 +34,7 @@ try{
       window.__snapshot={
         ok:true,connected:false,configured:false,tokenAvailable:false,config:null,
         github:{authenticated:false,account:null,repositories:[],installations:[],manageUrl:''},
-        state:{mode:'disconnected'},prefs:{autoSync:true,injectOnNewChat:true}
+        state:{mode:'disconnected'},queue:{pending:[]},prefs:{autoSync:true,injectOnNewChat:true}
       };
       window.__NIAKGPT_PROJECT_MEMORY__={
         status:async()=>structuredClone(window.__snapshot),
@@ -58,9 +58,10 @@ try{
           window.__snapshot={
             ...window.__snapshot,connected:true,configured:true,tokenAvailable:true,
             config:{repo:options.repo,branch:options.branch,root:options.root,authMode:'github-app',rememberToken:false},
-            state:{mode:'connected'}
+            state:{mode:'queued',queuedProjects:2,lastSyncAt:0},
+            queue:{pending:['g-p-one','g-p-two'],force:false,at:Date.now()}
           };
-          return{ok:true};
+          return{ok:true,bootstrapQueued:true,queuedProjects:2};
         },
         githubLogout:async()=>({ok:true}),
         connect:async()=>({ok:false,error:'manual-not-used'}),
@@ -70,8 +71,7 @@ try{
       };
     });
     await page.addScriptTag({content:uiScript});
-    await page.locator('#ng90-settings-btn').click();
-    await page.locator('[data-ng132-memory]').waitFor();
+    await page.locator('[data-ng132-memory]').waitFor({timeout:3000});
     await page.locator('[data-ng132-github-login]').evaluate(button=>{button.dataset.ngLabStable='1';});
     await page.waitForTimeout(240);
     assert(await page.locator('[data-ng132-github-login]').getAttribute('data-ng-lab-stable')==='1','Project Memory GitHub form rerendered after initial mount/settings click');
@@ -94,7 +94,8 @@ try{
     const selection=calls.find(call=>call.type==='github-repo');
     assert(selection?.options?.repo==='synthetic-user/vault-two','chosen GitHub repository not forwarded');
     assert(selection?.options?.branch==='stable','chosen GitHub branch not forwarded');
-    assert(/Connecté/.test(await page.locator('.ng132-memory-status').innerText()),'successful GitHub repository connection not visible');
+    const connectedText=await page.locator('.ng132-memory-status').innerText();
+    assert(/bootstrap/i.test(connectedText)&&/2 Project/.test(connectedText),'queued bootstrap state not visible after repository connection: '+connectedText);
     await page.close();
   }
 
@@ -210,8 +211,74 @@ try{
     await page.close();
   }
 
+  {
+    const page=await newPage();
+    await page.addInitScript(()=>{
+      const CACHE='niakgpt-v08-cache',PREFS='niakgpt-project-memory-prefs-v132';
+      const localData={
+        [CACHE]:{
+          projects:[
+            {id:'g-p-one',name:'One',href:'/g/g-p-one/project'},
+            {id:'g-p-two',name:'Two',href:'/g/g-p-two/project'}
+          ],
+          chats:[],
+          counts:{'g-p-one':4,'g-p-two':2},
+          indexedProjectIds:['g-p-one','g-p-two']
+        },
+        [PREFS]:{autoSync:true,injectOnNewChat:true}
+      };
+      window.__localData=localData;
+      document.documentElement.dataset.ng8TabRole='client';
+      const listeners=[];
+      window.chrome={
+        runtime:{
+          lastError:null,
+          sendMessage(message,cb){
+            if(message.type==='niakgpt:memory-status-v132')cb({
+              ok:true,connected:true,configured:true,tokenAvailable:true,
+              config:{repo:'synthetic-user/private-vault',branch:'main',root:'.niakgpt-memory',authMode:'github-app'}
+            });
+            else cb({ok:false,error:'not-used-in-bootstrap-queue-lab'});
+          }
+        },
+        storage:{
+          local:{
+            async get(keys){
+              if(keys==null)return structuredClone(localData);
+              const list=Array.isArray(keys)?keys:[keys],out={};
+              for(const key of list)if(localData[key]!==undefined)out[key]=structuredClone(localData[key]);
+              return out;
+            },
+            async set(obj){
+              const changes={};
+              for(const [key,value] of Object.entries(obj)){changes[key]={oldValue:localData[key],newValue:structuredClone(value)};localData[key]=structuredClone(value);}
+              for(const fn of listeners)fn(changes,'local');
+            },
+            async remove(keys){for(const key of (Array.isArray(keys)?keys:[keys]))delete localData[key];}
+          },
+          onChanged:{addListener(fn){listeners.push(fn);}}
+        }
+      };
+    });
+    await page.route('https://chatgpt.com/**',route=>route.fulfill({
+      status:200,contentType:'text/html; charset=utf-8',
+      body:'<!doctype html><html><body><main>Configured private memory client tab</main></body></html>'
+    }));
+    await page.goto('https://chatgpt.com/',{waitUntil:'domcontentloaded'});
+    await page.addScriptTag({content:coreScript});
+    await page.waitForFunction(()=>Array.isArray(window.__localData?.['niakgpt-project-memory-queue-v132']?.pending),null,{timeout:3000});
+    const recovered=await page.evaluate(()=>({
+      queue:window.__localData['niakgpt-project-memory-queue-v132'],
+      state:window.__localData['niakgpt-project-memory-state-v132']
+    }));
+    assert(recovered.queue.pending.length===2,'configured unsynced vault did not recreate persistent bootstrap queue');
+    assert(recovered.queue.pending.includes('g-p-one')&&recovered.queue.pending.includes('g-p-two'),'bootstrap queue lost Project IDs');
+    assert(recovered.state.mode==='queued'&&recovered.state.queuedProjects===2,'bootstrap recovery state is not visible/persistent');
+    await page.close();
+  }
+
   assert(errors.length===0,'browser errors: '+JSON.stringify(errors));
-  console.log('project-memory-v132 '+requested+': PASS github-login+repo-picker+manual-fallback+synchronous-first-send+single-injection');
+  console.log('project-memory-v132 '+requested+': PASS auto-render+github-picker+persistent-bootstrap-queue+manual-fallback+single-injection');
 }finally{
   await context.close();
   await browser.close();

@@ -14,6 +14,7 @@
   const PROJECT_RX=/\/g\/(g-p-[^/?#]+)(?:\/|$)/i;
   const QUEUE=new Set(['a classer','hors projet / a classer','hors projet/a classer','unclassified','to classify']);
   const PRIMARY_PATH=/^(?:\/?$|\/new(?:\/|$)|\/search(?:\/|$)|\/library(?:\/|$)|\/images?(?:\/|$)|\/apps?(?:\/|$)|\/codex(?:\/|$))/i;
+  const PRIMARY_LABEL=/^(?:chatgpt|nouveau chat|new chat|rechercher|search|bibliotheque|library|images?|apps?|codex)$/i;
   let cache={projects:[],chats:[],counts:{}},governance={hiddenProjectIds:[],coreProjectIds:[]};
   let observer=null,observedRoot=null,internal=false,timer=0,renderEpoch=0,lastPinFocus=null,lastPinFocusAt=0,bootstrapObserver=null,projectScrollMemory=0;
   let pendingProjectScroll=null,pendingScrollSeq=0,userScrollIntentAt=0,userScrollEpoch=0,retiredSeq=0;
@@ -46,19 +47,33 @@
     return candidates.map(el=>[el,score(el)]).filter(([,n])=>Number.isFinite(n)).sort((a,b)=>b[1]-a[1])[0]?.[0]||null;
   }
   function projectLinks(scope){return [...scope.querySelectorAll?.('a[href*="/g/g-p-"]')||[]].filter(a=>!isOwn(a));}
-  function hasPrimary(scope){return [...scope.querySelectorAll?.('a[href]')||[]].some(a=>PRIMARY_PATH.test(a.getAttribute('href')||''));}
+  function primaryControl(el){
+    if(!(el instanceof Element)||isOwn(el)||!visiblePlacementNode(el))return false;
+    const href=el.getAttribute?.('href')||'';
+    if(href&&PRIMARY_PATH.test(href))return true;
+    const label=norm(el.getAttribute?.('aria-label')||el.getAttribute?.('data-testid')||el.textContent);
+    return PRIMARY_LABEL.test(label)||/(?:^|[-_\s])(?:new[-_\s]?chat|nouveau[-_\s]?chat|sidebar[-_\s]?new)(?:$|[-_\s])/i.test(label);
+  }
+  function primaryControls(scope){return [...scope.querySelectorAll?.('a[href],button,[role="button"]')||[]].filter(primaryControl);}
+  function hasPrimary(scope){return primaryControls(scope).length>0;}
   function nativeProjectSection(root=navRoot()){
     if(!root)return null;
     const box=document.getElementById('ng8-pins');
     const marked=[...root.querySelectorAll('[data-ng112-native-projects="1"]')].filter(el=>!box||!el.contains(box));
     const labels=[...root.querySelectorAll('h1,h2,h3,[role="heading"],span,div,button,a')].filter(el=>!isOwn(el)&&projectLabel(el.getAttribute?.('aria-label')||el.textContent));
     for(const seed of [...labels,...marked]){
-      let node=seed;
+      let node=seed,labelCandidate=null;
+      const seedIsLabel=projectLabel(seed.getAttribute?.('aria-label')||seed.textContent);
       for(let depth=0;depth<7&&node&&node!==root&&node!==document.body;depth++,node=node.parentElement){
-        const links=projectLinks(node);if(!links.length&&node.getAttribute?.('data-ng112-native-projects')!=='1')continue;
+        const links=projectLinks(node),markedNode=node.getAttribute?.('data-ng112-native-projects')==='1';
         if(hasPrimary(node))continue;
-        return node;
+        if(links.length||markedNode)return node;
+        if(seedIsLabel&&!labelCandidate&&depth>0&&visiblePlacementNode(node)){
+          const r=node.getBoundingClientRect();
+          if(r.width>=120&&r.height>=18&&r.height<=260)labelCandidate=node;
+        }
       }
+      if(labelCandidate)return labelCandidate;
     }
     const link=projectLinks(root)[0];
     if(link){let node=link;for(let depth=0;depth<7&&node?.parentElement&&node.parentElement!==root;depth++,node=node.parentElement){const parent=node.parentElement;if(projectLinks(parent).length>=1&&!hasPrimary(parent))return parent;}}
@@ -66,8 +81,8 @@
   }
   function primaryTail(root=navRoot()){
     if(!root)return null;let best=null,bestTop=-Infinity;
-    for(const a of root.querySelectorAll('a[href]')){
-      if(isOwn(a)||!PRIMARY_PATH.test(a.getAttribute('href')||''))continue;const r=a.getBoundingClientRect();if(r.bottom>bestTop){best=a;bestTop=r.bottom;}
+    for(const a of primaryControls(root)){
+      const r=a.getBoundingClientRect();if(r.bottom>bestTop){best=a;bestTop=r.bottom;}
     }
     if(!best)return null;
     let node=best;
@@ -177,8 +192,14 @@
     if(tail?.parentElement&&(!box||(!tail.contains(box)&&!box.contains(tail.parentElement)))){
       return{parent:tail.parentElement,before:tail.nextSibling,mode:'after-primary',legacy:'after-primary-v121'};
     }
-    if(!box||!box.contains(root))return{parent:root,before:null,mode:'sidebar-tail',legacy:'sidebar-tail-v121'};
+    // Never mount at a generic sidebar tail while ChatGPT is still hydrating. That fallback
+    // can become the visual top of the sidebar once native controls are inserted later.
     return null;
+  }
+  function placementSatisfied(box,target){
+    if(!box?.isConnected||!target||box.parentElement!==target.parent)return false;
+    if(target.before===box)return true; // already immediately after the selected primary tail
+    return box.nextSibling===target.before;
   }
   function retireStaleBox(box){
     if(!box||!box.isConnected||box.dataset.ng121Retired==='1')return;
@@ -291,6 +312,14 @@
       retireStaleBox(box);box=null;
     }
     if(box?.dataset.ng121Retired==='1')box=null;
+    if(box?.isConnected){
+      const ideal=placementTarget(root,box);
+      if(ideal&&!placementSatisfied(box,ideal)){
+        // Preserve the direct-once invariant: never reparent the same React-adjacent node.
+        // Retire it and recreate a fresh catalogue at the newly authoritative native slot.
+        retireStaleBox(box);box=null;
+      }
+    }
     if(!box){
       const target=placementTarget(root,null);if(!target)return null;
       box=document.createElement('section');box.id='ng8-pins';box.hidden=true;box.dataset.ng121MountPolicy='direct-once';
@@ -309,7 +338,14 @@
   }
   function reconcile(){clearTimeout(timer);timer=0;if(internal)return;const box=ensureBox();if(!box){bind();return;}renderCatalog(box);place(box);restorePendingScroll('reconcile');bind();hideWelcome();window.__NIAKGPT_DIAGNOSTICS__?.set('sidebar-ux-119',`OK · Projects ${box.dataset.ng121Placement||'stable'} · autorité v121 unique`);}
   function schedule(delay=0){clearTimeout(timer);timer=setTimeout(reconcile,delay);}
-  function relevant(records){for(const r of records){for(const n of [...r.addedNodes,...r.removedNodes]){if(!(n instanceof Element))continue;if(n.id==='ng8-pins'||n.querySelector?.('#ng8-pins')||n.matches?.('a[href*="/g/g-p-"],[data-ng112-native-projects]')||n.querySelector?.('a[href*="/g/g-p-"],[data-ng112-native-projects]'))return true;}}return false;}
+  function placementSignal(node){
+    if(!(node instanceof Element))return false;
+    if(node.matches?.('a[href*="/g/g-p-"],[data-ng112-native-projects]'))return true;
+    if(primaryControl(node))return true;
+    if([...node.querySelectorAll?.('a[href],button,[role="button"]')||[]].some(primaryControl))return true;
+    return !!node.querySelector?.('a[href*="/g/g-p-"],[data-ng112-native-projects]');
+  }
+  function relevant(records){for(const r of records){for(const n of [...r.addedNodes,...r.removedNodes]){if(!(n instanceof Element))continue;if(n.id==='ng8-pins'||n.querySelector?.('#ng8-pins')||placementSignal(n))return true;}}return false;}
   function bind(){
     const root=navRoot();if(!root){armBootstrap();return;}if(root===observedRoot&&observer)return;
     observer?.disconnect();observedRoot=root;observer=new MutationObserver(records=>{if(internal)return;if(relevant(records))reconcile();});observer.observe(root,{childList:true,subtree:true});

@@ -168,7 +168,7 @@ for(const [name,launcher] of Object.entries(selected)){
     });
     assert(remount.path==='/c/new-chat',name+': fixture unexpectedly navigated away from chat');
     assert(remount.activeCount==='1',name+': active shell Pins were moved instead of freshly mounted');
-    assert(remount.activeNext.includes('native-projects'),name+': remounted Pins did not land directly before native Projects');
+    assert(remount.activeNext.includes('native-projects'),name+': remounted Pins did not land directly before native Projects: '+JSON.stringify(remount));
     assert(remount.retired&&remount.retiredConnected,name+': stale Pins node was moved/removed instead of retired in place');
     assert(remount.retiredFrozen==='old-shell-reference',name+': stale node handle was mutated after retirement');
     assert(remount.moveErrors.length===0,name+': late shell remount produced a synthetic Cannot moveNode');

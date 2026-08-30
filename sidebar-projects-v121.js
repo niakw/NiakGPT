@@ -104,7 +104,7 @@
       top,max,
       reason:recentUser?'user-priority:'+reason:reason,
       seq,at:now,until:now+(recentUser?900:1200),
-      userIntentAt
+      userIntentAt:userScrollIntentAt
     };
     document.documentElement.dataset.ng121ScrollGuard=`${recentUser?'user-priority-armed':'armed'}:${Math.round(top)}`;
     return pendingProjectScroll;

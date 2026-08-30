@@ -138,7 +138,7 @@ assert.equal(localStore['niakgpt-project-memory-config-v132'],undefined,'failed 
 assert.equal(sessionStore['niakgpt-project-memory-session-token-v132'],undefined,'failed connect persisted token');
 
 const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
-assert.equal(manifest.version, '0.9.82');
+assert.equal(manifest.version, '0.9.83');
 assert.deepEqual(manifest.permissions, ['storage','scripting','identity']);
 assert.deepEqual(manifest.host_permissions, ['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']);
 
@@ -205,6 +205,10 @@ assert.match(runtime, /setTimeout\(heartbeat,20_000\)/);
 assert.match(runtime, /githubRepositories/);
 assert.match(runtime, /githubConnectRepo/);
 assert.match(runtime, /githubLogout/);
+assert.match(runtime, /primeBootstrapQueue/);
+assert.match(runtime, /ensureBootstrapQueued/);
+assert.match(runtime, /queuedProjects/);
+assert.match(runtime, /changes\[QUEUE_KEY\]/);
 
 const ui = fs.readFileSync('project-memory-ui-v132.js','utf8');
 assert.match(ui, /GITHUB PRIVÉ/);
@@ -212,6 +216,10 @@ assert.match(ui, /openWithoutMemory/);
 assert.match(ui, /Réessayer avec le PAT/);
 assert.match(ui, /Réessayer avec GitHub/);
 assert.match(ui, /Réessayer ce dépôt/);
+assert.match(ui, /Coffre initialisé · première synchronisation en attente/);
+assert.match(ui, /File persistante/);
+assert.match(ui, /niakgpt:control-center-rendered/);
+assert.match(ui, /schedule\(0\);/);
 assert.match(ui, /token\.value = draft\.token/);
 assert.match(ui, /!document\.querySelector\('#ng90-control \[data-ng132-memory\]'\)/,'settings click must not rerender an already-mounted Project Memory form');
 assert.doesNotMatch(ui, /else if \(document\.querySelector\('#ng90-control\.open'\)\) schedule\(120\)/);
@@ -227,6 +235,9 @@ assert.match(packager, /importScripts/);
 assert.match(packager, /project-memory-background-v132\.js/);
 
 assert.ok(fs.existsSync('visual-lab/project-memory-v132.mjs'),'Project Memory browser gate missing');
+const memoryLab=fs.readFileSync('visual-lab/project-memory-v132.mjs','utf8');
+assert.match(memoryLab,/configured unsynced vault did not recreate persistent bootstrap queue/);
+assert.match(memoryLab,/\[data-ng132-memory\]\)\.waitFor/);
 assert.ok(fs.existsSync('labs/project-memory-isolation-v133.mjs'),'Project Memory isolation gate missing');
 assert.ok(fs.existsSync('.github/workflows/project-memory-v132.yml'),'Project Memory workflow missing');
 const memoryWorkflow=fs.readFileSync('.github/workflows/project-memory-v132.yml','utf8');

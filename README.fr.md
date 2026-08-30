@@ -6,7 +6,7 @@
   <p>Projects · performance des longs fils · continuité · navigation · productivité ciblée</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.78-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.79-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -22,7 +22,7 @@ NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
 
-> **Version actuelle : 0.9.78.** Project Memory reste optionnel et privé, sait initialiser un dépôt neuf sans commit et est désormais totalement isolé du chemin critique Projects/sidebar.
+> **Version actuelle : 0.9.79.** Project Memory reste optionnel et privé, sait initialiser un dépôt neuf sans commit et est désormais totalement isolé du chemin critique Projects/sidebar.
 
 ## Points forts
 
@@ -77,11 +77,13 @@ Le texte utilisateur reste toujours prioritaire : un brouillon modifié n’est 
 
 ### Project Memory privé (optionnel)
 
-NiakGPT 0.9.78 peut associer, depuis le Centre de contrôle, un **dépôt GitHub privé choisi par l’utilisateur** à la continuité des Projects.
+NiakGPT 0.9.79 peut associer, depuis le Centre de contrôle, un **dépôt GitHub privé choisi par l’utilisateur** à la continuité des Projects, avec un parcours normal **Se connecter avec GitHub** puis choix du dépôt.
 
 - connexion explicite et désactivée par défaut ;
+- parcours normal **Se connecter avec GitHub → autorisation GitHub → choix du dépôt**, sans copier-coller de PAT ;
+- NiakGPT crée via le manifest flow GitHub une GitHub App privée propre au profil navigateur, limitée à **Contents: write** et **Metadata: read** ;
+- l’écran d’installation GitHub contrôle les dépôts autorisés et le sélecteur NiakGPT n’affiche que les dépôts privés non archivés réellement accordés ;
 - un dépôt privé **neuf sans aucun commit** est initialisé automatiquement à la première connexion ;
-- si GitHub refuse la connexion, dépôt/branche/dossier/token restent affichés pour permettre une correction et un nouvel essai ;
 - le dépôt sélectionné est vérifié comme **privé avant l’initialisation puis avant chaque lecture/écriture** ;
 - à la première connexion, tous les Projects ChatGPT existants non vides déjà indexés par NiakGPT sont amorcés ;
 - description/instructions du Project, snapshots d’historique, signaux de tâches/décisions/architecture et checkpoint compact `PROJECT_STATE.md` sont stockés sous une racine mémoire dédiée ;
@@ -90,7 +92,7 @@ NiakGPT 0.9.78 peut associer, depuis le Centre de contrôle, un **dépôt GitHub
 - dans un nouveau fil du Project, NiakGPT peut ajouter une seule fois le checkpoint borné au premier message utilisateur ;
 - la synchro se met en pause pendant une génération, une attente, une exécution ou une vérification ChatGPT, et une file interrompue peut reprendre ensuite.
 
-Le dépôt public `niakw/NiakGPT` n’est jamais utilisé pour stocker la mémoire utilisateur. Un fine-grained token GitHub limité au dépôt privé choisi est recommandé ; par défaut, le token reste uniquement en stockage de session navigateur, sauf si l’utilisateur demande explicitement de le mémoriser sur l’appareil.
+Le dépôt public `niakw/NiakGPT` n’est jamais utilisé pour stocker la mémoire utilisateur et ses GitHub Actions ne reçoivent ni le nom du coffre ni ses identifiants. Les identifiants de la GitHub App et les éléments de renouvellement restent dans le profil navigateur local. Le fine-grained PAT reste uniquement comme fallback avancé lorsque l’installation d’une GitHub App est interdite.
 
 ### Interface discrète et native-first
 
@@ -105,16 +107,18 @@ La couche UX v131 retire l’effet « seconde application autour de ChatGPT » :
 
 ### Cœur local-first, synchro privée optionnelle
 
-Le cœur de NiakGPT reste local-first. La version 0.9.78 déclare :
+Le cœur de NiakGPT reste local-first. La version 0.9.79 déclare :
 
 ```text
 storage
 scripting
+identity
 https://chatgpt.com/*
 https://api.github.com/*
+https://github.com/login/*
 ```
 
-Aucune télémétrie NiakGPT, aucun SDK publicitaire, aucune analytics et aucun compte cloud NiakGPT. Le domaine GitHub n’est utilisé **qu’après configuration de Project Memory par l’utilisateur** ; sans configuration, Project Memory n’émet aucun trafic GitHub. Préférences, index, gouvernance et reprise restent locaux, tandis que le dépôt mémoire optionnel reste sous le contrôle de l’utilisateur.
+Aucune télémétrie NiakGPT, aucun SDK publicitaire, aucune analytics et aucun compte cloud NiakGPT. Les endpoints GitHub ne sont utilisés **qu’après une action explicite de connexion Project Memory**. La permission `identity` pilote la fenêtre d’autorisation interactive et `github.com/login/*` sert uniquement à l’échange OAuth. Préférences, index, gouvernance et reprise restent locaux, tandis que le dépôt mémoire optionnel reste sous le contrôle de l’utilisateur.
 
 Voir [Confidentialité](PRIVACY.md) et [Sécurité](SECURITY.md) pour le modèle exact des données, du token et du réseau.
 
@@ -189,7 +193,7 @@ Une fixture verte ne remplace **jamais** une capture utilisateur réelle qui la 
 | [README.md](README.md) | README anglais |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture runtime et invariants de propriété |
 | [CHANGELOG.md](CHANGELOG.md) | Historique détaillé |
-| [RELEASE_NOTES_0.9.78.md](RELEASE_NOTES_0.9.78.md) | Résumé de la release courante |
+| [RELEASE_NOTES_0.9.79.md](RELEASE_NOTES_0.9.79.md) | Résumé de la release courante |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnostic et reprise |
 | [PRIVACY.md](PRIVACY.md) | Données locales et comportement réseau |
 | [SECURITY.md](SECURITY.md) | Modèle de sécurité et signalement |

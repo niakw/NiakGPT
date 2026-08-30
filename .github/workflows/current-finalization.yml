@@ -90,6 +90,11 @@ jobs:
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node sidebar-session-ux-v123.mjs
+      - name: Reported DOM node stability — direct chat and late shell remount
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node dom-node-stability-v082.mjs
       - name: Upload cross-platform evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -141,6 +146,11 @@ jobs:
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node sidebar-session-ux-v123.mjs
+      - name: Reported DOM node stability — direct chat and late shell remount
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node dom-node-stability-v082.mjs
       - name: Upload cross-platform evidence
         if: always()
         uses: actions/upload-artifact@v4

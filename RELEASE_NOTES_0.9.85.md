@@ -5,6 +5,8 @@
 - Abort NiakGPT-owned ChatGPT backend GETs as soon as a prompt is sent or native activity/verification/network recovery takes priority.
 - Hold a quiet period after native activity before allowing background reads to resume.
 - Never retry a transient fetch/network failure through an automatic XHR second transport.
+- Route deep-analysis conversation reads through the same native-priority broker; no second direct ChatGPT fetch path remains.
+- Do not auto-click ChatGPT's native Retry control after verification/network recovery; preserve context and leave recovery under user/native control.
 - Increase GET spacing and use a much longer circuit-breaker after HTTP 429.
 
 ## Project Memory
@@ -17,6 +19,8 @@
 ## Pins
 
 - Treat a visible native `/projects` launcher as a safe authoritative anchor even before ChatGPT hydrates individual Project links.
+- A user-opened Project drawer may bypass only the post-response quiet timer; it remains blocked during active generation, verification, offline/network incidents or rate limiting.
+- A partially cached Project drawer is hydrated until its inventory is complete instead of treating the first few visible conversations as complete.
 - Render the custom header as **PINS · PROJECTS** so it cannot be mistaken for ChatGPT's native Projects surface.
 
 ## Regression coverage

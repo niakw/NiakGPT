@@ -95,11 +95,18 @@
     const list=document.querySelector('#ng8-pins>.ng8-pin-list');if(!(list instanceof HTMLElement))return null;
     const max=Math.max(0,list.scrollHeight-list.clientHeight);if(max<=0)return null;
     const top=Math.min(max,Math.max(0,list.scrollTop));projectScrollMemory=top;
-    // Wheel/touch/key input is authoritative. During its short input window we preserve the
-    // live position through renderCatalog itself and never arm a stale timer at the pre-scroll position.
-    if(performance.now()-userScrollIntentAt<600){pendingProjectScroll=null;document.documentElement.dataset.ng121ScrollGuard=`user-priority:${Math.round(top)}`;return null;}
-    const seq=++pendingScrollSeq;
-    pendingProjectScroll={top,max,reason,seq,at:performance.now(),until:performance.now()+1200,userIntentAt:userScrollIntentAt};
+    // Wheel/touch/key input is authoritative. Capture that exact user-selected position and
+    // actively preserve it through the render + browser layout frames. A later user input always
+    // cancels this snapshot via noteUserScrollIntent()/the scroll listener, so this never fights
+    // an intentional follow-up scroll.
+    const now=performance.now(),recentUser=now-userScrollIntentAt<600,seq=++pendingScrollSeq;
+    pendingProjectScroll={
+      top,max,
+      reason:recentUser?'user-priority:'+reason:reason,
+      seq,at:now,until:now+(recentUser?900:1200),
+      userIntentAt
+    };
+    document.documentElement.dataset.ng121ScrollGuard=`${recentUser?'user-priority-armed':'armed'}:${Math.round(top)}`;
     return pendingProjectScroll;
   }
   function restorePendingScroll(source='reconcile'){

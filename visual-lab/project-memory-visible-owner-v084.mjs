@@ -24,6 +24,7 @@ try{
         [PREFS]:{autoSync:true,injectOnNewChat:true},
         [QUEUE]:{pending:['g-p-one'],force:false,at:Date.now()}
       };
+      window.__localData=data;
       const listeners=[];
       const clone=v=>v===undefined?undefined:structuredClone(v);
       window.chrome={
@@ -58,6 +59,10 @@ try{
           onChanged:{addListener(fn){listeners.push(fn);}}
         }
       };
+    });
+    await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html; charset=utf-8',body:'<!doctype html><html><body><main>Hidden worker handoff lab</main></body></html>'}));
+    await page.goto('https://chatgpt.com/',{waitUntil:'domcontentloaded'});
+    await page.evaluate(()=>{
       document.documentElement.dataset.ng8TabRole='worker';
       document.addEventListener('niakgpt:rpc-request',event=>{
         const id=event.detail?.id;if(!id)return;
@@ -69,8 +74,6 @@ try{
         }})),5);
       });
     });
-    await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html; charset=utf-8',body:'<!doctype html><html><body><main>Hidden worker handoff lab</main></body></html>'}));
-    await page.goto('https://chatgpt.com/',{waitUntil:'domcontentloaded'});
     await page.addScriptTag({content:source});
     await page.waitForTimeout(260);
     let state=await page.evaluate(()=>({locks:window.__ng084LockCalls,commits:window.__ng084CommitCalls}));

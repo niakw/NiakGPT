@@ -32,20 +32,46 @@
   let rateLimitedUntil = 0;
   let rateStrike = 0;
   let rateClearTimer = 0;
+  let nativePriorityUntil = 0, nativeWasBusy = false;
+  const activeGetControllers = new Set();
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const now = () => Date.now();
   const cacheTTL = () => 1200;
-  const gapFor = (_path, method) => method === 'GET' ? 180 : 450;
+  const gapFor = (_path, method) => method === 'GET' ? 1250 : 650;
   const cacheKey = (path, method) => `${method}:${path}`;
-  const nativeBusy = () => {
+  const baseNativeBusy = () => {
     const interruption=String(document.documentElement.dataset.ng119Interruption||'').toLowerCase();
     return document.documentElement.dataset.ng8Running === '1' ||
-      ['loading','waiting','thinking','executing'].includes(document.documentElement.dataset.ng86Activity || '') ||
+      ['loading','waiting','thinking','executing'].includes(String(document.documentElement.dataset.ng86Activity || '').toLowerCase()) ||
       document.documentElement.dataset.ng105Verification === '1' ||
       interruption === 'verify' ||
       interruption === 'network' ||
       navigator.onLine === false;
   };
+  const abortOwnGets = reason => {
+    for (const controller of [...activeGetControllers]) {
+      try { controller.abort(reason || 'native_priority'); } catch {}
+    }
+  };
+  const noteNativePriority = (ms, reason, abort = true) => {
+    nativePriorityUntil = Math.max(nativePriorityUntil, now() + Math.max(0, Number(ms) || 0));
+    document.documentElement.dataset.ng100NativePriorityUntil = String(nativePriorityUntil);
+    document.documentElement.dataset.ng100NativePriorityReason = String(reason || 'native');
+    if (abort) abortOwnGets(reason || 'native_priority');
+  };
+  const refreshNativePriority = reason => {
+    const interruption=String(document.documentElement.dataset.ng119Interruption||'').toLowerCase();
+    const busy=baseNativeBusy();
+    if (busy) {
+      nativeWasBusy = true;
+      abortOwnGets(reason || interruption || 'native_busy');
+      if (interruption === 'verify' || interruption === 'network') noteNativePriority(120000, interruption, false);
+    } else if (nativeWasBusy) {
+      nativeWasBusy = false;
+      noteNativePriority(30000, 'post-native-idle', false);
+    }
+  };
+  const nativeBusy = () => baseNativeBusy() || now() < nativePriorityUntil;
   const nativeBusyResult = () => ({ok:false,status:0,data:null,error:'native_busy',transport:'bridge-pause'});
 
   function retryAfterMsFrom(value) {
@@ -177,6 +203,7 @@
   }
 
   async function fetchRequest(path, method, body, token) {
+    const controller = method === 'GET' ? new AbortController() : null;
     const init = {
       method,
       credentials: 'include',
@@ -186,6 +213,7 @@
         Authorization: `Bearer ${token}`
       }
     };
+    if (controller) { init.signal = controller.signal; activeGetControllers.add(controller); }
     if (method !== 'GET' && method !== 'DELETE') {
       init.headers['Content-Type'] = 'application/json';
       init.body = JSON.stringify(body ?? {});
@@ -202,24 +230,18 @@
         retry_after_ms: retryAfterMsFrom(r.headers.get('Retry-After'))
       };
     } catch (error) {
-      return { ok:false, status:0, data:null, error:`fetch_exception:${String(error?.message || error)}`, transport:'fetch' };
+      const aborted = controller?.signal?.aborted || error?.name === 'AbortError';
+      return { ok:false, status:0, data:null, error:aborted?'fetch_aborted_native_priority':`fetch_exception:${String(error?.message || error)}`, transport:'fetch' };
+    } finally {
+      if (controller) activeGetControllers.delete(controller);
     }
   }
 
   async function requestWithTransportFallback(path, method, body, token) {
-    let result = await fetchRequest(path, method, body, token);
-    if (result.status === 0) {
-      const xhr = await xhrRequest(path, method, body, token);
-      if (xhr.ok || xhr.status !== 0) result = xhr;
-      else result = {
-        ok:false,
-        status:0,
-        data:null,
-        error:`${result.error};${xhr.error}`,
-        transport:'fetch+xhr'
-      };
-    }
-    return result;
+    // Never duplicate a failed ChatGPT-internal request with a second transport. A transient
+    // network failure or native verification must reduce NiakGPT traffic, not turn one request
+    // into fetch + XHR while ChatGPT is already recovering.
+    return fetchRequest(path, method, body, token);
   }
 
   async function backendFetchCore(path, method, body, forceToken = false) {
@@ -269,7 +291,7 @@
 
     if (result.status === 429) {
       rateStrike=Math.min(6,rateStrike+1);
-      const fallback=Math.min(45000,4000*Math.pow(2,rateStrike-1));
+      const fallback=Math.min(300000,30000*Math.pow(2,rateStrike-1));
       const delay=Math.max(Number(result.retry_after_ms)||0,fallback)+Math.floor(Math.random()*350);
       result.retry_after_ms=delay;
       publishRateLimit(delay,'429');
@@ -308,6 +330,31 @@
       return result;
     });
   }
+
+  const composerSelector = '#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]';
+  const sendLike = button => {
+    if (!(button instanceof Element)) return false;
+    const label = `${button.getAttribute('aria-label')||''} ${button.getAttribute('data-testid')||''} ${button.getAttribute('title')||''}`;
+    return /(?:^|\b)(?:send|envoyer|submit)(?:\b|$)/i.test(label);
+  };
+  document.addEventListener('click', event => {
+    const button = event.target instanceof Element ? event.target.closest('button,[role="button"]') : null;
+    if (sendLike(button)) noteNativePriority(45000,'user-send');
+  }, true);
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey || event.isComposing) return;
+    const target = event.target instanceof Element ? event.target.closest(composerSelector) : null;
+    if (target) noteNativePriority(45000,'user-send-enter');
+  }, true);
+  document.addEventListener('niakgpt:activity-changed',()=>refreshNativePriority('activity'));
+  window.addEventListener('offline',()=>noteNativePriority(120000,'offline'));
+  window.addEventListener('online',()=>noteNativePriority(30000,'online-recovery',false));
+  const nativeGuardObserver = new MutationObserver(records => {
+    if (records.some(r => ['data-ng8-running','data-ng86-activity','data-ng105-verification','data-ng119-interruption'].includes(r.attributeName))) refreshNativePriority('native-state');
+  });
+  nativeGuardObserver.observe(document.documentElement,{attributes:true,attributeFilter:['data-ng8-running','data-ng86-activity','data-ng105-verification','data-ng119-interruption']});
+  window.addEventListener('pagehide',()=>{abortOwnGets('pagehide');nativeGuardObserver.disconnect();},{once:true});
+  refreshNativePriority('boot');
 
   document.addEventListener(REQ, async event => {
     const d = event.detail || {};

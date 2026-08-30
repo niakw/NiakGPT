@@ -237,7 +237,7 @@ assert.match(packager, /project-memory-background-v132\.js/);
 assert.ok(fs.existsSync('visual-lab/project-memory-v132.mjs'),'Project Memory browser gate missing');
 const memoryLab=fs.readFileSync('visual-lab/project-memory-v132.mjs','utf8');
 assert.match(memoryLab,/configured unsynced vault did not recreate persistent bootstrap queue/);
-assert.match(memoryLab,/\[data-ng132-memory\]\)\.waitFor/);
+assert.match(memoryLab,/page\.locator\('\[data-ng132-memory\]'\)\.waitFor/);
 assert.ok(fs.existsSync('labs/project-memory-isolation-v133.mjs'),'Project Memory isolation gate missing');
 assert.ok(fs.existsSync('.github/workflows/project-memory-v132.yml'),'Project Memory workflow missing');
 const memoryWorkflow=fs.readFileSync('.github/workflows/project-memory-v132.yml','utf8');

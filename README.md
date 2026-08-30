@@ -113,7 +113,7 @@ The v131 UX layer removes the old “second application around ChatGPT” feelin
 
 ### Local-first core, optional private sync
 
-NiakGPT's core remains local-first. Version 0.9.81 declares:
+NiakGPT's core remains local-first. Version 0.9.82 declares:
 
 ```text
 storage
@@ -200,7 +200,7 @@ A fixture passing does **not** override a contradictory real user screenshot. Se
 | [README.fr.md](README.fr.md) | French README |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Runtime architecture and ownership invariants |
 | [CHANGELOG.md](CHANGELOG.md) | Detailed release history |
-| [RELEASE_NOTES_0.9.81.md](RELEASE_NOTES_0.9.81.md) | Current release summary |
+| [RELEASE_NOTES_0.9.82.md](RELEASE_NOTES_0.9.82.md) | Current release summary |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnosis and recovery |
 | [PRIVACY.md](PRIVACY.md) | Local data and network behavior |
 | [SECURITY.md](SECURITY.md) | Security model and reporting |

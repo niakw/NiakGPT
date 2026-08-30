@@ -11,8 +11,9 @@
   const MEMORY_LOCK = 'niakgpt-project-memory-sync-v132';
   const MAX_STATE = 18000;
   const CHUNK = 360000;
-  const HISTORY_FETCH_GAP_MS = 3000;
-  let seq = 0, syncing = false, syncAuto = false, autoTimer = 0, routeTimer = 0, lastHistoryFetchAt = 0;
+  const HISTORY_FETCH_GAP_MS = 8000;
+  const HUMAN_QUIET_MS = 45000;
+  let seq = 0, syncing = false, syncAuto = false, autoTimer = 0, routeTimer = 0, lastHistoryFetchAt = 0, lastHumanAt = 0;
   let contextProject = '', contextText = '';
 
   const clean = v => String(v == null ? '' : v).replace(/\r/g, '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
@@ -50,12 +51,15 @@
 
   const busy = () => {
     const interruption=String(document.documentElement.dataset.ng119Interruption||'').toLowerCase();
+    const bridgePriorityUntil=Number(document.documentElement.dataset.ng100NativePriorityUntil||0);
     return document.documentElement.dataset.ng8Running === '1' ||
       ['loading','waiting','thinking','executing'].includes(String(document.documentElement.dataset.ng86Activity || '').toLowerCase()) ||
       document.documentElement.dataset.ng105Verification === '1' ||
       interruption === 'verify' ||
       interruption === 'network' ||
-      navigator.onLine === false;
+      navigator.onLine === false ||
+      Date.now() < bridgePriorityUntil ||
+      (lastHumanAt>0 && Date.now()-lastHumanAt < HUMAN_QUIET_MS);
   };
 
   async function waitIdle(limit) {
@@ -227,18 +231,17 @@
   }
 
   async function fetchConversation(id, attempt) {
-    if (!await waitIdle()) throw new Error('memory_sync_idle_timeout');
+    if (!await waitIdle()) throw new Error('memory_sync_paused_busy');
     const elapsed=Date.now()-lastHistoryFetchAt;
     if(lastHistoryFetchAt&&elapsed<HISTORY_FETCH_GAP_MS)await sleep(HISTORY_FETCH_GAP_MS-elapsed);
-    if (!await waitIdle()) throw new Error('memory_sync_idle_timeout');
+    if (!await waitIdle()) throw new Error('memory_sync_paused_busy');
     lastHistoryFetchAt=Date.now();
     const r = await rpc('/backend-api/conversation/' + encodeURIComponent(id), true);
     if (r && r.ok) return r.data;
-    const n = Number(attempt || 0);
-    if (n < 4 && (r && (r.error === 'native_busy' || r.status === 429 || r.status === 0))) {
-      await sleep(Math.max(900, Number(r.retry_after_ms || 0), 900 * (n + 1)));
-      return fetchConversation(id, n + 1);
-    }
+    const error=String(r?.error||'');
+    if(error==='native_busy'||/fetch_aborted_native_priority|bridge-pause/.test(error))throw new Error('memory_sync_paused_busy');
+    if(r?.status===429)throw new Error('memory_sync_paused_rate_limit');
+    if(r?.status===0)throw new Error('memory_sync_paused_network');
     throw new Error('conversation_fetch_failed:' + String(r && r.status || 0) + ':' + String(r && r.error || 'unknown'));
   }
 
@@ -409,8 +412,10 @@
       return { ok:true, projects:list.length, changed };
     } catch (error) {
       const message=String(error && error.message || error);
-      if(/^memory_sync_paused_(?:hidden|owner_change|busy)$/.test(message)){
-        await queuedState(message.replace('memory_sync_paused_',''));
+      if(/^memory_sync_paused_(?:hidden|owner_change|busy|rate_limit|network)$/.test(message)){
+        const reason=message.replace('memory_sync_paused_','');
+        await queuedState(reason);
+        schedule(reason==='rate_limit'||reason==='network'?120000:45000);
         return {ok:false,paused:true,error:message};
       }
       await state({ mode:'error', error:message.slice(0,260) });
@@ -423,7 +428,7 @@
     try {
       const q = (await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY], p = await prefs();
       if (!q?.pending?.length || !p.autoSync) return;
-      if (busy()) { schedule(3500); return; }
+      if (busy()) { schedule(45000); return; }
       bootstrap({ force:q.force, projectIds:q.pending, auto:true });
     } catch {}
   }
@@ -433,7 +438,7 @@
     if (!autoOwner() || !(await prefs()).autoSync) return;
     autoTimer = setTimeout(async () => {
       if (!autoOwner()) return;
-      if (busy()) return schedule(5000);
+      if (busy()) return schedule(45000);
       const st = await send({ type:'niakgpt:memory-status-v132' });
       if (!st?.connected) return;
       let q={};try{q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
@@ -601,12 +606,26 @@
     const ed = editorFor(event.target); if (ed) inject(ed);
   }, true);
 
+  const ownSurface = target => target instanceof Element && !!target.closest('#ng8-panel,#ng8-rail,#ng90-control,#ng100-command,#ng100-onboarding');
+  const noteHuman = event => {
+    if (event?.isTrusted === false || ownSurface(event?.target)) return;
+    lastHumanAt=Date.now();
+    if (syncAuto) clearTimeout(autoTimer);
+  };
+  document.addEventListener('pointerdown',noteHuman,true);
+  document.addEventListener('keydown',noteHuman,true);
+  document.addEventListener('wheel',noteHuman,{capture:true,passive:true});
+  document.addEventListener('touchstart',noteHuman,{capture:true,passive:true});
+
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes[CACHE_KEY]) schedule(12000);
     if (area === 'local' && changes[CONTEXT_KEY]) refreshContext();
     if (area === 'local' && changes[QUEUE_KEY] && autoOwner()) resume();
   });
-  document.addEventListener('niakgpt:activity-changed', () => { if (!busy()) schedule(5000); });
+  document.addEventListener('niakgpt:activity-changed', event => {
+    if (event.detail?.active === true || busy()) { lastHumanAt=Date.now(); clearTimeout(autoTimer); return; }
+    schedule(30000);
+  });
   document.addEventListener('niakgpt:tab-role-changed', event => {
     if (event.detail && event.detail.role !== 'inactive' && !document.hidden) { resume(); schedule(2500); }
     else clearTimeout(autoTimer);

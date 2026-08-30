@@ -1,4 +1,4 @@
 /* NiakGPT 0.9.66 — passive authoritative native Projects suppression. */
 [data-ng112-native-projects="1"]{display:none!important;visibility:hidden!important;pointer-events:none!important;}
 /* Native action staging temporarily exposes an already-marked native row/host off-screen. */
-[data-ng112-native-projects="1"].ng113-actions-staging{display:block!important;visibility:hidden!important;pointer-events:none!important;}
+[data-ng112-native-projects="1"].ng113-actions-staging,[data-ng112-native-projects="1"].ng123-native-stage{display:block!important;visibility:hidden!important;pointer-events:none!important;}

@@ -633,17 +633,6 @@
   }
 
   function bindEvents(){
-    document.addEventListener('selectionchange',syncDiagnosticSelectionLock);
-    document.addEventListener('pointerdown',e=>{
-      if(!(S.panelOpen&&S.tab==='diag'))return;
-      const panel=document.getElementById('ng8-panel');
-      if(e.target instanceof Node&&panel?.contains(e.target))S.diagSelectionGesture=true;
-    },true);
-    document.addEventListener('pointerup',()=>{
-      if(!S.diagSelectionGesture)return;
-      S.diagSelectionGesture=false;
-      queueMicrotask(syncDiagnosticSelectionLock);
-    },true);
     document.addEventListener('keydown',e=>{if(e.altKey&&!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&String(e.key).toLowerCase()==='k'){e.preventDefault();openQuick();}},true);
     document.addEventListener('niakgpt:settings-changed',()=>{ensureMatrix();ensureBots();renderPins();});
     document.addEventListener('niakgpt:diagnostic-changed',()=>renderPanelIfDiag());
@@ -669,6 +658,20 @@
     ensureShell();await waitCacheGuard();await Promise.all([loadGovernance(),loadCache()]);brand();mergeDOM();buildDuplicates();decorateSidebar();mountObservers();ensureMatrix();ensureBots();bindEvents();bindNavigation();
     if(role()==='client')health('bridge','DÉLÉGUÉ · WORKER');scheduleTurnTimeline(900);
   }
+
+  // Selection protection is registered synchronously, before async boot/cache/index work.
+  // A user can open/copy diagnostics while the rest of NiakGPT is still settling.
+  document.addEventListener('selectionchange',syncDiagnosticSelectionLock);
+  document.addEventListener('pointerdown',e=>{
+    if(!(S.panelOpen&&S.tab==='diag'))return;
+    const panel=document.getElementById('ng8-panel');
+    if(e.target instanceof Node&&panel?.contains(e.target))S.diagSelectionGesture=true;
+  },true);
+  document.addEventListener('pointerup',()=>{
+    if(!S.diagSelectionGesture)return;
+    S.diagSelectionGesture=false;
+    queueMicrotask(syncDiagnosticSelectionLock);
+  },true);
 
   if(document.body)boot();else{const mo=new MutationObserver(()=>{if(document.body){mo.disconnect();boot();}});mo.observe(document.documentElement,{childList:true,subtree:true});}
 })();

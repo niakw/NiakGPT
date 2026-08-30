@@ -8,9 +8,9 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 
 const manifest=JSON.parse(read('manifest.json'));
 if(manifest.manifest_version!==3)fail('manifest_version drift');
-if(manifest.version!=='0.9.78')fail(`unexpected release ${manifest.version}`);
-same(manifest.permissions,['storage','scripting'],'permissions mismatch');
-same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*'],'host scope mismatch');
+if(manifest.version!=='0.9.79')fail(`unexpected release ${manifest.version}`);
+same(manifest.permissions,['storage','scripting','identity'],'permissions mismatch');
+same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*'],'host scope mismatch');
 const staticRuntime=['boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'];
 same(manifest.content_scripts.flatMap(x=>x.js||[]),staticRuntime,'unexpected static runtime');
 
@@ -48,7 +48,7 @@ if(idx('project-native-name-sync-v124.js')<=idx('sidebar-actions-v123.js'))fail(
 if(idx('interruption-guard-v119.js')<=idx('continuity-v112.js'))fail('interruption guard must load after continuity capture handler');
 
 for(const file of [...isolated,...optional].filter(x=>x!=='retro-loader-v097.js'))forbid(read(file),'setInterval(',`permanent polling in ${file}`);
-for(const file of [...main,...isolated,...optional,'background-v100.js','project-memory-background-v132.js',...staticRuntime])if(!fs.existsSync(file))fail(`missing runtime ${file}`);
+for(const file of [...main,...isolated,...optional,'background-v100.js','project-memory-background-v132.js','github-vault-start.html','github-vault-start.js',...staticRuntime])if(!fs.existsSync(file))fail(`missing runtime ${file}`);
 
 for(const token of ["const OPTIONAL_RUNTIME=[","sendResponse({ok:!coreFailed","PROJECT_MEMORY_BACKEND_READY"])need(background,token,'Project Memory optional boot isolation incomplete');
 forbid(background,"item.includes(':project-memory-v132.js:')",'Project Memory must not be a critical coreFailed owner');
@@ -57,9 +57,9 @@ const bridge=read('page-bridge.js');
 need(bridge,'const nativeFetch = window.fetch.bind(window);');need(bridge,'conversation_detail_get_disabled');need(bridge,'d.memoryBootstrap !== true');need(bridge,'project_move_requires_governance');forbid(bridge,'window.fetch =');forbid(bridge,'globalThis.fetch =');
 
 const memoryBackend=read('project-memory-background-v132.js');
-for(const token of ['memory_repository_must_be_private','meta?.private !== true','chrome.storage.session','niakgpt:memory-connect-v132'])need(memoryBackend,token,'Project Memory backend invariant incomplete');
+for(const token of ['memory_repository_must_be_private','meta?.private !== true','chrome.storage.session','niakgpt:memory-connect-v132','chrome.identity.launchWebAuthFlow','app-manifests/','request_oauth_on_install','niakgpt:memory-github-connect-repo-v132','github_repository_not_authorized_for_vault','refresh_token'])need(memoryBackend,token,'Project Memory backend invariant incomplete');
 const memoryRuntime=read('project-memory-v132.js');
-for(const token of ['PROJECT_STATE.md','canonicalUpdated','prefsReady','function inject(ed)','memoryBootstrap: memoryBootstrap === true','MEMORY_LOCK','autoOwner','niakgpt:tab-role-changed'])need(memoryRuntime,token,'Project Memory runtime invariant incomplete');
+for(const token of ['PROJECT_STATE.md','canonicalUpdated','prefsReady','function inject(ed)','memoryBootstrap: memoryBootstrap === true','MEMORY_LOCK','autoOwner','niakgpt:tab-role-changed','githubLogin','githubRepositories','githubConnectRepo','githubLogout'])need(memoryRuntime,token,'Project Memory runtime invariant incomplete');
 forbid(memoryRuntime,'async function inject(ed)','Project Memory send-time injection must be synchronous');
 
 const gate=read('boot-gate-v100.js');

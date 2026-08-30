@@ -87,11 +87,13 @@
     for(const seed of [...labels,...marked]){
       let node=seed,labelCandidate=null;
       const seedIsLabel=projectLabel(seed.getAttribute?.('aria-label')||seed.textContent);
+      const seedIsLauncherOnly=projectHomeHref(seed.getAttribute?.('href'))||
+        (!!seed.querySelector?.('a[href="/projects"],a[href^="/projects?"]')&&!projectLinks(seed).length);
       for(let depth=0;depth<7&&node&&node!==root&&node!==document.body;depth++,node=node.parentElement){
         const links=projectLinks(node),markedNode=node.getAttribute?.('data-ng112-native-projects')==='1';
         if(hasPrimary(node))continue;
         if(links.length||markedNode)return node;
-        if(seedIsLabel&&!labelCandidate&&depth>0&&visiblePlacementNode(node)){
+        if(seedIsLabel&&!seedIsLauncherOnly&&!labelCandidate&&depth>0&&visiblePlacementNode(node)){
           const r=node.getBoundingClientRect();
           if(r.width>=120&&r.height>=18&&r.height<=260)labelCandidate=node;
         }

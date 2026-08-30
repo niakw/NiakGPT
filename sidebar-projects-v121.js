@@ -17,7 +17,7 @@
   let cache={projects:[],chats:[],counts:{}},governance={hiddenProjectIds:[],coreProjectIds:[]};
   let observer=null,observedRoot=null,internal=false,timer=0,renderEpoch=0,lastPinFocus=null,lastPinFocusAt=0,bootstrapObserver=null,projectScrollMemory=0;
   let pendingProjectScroll=null,pendingScrollSeq=0,userScrollIntentAt=0,userScrollEpoch=0,retiredSeq=0;
-  const sessionOrder=new Map();let sessionSeq=0;
+  const sessionOrder=new Map(),mountParentByBox=new WeakMap();let sessionSeq=0;
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -267,13 +267,19 @@
   function ensureBox(){
     const root=navRoot();if(!root)return null;
     let box=document.getElementById('ng8-pins');
-    if(box?.isConnected&&!root.contains(box)){retireStaleBox(box);box=null;}
+    const mountedParent=box?mountParentByBox.get(box):null;
+    if(box?.isConnected&&(!root.contains(box)||(mountedParent&&box.parentElement!==mountedParent))){
+      retireStaleBox(box);box=null;
+    }
     if(box?.dataset.ng121Retired==='1')box=null;
     if(!box){
       const target=placementTarget(root,null);if(!target)return null;
       box=document.createElement('section');box.id='ng8-pins';box.hidden=true;box.dataset.ng121MountPolicy='direct-once';
       if(!safeInsert(target.parent,box,target.before))return null;
+      mountParentByBox.set(box,target.parent);
       box.dataset.ng121Placement=target.mode;box.dataset.ng119Placement=target.legacy;box.dataset.ng121MountCount='1';
+    }else if(!mountedParent&&box.parentElement){
+      mountParentByBox.set(box,box.parentElement);
     }
     return box;
   }

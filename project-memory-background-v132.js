@@ -823,6 +823,21 @@
     return message.replace(/github_pat_[A-Za-z0-9_]+/g, '[redacted]').replace(/gh[pousr]_[A-Za-z0-9]+/g, '[redacted]').slice(0, 260);
   }
 
+  if (typeof chrome !== 'undefined' && chrome?.runtime?.onConnect) {
+    chrome.runtime.onConnect.addListener(port => {
+      if (port?.name !== 'niakgpt:memory-github-login-v132') return;
+      let started = false;
+      port.onMessage.addListener(message => {
+        if (message?.type === 'keepalive') return;
+        if (message?.type !== 'start' || started) return;
+        started = true;
+        startGitHubLogin()
+          .then(result => { try { port.postMessage({ type:'result', result }); } catch {} })
+          .catch(error => { try { port.postMessage({ type:'result', result:{ ok:false, error:safeError(error) } }); } catch {} });
+      });
+    });
+  }
+
   if (typeof chrome !== 'undefined' && chrome?.runtime?.onMessage) {
     chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       const type = message?.type;

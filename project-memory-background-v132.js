@@ -4,6 +4,9 @@
   const CONFIG_KEY = 'niakgpt-project-memory-config-v132';
   const TOKEN_KEY = 'niakgpt-project-memory-token-v132';
   const SESSION_TOKEN_KEY = 'niakgpt-project-memory-session-token-v132';
+  const GITHUB_APP_AUTH_KEY = 'niakgpt-project-memory-github-app-auth-v133';
+  const GITHUB_APP_SESSION_KEY = 'niakgpt-project-memory-github-app-session-v133';
+  const GITHUB_APP_FLOW_KEY = 'niakgpt-project-memory-github-app-flow-v133';
   const API = 'https://api.github.com';
   const API_VERSION = '2022-11-28';
   const DEFAULT_ROOT = '.niakgpt-memory';
@@ -82,7 +85,7 @@
     return data;
   }
 
-  async function getToken() {
+  async function getPatToken() {
     try {
       const session = await chrome.storage.session.get(SESSION_TOKEN_KEY);
       if (clean(session?.[SESSION_TOKEN_KEY])) return clean(session[SESSION_TOKEN_KEY]);
@@ -95,7 +98,7 @@
     }
   }
 
-  async function saveToken(token, remember) {
+  async function savePatToken(token, remember) {
     const value = clean(token);
     if (!value) throw new Error('github_token_missing');
     try { await chrome.storage.session.set({ [SESSION_TOKEN_KEY]: value }); } catch {}
@@ -103,9 +106,339 @@
     else await chrome.storage.local.remove(TOKEN_KEY);
   }
 
-  async function clearToken() {
+  async function clearPatToken() {
     try { await chrome.storage.session.remove(SESSION_TOKEN_KEY); } catch {}
     try { await chrome.storage.local.remove(TOKEN_KEY); } catch {}
+  }
+
+  function randomState(bytes = 18) {
+    const raw = new Uint8Array(bytes);
+    crypto.getRandomValues(raw);
+    return Array.from(raw, byte => byte.toString(16).padStart(2, '0')).join('');
+  }
+
+  async function readGitHubAppAuth() {
+    try {
+      const raw = (await chrome.storage.local.get(GITHUB_APP_AUTH_KEY))[GITHUB_APP_AUTH_KEY];
+      if (!raw || typeof raw !== 'object') return null;
+      const appId = Number(raw.appId || 0);
+      const appSlug = clean(raw.appSlug);
+      const clientId = clean(raw.clientId);
+      const clientSecret = clean(raw.clientSecret);
+      if (!appId || !appSlug || !clientId || !clientSecret) return null;
+      return {
+        schema: 1,
+        appId,
+        appSlug,
+        clientId,
+        clientSecret,
+        refreshToken: clean(raw.refreshToken),
+        refreshExpiresAt: Number(raw.refreshExpiresAt || 0),
+        persistentAccessToken: clean(raw.persistentAccessToken),
+        accountLogin: clean(raw.accountLogin),
+        accountAvatar: clean(raw.accountAvatar),
+        repositories: Array.isArray(raw.repositories) ? raw.repositories.filter(item => item && typeof item === 'object') : [],
+        installations: Array.isArray(raw.installations) ? raw.installations.filter(item => item && typeof item === 'object') : [],
+        createdAt: Number(raw.createdAt || 0),
+        updatedAt: Number(raw.updatedAt || 0)
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  async function writeGitHubAppAuth(auth) {
+    await chrome.storage.local.set({ [GITHUB_APP_AUTH_KEY]: auth });
+  }
+
+  async function readGitHubAppSession() {
+    try {
+      const raw = (await chrome.storage.session.get(GITHUB_APP_SESSION_KEY))[GITHUB_APP_SESSION_KEY];
+      if (!raw || typeof raw !== 'object') return null;
+      const token = clean(raw.token);
+      if (!token) return null;
+      return { token, expiresAt: Number(raw.expiresAt || 0) };
+    } catch {
+      return null;
+    }
+  }
+
+  async function writeGitHubAppSession(token, expiresAt = 0) {
+    const value = clean(token);
+    if (!value) throw new Error('github_app_token_missing');
+    try { await chrome.storage.session.set({ [GITHUB_APP_SESSION_KEY]: { token: value, expiresAt: Number(expiresAt || 0) } }); } catch {}
+  }
+
+  async function clearGitHubAppSession() {
+    try { await chrome.storage.session.remove(GITHUB_APP_SESSION_KEY); } catch {}
+  }
+
+  async function oauthTokenRequest(params) {
+    const response = await fetch('https://github.com/login/oauth/access_token', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams(params).toString()
+    });
+    const text = await response.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : {}; } catch { data = {}; }
+    if (!response.ok || !data?.access_token) {
+      const detail = clean(data?.error_description || data?.error || text || 'oauth_exchange_failed');
+      throw new Error('github_oauth_exchange_failed:' + detail.slice(0, 160));
+    }
+    return data;
+  }
+
+  async function persistGitHubTokenResponse(auth, data) {
+    const now = Date.now();
+    const accessToken = clean(data?.access_token);
+    const expiresIn = Number(data?.expires_in || 0);
+    const expiresAt = expiresIn > 0 ? now + expiresIn * 1000 : 0;
+    const refreshToken = clean(data?.refresh_token);
+    const refreshExpiresIn = Number(data?.refresh_token_expires_in || 0);
+    const next = {
+      ...auth,
+      refreshToken: refreshToken || auth.refreshToken || '',
+      refreshExpiresAt: refreshToken && refreshExpiresIn > 0 ? now + refreshExpiresIn * 1000 : Number(auth.refreshExpiresAt || 0),
+      persistentAccessToken: expiresAt ? '' : accessToken,
+      updatedAt: now
+    };
+    await writeGitHubAppSession(accessToken, expiresAt);
+    await writeGitHubAppAuth(next);
+    return { auth: next, token: accessToken, expiresAt };
+  }
+
+  async function getGitHubAppToken() {
+    let auth = await readGitHubAppAuth();
+    if (!auth) throw new Error('github_app_not_connected');
+
+    const session = await readGitHubAppSession();
+    if (session?.token && (!session.expiresAt || session.expiresAt > Date.now() + 90_000)) return session.token;
+    if (auth.persistentAccessToken) {
+      await writeGitHubAppSession(auth.persistentAccessToken, 0);
+      return auth.persistentAccessToken;
+    }
+    if (!auth.refreshToken) throw new Error('github_app_reauthorization_required');
+    if (auth.refreshExpiresAt && auth.refreshExpiresAt <= Date.now() + 90_000) throw new Error('github_app_reauthorization_required');
+
+    const refreshed = await oauthTokenRequest({
+      client_id: auth.clientId,
+      client_secret: auth.clientSecret,
+      grant_type: 'refresh_token',
+      refresh_token: auth.refreshToken
+    });
+    const saved = await persistGitHubTokenResponse(auth, refreshed);
+    return saved.token;
+  }
+
+  async function tokenForConfig(config) {
+    if (config?.authMode === 'github-app') return getGitHubAppToken();
+    return getPatToken();
+  }
+
+  async function directGitHubJson(url, init = {}) {
+    const response = await fetch(url, {
+      ...init,
+      headers: {
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': API_VERSION,
+        ...(init.headers || {})
+      }
+    });
+    const text = await response.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : {}; } catch { data = text; }
+    if (!response.ok) {
+      const detail = typeof data === 'object' && data ? data.message : text;
+      const error = new Error('github_http_' + response.status + ':' + clean(detail || 'request_failed').slice(0, 180));
+      error.status = response.status;
+      throw error;
+    }
+    return data;
+  }
+
+  async function listPaged(token, path, key) {
+    const all = [];
+    for (let page = 1; page <= 10; page++) {
+      const join = path.includes('?') ? '&' : '?';
+      const data = await github(token, path + join + 'per_page=100&page=' + page);
+      const batch = key ? (Array.isArray(data?.[key]) ? data[key] : []) : (Array.isArray(data) ? data : []);
+      all.push(...batch);
+      if (batch.length < 100) break;
+    }
+    return all;
+  }
+
+  async function refreshGitHubRepositories() {
+    const auth = await readGitHubAppAuth();
+    if (!auth) throw new Error('github_app_not_connected');
+    const token = await getGitHubAppToken();
+    const user = await github(token, '/user');
+    const allInstallations = await listPaged(token, '/user/installations', 'installations');
+    const installations = allInstallations.filter(item => Number(item?.app_id || 0) === auth.appId && !item?.suspended_at);
+    const byName = new Map();
+
+    for (const installation of installations) {
+      const repositories = await listPaged(token, '/user/installations/' + encodeURIComponent(String(installation.id)) + '/repositories', 'repositories');
+      for (const item of repositories) {
+        const fullName = normalizeRepo(item?.full_name);
+        if (!fullName || item?.private !== true || item?.archived === true) continue;
+        byName.set(fullName.toLowerCase(), {
+          id: Number(item?.id || 0),
+          fullName,
+          name: clean(item?.name),
+          owner: clean(item?.owner?.login),
+          private: true,
+          defaultBranch: normalizeBranch(item?.default_branch || 'main') || 'main',
+          installationId: Number(installation.id || 0)
+        });
+      }
+    }
+
+    const repositories = [...byName.values()].sort((a, b) => a.fullName.localeCompare(b.fullName, undefined, { sensitivity: 'base' }));
+    const installView = installations.map(item => ({
+      id: Number(item?.id || 0),
+      account: clean(item?.account?.login),
+      manageUrl: clean(item?.html_url),
+      repositorySelection: clean(item?.repository_selection)
+    }));
+    const next = {
+      ...auth,
+      accountLogin: clean(user?.login),
+      accountAvatar: clean(user?.avatar_url),
+      repositories,
+      installations: installView,
+      updatedAt: Date.now()
+    };
+    await writeGitHubAppAuth(next);
+    return {
+      account: { login: next.accountLogin, avatar: next.accountAvatar },
+      repositories,
+      installations: installView,
+      manageUrl: installView[0]?.manageUrl || ''
+    };
+  }
+
+  function validateRedirect(actual, expected, state) {
+    const url = new URL(String(actual || ''));
+    const target = new URL(String(expected || ''));
+    if (url.origin !== target.origin || url.pathname !== target.pathname) throw new Error('github_oauth_invalid_redirect');
+    if (clean(url.searchParams.get('state')) !== clean(state)) throw new Error('github_oauth_state_mismatch');
+    const code = clean(url.searchParams.get('code'));
+    if (!code) throw new Error(clean(url.searchParams.get('error')) || 'github_oauth_code_missing');
+    return code;
+  }
+
+  async function githubManifestForActiveFlow() {
+    const flow = (await chrome.storage.session.get(GITHUB_APP_FLOW_KEY))[GITHUB_APP_FLOW_KEY];
+    if (!flow || typeof flow !== 'object' || Number(flow.startedAt || 0) < Date.now() - 15 * 60_000) throw new Error('github_auth_flow_expired');
+    return {
+      ok: true,
+      state: clean(flow.manifestState),
+      manifest: {
+        name: clean(flow.appName),
+        url: 'https://github.com/niakw/NiakGPT',
+        description: 'Connecteur privé Project Memory pour ce profil NiakGPT.',
+        redirect_url: clean(flow.manifestRedirect),
+        callback_urls: [clean(flow.oauthRedirect)],
+        public: false,
+        default_events: [],
+        default_permissions: { contents: 'write', metadata: 'read' },
+        request_oauth_on_install: true
+      }
+    };
+  }
+
+  async function startGitHubLogin() {
+    if (!chrome?.identity?.launchWebAuthFlow || !chrome?.identity?.getRedirectURL) throw new Error('github_identity_api_unavailable');
+
+    const manifestRedirect = chrome.identity.getRedirectURL('niakgpt-github-manifest');
+    const oauthRedirect = chrome.identity.getRedirectURL('niakgpt-github-oauth');
+    const flow = {
+      schema: 1,
+      manifestState: randomState(),
+      oauthState: randomState(),
+      manifestRedirect,
+      oauthRedirect,
+      appName: 'NiakGPT Vault ' + randomState(4),
+      startedAt: Date.now()
+    };
+    await chrome.storage.session.set({ [GITHUB_APP_FLOW_KEY]: flow });
+
+    try {
+      const manifestResult = await chrome.identity.launchWebAuthFlow({
+        url: chrome.runtime.getURL('github-vault-start.html'),
+        interactive: true
+      });
+      const manifestCode = validateRedirect(manifestResult, manifestRedirect, flow.manifestState);
+      const created = await directGitHubJson(API + '/app-manifests/' + encodeURIComponent(manifestCode) + '/conversions', { method: 'POST' });
+
+      const appId = Number(created?.id || 0);
+      const appSlug = clean(created?.slug);
+      const clientId = clean(created?.client_id);
+      const clientSecret = clean(created?.client_secret);
+      if (!appId || !appSlug || !clientId || !clientSecret) throw new Error('github_app_manifest_conversion_incomplete');
+
+      let auth = {
+        schema: 1,
+        appId,
+        appSlug,
+        clientId,
+        clientSecret,
+        refreshToken: '',
+        refreshExpiresAt: 0,
+        persistentAccessToken: '',
+        accountLogin: '',
+        accountAvatar: '',
+        repositories: [],
+        installations: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+      await writeGitHubAppAuth(auth);
+
+      const installUrl = 'https://github.com/apps/' + encodeURIComponent(appSlug) + '/installations/new?state=' + encodeURIComponent(flow.oauthState);
+      const oauthResult = await chrome.identity.launchWebAuthFlow({ url: installUrl, interactive: true });
+      const oauthCode = validateRedirect(oauthResult, oauthRedirect, flow.oauthState);
+      const tokenData = await oauthTokenRequest({
+        client_id: clientId,
+        client_secret: clientSecret,
+        code: oauthCode,
+        redirect_uri: oauthRedirect
+      });
+      const saved = await persistGitHubTokenResponse(auth, tokenData);
+      auth = saved.auth;
+      const listing = await refreshGitHubRepositories();
+      return {
+        ok: true,
+        account: listing.account,
+        repositories: listing.repositories,
+        installations: listing.installations,
+        manageUrl: listing.manageUrl,
+        appSlug
+      };
+    } catch (error) {
+      const auth = await readGitHubAppAuth();
+      if (auth && !auth.accountLogin && !auth.refreshToken && !auth.persistentAccessToken) {
+        await chrome.storage.local.remove(GITHUB_APP_AUTH_KEY);
+        await clearGitHubAppSession();
+      }
+      throw error;
+    } finally {
+      try { await chrome.storage.session.remove(GITHUB_APP_FLOW_KEY); } catch {}
+    }
+  }
+
+  async function logoutGitHubApp() {
+    await clearGitHubAppSession();
+    try { await chrome.storage.local.remove(GITHUB_APP_AUTH_KEY); } catch {}
+    try { await chrome.storage.session.remove(GITHUB_APP_FLOW_KEY); } catch {}
+    const config = await readConfig();
+    if (config?.authMode === 'github-app') await writeConfig({ ...config, enabled: false });
+    return { ok: true };
   }
 
   async function readConfig() {
@@ -117,11 +450,12 @@
       const root = normalizeRoot(raw.root);
       if (!repo || !branch || !root) return null;
       return {
-        schema: 1,
+        schema: Number(raw.schema || 1),
         enabled: raw.enabled === true,
         repo,
         branch,
         root,
+        authMode: raw.authMode === 'github-app' ? 'github-app' : 'pat',
         rememberToken: raw.rememberToken === true,
         verifiedPrivateAt: Number(raw.verifiedPrivateAt || 0),
         connectedAt: Number(raw.connectedAt || 0)
@@ -210,7 +544,7 @@
   }
 
   async function readFile(config, relativePath) {
-    const token = await getToken();
+    const token = await tokenForConfig(config);
     if (!token) throw new Error('github_token_missing');
     return readFileWith(token, config, relativePath);
   }
@@ -281,15 +615,14 @@
   }
 
   async function commitFiles(config, files, message) {
-    const token = await getToken();
+    const token = await tokenForConfig(config);
     if (!token) throw new Error('github_token_missing');
     return commitFilesWith(token, config, files, message);
   }
 
-  async function connect(detail) {
+  async function initializeConnection(detail, token, authMode, rememberToken = false) {
     const repo = normalizeRepo(detail?.repo);
     const root = normalizeRoot(detail?.root || DEFAULT_ROOT);
-    const token = clean(detail?.token);
     if (!repo) throw new Error('invalid_github_repository');
     if (!root) throw new Error('invalid_memory_root');
     if (!token) throw new Error('github_token_missing');
@@ -298,23 +631,24 @@
     const branch = normalizeBranch(detail?.branch || meta?.default_branch || 'main');
     if (!branch) throw new Error('invalid_github_branch');
 
-    const rememberToken = detail?.rememberToken === true;
     const now = Date.now();
     const config = {
-      schema: 1,
+      schema: 2,
       enabled: true,
       repo,
       branch,
       root,
-      rememberToken,
+      authMode: authMode === 'github-app' ? 'github-app' : 'pat',
+      rememberToken: authMode === 'pat' && rememberToken === true,
       verifiedPrivateAt: now,
       connectedAt: now
     };
 
     const marker = {
       kind: 'NiakGPTProjectMemory',
-      schema: 1,
+      schema: 2,
       storage: 'private-github-repository',
+      authentication: config.authMode,
       createdBy: 'NiakGPT',
       updatedAt: new Date(now).toISOString()
     };
@@ -331,39 +665,74 @@
       }], 'NiakGPT: initialize private Project Memory');
     }
 
-    await saveToken(token, rememberToken);
     await writeConfig(config);
     return { ok: true, config: { ...config, tokenAvailable: true }, repositoryPrivate: true, initializedEmptyRepo };
   }
 
+  async function connect(detail) {
+    const token = clean(detail?.token);
+    if (!token) throw new Error('github_token_missing');
+    const rememberToken = detail?.rememberToken === true;
+    const result = await initializeConnection(detail, token, 'pat', rememberToken);
+    await savePatToken(token, rememberToken);
+    return result;
+  }
+
+  async function connectGitHubRepository(detail) {
+    const auth = await readGitHubAppAuth();
+    if (!auth) throw new Error('github_app_not_connected');
+    const token = await getGitHubAppToken();
+    const listing = await refreshGitHubRepositories();
+    const requested = normalizeRepo(detail?.repo);
+    const selected = listing.repositories.find(item => item.fullName.toLowerCase() === requested.toLowerCase());
+    if (!selected) throw new Error('github_repository_not_authorized_for_vault');
+    return initializeConnection({
+      repo: selected.fullName,
+      branch: detail?.branch || selected.defaultBranch,
+      root: detail?.root || DEFAULT_ROOT
+    }, token, 'github-app', false);
+  }
+
   async function status() {
     const config = await readConfig();
-    const token = await getToken();
+    const patToken = config?.authMode === 'pat' ? await getPatToken() : '';
+    const appAuth = await readGitHubAppAuth();
+    const appSession = await readGitHubAppSession();
+    const appTokenAvailable = !!(appSession?.token || appAuth?.refreshToken || appAuth?.persistentAccessToken);
+    const tokenAvailable = config?.authMode === 'github-app' ? appTokenAvailable : !!patToken;
+    const manageUrl = clean(appAuth?.installations?.[0]?.manageUrl);
     return {
       ok: true,
-      connected: !!(config?.enabled && token),
+      connected: !!(config?.enabled && tokenAvailable),
       configured: !!config?.enabled,
-      tokenAvailable: !!token,
+      tokenAvailable,
       config: config ? {
         schema: config.schema,
         enabled: config.enabled,
         repo: config.repo,
         branch: config.branch,
         root: config.root,
+        authMode: config.authMode,
         rememberToken: config.rememberToken,
         verifiedPrivateAt: config.verifiedPrivateAt,
         connectedAt: config.connectedAt
-      } : null
+      } : null,
+      github: {
+        authenticated: !!appAuth,
+        account: appAuth ? { login: appAuth.accountLogin, avatar: appAuth.accountAvatar } : null,
+        appSlug: appAuth?.appSlug || '',
+        repositories: appAuth?.repositories || [],
+        installations: appAuth?.installations || [],
+        manageUrl
+      }
     };
   }
 
   async function disconnect(detail = {}) {
-    await clearToken();
+    const config = await readConfig();
+    if (config?.authMode === 'pat') await clearPatToken();
     if (detail.forgetConfig === true) await chrome.storage.local.remove(CONFIG_KEY);
-    else {
-      const config = await readConfig();
-      if (config) await writeConfig({ ...config, enabled: false });
-    }
+    else if (config) await writeConfig({ ...config, enabled: false });
     return { ok: true };
   }
 
@@ -381,6 +750,11 @@
         if (type === 'niakgpt:memory-connect-v132') return connect(message);
         if (type === 'niakgpt:memory-status-v132') return status();
         if (type === 'niakgpt:memory-disconnect-v132') return disconnect(message);
+        if (type === 'niakgpt:memory-github-manifest-v132') return githubManifestForActiveFlow();
+        if (type === 'niakgpt:memory-github-login-v132') return startGitHubLogin();
+        if (type === 'niakgpt:memory-github-repositories-v132') return { ok: true, ...(await refreshGitHubRepositories()) };
+        if (type === 'niakgpt:memory-github-connect-repo-v132') return connectGitHubRepository(message);
+        if (type === 'niakgpt:memory-github-logout-v132') return logoutGitHubApp();
         if (type === 'niakgpt:memory-read-v132') {
           const config = await readConfig();
           if (!config?.enabled) throw new Error('project_memory_not_configured');
@@ -411,7 +785,9 @@
       MAX_BATCH_BYTES,
       initializeEmptyRepo,
       tryGetRef,
-      connect
+      connect,
+      initializeConnection,
+      validateRedirect
     };
   }
 })();

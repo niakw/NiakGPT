@@ -74,9 +74,16 @@ test('issue #55: activity becoming busy during the rate-gap wait blocks the queu
 
     await rt.page.evaluate(()=>{document.documentElement.dataset.ng86Activity='ready';});
     const retry=await rt.page.evaluate(()=>window.__labRpc('/backend-api/gizmos/snorlax/sidebar?conversations_per_gizmo=0'));
-    expect(retry.ok).toBeTruthy();
-    const afterRetry=await rt.page.evaluate(()=>window.__rpcLab.backendCalls.map(x=>x.path));
-    expect(afterRetry.filter(x=>x.startsWith('/backend-api/gizmos/snorlax/sidebar'))).toHaveLength(1);
+    expect(retry.ok).toBeFalsy();
+    expect(retry.error).toBe('native_busy');
+    const afterRetry=await rt.page.evaluate(()=>({
+      calls:window.__rpcLab.backendCalls.map(x=>x.path),
+      priorityUntil:Number(document.documentElement.dataset.ng100NativePriorityUntil||0),
+      priorityReason:document.documentElement.dataset.ng100NativePriorityReason||''
+    }));
+    expect(afterRetry.calls.filter(x=>x.startsWith('/backend-api/gizmos/snorlax/sidebar'))).toHaveLength(0);
+    expect(afterRetry.priorityUntil).toBeGreaterThan(Date.now());
+    expect(afterRetry.priorityReason).toBe('post-native-idle');
   }finally{await rt.close();}
 });
 

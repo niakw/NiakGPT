@@ -354,7 +354,19 @@
   function relevant(records){for(const r of records){for(const n of [...r.addedNodes,...r.removedNodes]){if(!(n instanceof Element))continue;if(n.id==='ng8-pins'||n.querySelector?.('#ng8-pins')||placementSignal(n))return true;}}return false;}
   function bind(){
     const root=navRoot();if(!root){armBootstrap();return;}if(root===observedRoot&&observer)return;
-    observer?.disconnect();observedRoot=root;observer=new MutationObserver(records=>{if(internal)return;if(relevant(records))reconcile();});observer.observe(root,{childList:true,subtree:true});
+    observer?.disconnect();observedRoot=root;observer=new MutationObserver(records=>{
+      if(internal||!relevant(records))return;
+      // Let React/ChatGPT finish the current mutation batch before reconciling. Chromium usually
+      // settles in the same turn, while Firefox/WebKit can expose a transient parent/slot for a
+      // few frames. A bounded verification pass repairs external displacement without polling.
+      schedule(0);
+      setTimeout(()=>{
+        const liveRoot=navRoot(),box=document.getElementById('ng8-pins');
+        if(!liveRoot)return;
+        const target=box?.isConnected&&liveRoot.contains(box)?placementTarget(liveRoot,box):null;
+        if(!box||!liveRoot.contains(box)||(target&&!placementSatisfied(box,target)))schedule(0);
+      },180);
+    });observer.observe(root,{childList:true,subtree:true});
     if(root.parentElement)observer.observe(root.parentElement,{childList:true,subtree:false});
     bootstrapObserver?.disconnect();bootstrapObserver=null;
   }

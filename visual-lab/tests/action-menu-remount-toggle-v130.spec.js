@@ -53,6 +53,11 @@ test('Project rename stages an authority-hidden native row and submits exact nat
     await page.addStyleTag({content:ACTIONS_CSS});
     await page.evaluate(()=>{
       const pins=document.getElementById('ng8-pins');
+      // Exact field regression: a retired former Pins catalogue can remain connected before the
+      // native Project row. It must stay NiakGPT-owned and never become a native rename candidate.
+      const retired=document.createElement('section');retired.id='ng8-pins-retired-fixture';retired.dataset.ng121Retired='1';
+      retired.innerHTML='<a data-ng8-pin="1" data-ng121-pid="g-p-aaaaaaaaaaaaaaaa" href="https://chatgpt.com/g/g-p-aaaaaaaaaaaaaaaa/project"><span>Studio stale</span></a>';
+      document.querySelector('aside').prepend(retired);
       const project=document.createElement('div');project.className='ng96-pin-entry';project.dataset.pid='g-p-aaaaaaaaaaaaaaaa';
       project.innerHTML='<a data-ng8-pin="1" data-ng121-pid="g-p-aaaaaaaaaaaaaaaa" href="https://chatgpt.com/g/g-p-aaaaaaaaaaaaaaaa/project"><span>Studio</span></a><button class="ng113-native-actions ng113-native-actions-project" data-ng123-action="project" data-ng123-id="g-p-aaaaaaaaaaaaaaaa" aria-label="Actions du Project">•••</button>';
       pins.prepend(project);

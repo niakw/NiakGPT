@@ -264,7 +264,7 @@ try{
       body:'<!doctype html><html><body><main>Configured private memory client tab</main></body></html>'
     }));
     await page.goto('https://chatgpt.com/',{waitUntil:'domcontentloaded'});
-    await page.evaluate(()=>{document.documentElement.dataset.ng8TabRole='client';});
+    await page.evaluate(()=>{document.documentElement.dataset.ng8TabRole='inactive';});
     await page.addScriptTag({content:coreScript});
     await page.waitForFunction(()=>Array.isArray(window.__localData?.['niakgpt-project-memory-queue-v132']?.pending),null,{timeout:3000});
     const recovered=await page.evaluate(()=>({

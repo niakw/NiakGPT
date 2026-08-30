@@ -429,9 +429,15 @@
   function syncDiagnosticSelectionLock(){
     if(!(S.panelOpen&&S.tab==='diag')){S.diagSelectionActive=false;S.diagSelectionGesture=false;return;}
     const panel=document.getElementById('ng8-panel');
-    const active=panelSelectionActive(panel);
-    S.diagSelectionActive=active;
-    if(!active&&!S.diagSelectionGesture)renderPanelIfDiag();
+    // Selection is a sticky read/copy mode. Browsers may emit transient collapsed
+    // selectionchange events while focus/painting settles; only a deliberate action
+    // outside the Diagnostic (or closing/switching the panel) releases the lock.
+    if(panelSelectionActive(panel))S.diagSelectionActive=true;
+  }
+  function releaseDiagnosticSelection(){
+    if(!S.diagSelectionActive&&!S.diagSelectionGesture)return;
+    S.diagSelectionActive=false;S.diagSelectionGesture=false;
+    renderPanelIfDiag();
   }
   function renderPanelIfDiag(){
     if(!(S.panelOpen&&S.tab==='diag')||S.diagTimer)return;
@@ -440,7 +446,9 @@
   }
   function liveTurns(){ S.turns=S.turns.filter(t=>t?.isConnected);return S.turns; }
   function renderPanel(){
-    const panel=document.getElementById('ng8-panel');if(!panel)return;panel.classList.toggle('open',S.panelOpen);document.body.classList.toggle('ng8-panel-open',S.panelOpen);document.querySelectorAll('#ng8-rail [data-tab]').forEach(b=>b.classList.toggle('active',S.panelOpen&&b.dataset.tab===S.tab));if(!S.panelOpen)return;
+    const panel=document.getElementById('ng8-panel');if(!panel)return;
+    if(!S.panelOpen||S.tab!=='diag'){S.diagSelectionActive=false;S.diagSelectionGesture=false;}
+    panel.classList.toggle('open',S.panelOpen);document.body.classList.toggle('ng8-panel-open',S.panelOpen);document.querySelectorAll('#ng8-rail [data-tab]').forEach(b=>b.classList.toggle('active',S.panelOpen&&b.dataset.tab===S.tab));if(!S.panelOpen)return;
     if(S.tab==='diag'){
       if(diagnosticSelectionHeld(panel)){renderPanelIfDiag();return;}
       panel.innerHTML=`<header><div><small>DIAGNOSTIC</small><b>État des modules</b></div><button aria-label="Fermer">×</button></header><div class="ng8-diag">${diagnosticRows().map(([k,v])=>`<div><span>${esc(k)}</span><b class="${/^OK|^PRÊT/.test(String(v))?'ok':/^ERREUR/.test(String(v))?'err':'wait'}">${esc(v)}</b></div>`).join('')}</div>${S.errors.length?`<details class="ng8-errors"><summary>Dernières erreurs</summary>${S.errors.map(e=>`<code>${esc(e)}</code>`).join('')}</details>`:''}<div class="ng8-joke">☠ SYSTEM // SKYNET</div>`;
@@ -664,12 +672,19 @@
   document.addEventListener('selectionchange',syncDiagnosticSelectionLock);
   document.addEventListener('pointerdown',e=>{
     if(!(S.panelOpen&&S.tab==='diag'))return;
-    const panel=document.getElementById('ng8-panel');
-    if(e.target instanceof Node&&panel?.contains(e.target))S.diagSelectionGesture=true;
+    const panel=document.getElementById('ng8-panel'),inside=e.target instanceof Node&&panel?.contains(e.target);
+    if(inside){
+      S.diagSelectionGesture=true;
+      S.diagSelectionActive=true;
+      return;
+    }
+    releaseDiagnosticSelection();
   },true);
   document.addEventListener('pointerup',()=>{
     if(!S.diagSelectionGesture)return;
     S.diagSelectionGesture=false;
+    // Keep read/copy mode sticky after the drag; selectionchange may refine the Range
+    // but a transient collapsed event must never unlock it.
     queueMicrotask(syncDiagnosticSelectionLock);
   },true);
 

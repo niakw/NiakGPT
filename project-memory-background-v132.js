@@ -695,7 +695,10 @@
     const patToken = config?.authMode === 'pat' ? await getPatToken() : '';
     const appAuth = await readGitHubAppAuth();
     const appSession = await readGitHubAppSession();
-    const appTokenAvailable = !!(appSession?.token || appAuth?.refreshToken || appAuth?.persistentAccessToken);
+    const now = Date.now();
+    const sessionValid = !!(appSession?.token && (!appSession.expiresAt || appSession.expiresAt > now + 90_000));
+    const refreshValid = !!(appAuth?.refreshToken && (!appAuth.refreshExpiresAt || appAuth.refreshExpiresAt > now + 90_000));
+    const appTokenAvailable = !!(sessionValid || appAuth?.persistentAccessToken || refreshValid);
     const tokenAvailable = config?.authMode === 'github-app' ? appTokenAvailable : !!patToken;
     const manageUrl = clean(appAuth?.installations?.[0]?.manageUrl);
     return {
@@ -715,7 +718,8 @@
         connectedAt: config.connectedAt
       } : null,
       github: {
-        authenticated: !!appAuth,
+        registered: !!appAuth,
+        authenticated: !!(appAuth && appTokenAvailable),
         account: appAuth ? { login: appAuth.accountLogin, avatar: appAuth.accountAvatar } : null,
         appSlug: appAuth?.appSlug || '',
         repositories: appAuth?.repositories || [],

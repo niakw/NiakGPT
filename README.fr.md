@@ -113,7 +113,7 @@ La couche UX v131 retire l’effet « seconde application autour de ChatGPT » :
 
 ### Cœur local-first, synchro privée optionnelle
 
-Le cœur de NiakGPT reste local-first. La version 0.9.81 déclare :
+Le cœur de NiakGPT reste local-first. La version 0.9.82 déclare :
 
 ```text
 storage
@@ -199,7 +199,7 @@ Une fixture verte ne remplace **jamais** une capture utilisateur réelle qui la 
 | [README.md](README.md) | README anglais |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture runtime et invariants de propriété |
 | [CHANGELOG.md](CHANGELOG.md) | Historique détaillé |
-| [RELEASE_NOTES_0.9.81.md](RELEASE_NOTES_0.9.81.md) | Résumé de la release courante |
+| [RELEASE_NOTES_0.9.82.md](RELEASE_NOTES_0.9.82.md) | Résumé de la release courante |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnostic et reprise |
 | [PRIVACY.md](PRIVACY.md) | Données locales et comportement réseau |
 | [SECURITY.md](SECURITY.md) | Modèle de sécurité et signalement |

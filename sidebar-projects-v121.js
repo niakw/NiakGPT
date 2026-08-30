@@ -43,10 +43,27 @@
   function navRoot(){
     const guarded=window.__NIAKGPT_FIND_SIDEBAR_V131__?.();if(guarded?.isConnected)return guarded;
     const candidates=[...document.querySelectorAll('[data-testid="conversation-sidebar"],[data-testid*="sidebar" i],aside,nav')].filter(el=>!el.closest('main,[role="main"]'));
-    const score=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);if(r.width<140||r.height<220||s.display==='none'||s.visibility==='hidden'||el.closest('[hidden],[inert],[aria-hidden="true"]'))return-Infinity;let n=0;if(el.matches('[data-testid="conversation-sidebar"]'))n+=50;if(el.querySelector('a[href*="/g/g-p-"]'))n+=20;if(el.querySelector('a[href*="/c/"]'))n+=10;if(r.left<innerWidth*.35&&r.width>150&&r.width<520)n+=10;const hit=document.elementFromPoint(Math.max(1,Math.min(innerWidth-2,r.left+Math.min(24,r.width/2))),Math.max(1,Math.min(innerHeight-2,r.top+Math.min(120,r.height/3))));if(hit&&el.contains(hit))n+=35;return n;};
+    const score=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);if(r.width<140||r.height<220||s.display==='none'||s.visibility==='hidden'||el.closest('[hidden],[inert],[aria-hidden="true"]'))return-Infinity;let n=0;if(el.matches('[data-testid="conversation-sidebar"]'))n+=50;if(el.querySelector('a[href*="/g/g-p-"]'))n+=20;if(el.querySelector('a[href="/projects"],a[href^="/projects?"]'))n+=18;if(el.querySelector('a[href*="/c/"]'))n+=10;if(r.left<innerWidth*.35&&r.width>150&&r.width<520)n+=10;const hit=document.elementFromPoint(Math.max(1,Math.min(innerWidth-2,r.left+Math.min(24,r.width/2))),Math.max(1,Math.min(innerHeight-2,r.top+Math.min(120,r.height/3))));if(hit&&el.contains(hit))n+=35;return n;};
     return candidates.map(el=>[el,score(el)]).filter(([,n])=>Number.isFinite(n)).sort((a,b)=>b[1]-a[1])[0]?.[0]||null;
   }
   function projectLinks(scope){return [...scope.querySelectorAll?.('a[href*="/g/g-p-"]')||[]].filter(a=>!isOwn(a));}
+  function projectHomeHref(raw){
+    try{const u=new URL(String(raw||''),location.origin);return u.origin===location.origin&&/^\/projects\/?$/.test(u.pathname);}catch{return /^\/projects\/?(?:[?#].*)?$/.test(String(raw||''));}
+  }
+  function nativeProjectsLauncher(root=navRoot()){
+    if(!root)return null;
+    const controls=[...root.querySelectorAll('a[href],button,[role="button"]')].filter(el=>!isOwn(el)&&visiblePlacementNode(el));
+    const seed=controls.find(el=>projectHomeHref(el.getAttribute?.('href')))||controls.find(el=>projectLabel(el.getAttribute?.('aria-label')||el.textContent));
+    if(!seed)return null;
+    let row=seed,best=seed;
+    for(let depth=0;depth<5&&row?.parentElement&&row.parentElement!==root;depth++){
+      const parent=row.parentElement;if(hasPrimary(parent))break;
+      const r=parent.getBoundingClientRect();
+      if(r.width>=120&&r.width<=520&&r.height>=20&&r.height<=120)best=parent;
+      row=parent;
+    }
+    return best;
+  }
   function primaryControl(el){
     if(!(el instanceof Element)||isOwn(el)||!visiblePlacementNode(el))return false;
     const href=el.getAttribute?.('href')||'';
@@ -204,11 +221,15 @@
     if(nativeSectionAfterPrimary(root,section,tail)&&(!box||(!section.contains(box)&&!box.contains(section.parentElement)))){
       return{parent:section.parentElement,before:section,mode:'native-projects',legacy:'projects-slot-v121'};
     }
+    const launcher=nativeProjectsLauncher(root);
+    if(launcher?.parentElement&&(!tail||nativeSectionAfterPrimary(root,launcher,tail))&&(!box||(!launcher.contains(box)&&!box.contains(launcher.parentElement)))){
+      return{parent:launcher.parentElement,before:launcher.nextSibling,mode:'native-projects-launcher',legacy:'projects-launcher-v121'};
+    }
     if(tail?.parentElement&&(!box||(!tail.contains(box)&&!box.contains(tail.parentElement)))){
       return{parent:tail.parentElement,before:tail.nextSibling,mode:'after-primary',legacy:'after-primary-v121'};
     }
-    // Never mount at a generic sidebar tail while ChatGPT is still hydrating. That fallback
-    // can become the visual top of the sidebar once native controls are inserted later.
+    // Never mount at a generic sidebar tail while ChatGPT is still hydrating. A visible native
+    // /projects launcher is sufficient authority even before individual Project links hydrate.
     return null;
   }
   function placementSatisfied(box,target){
@@ -222,7 +243,7 @@
     // A genuine late native Projects section is an authority upgrade, not an equivalent
     // reclassification: a catalogue originally mounted after primary controls must remount once
     // before that newly arrived native section.
-    if(original.mode==='after-primary'&&ideal?.mode==='native-projects'&&ideal.before!==original.before)return false;
+    if(original.mode==='after-primary'&&['native-projects','native-projects-launcher'].includes(ideal?.mode)&&ideal.before!==original.before)return false;
     const anchorIntact=original.before?original.before.isConnected&&original.before.parentElement===original.parent&&box.nextSibling===original.before:box.nextSibling===null;
     if(!anchorIntact)return false;
     const tail=primaryTail(root);
@@ -302,7 +323,7 @@
     let meta=a.querySelector(':scope>small.ng8-project-meta');if(!meta){meta=document.createElement('small');meta.className='ng8-project-meta';a.appendChild(meta);}const text=projectMeta(p.id).text;if(meta.textContent!==text)meta.textContent=text;
   }
   function ensureStructure(box){
-    let head=box.querySelector(':scope>.ng8-pin-head');if(!head){head=document.createElement('div');head.className='ng8-pin-head';head.dataset.ng121Catalog='1';head.innerHTML='<span>PROJECTS</span><b>0</b>';box.prepend(head);}else{head.dataset.ng121Catalog='1';if(!head.querySelector(':scope>b')){const b=document.createElement('b');head.appendChild(b);}}
+    let head=box.querySelector(':scope>.ng8-pin-head');if(!head){head=document.createElement('div');head.className='ng8-pin-head';head.dataset.ng121Catalog='1';head.innerHTML='<span>PINS · PROJECTS</span><b>0</b>';box.prepend(head);}else{head.dataset.ng121Catalog='1';if(!head.querySelector(':scope>b')){const b=document.createElement('b');head.appendChild(b);}}
     let list=box.querySelector(':scope>.ng8-pin-list');if(!list){list=document.createElement('div');list.className='ng8-pin-list';head.insertAdjacentElement('afterend',list);}
     for(const extra of box.querySelectorAll(':scope>.ng90-project-extras'))extra.remove();
     return{head,list};
@@ -381,10 +402,10 @@
   function schedule(delay=0){clearTimeout(timer);timer=setTimeout(reconcile,delay);}
   function placementSignal(node){
     if(!(node instanceof Element))return false;
-    if(node.matches?.('a[href*="/g/g-p-"],[data-ng112-native-projects]'))return true;
+    if(node.matches?.('a[href*="/g/g-p-"],a[href="/projects"],a[href^="/projects?"],[data-ng112-native-projects]'))return true;
     if(primaryControl(node))return true;
     if([...node.querySelectorAll?.('a[href],button,[role="button"]')||[]].some(primaryControl))return true;
-    return !!node.querySelector?.('a[href*="/g/g-p-"],[data-ng112-native-projects]');
+    return !!node.querySelector?.('a[href*="/g/g-p-"],a[href="/projects"],a[href^="/projects?"],[data-ng112-native-projects]');
   }
   function relevant(records){for(const r of records){for(const n of [...r.addedNodes,...r.removedNodes]){if(!(n instanceof Element))continue;if(n.id==='ng8-pins'||n.querySelector?.('#ng8-pins')||placementSignal(n))return true;}}return false;}
   function bind(){

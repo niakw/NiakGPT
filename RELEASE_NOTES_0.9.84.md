@@ -6,3 +6,4 @@
 - Let a visible tab own the dedicated Project Memory sync lock; hidden tabs preserve the queue and yield instead of holding a 0% sync.
 - Start the persistent bootstrap queue immediately from the visible tab after vault connection and expose conversation-level progress.
 - Add dedicated Chromium/Firefox/WebKit field-regression coverage for late sidebar hydration and stable GitHub controls, plus a Chromium visible-owner queue test.
+- Repair externally displaced Projects before the next paint, preserve catalogue scroll synchronously across remounts, and retry the native Project rename lifecycle safely.

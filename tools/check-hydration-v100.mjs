@@ -8,7 +8,7 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 
 const manifest=JSON.parse(read('manifest.json'));
 if(manifest.manifest_version!==3)fail('manifest_version drift');
-if(manifest.version!=='0.9.82')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.83')fail(`unexpected release ${manifest.version}`);
 same(manifest.permissions,['storage','scripting','identity'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*'],'host scope mismatch');
 const staticRuntime=['boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'];
@@ -62,7 +62,7 @@ need(bridge,'const nativeFetch = window.fetch.bind(window);');need(bridge,'conve
 const memoryBackend=read('project-memory-background-v132.js');
 for(const token of ['memory_repository_must_be_private','meta?.private !== true','chrome.storage.session','niakgpt:memory-connect-v132','chrome.identity.launchWebAuthFlow','app-manifests/','request_oauth_on_install','niakgpt:memory-github-connect-repo-v132','github_repository_not_authorized_for_vault','refresh_token','code_challenge','code_verifier','setup_url: clean(flow.installRedirect)','request_oauth_on_install: false'])need(memoryBackend,token,'Project Memory backend invariant incomplete');
 const memoryRuntime=read('project-memory-v132.js');
-for(const token of ['PROJECT_STATE.md','canonicalUpdated','prefsReady','function inject(ed)','memoryBootstrap: memoryBootstrap === true','MEMORY_LOCK','autoOwner','niakgpt:tab-role-changed','githubLogin','githubRepositories','githubConnectRepo','githubLogout'])need(memoryRuntime,token,'Project Memory runtime invariant incomplete');
+for(const token of ['PROJECT_STATE.md','canonicalUpdated','prefsReady','function inject(ed)','memoryBootstrap: memoryBootstrap === true','MEMORY_LOCK','autoOwner','niakgpt:tab-role-changed','primeBootstrapQueue','ensureBootstrapQueued','queuedProjects','changes[QUEUE_KEY]','githubLogin','githubRepositories','githubConnectRepo','githubLogout'])need(memoryRuntime,token,'Project Memory runtime invariant incomplete');
 forbid(memoryRuntime,'async function inject(ed)','Project Memory send-time injection must be synchronous');
 
 const gate=read('boot-gate-v100.js');
@@ -99,6 +99,7 @@ for(const token of ['nativeLimitControl','CONTINUITÉ NIAKGPT','markCurrentOut',
 for(const token of ['setInterval(','location.reload('])forbid(nativeHandoff,token,'native continuity handoff must stay bounded');
 
 const app=read('app-v090.js');
+for(const token of ['panelSelectionActive','sel.isCollapsed','S.diagTimer=setTimeout(retry,280)'])need(app,token,'diagnostic selection stability incomplete');
 for(const token of ['MutationObserver(queueMainNodes)','function renderPins()','window.__NIAKGPT_SIDEBAR_PROJECTS_121__','niakgpt:sidebar-projects-reconcile'])need(app,token,'app/v121 cooperative ownership incomplete');
 need(app,"label.textContent=String(turn.innerText||turn.textContent||'')",'TOC DOM text must stay textContent');
 forbid(app,'function routeTick()');
@@ -151,10 +152,12 @@ for(const token of ['idle+thinking+executing+cancel+native-stop+contenteditable+
 const parallelRuntime=read('visual-lab/tests/composer-continuation-runtime-v128.spec.js');
 for(const token of ['real MV3 static continuation layer prefixes only pre-existing parallel work','Message depuis une conversation au repos.','Ajoute ce contrôle sans arrêter ce que tu fais.','annule',"page.locator('#ng8-rail')",'isolated world'])need(parallelRuntime,token,'parallel real-extension/hydration gate incomplete');
 const sidebarProjects=read('sidebar-projects-v121.js');
-for(const token of ['safeInsert(parent,node,before=null)','retireStaleBox','mountParentByBox','box.parentElement!==mountedParent','ng121MountPolicy','direct-once','placementTarget(root=navRoot(),box=null)'])need(sidebarProjects,token,'sidebar no-reparent contract incomplete');
+for(const token of ['safeInsert(parent,node,before=null)','retireStaleBox','mountParentByBox','box.parentElement!==mountedParent','ng121MountPolicy','direct-once','placementTarget(root=navRoot(),box=null)','visiblePlacementNode','nativeSectionAfterPrimary','projectLinks(parent).length'])need(sidebarProjects,token,'sidebar no-reparent/slot contract incomplete');
 for(const forbidden of ["section.parentElement.insertBefore(box,section)","tail.insertAdjacentElement('afterend',box)","root.appendChild(box)"])if(sidebarProjects.includes(forbidden))fail('Pins reparenting path reintroduced: '+forbidden);
 const domNodeLab=read('visual-lab/dom-node-stability-v082.mjs');
 for(const token of ['syntheticMoveNodeErrors','mountParents','late shell remount','Node cannot be found','direct-once'])need(domNodeLab,token,'DOM node stability lab incomplete');
+const pinsSlotLab=read('visual-lab/pins-primary-slot-v083.mjs');for(const token of ['hidden-native-above-primary','visible-native-after-primary','Pins rendered above native ChatGPT navigation','after-primary'])need(pinsSlotLab,token,'Pins primary slot lab incomplete');
+const diagnosticSelectionLab=read('visual-lab/diagnostic-selection-v083.mjs');for(const token of ['diagnostic update destroyed the active text selection','sameNode','diagnostics did not resume after selection ended'])need(diagnosticSelectionLab,token,'diagnostic selection lab incomplete');
 for(const token of ['launchManifestRegistrationTab','chrome.tabs.create','github_auth_url_invalid_scheme','launchIdentityFlow','chrome.runtime.onConnect.addListener'])need(memoryBackend,token,'GitHub auth transport contract incomplete');
 if(/launchWebAuthFlow\(\{\s*url:\s*chrome\.runtime\.getURL/s.test(memoryBackend))fail('launchWebAuthFlow still receives chrome-extension:// starter URL');
 const humanSidebar=read('visual-lab/tests/sidebar-human-ux-v123.spec.js');
@@ -164,9 +167,9 @@ for(const token of ['NIAKGPT_EXECUTABLE_PATH','long-run recovery + remount-safe 
 
 const packageJson=read('visual-lab/package.json');
 const packageVersion=JSON.parse(packageJson).devDependencies?.['@playwright/test'];if(packageVersion!=='1.62.1')fail(`Playwright package/image version drift: ${packageVersion}`);
-need(JSON.parse(packageJson).scripts?.['test:current']||'','dom-node-stability-v082.mjs','current visual gate missing DOM node stability regression');
+const currentScript=JSON.parse(packageJson).scripts?.['test:current']||'';need(currentScript,'dom-node-stability-v082.mjs','current visual gate missing DOM node stability regression');need(currentScript,'pins-primary-slot-v083.mjs','current visual gate missing Pins slot regression');need(currentScript,'diagnostic-selection-v083.mjs','current visual gate missing diagnostic selection regression');
 const workflow=read('.github/workflows/current-finalization.yml');
-for(const token of ['chromium, firefox, webkit','sidebar-session-ux-v123.mjs','CURRENT LEFT SIDEBAR complete session contract','dom-node-stability-v082.mjs','Reported DOM node stability — direct chat and late shell remount','sidebar-human-ux-v123.spec.js','PRIMARY real Brave — FULL human sidebar','experience-linux:','extension-runtime-linux:','mcr.microsoft.com/playwright:v1.62.1-noble','PLAYWRIGHT_BROWSERS_PATH: /ms-playwright','HOME: /root'])need(workflow,token,'current full-session/cross-platform workflow incomplete');
+for(const token of ['chromium, firefox, webkit','sidebar-session-ux-v123.mjs','CURRENT LEFT SIDEBAR complete session contract','dom-node-stability-v082.mjs','Reported DOM node stability — direct chat and late shell remount','pins-primary-slot-v083.mjs','Reported Pins placement — native controls stay above Projects','sidebar-human-ux-v123.spec.js','PRIMARY real Brave — FULL human sidebar','experience-linux:','extension-runtime-linux:','mcr.microsoft.com/playwright:v1.62.1-noble','PLAYWRIGHT_BROWSERS_PATH: /ms-playwright','HOME: /root'])need(workflow,token,'current full-session/cross-platform workflow incomplete');
 const imageLines=workflow.split(/\r?\n/).filter(line=>/^\s+image:\s+mcr\.microsoft\.com\/playwright:v1\.62\.1-noble\s*$/.test(line));if(imageLines.length!==3)fail(`expected 3 pinned Linux Playwright image jobs, got ${imageLines.length}`);
 if(/^\s*npx playwright install --with-deps\b/m.test(workflow))fail('Linux Finalization reintroduced apt --with-deps');
 const parallelWorkflow=read('.github/workflows/parallel-continuation-v128.yml');

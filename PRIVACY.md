@@ -1,6 +1,6 @@
 # Confidentialité — NiakGPT
 
-NiakGPT 0.9.78 conserve un **cœur local-first** et ajoute Project Memory v132, une synchronisation GitHub privée **optionnelle et explicitement activée par l’utilisateur**.
+NiakGPT 0.9.79 conserve un **cœur local-first** et ajoute Project Memory v132, une synchronisation GitHub privée **optionnelle et explicitement activée par l’utilisateur**.
 
 ## Résumé
 
@@ -15,11 +15,12 @@ NiakGPT 0.9.78 conserve un **cœur local-first** et ajoute Project Memory v132, 
 
 ## Périmètre réseau
 
-Le manifest 0.9.78 déclare :
+Le manifest 0.9.79 déclare :
 
 ```text
 https://chatgpt.com/*
 https://api.github.com/*
+https://github.com/login/*
 ```
 
 ### ChatGPT
@@ -28,7 +29,7 @@ NiakGPT utilise la session ChatGPT déjà ouverte et un ensemble borné de surfa
 
 ### GitHub
 
-`https://api.github.com/*` est réservé à Project Memory. **Sans dépôt configuré, le module n’effectue pas de requête GitHub.**
+`https://api.github.com/*` est réservé à Project Memory. `https://github.com/login/*` sert uniquement à l’échange/renouvellement OAuth déclenché par la connexion GitHub. **Sans action explicite de connexion Project Memory, le module n’effectue pas de trafic GitHub.**
 
 Lors de la connexion, NiakGPT vérifie le dépôt sélectionné via l’API GitHub. Si le dépôt n’est pas privé, l’initialisation est refusée. Si le dépôt privé est neuf et ne contient encore aucun commit, NiakGPT peut créer son premier commit/ref pour initialiser la mémoire. La confidentialité du dépôt est à nouveau vérifiée avant les lectures et écritures mémoire.
 
@@ -75,7 +76,7 @@ Cela peut contenir du **contenu privé de conversations**, les instructions/desc
 
 Le dépôt Git conserve un historique de versions : une ancienne version d’un fichier peut donc rester accessible dans l’historique Git jusqu’à suppression/réécriture volontaire de cet historique par le propriétaire du dépôt.
 
-Project Memory n’ajoute pas de chiffrement applicatif de bout en bout par-dessus GitHub dans la 0.9.78. La protection repose sur les contrôles d’accès du dépôt privé GitHub et du compte GitHub de l’utilisateur.
+Project Memory n’ajoute pas de chiffrement applicatif de bout en bout par-dessus GitHub dans la 0.9.79. La protection repose sur les contrôles d’accès du dépôt privé GitHub et du compte GitHub de l’utilisateur.
 
 ## Checkpoint envoyé à ChatGPT
 
@@ -85,32 +86,35 @@ Si l’option correspondante reste active, NiakGPT charge `PROJECT_STATE.md` et 
 
 Au moment où l’utilisateur envoie ce message, ce checkpoint devient naturellement une partie du contenu transmis à ChatGPT, comme le reste du prompt.
 
-## Token GitHub
+## Authentification GitHub
 
-NiakGPT recommande un **fine-grained personal access token** limité au dépôt mémoire choisi, avec les droits minimaux nécessaires aux métadonnées et au contenu du dépôt.
+Le parcours recommandé est **Se connecter avec GitHub**. NiakGPT utilise le GitHub App Manifest flow pour créer une GitHub App privée appartenant à l’utilisateur, puis l’écran GitHub permet de sélectionner les dépôts accessibles.
 
-Par défaut :
+NiakGPT ne possède donc **aucun client secret partagé** dans son dépôt public, ses releases ou ses GitHub Actions. Pour le connecteur privé créé par l’utilisateur :
 
-- le token est conservé dans `chrome.storage.session` ;
-- il doit être ressaisi après la fin de la session navigateur.
+- le client ID et le client secret de cette GitHub App personnelle sont conservés dans `chrome.storage.local` ;
+- le user access token courant est conservé dans `chrome.storage.session` ;
+- lorsque GitHub fournit un refresh token, il est conservé localement afin de renouveler la session sans demander un nouveau login à chaque redémarrage ;
+- le PEM/private key renvoyé lors de la création de la GitHub App n’est ni utilisé ni persisté par NiakGPT ;
+- le sélecteur NiakGPT ne conserve que les métadonnées minimales des dépôts autorisés (nom complet, branche par défaut, identifiant d’installation).
 
-Si l’utilisateur active **Mémoriser le jeton sur cet appareil**, une copie est conservée dans `chrome.storage.local`. Cette option augmente la commodité mais aussi l’impact d’un accès malveillant au profil navigateur.
+Comme tout secret stocké dans un profil navigateur, ces éléments peuvent être exposés si le profil ou la machine est compromis. Déconnecter GitHub de NiakGPT supprime les identifiants locaux, mais ne désinstalle pas automatiquement la GitHub App dans le compte GitHub.
 
-Le token et la configuration ne sont persistés qu’après une initialisation GitHub réussie. En cas d’échec de connexion, le formulaire reste rempli dans l’UI pour permettre une correction locale ; le token n’est pas écrit dans le dépôt mémoire ni dans les diagnostics NiakGPT. Les erreurs connues sont nettoyées des formats de token GitHub avant affichage.
+Le **fine-grained PAT** reste disponible dans la section avancée comme fallback. Dans ce mode historique, il reste en session par défaut et n’est copié dans `chrome.storage.local` que si l’utilisateur choisit explicitement de le mémoriser.
 
 ## Stockage local
 
 NiakGPT utilise notamment :
 
-- `chrome.storage.local` pour préférences, index, gouvernance, queues de reprise et checkpoints locaux ;
-- `chrome.storage.session` pour le token GitHub non persistant ;
+- `chrome.storage.local` pour préférences, index, gouvernance, queues de reprise, checkpoints locaux et identifiants/refresh material de la GitHub App privée créée pour l’utilisateur ;
+- `chrome.storage.session` pour le user access token GitHub actif et le PAT non persistant du fallback ;
 - `sessionStorage` pour certains états de continuité temporaires, notamment un brouillon ou un extrait final de réponse partielle pendant une interruption réseau ; ces données sont bornées et chiffrées par le mécanisme d’incident avant persistance de session ;
 - `localStorage` / IndexedDB pour certains caches et mécanismes historiques encore utilisés par le runtime ;
 - `BroadcastChannel` et `navigator.locks` pour la coordination locale multi-onglets, notamment afin qu’un seul WORKER exécute la synchronisation automatique Project Memory.
 
 ## Déconnexion, suppression et export
 
-**Déconnecter Project Memory** arrête l’utilisation du dépôt et retire le token local/session selon le chemin de déconnexion, mais ne détruit pas automatiquement les fichiers déjà présents dans GitHub.
+**Déconnecter Project Memory** arrête l’utilisation du dépôt sans détruire les fichiers déjà présents dans GitHub. **Déconnecter GitHub** efface en plus les identifiants GitHub App stockés localement ; la GitHub App/installation reste gérable ou supprimable depuis GitHub.
 
 **Effacer les données locales NiakGPT** ne supprime pas le contenu du dépôt GitHub et ne supprime pas les conversations/Projects stockés par ChatGPT.
 

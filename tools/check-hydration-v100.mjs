@@ -154,8 +154,7 @@ for(const token of ['safeInsert(parent,node,before=null)','retireStaleBox','ng12
 for(const forbidden of ["section.parentElement.insertBefore(box,section)","tail.insertAdjacentElement('afterend',box)","root.appendChild(box)"])if(sidebarProjects.includes(forbidden))fail('Pins reparenting path reintroduced: '+forbidden);
 const domNodeLab=read('visual-lab/dom-node-stability-v082.mjs');
 for(const token of ['syntheticMoveNodeErrors','mountParents','late shell remount','Node cannot be found','direct-once'])need(domNodeLab,token,'DOM node stability lab incomplete');
-const memoryBackend=read('project-memory-background-v132.js');
-for(const token of ['launchManifestRegistrationTab','chrome.tabs.create','github_auth_url_invalid_scheme','launchIdentityFlow'])need(memoryBackend,token,'GitHub auth transport contract incomplete');
+for(const token of ['launchManifestRegistrationTab','chrome.tabs.create','github_auth_url_invalid_scheme','launchIdentityFlow','chrome.runtime.onConnect.addListener'])need(memoryBackend,token,'GitHub auth transport contract incomplete');
 if(/launchWebAuthFlow\(\{\s*url:\s*chrome\.runtime\.getURL/s.test(memoryBackend))fail('launchWebAuthFlow still receives chrome-extension:// starter URL');
 const humanSidebar=read('visual-lab/tests/sidebar-human-ux-v123.spec.js');
 for(const token of ["page.locator('#ng8-status')","manifest.version,{timeout:20000}","CONTINUITÉ NIAKGPT',{timeout:12000}"])need(humanSidebar,token,'real continuity reload must wait for post-hydration runtime readiness');
@@ -164,8 +163,9 @@ for(const token of ['NIAKGPT_EXECUTABLE_PATH','long-run recovery + remount-safe 
 
 const packageJson=read('visual-lab/package.json');
 const packageVersion=JSON.parse(packageJson).devDependencies?.['@playwright/test'];if(packageVersion!=='1.62.1')fail(`Playwright package/image version drift: ${packageVersion}`);
+need(JSON.parse(packageJson).scripts?.['test:current']||'','dom-node-stability-v082.mjs','current visual gate missing DOM node stability regression');
 const workflow=read('.github/workflows/current-finalization.yml');
-for(const token of ['chromium, firefox, webkit','sidebar-session-ux-v123.mjs','CURRENT LEFT SIDEBAR complete session contract','sidebar-human-ux-v123.spec.js','PRIMARY real Brave — FULL human sidebar','experience-linux:','extension-runtime-linux:','mcr.microsoft.com/playwright:v1.62.1-noble','PLAYWRIGHT_BROWSERS_PATH: /ms-playwright','HOME: /root'])need(workflow,token,'current full-session/cross-platform workflow incomplete');
+for(const token of ['chromium, firefox, webkit','sidebar-session-ux-v123.mjs','CURRENT LEFT SIDEBAR complete session contract','dom-node-stability-v082.mjs','Reported DOM node stability — direct chat and late shell remount','sidebar-human-ux-v123.spec.js','PRIMARY real Brave — FULL human sidebar','experience-linux:','extension-runtime-linux:','mcr.microsoft.com/playwright:v1.62.1-noble','PLAYWRIGHT_BROWSERS_PATH: /ms-playwright','HOME: /root'])need(workflow,token,'current full-session/cross-platform workflow incomplete');
 const imageLines=workflow.split(/\r?\n/).filter(line=>/^\s+image:\s+mcr\.microsoft\.com\/playwright:v1\.62\.1-noble\s*$/.test(line));if(imageLines.length!==3)fail(`expected 3 pinned Linux Playwright image jobs, got ${imageLines.length}`);
 if(/^\s*npx playwright install --with-deps\b/m.test(workflow))fail('Linux Finalization reintroduced apt --with-deps');
 const parallelWorkflow=read('.github/workflows/parallel-continuation-v128.yml');

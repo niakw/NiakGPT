@@ -65,6 +65,7 @@ for(const [engine,launcher] of Object.entries(selected)){
       window.__diagNodeBefore=diag;
       const range=document.createRange();range.selectNodeContents(diag);
       const sel=getSelection();sel.removeAllRanges();sel.addRange(range);
+      document.dispatchEvent(new Event('selectionchange'));
       return sel.toString();
     });
     assert(selectedText.includes('ONE'),engine+': fixture did not select diagnostic text');
@@ -84,7 +85,10 @@ for(const [engine,launcher] of Object.entries(selected)){
     assert(held.sameNode,engine+': diagnostic DOM rerendered while text was selected');
     assert(!held.text.includes('TWO'),engine+': diagnostic content updated during active selection');
 
-    await page.evaluate(()=>getSelection()?.removeAllRanges());
+    await page.evaluate(()=>{
+      getSelection()?.removeAllRanges();
+      document.dispatchEvent(new Event('selectionchange'));
+    });
     await page.waitForFunction(()=>document.getElementById('ng8-panel')?.innerText.includes('TWO'),null,{timeout:2000});
     assert((await page.locator('#ng8-panel').innerText()).includes('TWO'),engine+': diagnostics did not resume after selection ended');
   }finally{

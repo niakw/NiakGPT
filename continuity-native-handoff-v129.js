@@ -1,7 +1,9 @@
 (() => {
   'use strict';
-  if(location.hostname!=='chatgpt.com'||window.__NIAKGPT_NATIVE_HANDOFF_129__)return;
-  window.__NIAKGPT_NATIVE_HANDOFF_129__=true;
+  if(location.hostname!=='chatgpt.com')return;
+  const init=()=>{
+    if(window.__NIAKGPT_NATIVE_HANDOFF_129__)return;
+    window.__NIAKGPT_NATIVE_HANDOFF_129__=true;
 
   const CACHE_KEY='niakgpt-v08-cache';
   const PENDING_KEY='niakgpt-native-handoff-v129';
@@ -103,4 +105,7 @@
   window.addEventListener('popstate',()=>schedule(80));if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>schedule(80));window.addEventListener('pageshow',()=>schedule(120));
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)schedule(80);});document.addEventListener('niakgpt:activity-changed',()=>schedule(120));
   window.addEventListener('pagehide',()=>clearTimeout(timer),{once:true});schedule(80);
-})();
+  };
+  if(window.__NIAKGPT_HOST_HYDRATED_100__)init();
+  else window.addEventListener('niakgpt:host-hydrated-v100',init,{once:true});
+})();;

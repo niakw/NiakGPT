@@ -152,7 +152,15 @@
       if(tail?.parentElement){if(box.parentElement!==tail.parentElement||tail.nextElementSibling!==box){tail.insertAdjacentElement('afterend',box);moved=true;}box.dataset.ng121Placement='after-primary';box.dataset.ng119Placement='after-primary-v121';}
       else if(box.parentElement!==root){root.appendChild(box);moved=true;box.dataset.ng121Placement='sidebar-tail';box.dataset.ng119Placement='sidebar-tail-v121';}
     }
-    if(list&&(moved||pending)){restoreProjectScroll(list,scrollBefore);requestAnimationFrame(()=>{if(box.isConnected&&list.isConnected)restoreProjectScroll(list,scrollBefore);});}
+    if(list&&(moved||pending)){
+      const placeIntentEpoch=userScrollEpoch,pendingSeq=pending?.seq||0;
+      restoreProjectScroll(list,scrollBefore);
+      requestAnimationFrame(()=>{
+        if(!box.isConnected||!list.isConnected||userScrollEpoch!==placeIntentEpoch)return;
+        if(pendingSeq){const current=activePendingScroll();if(!current||current.seq!==pendingSeq)return;}
+        restoreProjectScroll(list,scrollBefore);
+      });
+    }
     box.hidden=false;box.removeAttribute('aria-hidden');box.dataset.ng121PlacementReady='1';document.documentElement.dataset.ng121PinsReady='1';document.documentElement.dataset.ng119PinsReady='1';restoreFocusedPin(box,moved);return true;
   }
 

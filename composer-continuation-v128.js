@@ -149,4 +149,4 @@
   };
   if(window.__NIAKGPT_HOST_HYDRATED_100__)init();
   else window.addEventListener('niakgpt:host-hydrated-v100',init,{once:true});
-})();;
+})();

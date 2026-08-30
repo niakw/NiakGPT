@@ -6,7 +6,7 @@
   <p>Projects · long-thread performance · continuity · navigation · focused productivity</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.78-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.79-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -22,7 +22,7 @@ NiakGPT is a browser extension that turns the ChatGPT web interface into a more 
 
 It adds a native-first layer for Projects, navigation, long conversations, continuity, diagnostics and local productivity. Core features run locally in the browser: **no NiakGPT account, no NiakGPT analytics and no NiakGPT server are required**.
 
-> **Current version: 0.9.78.** Project Memory stays optional and private, can initialize a brand-new zero-commit repository, and is now fully isolated from the critical Projects/sidebar boot path.
+> **Current version: 0.9.79.** Project Memory stays optional and private, can initialize a brand-new zero-commit repository, and is now fully isolated from the critical Projects/sidebar boot path.
 
 ## Highlights
 
@@ -77,11 +77,13 @@ User text always wins: modified drafts are never erased merely because they stil
 
 ### Private Project Memory (optional)
 
-NiakGPT 0.9.78 can attach a **user-selected private GitHub repository** to Project continuity from the Control Center.
+NiakGPT 0.9.79 can attach a **user-selected private GitHub repository** to Project continuity from the Control Center, with a normal **Sign in with GitHub** flow and repository picker.
 
 - connection is explicit and disabled by default;
+- the normal path is **Sign in with GitHub → GitHub permission screen → repository selection**; no PAT copy/paste is required;
+- NiakGPT creates a private, per-browser-profile GitHub App through GitHub's manifest flow, with only **Contents: write** and **Metadata: read**;
+- GitHub's own installation screen controls which repositories are accessible; the NiakGPT picker lists only authorized private, non-archived repositories;
 - a newly created **zero-commit** private repository is initialized automatically on first connection;
-- failed GitHub connection attempts keep the repository/branch/root/token fields visible so the user can correct and retry;
 - the selected repository is verified as **private before initialization and again before reads/writes**;
 - first connection bootstraps every existing non-empty ChatGPT Project already indexed by NiakGPT;
 - Project description/instructions, conversation history snapshots, task/decision/architecture signals and a compact `PROJECT_STATE.md` checkpoint are stored under a dedicated memory root;
@@ -90,7 +92,7 @@ NiakGPT 0.9.78 can attach a **user-selected private GitHub repository** to Proje
 - on a new Project thread, NiakGPT can prepend the bounded compact checkpoint once to the first user message;
 - sync pauses while ChatGPT is generating, waiting, executing or showing a verification state, and an interrupted sync queue can resume later.
 
-The public `niakw/NiakGPT` repository is never used as a user-memory destination. A fine-grained GitHub token scoped to the chosen private repository is recommended; by default the token lives only in browser session storage unless the user explicitly chooses to remember it on that device.
+The public `niakw/NiakGPT` repository is never used as a user-memory destination and its GitHub Actions never receive the vault name or credentials. GitHub App credentials and refresh material stay in the local browser profile. A fine-grained PAT remains available only as an advanced fallback for environments where GitHub App installation is restricted.
 
 ### Quiet, native-first UI
 
@@ -105,16 +107,18 @@ The v131 UX layer removes the old “second application around ChatGPT” feelin
 
 ### Local-first core, optional private sync
 
-NiakGPT's core remains local-first. Version 0.9.78 declares:
+NiakGPT's core remains local-first. Version 0.9.79 declares:
 
 ```text
 storage
 scripting
+identity
 https://chatgpt.com/*
 https://api.github.com/*
+https://github.com/login/*
 ```
 
-There is no NiakGPT telemetry, advertising SDK, analytics endpoint or NiakGPT cloud account. The GitHub host is used **only after the user configures Project Memory**; without that configuration, Project Memory performs no GitHub traffic. Preferences, indexes, governance and recovery state remain local, while the optional memory repository is controlled by the user.
+There is no NiakGPT telemetry, advertising SDK, analytics endpoint or NiakGPT cloud account. GitHub endpoints are used **only after an explicit Project Memory connection action**. The `identity` permission drives the interactive GitHub authorization window; `github.com/login/*` is limited to OAuth token exchange. Preferences, indexes, governance and recovery state remain local, while the optional memory repository is controlled by the user.
 
 See [Privacy](PRIVACY.md) and [Security](SECURITY.md) for the exact data, token and network model.
 
@@ -189,7 +193,7 @@ A fixture passing does **not** override a contradictory real user screenshot. Se
 | [README.fr.md](README.fr.md) | French README |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Runtime architecture and ownership invariants |
 | [CHANGELOG.md](CHANGELOG.md) | Detailed release history |
-| [RELEASE_NOTES_0.9.78.md](RELEASE_NOTES_0.9.78.md) | Current release summary |
+| [RELEASE_NOTES_0.9.79.md](RELEASE_NOTES_0.9.79.md) | Current release summary |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnosis and recovery |
 | [PRIVACY.md](PRIVACY.md) | Local data and network behavior |
 | [SECURITY.md](SECURITY.md) | Security model and reporting |

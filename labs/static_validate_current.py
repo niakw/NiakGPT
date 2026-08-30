@@ -25,7 +25,7 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.82': fail(f"version={version}")
+if version!='0.9.83': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting','identity']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']: fail('host permissions drift')
 
@@ -62,10 +62,12 @@ if not (ROOT/'visual-lab/hydration-barrier-v080.mjs').exists(): fail('SSR hydrat
 css_runtime=[file for cs in manifest.get('content_scripts',[]) for file in cs.get('css',[])]
 if 'ux-v131.css' not in css_runtime: fail('v131 visual authority missing from manifest')
 sidebar_projects=read('sidebar-projects-v121.js')
-for token in ('safeInsert(parent,node,before=null)','dataset.ng121Retired','mountParentByBox','box.parentElement!==mountedParent','ng121MountPolicy','direct-once','retireStaleBox','placementTarget(root=navRoot(),box=null)'):
+for token in ('safeInsert(parent,node,before=null)','dataset.ng121Retired','mountParentByBox','box.parentElement!==mountedParent','ng121MountPolicy','direct-once','retireStaleBox','placementTarget(root=navRoot(),box=null)','visiblePlacementNode','nativeSectionAfterPrimary','projectLinks(parent).length'):
     if token not in sidebar_projects: fail('sidebar no-reparent contract incomplete '+token)
 if "section.parentElement.insertBefore(box,section)" in sidebar_projects or "tail.insertAdjacentElement('afterend',box)" in sidebar_projects or "root.appendChild(box)" in sidebar_projects: fail('Pins reparenting path reintroduced')
 if not (ROOT/'visual-lab/dom-node-stability-v082.mjs').exists(): fail('DOM node stability regression gate missing')
+if not (ROOT/'visual-lab/pins-primary-slot-v083.mjs').exists(): fail('Pins primary-slot regression gate missing')
+if not (ROOT/'visual-lab/diagnostic-selection-v083.mjs').exists(): fail('Diagnostic selection regression gate missing')
 
 main=runtime('MAIN_RUNTIME')
 isolated=runtime('ISOLATED_RUNTIME')
@@ -156,7 +158,7 @@ bridge=read('page-bridge.js')
 if "interruption === 'network'" not in bridge or "interruption === 'verify'" not in bridge: fail('RPC interruption pause missing')
 
 memory=read('project-memory-v132.js')
-for token in ('memoryBootstrap: memoryBootstrap === true','PROJECT_STATE.md','conversations/','sync_already_running','injectOnNewChat','NIAKGPT PROJECT MEMORY — CHECKPOINT RÉCUPÉRÉ','canonicalUpdated','MEMORY_LOCK','autoOwner','niakgpt:tab-role-changed','githubLogin','chrome.runtime.connect','setTimeout(heartbeat,20_000)','githubRepositories','githubConnectRepo','githubLogout'):
+for token in ('memoryBootstrap: memoryBootstrap === true','PROJECT_STATE.md','conversations/','sync_already_running','injectOnNewChat','NIAKGPT PROJECT MEMORY — CHECKPOINT RÉCUPÉRÉ','canonicalUpdated','MEMORY_LOCK','autoOwner','niakgpt:tab-role-changed','primeBootstrapQueue','ensureBootstrapQueued','queuedProjects','changes[QUEUE_KEY]','githubLogin','chrome.runtime.connect','setTimeout(heartbeat,20_000)','githubRepositories','githubConnectRepo','githubLogout'):
     if token not in memory: fail('Project Memory runtime incomplete '+token)
 bridge=read('page-bridge.js')
 if "d.memoryBootstrap !== true" not in bridge or 'conversation_detail_get_disabled' not in bridge: fail('Project Memory full-history bridge guard incomplete')
@@ -187,6 +189,10 @@ for token in ('pointerdown','pointerup','replacementAction','clickSeen','fallbac
 menu=read('project-menu-augment-v129.js')
 for token in ('Personnaliser le Project','Nouveau chat dans ce Project','ng129-project-context','openProjectSettings'):
     if token not in menu: fail('Project menu augmentation incomplete '+token)
+app=read('app-v090.js')
+for token in ('panelSelectionActive','sel.isCollapsed','S.diagTimer=setTimeout(retry,280)'):
+    if token not in app: fail('diagnostic selection stability incomplete '+token)
+
 handoff=read('continuity-native-handoff-v129.js')
 for token in ('nativeLimitControl','CONTINUITÉ NIAKGPT','markCurrentOut','writePending','finishProjectLock','sendButton'):
     if token not in handoff: fail('native continuity handoff incomplete '+token)
@@ -198,7 +204,7 @@ for gate in (
 ):
     if not (ROOT/gate).exists(): fail('current browser-fixture UX gate missing '+gate)
 workflow=read('.github/workflows/current-finalization.yml')
-for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble','project-memory-isolation-v133.mjs'):
+for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','pins-primary-slot-v083.mjs','Reported Pins placement — native controls stay above Projects','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble','project-memory-isolation-v133.mjs'):
     if token not in workflow: fail('Current Finalization missing '+token)
 if re.search(r'^\s*npx playwright install --with-deps\b',workflow,re.M): fail('Linux Finalization reintroduced apt --with-deps')
 parallel_workflow=read('.github/workflows/parallel-continuation-v128.yml')

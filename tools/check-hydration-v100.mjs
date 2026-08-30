@@ -149,6 +149,8 @@ const parallelGate=read('visual-lab/parallel-continue-v128.mjs');
 for(const token of ['idle+thinking+executing+cancel+native-stop+contenteditable+visual','parallel-continuation.png','chromium,firefox,webkit'])need(parallelGate,token,'parallel cross-engine/visual gate incomplete');
 const parallelRuntime=read('visual-lab/tests/composer-continuation-runtime-v128.spec.js');
 for(const token of ['real MV3 static continuation layer prefixes only pre-existing parallel work','Message depuis une conversation au repos.','Ajoute ce contrôle sans arrêter ce que tu fais.','annule',"page.locator('#ng8-rail')",'isolated world'])need(parallelRuntime,token,'parallel real-extension/hydration gate incomplete');
+const humanSidebar=read('visual-lab/tests/sidebar-human-ux-v123.spec.js');
+for(const token of ["page.locator('#ng8-status')","manifest.version,{timeout:20000}","CONTINUITÉ NIAKGPT',{timeout:12000}"])need(humanSidebar,token,'real continuity reload must wait for post-hydration runtime readiness');
 const liveSpec=read('visual-lab/tests/live-stability-v129.spec.js');
 for(const token of ['NIAKGPT_EXECUTABLE_PATH','long-run recovery + remount-safe pins + Project context + native limit handoff','Brouillon utilisateur à préserver','draft-protected','Personnaliser le Project','CONTINUITÉ NIAKGPT'])need(liveSpec,token,'0.9.76 focused live stability gate incomplete');
 

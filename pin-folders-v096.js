@@ -111,7 +111,7 @@
   }
   async function hydrateProject(pid){
     pid=normalizePid(pid);if(!pid||projectInventoryComplete(pid))return;
-    const state=loadState.get(pid);if(state==='loading'||state==='ready-empty')return;
+    const state=loadState.get(pid);if(state==='loading')return;
     if(bridgeBusy()){loadState.set(pid,'waiting');window.__NIAKGPT_DIAGNOSTICS__?.set('pins-chats',`ATTENTE · ${pid} · reprise après réponse ChatGPT`);if(openPid===pid){drawerDirty=true;schedule(40);}return;}
     loadState.set(pid,'loading');if(openPid===pid){drawerDirty=true;schedule(0);}window.__NIAKGPT_DIAGNOSTICS__?.set('pins-chats',`CHARGEMENT · ${pid}`);
     const out=new Map(),seen=new Set();let cursor=null,error='';
@@ -160,7 +160,11 @@
     const input=drawer.querySelector('input');if(input){input.addEventListener('input',()=>{filter=input.value;renderDrawer(pid,anchor);requestAnimationFrame(()=>{const next=document.querySelector(`#${CSS.escape(drawerId(pid))} input`);if(next){next.focus();next.setSelectionRange(next.value.length,next.value.length);}});});}
     drawer.querySelectorAll('.ng96-chat-entry>a[data-chat]').forEach(link=>link.addEventListener('click',event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;const c=all.find(x=>x.id===link.dataset.chat);if(!c)return;event.preventDefault();event.stopPropagation();routeNative(link.getAttribute('href')||chatHref(c,pid));}));
     document.dispatchEvent(new CustomEvent('niakgpt:folder-rendered',{detail:{projectId:pid,chats:shown.length,drawerId:drawer.id}}));
-    if(!all.length&&loadState.get(pid)!=='ready-empty')queueMicrotask(()=>hydrateProject(pid));
+    const inventoryState=loadState.get(pid);
+    // Cached rows are useful immediately, but they do not prove completeness. A stale/partial
+    // snapshot (for example 2 cached chats out of 72) must hydrate in foreground as soon as the
+    // user opens the Project. Avoid automatic retry loops after a hard error; a new click resets it.
+    if(!projectInventoryComplete(pid)&&!['loading','waiting','error'].includes(inventoryState))queueMicrotask(()=>hydrateProject(pid));
   }
   function toggle(pid,anchor){
     pid=normalizePid(pid);if(openPid===pid){setOpen('');closeDrawers();return;}

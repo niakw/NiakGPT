@@ -110,7 +110,7 @@ for token in ('ng123-action-menu','ng123-rename-dialog','dataset.ng123Action','d
     if token not in actions: fail('single-owner sidebar actions incomplete '+token)
 
 catalog=read('sidebar-projects-v121.js')
-for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','user-priority-armed','niakgpt:sidebar-projects-reconcile'):
+for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','userScrollEpoch','user-priority-armed','placeIntentEpoch=userScrollEpoch','niakgpt:sidebar-projects-reconcile'):
     if token not in catalog: fail('session-stable Projects catalog incomplete '+token)
 if re.search(r"recentUser[^\n]*return\s+null|user-priority:[^\n]*return\s+null",catalog): fail('recent user Project scroll must arm a restore snapshot, not return null')
 if 'userIntentAt:userScrollIntentAt' not in catalog: fail('pending Project scroll snapshot lost user intent epoch binding')

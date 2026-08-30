@@ -1,6 +1,6 @@
 # Confidentialité — NiakGPT
 
-NiakGPT 0.9.80 conserve un **cœur local-first** et ajoute Project Memory v132, une synchronisation GitHub privée **optionnelle et explicitement activée par l’utilisateur**.
+NiakGPT 0.9.81 conserve un **cœur local-first** et ajoute Project Memory v132, une synchronisation GitHub privée **optionnelle et explicitement activée par l’utilisateur**.
 
 ## Résumé
 
@@ -15,7 +15,7 @@ NiakGPT 0.9.80 conserve un **cœur local-first** et ajoute Project Memory v132, 
 
 ## Périmètre réseau
 
-Le manifest 0.9.80 déclare :
+Le manifest 0.9.81 déclare :
 
 ```text
 https://chatgpt.com/*
@@ -76,7 +76,7 @@ Cela peut contenir du **contenu privé de conversations**, les instructions/desc
 
 Le dépôt Git conserve un historique de versions : une ancienne version d’un fichier peut donc rester accessible dans l’historique Git jusqu’à suppression/réécriture volontaire de cet historique par le propriétaire du dépôt.
 
-Project Memory n’ajoute pas de chiffrement applicatif de bout en bout par-dessus GitHub dans la 0.9.80. La protection repose sur les contrôles d’accès du dépôt privé GitHub et du compte GitHub de l’utilisateur.
+Project Memory n’ajoute pas de chiffrement applicatif de bout en bout par-dessus GitHub dans la 0.9.81. La protection repose sur les contrôles d’accès du dépôt privé GitHub et du compte GitHub de l’utilisateur.
 
 ## Checkpoint envoyé à ChatGPT
 

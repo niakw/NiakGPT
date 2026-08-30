@@ -6,7 +6,7 @@
   <p>Projects · long-thread performance · continuity · navigation · focused productivity</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.80-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.81-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -22,7 +22,7 @@ NiakGPT is a browser extension that turns the ChatGPT web interface into a more 
 
 It adds a native-first layer for Projects, navigation, long conversations, continuity, diagnostics and local productivity. Core features run locally in the browser: **no NiakGPT account, no NiakGPT analytics and no NiakGPT server are required**.
 
-> **Current version: 0.9.80.** ChatGPT hydration now completes behind a hard startup barrier before NiakGPT's pre-runtime modules are allowed to mutate the page; Project Memory remains optional and private.
+> **Current version: 0.9.81.** ChatGPT hydration now completes behind a hard startup barrier before NiakGPT's pre-runtime modules are allowed to mutate the page; Project Memory remains optional and private.
 
 ## Highlights
 
@@ -81,7 +81,7 @@ User text always wins: modified drafts are never erased merely because they stil
 
 ### Private Project Memory (optional)
 
-NiakGPT 0.9.80 can attach a **user-selected private GitHub repository** to Project continuity from the Control Center, with a normal **Sign in with GitHub** flow and repository picker.
+NiakGPT 0.9.81 can attach a **user-selected private GitHub repository** to Project continuity from the Control Center, with a normal **Sign in with GitHub** flow and repository picker.
 
 - connection is explicit and disabled by default;
 - the normal path is **Sign in with GitHub → GitHub permission screen → repository selection**; no PAT copy/paste is required;
@@ -111,7 +111,7 @@ The v131 UX layer removes the old “second application around ChatGPT” feelin
 
 ### Local-first core, optional private sync
 
-NiakGPT's core remains local-first. Version 0.9.80 declares:
+NiakGPT's core remains local-first. Version 0.9.81 declares:
 
 ```text
 storage
@@ -198,7 +198,7 @@ A fixture passing does **not** override a contradictory real user screenshot. Se
 | [README.fr.md](README.fr.md) | French README |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Runtime architecture and ownership invariants |
 | [CHANGELOG.md](CHANGELOG.md) | Detailed release history |
-| [RELEASE_NOTES_0.9.80.md](RELEASE_NOTES_0.9.80.md) | Current release summary |
+| [RELEASE_NOTES_0.9.81.md](RELEASE_NOTES_0.9.81.md) | Current release summary |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnosis and recovery |
 | [PRIVACY.md](PRIVACY.md) | Local data and network behavior |
 | [SECURITY.md](SECURITY.md) | Security model and reporting |

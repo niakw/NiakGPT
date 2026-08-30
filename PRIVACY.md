@@ -1,6 +1,6 @@
 # Confidentialité — NiakGPT
 
-NiakGPT 0.9.81 conserve un **cœur local-first** et ajoute Project Memory v132, une synchronisation GitHub privée **optionnelle et explicitement activée par l’utilisateur**.
+NiakGPT 0.9.82 conserve un **cœur local-first** et ajoute Project Memory v132, une synchronisation GitHub privée **optionnelle et explicitement activée par l’utilisateur**.
 
 ## Résumé
 
@@ -15,12 +15,13 @@ NiakGPT 0.9.81 conserve un **cœur local-first** et ajoute Project Memory v132, 
 
 ## Périmètre réseau
 
-Le manifest 0.9.81 déclare :
+Le manifest 0.9.82 déclare :
 
 ```text
 https://chatgpt.com/*
 https://api.github.com/*
 https://github.com/login/*
+https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*
 ```
 
 ### ChatGPT
@@ -29,7 +30,7 @@ NiakGPT utilise la session ChatGPT déjà ouverte et un ensemble borné de surfa
 
 ### GitHub
 
-`https://api.github.com/*` est réservé à Project Memory. `https://github.com/login/*` sert uniquement à l’échange/renouvellement OAuth déclenché par la connexion GitHub. **Sans action explicite de connexion Project Memory, le module n’effectue pas de trafic GitHub.**
+`https://api.github.com/*` est réservé à Project Memory. `https://github.com/login/*` sert uniquement à l’échange/renouvellement OAuth déclenché par la connexion GitHub. Le host `chromiumapp.org` déclaré est le callback HTTPS exact et stable de l’extension, utilisé uniquement pour recevoir les codes temporaires/state du flux GitHub ; il ne donne aucun accès générique à un compte ou dépôt. **Sans action explicite de connexion Project Memory, le module n’effectue pas de trafic GitHub.**
 
 Lors de la connexion, NiakGPT vérifie le dépôt sélectionné via l’API GitHub. Si le dépôt n’est pas privé, l’initialisation est refusée. Si le dépôt privé est neuf et ne contient encore aucun commit, NiakGPT peut créer son premier commit/ref pour initialiser la mémoire. La confidentialité du dépôt est à nouveau vérifiée avant les lectures et écritures mémoire.
 
@@ -76,7 +77,7 @@ Cela peut contenir du **contenu privé de conversations**, les instructions/desc
 
 Le dépôt Git conserve un historique de versions : une ancienne version d’un fichier peut donc rester accessible dans l’historique Git jusqu’à suppression/réécriture volontaire de cet historique par le propriétaire du dépôt.
 
-Project Memory n’ajoute pas de chiffrement applicatif de bout en bout par-dessus GitHub dans la 0.9.81. La protection repose sur les contrôles d’accès du dépôt privé GitHub et du compte GitHub de l’utilisateur.
+Project Memory n’ajoute pas de chiffrement applicatif de bout en bout par-dessus GitHub dans la 0.9.82. La protection repose sur les contrôles d’accès du dépôt privé GitHub et du compte GitHub de l’utilisateur.
 
 ## Checkpoint envoyé à ChatGPT
 

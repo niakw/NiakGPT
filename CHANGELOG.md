@@ -2,6 +2,9 @@
 
 ## Correctifs critiques — 2026-08-30
 
+- séparation stricte du coffre Project Memory : suppression du live smoke et de tout secret Actions reliant le dépôt public NiakGPT à un vrai dépôt privé utilisateur ; le nom du coffre et son secret d’accès restent exclusivement locaux au navigateur ;
+- correction CodeQL du contrôle de domaines synthétiques dans `tools/check-fixture-privacy-v133.mjs` : validation par labels DNS, sans comparaison de sous-chaîne ambiguë ;
+
 - Project Memory sort du runtime critique : `ISOLATED_RUNTIME` termine désormais jusqu’à `ux-v131.js`, puis Project Memory se charge dans `OPTIONAL_RUNTIME` en best-effort ;
 - l’échec de `project-memory-background-v132.js` est capturé dans le service worker et ne peut plus empêcher le bootstrap Projects/sidebar ;
 - le bootstrap principal répond avant toute injection Project Memory optionnelle : Pins, drawers et menus `...` ne dépendent plus de GitHub ;

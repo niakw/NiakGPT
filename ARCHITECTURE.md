@@ -1,10 +1,10 @@
 # Architecture de NiakGPT
 
-NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.79 privilégie quatre propriétés : **faible coût runtime**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
+NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.80 privilégie quatre propriétés : **faible coût runtime**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
 
 ## Périmètre
 
-Le manifest 0.9.79 déclare :
+Le manifest 0.9.80 déclare :
 
 ```text
 https://chatgpt.com/*
@@ -13,6 +13,14 @@ https://github.com/login/*
 ```
 
 Aucun serveur NiakGPT n’est requis. Les caches, réglages, états de gouvernance et verrous restent dans le profil navigateur local. Project Memory utilise `api.github.com`, la permission `identity` et l’échange OAuth borné sur `github.com/login/*` uniquement après un geste explicite de connexion.
+
+## Barrière d’hydratation React
+
+Les scripts déclarés à `document_start` sont chargés tôt pour pouvoir armer les mécanismes de continuité, mais **ils n’ont plus le droit d’activer leur runtime avant l’hydratation initiale de ChatGPT**. `boot-gate-v100.js` attend `DOMContentLoaded`, le shell ChatGPT, `load`, une période de calme DOM renforcée et plusieurs frames, puis émet `niakgpt:host-hydrated-v100`.
+
+Jusqu’à ce signal, `composer-continuation-v128.js`, `long-run-watchdog-v129.js`, `pin-interaction-rescue-v129.js`, `project-menu-augment-v129.js` et `continuity-native-handoff-v129.js` ne lancent **aucun observer, timer, interception ou mutation DOM**. Cette règle protège le HTML SSR attendu par React et vise directement les erreurs de récupération/hydration de type React #418.
+
+Le gate `visual-lab/hydration-barrier-v080.mjs` vérifie l’immuabilité pré-hydratation puis l’activation après signal sur Chromium, Firefox et WebKit.
 
 ## Deux mondes d’exécution
 
@@ -373,7 +381,7 @@ peuvent être suspendus, tandis que composer, lecture, navigation et interface n
 
 Une modification architecturale n’est considérée terminée que si le niveau de preuve correspondant existe.
 
-La 0.9.79 utilise notamment :
+La 0.9.80 utilise notamment :
 
 1. `tools/check-hydration-v100.mjs` — invariants runtime et ordre de boot ;
 2. `labs/static_validate_current.py` — syntaxe, manifest, package/runtime, propriétaires uniques ;

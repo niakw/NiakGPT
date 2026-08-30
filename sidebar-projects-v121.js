@@ -209,6 +209,14 @@
   }
   function retireStaleBox(box){
     if(!box||!box.isConnected||box.dataset.ng121Retired==='1')return;
+    // Capture the live scroll synchronously before retirement. A React/sidebar remount can land
+    // between a human wheel gesture and the browser's later scroll event; relying only on that
+    // event loses the position and makes the fresh catalogue jump back to the top.
+    const liveList=box.querySelector(':scope>.ng8-pin-list');
+    if(liveList instanceof HTMLElement){
+      const max=Math.max(0,liveList.scrollHeight-liveList.clientHeight);
+      if(max>0)projectScrollMemory=Math.min(max,Math.max(0,liveList.scrollTop));
+    }
     box.dataset.ng121Retired='1';box.hidden=true;box.setAttribute('aria-hidden','true');box.style.setProperty('pointer-events','none','important');
     box.id='ng8-pins-retired-'+(++retiredSeq);
   }

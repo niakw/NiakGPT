@@ -1,3 +1,21 @@
+# NiakGPT 0.9.84 — Late hydration + stable GitHub memory sync
+
+## Régressions terrain — 2026-08-30
+
+- correction du cas réel où **PROJECTS restait en haut de la sidebar** lorsque NiakGPT montait avant l’arrivée tardive de la navigation native ChatGPT ;
+- suppression du fallback générique qui pouvait figer le catalogue dans une position transitoire : sans navigation primaire fiable, NiakGPT attend désormais au lieu de monter trop tôt ;
+- détection des contrôles primaires par href **et** libellé natif, et détection d’un slot Projects visible même si ses liens internes ne sont pas encore chargés ;
+- lorsqu’un slot plus autoritaire apparaît après coup, l’ancien bloc est neutralisé et un nouveau bloc est monté directement au bon endroit, sans reparenting du même nœud ;
+- correction de la partie GitHub du Centre de contrôle qui pouvait **se volatiliser pendant la synchronisation** : les mises à jour d’état ne reconstruisent plus le DOM du formulaire tant que sa structure n’a pas réellement besoin de changer ;
+- conservation du dépôt, de la branche, du dossier saisi, du focus et de l’état des contrôles pendant les événements de progression ;
+- un état OAuth/session GitHub transitoire ne remplace plus brutalement le sélecteur de dépôt d’un coffre déjà configuré ;
+- Project Memory n’attend plus le WORKER général : son verrou propre ne peut être pris que par un onglet visible ; une tab cachée ne peut plus conserver le verrou en restant bloquée à 0 % ;
+- après connexion du coffre, l’onglet visible déclenche immédiatement la consommation de la file ; si la visibilité change, la file persistante est reprise sans perdre les commits déjà écrits ;
+- progression affinée au niveau des conversations du Project courant et inventaire initial borné à 15 s avant première persistance ;
+- nouveaux labs : `pins-late-hydration-v084.mjs`, `project-memory-ui-stability-v084.mjs`, `project-memory-visible-owner-v084.mjs`.
+
+---
+
 # NiakGPT 0.9.83 — Pins slot + Project Memory bootstrap recovery
 
 ## Régressions terrain — 2026-08-30

@@ -15,7 +15,7 @@
   const OUT_RX=/(maximum\s+(?:conversation|context|length)|conversation\s+(?:is\s+)?too\s+long|conversation.{0,32}(?:limit|maximum)|maximum\s+context\s+length|context\s+window.{0,30}(?:limit|maximum)|start\s+(?:a\s+)?new\s+chat|continue\s+in\s+(?:a\s+)?new\s+chat|you(?:'|’)ve\s+reached.{0,40}(?:limit|maximum)|conversation\s+trop\s+longue|limite.{0,28}(?:conversation|contexte)|(?:nouveau|nouvelle)\s+(?:chat|conversation).{0,35}(?:continuer|poursuivre)|ce\s+fil.{0,24}(?:plein|limite))/i;
   const MAX_HISTORY=30000;
   const EVIDENCE='native-limit-v120';
-  let cache={projects:[],chats:[]}, state={schema:2,out:{}}, scanTimer=0, sidebarObserver=null, mainObserver=null, rpcSeq=0;
+  let cache={projects:[],chats:[]}, state={schema:2,out:{}}, scanTimer=0, sidebarObserver=null, mainObserver=null, composerObserver=null, rpcSeq=0;
 
   const clean=v=>String(v??'').replace(/\r/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
@@ -134,11 +134,26 @@
     const p=await readPending();if(!p)return;const ed=editor();
     if(ed){
       const current=clean('value'in ed?ed.value:ed.innerText||ed.textContent);
-      if(current.includes('CONTINUITÉ NIAKGPT')){document.documentElement.dataset.ng100Continuity='ready';return;}
+      if(current.includes('CONTINUITÉ NIAKGPT')){document.documentElement.dataset.ng100Continuity='ready';composerObserver?.disconnect();composerObserver=null;return;}
       const text=current?`${p.capsule}\n\nBROUILLON PRÉSERVÉ AVANT CONTINUITÉ\n${current}`:p.capsule;
-      if(setEditor(ed,text)){document.documentElement.dataset.ng100Continuity='ready';window.__NIAKGPT_DIAGNOSTICS__?.set('continuité',current?'PRÊT · capsule injectée + brouillon préservé · aucun envoi automatique':'PRÊT · capsule injectée · aucun envoi automatique');return;}
+      if(setEditor(ed,text)){document.documentElement.dataset.ng100Continuity='ready';composerObserver?.disconnect();composerObserver=null;window.__NIAKGPT_DIAGNOSTICS__?.set('continuité',current?'PRÊT · capsule injectée + brouillon préservé · aucun envoi automatique':'PRÊT · capsule injectée · aucun envoi automatique');return;}
     }
     if(attempt<12)setTimeout(()=>injectPending(attempt+1),Math.min(1200,180+attempt*90));
+  }
+  async function armComposerObserver(){
+    const p=await readPending();if(!p){composerObserver?.disconnect();composerObserver=null;return false;}
+    if(editor()){injectPending();return true;}
+    if(composerObserver)return true;
+    composerObserver=new MutationObserver(records=>{
+      for(const record of records)for(const node of record.addedNodes||[]){
+        if(!(node instanceof Element))continue;
+        if(node.matches?.('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')||node.querySelector?.('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')){
+          injectPending();return;
+        }
+      }
+    });
+    composerObserver.observe(document.documentElement,{childList:true,subtree:true});
+    return true;
   }
   async function patchNewChat(attempt=0){
     const p=await readPending(),newId=currentCid();if(!p||!newId||newId===p.chatId||p.patched)return;
@@ -150,7 +165,7 @@
     }
     p.patched=true;await writePending(p);setTimeout(()=>clearPending(),1000);
   }
-  function onRoute(){delete document.documentElement.dataset.ng100Out;setTimeout(()=>{decorateSidebar();if(outSignal())markCurrentOut('route-native-limit',{trusted:true,evidence:EVIDENCE});injectPending();patchNewChat();},180);}
+  function onRoute(){delete document.documentElement.dataset.ng100Out;armComposerObserver();setTimeout(()=>{decorateSidebar();if(outSignal())markCurrentOut('route-native-limit',{trusted:true,evidence:EVIDENCE});injectPending();patchNewChat();},180);}
   function scheduleScan(){clearTimeout(scanTimer);scanTimer=setTimeout(()=>{if(outSignal())markCurrentOut('scan-native-limit',{trusted:true,evidence:EVIDENCE});decorateSidebar();},220);}
   function bindObservers(){
     const side=navRoot();if(side){sidebarObserver?.disconnect();sidebarObserver=new MutationObserver(()=>decorateSidebar());sidebarObserver.observe(side,{childList:true,subtree:true});}
@@ -167,13 +182,13 @@
   }
   async function init(){
     try{const got=await chrome.storage.local.get([CACHE_KEY,STATE_KEY]);cache=got[CACHE_KEY]||cache;state=got[STATE_KEY]&&typeof got[STATE_KEY]==='object'?got[STATE_KEY]:state;if(migrateState())await saveState();}catch{}
-    bindObservers();decorateSidebar();if(outSignal())markCurrentOut('init-native-limit',{trusted:true,evidence:EVIDENCE});injectPending();patchNewChat();
+    bindObservers();decorateSidebar();if(outSignal())markCurrentOut('init-native-limit',{trusted:true,evidence:EVIDENCE});armComposerObserver();injectPending();patchNewChat();
   }
   chrome.storage.onChanged.addListener((changes,area)=>{if(area!=='local')return;if(changes[CACHE_KEY])cache=changes[CACHE_KEY].newValue||cache;if(changes[STATE_KEY]){state=changes[STATE_KEY].newValue||state;state.out=state.out||{};}decorateSidebar();});
   window.addEventListener('popstate',onRoute);if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',onRoute);
   document.addEventListener('click',e=>{const a=e.target instanceof Element?e.target.closest(CHAT_SEL):null;if(a)setTimeout(onRoute,120);},true);
   document.addEventListener('niakgpt:activity-changed',e=>{if(e.detail?.active===false||document.documentElement.dataset.ng86Activity==='ready')scheduleScan();});
-  window.addEventListener('pagehide',()=>{sidebarObserver?.disconnect();mainObserver?.disconnect();},{once:true});
+  window.addEventListener('pagehide',()=>{sidebarObserver?.disconnect();mainObserver?.disconnect();composerObserver?.disconnect();composerObserver=null;},{once:true});
   window.__NIAKGPT_CONTINUITY__={buildCapsule,markCurrentOut,continueFrom,getState:()=>state};
   init();
 })();

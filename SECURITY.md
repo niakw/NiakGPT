@@ -34,13 +34,14 @@ Règles obligatoires :
 9. un conflit de tête de branche provoque au plus une reconstruction/retry, jamais un écrasement forcé ;
 10. le dépôt public NiakGPT n’est jamais une destination spéciale ou par défaut ;
 11. un dépôt privé sans commit est initialisé par un premier commit/ref sans exiger une branche préexistante ;
-12. Project Memory est optionnel : une erreur de son backend ou de ses scripts ne peut pas rendre le bootstrap Projects/sidebar en échec.
+12. Project Memory est optionnel : une erreur de son backend ou de ses scripts ne peut pas rendre le bootstrap Projects/sidebar en échec ;
+13. les GitHub Actions du dépôt public NiakGPT ne reçoivent aucun secret, ne connaissent aucun dépôt coffre utilisateur et n’exécutent aucun smoke test contre un vrai coffre privé.
 
 Le dépôt privé protège l’accès par GitHub ; **NiakGPT 0.9.78 n’ajoute pas de chiffrement applicatif E2E des fichiers mémoire**. Toute personne ou application disposant d’un accès suffisant au dépôt peut lire son contenu.
 
 ## Token GitHub
 
-Le modèle recommandé est un **fine-grained PAT limité au seul dépôt mémoire**.
+Le modèle recommandé est un **fine-grained PAT limité au seul dépôt mémoire**. Ce PAT est le secret d’accès du coffre côté navigateur ; ce n’est pas un Repository secret du dépôt public NiakGPT.
 
 Le token doit disposer uniquement des droits nécessaires aux métadonnées et au contenu du dépôt. Éviter les tokens classiques ou les droits organisation/account inutiles.
 

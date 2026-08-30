@@ -6,7 +6,7 @@ const root=process.cwd(),m=JSON.parse(fs.readFileSync('manifest.json','utf8'));
 const dist=path.join(root,'dist'),build=path.join(dist,'niakgpt'),zip=path.join(dist,`niakgpt-${m.version}.zip`);
 fs.rmSync(dist,{recursive:true,force:true});fs.mkdirSync(build,{recursive:true});
 
-const files=new Set(['manifest.json',m.background.service_worker]);
+const files=new Set(['manifest.json',m.background.service_worker,'github-vault-start.html','github-vault-start.js']);
 for(const entry of m.content_scripts)for(const key of ['js','css'])for(const file of entry[key]||[])files.add(file);
 const bg=fs.readFileSync('background-v100.js','utf8');
 for(const name of ['MAIN_RUNTIME','ISOLATED_RUNTIME','OPTIONAL_RUNTIME']){
@@ -32,7 +32,7 @@ for(const required of [
   'matrix-guardian-v112.js','matrix-guardian-v112.css','turn-headers-v112.js','continuity-v112.js','native-da-v112.css','sidebar-icons-v114.js','sidebar-icons-v114.css','cache-bus-v096.js',
   'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','chat-attention-v113.css','native-actions-v113.css','conversation-load-guard-v113.js',
   'activity-ui-v097.js','side-panels-v096.js','live-fixes-v104.js','live-fixes-v106.js','project-links-v106.js','live-fixes-v104.css','continuity-v100.js',
-  'project-memory-background-v132.js','project-memory-v132.js','project-memory-ui-v132.js','project-memory-v132.css'
+  'project-memory-background-v132.js','project-memory-v132.js','project-memory-ui-v132.js','project-memory-v132.css','github-vault-start.html','github-vault-start.js'
 ])if(!fs.existsSync(path.join(build,required)))throw new Error(`Runtime omitted from ZIP: ${required}`);
 for(const requiredDoc of ['README.md','README.fr.md','LICENSE','PRIVACY.md','SECURITY.md','CHANGELOG.md'])if(!fs.existsSync(path.join(build,requiredDoc)))throw new Error(`Required release document omitted from ZIP: ${requiredDoc}`);
 for(const dead of [

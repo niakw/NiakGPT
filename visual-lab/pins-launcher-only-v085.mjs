@@ -4,6 +4,7 @@ import { chromium, firefox, webkit } from '@playwright/test';
 
 const ROOT=path.resolve('..');
 const source=await fs.readFile(path.join(ROOT,'sidebar-projects-v121.js'),'utf8');
+const authority=await fs.readFile(path.join(ROOT,'sidebar-projects-authority-v112.js'),'utf8');
 const engines={chromium,firefox,webkit};
 const requested=String(process.env.NIAKGPT_BROWSER||'').trim();
 const selected=requested?{[requested]:engines[requested]}:engines;
@@ -35,20 +36,29 @@ for(const [engine,launcher] of Object.entries(selected)){
       }));
       await page.goto('https://chatgpt.com/c/launcher-only',{waitUntil:'domcontentloaded'});
       await page.addScriptTag({content:source});
+      await page.addScriptTag({content:authority});
       await page.waitForFunction(()=>document.querySelector('#ng8-pins')?.dataset.ng121PlacementReady==='1');
+      await page.waitForFunction(()=>!!document.querySelector('[data-ng112-native-projects="1"]'));
       const state=await page.evaluate(()=>{
-        const box=document.getElementById('ng8-pins');
+        const box=document.getElementById('ng8-pins'),launcher=document.getElementById('project-launcher');
+        const marked=launcher?.closest('[data-ng112-native-projects="1"]')||null;
+        const sameParent=!!box&&!!marked&&box.parentElement===marked.parentElement;
+        const adjacent=sameParent&&(box.nextElementSibling===marked||marked.nextElementSibling===box);
         return{
           mode:box?.dataset.ng121Placement||'',
-          previous:box?.previousElementSibling?.id||'',
           header:box?.querySelector('.ng8-pin-head span')?.textContent||'',
           pins:box?.querySelectorAll('a[data-ng8-pin="1"]').length||0,
-          launcherLinks:[...document.querySelectorAll('a[href*="/g/g-p-"]')].filter(a=>!a.closest('#ng8-pins,[data-ng121-retired="1"]')).length
+          launcherLinks:[...document.querySelectorAll('a[href*="/g/g-p-"]')].filter(a=>!a.closest('#ng8-pins,[data-ng121-retired="1"]')).length,
+          launcherMarked:!!marked,
+          adjacent,
+          boxVisible:!!box&&box.isConnected&&!box.hidden&&getComputedStyle(box).display!=='none'
         };
       });
       assert(state.launcherLinks===0,engine+': fixture unexpectedly hydrated individual Projects');
-      assert(state.mode==='native-projects-launcher',engine+': visible /projects launcher was not authoritative: '+JSON.stringify(state));
-      assert(state.previous==='project-launcher-row',engine+': Pins were not mounted directly after the native Projects launcher: '+JSON.stringify(state));
+      assert(['native-projects','native-projects-launcher'].includes(state.mode),engine+': visible /projects launcher was not authoritative: '+JSON.stringify(state));
+      assert(state.launcherMarked,engine+': native Projects launcher was not identified for suppression: '+JSON.stringify(state));
+      assert(state.adjacent,engine+': Pins are not adjacent to the native Projects authority slot: '+JSON.stringify(state));
+      assert(state.boxVisible,engine+': custom Pins block is not visible: '+JSON.stringify(state));
       assert(/PINS\s*·\s*PROJECTS/i.test(state.header),engine+': explicit Pins identity missing: '+JSON.stringify(state));
       assert(state.pins===2,engine+': cached Pins did not render from launcher-only state: '+JSON.stringify(state));
     }finally{await context.close();}

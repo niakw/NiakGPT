@@ -32,4 +32,4 @@ No shared backend or public OAuth secret was introduced. The public repository a
 - no same-node parent change;
 - no `Cannot moveNode`, `Node cannot be found`, or hierarchy errors.
 
-The GitHub contract tests also reject any `chrome-extension://` input to the web-auth wrapper and simulate the exact manifest callback lifecycle.
+The GitHub contract tests also reject any `chrome-extension://` input to the web-auth wrapper and simulate the exact manifest callback lifecycle. During the Manifest tab step, a bounded long-lived runtime port sends a heartbeat so Chrome's MV3 service worker does not depend on the user completing GitHub's screen within the normal idle window.

@@ -21,13 +21,23 @@ const violations=[];
 const personalGreeting=/\b(?:Bonjour|Hello)\s+(?!(?:Utilisateur|User|Test|Synthetic|World)\b)([A-ZÀ-ÖØ-Ý][\p{L}'’-]{1,30})\b/gu;
 const email=/\b[A-Z0-9._%+-]+@([A-Z0-9.-]+\.[A-Z]{2,})\b/giu;
 const secret=/(?:github_pat_[A-Za-z0-9_]{20,}|ghp_[A-Za-z0-9]{20,}|Bearer\s+[A-Za-z0-9._-]{20,})/g;
+const isSyntheticEmailDomain=domain=>{
+  const labels=String(domain||'').toLowerCase().split('.').filter(Boolean);
+  if(!labels.length)return false;
+  if(labels.at(-1)==='invalid')return true;
+  return labels.length>=2 && labels.at(-2)==='example' && labels.at(-1)==='com';
+};
+
+if(!isSyntheticEmailDomain('example.com')||!isSyntheticEmailDomain('sub.example.com')||!isSyntheticEmailDomain('anything.invalid')||isSyntheticEmailDomain('notexample.com')){
+  throw new Error('synthetic_email_domain_boundary_contract_failed');
+}
 
 for(const file of files){
   const text=fs.readFileSync(file,'utf8');
   for(const m of text.matchAll(personalGreeting))violations.push(`${file}: personal-looking greeting fixture "${m[0]}"`);
   for(const m of text.matchAll(email)){
     const domain=String(m[1]||'').toLowerCase();
-    if(!domain.endsWith('example.com')&&!domain.endsWith('example.invalid')&&!domain.endsWith('.invalid'))violations.push(`${file}: non-synthetic email fixture`);
+    if(!isSyntheticEmailDomain(domain))violations.push(`${file}: non-synthetic email fixture`);
   }
   if(secret.test(text))violations.push(`${file}: secret/token-looking fixture`);
   secret.lastIndex=0;

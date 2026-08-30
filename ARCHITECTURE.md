@@ -98,7 +98,7 @@ Le contrat historique « pas de GET conversation complet en fonctionnement norma
 
 L’historique complet est un stockage durable. Le checkpoint est la surface de contexte normale. NiakGPT ne réinjecte donc pas tout l’historique à chaque prompt.
 
-**Invariant de confidentialité : le dépôt public NiakGPT n’est jamais une destination de mémoire utilisateur. Les fixtures publiques sous `test/` sont exclusivement synthétiques.**
+**Invariant de confidentialité : le dépôt public NiakGPT n’est jamais une destination de mémoire utilisateur. Les fixtures publiques sous `test/` sont exclusivement synthétiques. Le dépôt public et ses GitHub Actions ne possèdent aucun credential vers un coffre utilisateur et ne connaissent pas son nom ; l’association dépôt coffre + secret d’accès n’existe que localement dans le navigateur.**
 
 ## Invariant 1 — sanitation du cache avant les consommateurs
 

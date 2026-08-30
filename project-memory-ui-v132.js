@@ -47,16 +47,16 @@
       const configured = snapshot.configured === true;
 
       section.innerHTML =
-        '<h3>PROJECT MEMORY · GITHUB PRIVÉ</h3>' +
+        '<h3>PROJECT MEMORY · COFFRE GITHUB PRIVÉ</h3>' +
         '<div class="ng132-memory-status ' + (snapshot.state && snapshot.state.mode === 'error' ? 'error' : connected ? 'ok' : '') + '">' +
           '<b>' + esc(statusText(snapshot)) + '</b>' +
-          '<small>La mémoire utilisateur n’est jamais écrite dans le dépôt public NiakGPT. Le dépôt choisi doit être privé ou la connexion est refusée.</small>' +
+          '<small>Le coffre et son secret d’accès restent dans ton navigateur. Le dépôt public NiakGPT et ses GitHub Actions ne reçoivent ni le nom du coffre ni son secret.</small>' +
         '</div>' +
         '<div class="ng132-memory-form">' +
-          '<label><span><b>Dépôt privé</b><small>owner/repository</small></span><input data-ng132-repo type="text" autocomplete="off" spellcheck="false" value="' + esc(config.repo || '') + '" placeholder="owner/niakgpt-memory"></label>' +
+          '<label><span><b>Dépôt coffre privé</b><small>owner/repository · configuration locale</small></span><input data-ng132-repo type="text" autocomplete="off" spellcheck="false" value="' + esc(config.repo || '') + '" placeholder="owner/niakgpt-memory"></label>' +
           '<label><span><b>Branche</b><small>Branche dédiée ou main</small></span><input data-ng132-branch type="text" autocomplete="off" spellcheck="false" value="' + esc(config.branch || 'main') + '" placeholder="main"></label>' +
           '<label><span><b>Dossier</b><small>Racine mémoire dans le dépôt</small></span><input data-ng132-root type="text" autocomplete="off" spellcheck="false" value="' + esc(config.root || '.niakgpt-memory') + '" placeholder=".niakgpt-memory"></label>' +
-          '<label class="ng132-token"><span><b>Fine-grained token</b><small>Un seul dépôt · Contents R/W · Metadata R</small></span><input data-ng132-token type="password" autocomplete="off" spellcheck="false" placeholder="' + (configured ? 'Jeton non affiché — saisir pour reconnecter' : 'github_pat_…') + '"></label>' +
+          '<label class="ng132-token"><span><b>Secret d’accès GitHub (PAT)</b><small>Local au navigateur · un seul dépôt · Contents R/W · Metadata R</small></span><input data-ng132-token type="password" autocomplete="off" spellcheck="false" placeholder="' + (configured ? 'Jeton non affiché — saisir pour reconnecter' : 'github_pat_…') + '"></label>' +
           '<label class="ng132-remember"><input data-ng132-remember type="checkbox" ' + (config.rememberToken ? 'checked' : '') + '><span><b>Mémoriser le jeton sur cet appareil</b><small>Optionnel. Sinon il reste seulement dans la session du navigateur et devra être ressaisi après redémarrage.</small></span></label>' +
         '</div>' +
         '<div class="ng132-memory-actions">' +
@@ -80,7 +80,7 @@
         const button = section.querySelector('[data-ng132-connect]');
         if (!token.value.trim()) {
           token.focus();
-          token.setCustomValidity('Saisis le fine-grained token GitHub.');
+          token.setCustomValidity('Saisis le secret d’accès GitHub du coffre privé.');
           token.reportValidity();
           setTimeout(() => token.setCustomValidity(''), 1200);
           return;

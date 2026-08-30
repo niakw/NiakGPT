@@ -155,10 +155,11 @@ assert.match(packager, /project-memory-background-v132\.js/);
 
 assert.ok(fs.existsSync('visual-lab/project-memory-v132.mjs'),'Project Memory browser gate missing');
 assert.ok(fs.existsSync('labs/project-memory-isolation-v133.mjs'),'Project Memory isolation gate missing');
-assert.ok(fs.existsSync('tools/project-memory-live-smoke-v133.mjs'),'Project Memory live private-repo smoke missing');
 assert.ok(fs.existsSync('.github/workflows/project-memory-v132.yml'),'Project Memory workflow missing');
 const memoryWorkflow=fs.readFileSync('.github/workflows/project-memory-v132.yml','utf8');
-assert.match(memoryWorkflow,/NIAKGPT_PRIVATE_REPO_TOKEN/);
-assert.match(memoryWorkflow,/live-private-repo/);
+assert.doesNotMatch(memoryWorkflow,/NIAKGPT_PRIVATE_REPO_TOKEN|NIAKGPT_PRIVATE_REPO|live-private-repo|niakgpt-private/,'public Project Memory CI must not know or access a private user vault');
+assert.doesNotMatch(memoryWorkflow,/secrets\./,'Project Memory public CI must remain credential-free');
+assert.match(ui,/COFFRE GITHUB PRIVÉ/);
+assert.match(ui,/Secret d’accès GitHub \(PAT\)/);
 
 console.log('PROJECT_MEMORY_V132_PASS');

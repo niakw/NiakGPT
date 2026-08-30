@@ -32,7 +32,7 @@ NiakGPT utilise la session ChatGPT déjà ouverte et un ensemble borné de surfa
 
 Lors de la connexion, NiakGPT vérifie le dépôt sélectionné via l’API GitHub. Si le dépôt n’est pas privé, l’initialisation est refusée. Si le dépôt privé est neuf et ne contient encore aucun commit, NiakGPT peut créer son premier commit/ref pour initialiser la mémoire. La confidentialité du dépôt est à nouveau vérifiée avant les lectures et écritures mémoire.
 
-NiakGPT n’utilise pas le dépôt public `niakw/NiakGPT` pour stocker les données privées d’un utilisateur.
+NiakGPT n’utilise pas le dépôt public `niakw/NiakGPT` pour stocker les données privées d’un utilisateur. **Le dépôt public et ses GitHub Actions ne connaissent pas le dépôt coffre configuré par l’utilisateur et n’y accèdent jamais.** Le nom du coffre et son secret d’accès sont fournis localement dans le navigateur.
 
 ## Données lues sur ChatGPT
 

@@ -13,6 +13,9 @@
 - après connexion du coffre, l’onglet visible déclenche immédiatement la consommation de la file ; si la visibilité change, la file persistante est reprise sans perdre les commits déjà écrits ;
 - progression affinée au niveau des conversations du Project courant et inventaire initial borné à 15 s avant première persistance ;
 - nouveaux labs : `pins-late-hydration-v084.mjs`, `project-memory-ui-stability-v084.mjs`, `project-memory-visible-owner-v084.mjs`.
+- le catalogue Projects répare immédiatement un déplacement externe avant le prochain paint, puis effectue une vérification bornée pour les DOM React transitoires ;
+- la position de scroll du catalogue est capturée **synchroniquement avant tout retire/remount**, afin qu’un geste utilisateur ne revienne jamais à 0 pendant un remount tardif ;
+- le renommage d’un Project via le menu natif est durci : délais adaptatifs, second essai borné et fermeture native par Escape plutôt que suppression de DOM.
 
 ---
 

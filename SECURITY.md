@@ -2,7 +2,7 @@
 
 ## Modèle de sécurité
 
-NiakGPT 0.9.82 est une extension Manifest V3 dont le cœur reste local-first. Project Memory v132 ajoute un canal GitHub **optionnel**, réservé à un dépôt privé choisi par l’utilisateur.
+NiakGPT 0.9.83 est une extension Manifest V3 dont le cœur reste local-first. Project Memory v132 ajoute un canal GitHub **optionnel**, réservé à un dépôt privé choisi par l’utilisateur.
 
 L’extension ne demande pas de clé API OpenAI et ne stocke volontairement ni cookie de session ChatGPT ni jeton d’accès ChatGPT dans un serveur NiakGPT externe.
 
@@ -43,7 +43,7 @@ Règles obligatoires :
 15. le sélecteur refuse tout dépôt qui n’est pas présent dans la liste des dépôts autorisés de l’installation GitHub App ;
 16. la clé privée PEM de la GitHub App créée via manifest flow n’est jamais persistée ni utilisée.
 
-Le dépôt privé protège l’accès par GitHub ; **NiakGPT 0.9.82 n’ajoute pas de chiffrement applicatif E2E des fichiers mémoire**. Toute personne ou application disposant d’un accès suffisant au dépôt peut lire son contenu.
+Le dépôt privé protège l’accès par GitHub ; **NiakGPT 0.9.83 n’ajoute pas de chiffrement applicatif E2E des fichiers mémoire**. Toute personne ou application disposant d’un accès suffisant au dépôt peut lire son contenu.
 
 ## Intégrité du DOM pendant l’hydratation
 
@@ -76,7 +76,8 @@ Ils ne sont autorisés que lorsqu’une requête Project Memory porte explicitem
 - la requête utilise le broker réseau unique ;
 - aucune récupération n’est lancée pendant une génération ChatGPT ou une vérification ;
 - le circuit breaker/rate-limit reste actif ;
-- le module de synchronisation travaille séquentiellement et reprend sa queue après interruption.
+- le module de synchronisation travaille séquentiellement et reprend sa queue après interruption ;
+- la file de premier bootstrap est persistée avant le travail réseau et est recréée au démarrage si le coffre est connecté mais qu’aucune `lastSyncAt` réussie n’existe.
 
 Cette exception existe uniquement pour créer/actualiser l’archive privée demandée par l’utilisateur.
 
@@ -107,7 +108,7 @@ Les autres règles du bridge restent inchangées :
 
 Les données dynamiques doivent utiliser `textContent` ou être échappées avant interpolation HTML.
 
-Le Control Center ne doit pas se rerendre en boucle pendant la saisie d’un dépôt/token et un échec de connexion ne doit pas effacer les valeurs saisies : la section Project Memory est réinsérée uniquement lorsque le Control Center apparaît ou lorsqu’un événement mémoire réel nécessite un rafraîchissement.
+Le Control Center ne doit pas se rerendre en boucle pendant la saisie d’un dépôt/token et un échec de connexion ne doit pas effacer les valeurs saisies. Project Memory doit toutefois rendre sa section immédiatement même si son runtime optionnel arrive après l’ouverture du Control Center, puis réagir aux événements `niakgpt:control-center-rendered` et mémoire. Le panneau Diagnostic ne doit pas reconstruire son DOM tant qu’une sélection texte native non vide est active.
 
 ## Vérifications et challenges
 

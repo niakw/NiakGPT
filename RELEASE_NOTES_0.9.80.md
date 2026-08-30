@@ -16,7 +16,7 @@ NiakGPT's heavy runtime already waited for ChatGPT hydration, but five pre-runti
 
 ## Regression proof
 
-`visual-lab/hydration-barrier-v080.mjs` loads the five pre-runtime scripts against an SSR-shaped ChatGPT fixture, snapshots the HTML, waits while the hydration signal is absent, and asserts byte-for-byte DOM stability. It then emits the hydration signal and verifies that every module activates.
+`visual-lab/hydration-barrier-v080.mjs` loads the full `document_start` sequence in manifest order — boot gate first, then the five pre-runtime scripts — against an SSR-shaped ChatGPT fixture. It snapshots the HTML during the boot gate quiet window and asserts byte-for-byte DOM stability with every pre-runtime still dormant. The real boot gate must then emit the host-hydrated signal itself, after which the lab verifies that all five modules activate.
 
 The test runs across Chromium, Firefox and WebKit through the current Public Quality Gate.
 

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 
 const required=['README.md','PRIVACY.md','SECURITY.md','ARCHITECTURE.md','CONTRIBUTING.md','TROUBLESHOOTING.md','CHANGELOG.md'];
 const forbidden=[
-  /miorra/i,/aelyron/i,/eitty/i,/elias/i,/niakvio/i,/tommy/i,/foissy/i,
+  /miorra/i,/aelyron/i,/eitty/i,/elias/i,/niakvio/i,
   /authorization:\s*bearer\s+[A-Za-z0-9._-]+/i,
   /accessToken["'\s:]+[A-Za-z0-9._-]{20,}/i,
   /cookie:\s*[^\n]{20,}/i

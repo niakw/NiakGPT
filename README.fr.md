@@ -6,7 +6,7 @@
   <p>Projects · performance des longs fils · continuité · navigation · productivité ciblée</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.81-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.82-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -22,7 +22,7 @@ NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
 
-> **Version actuelle : 0.9.81.** L’hydratation React initiale de ChatGPT passe désormais derrière une barrière stricte avant toute mutation NiakGPT ; Project Memory reste optionnel et privé.
+> **Version actuelle : 0.9.82.** Le bloc Pins est désormais monté directement une seule fois dans la sidebar ChatGPT active, sans reparenting entre shells React, et le démarrage de la connexion GitHub ne transmet plus d’URL `chrome-extension://` à l’API d’authentification web.
 
 ## Points forts
 
@@ -36,6 +36,7 @@ Le JavaScript NiakGPT ne s’exécute plus à `document_start` : le bootstrap d�
 - conversations accessibles directement en dépliant un Project ;
 - le clic sur le nom ouvre/ferme le tiroir sans navigation surprise ;
 - ordre, identité DOM, focus et scroll conservés pendant les refreshs de cache, remounts React, navigation SPA et retours BFCache ;
+- montage direct unique des Pins : si ChatGPT remplace sa sidebar, l’ancien nœud NiakGPT est neutralisé sur place et un nouveau bloc est monté directement dans le nouveau shell actif, sans déplacer le même nœud entre deux branches React ;
 - conversation courante, dates, compteurs et états d’attention visibles ;
 - recherche locale dans les gros Projects ;
 - menus Project/chat sortis du clipping de la sidebar et utilisables à la souris comme au clavier ;
@@ -81,9 +82,10 @@ Le texte utilisateur reste toujours prioritaire : un brouillon modifié n’est 
 
 ### Project Memory privé (optionnel)
 
-NiakGPT 0.9.81 peut associer, depuis le Centre de contrôle, un **dépôt GitHub privé choisi par l’utilisateur** à la continuité des Projects, avec un parcours normal **Se connecter avec GitHub** puis choix du dépôt.
+NiakGPT 0.9.82 peut associer, depuis le Centre de contrôle, un **dépôt GitHub privé choisi par l’utilisateur** à la continuité des Projects, avec un parcours normal **Se connecter avec GitHub** puis choix du dépôt.
 
 - connexion explicite et désactivée par défaut ;
+- l’amorce du manifest GitHub App s’ouvre dans un onglet d’extension normal et revient uniquement par le callback HTTPS exact `chromiumapp.org` ; `launchWebAuthFlow` ne reçoit plus que des URL GitHub HTTP(S) ;
 - parcours normal **Se connecter avec GitHub → autorisation GitHub → choix du dépôt**, sans copier-coller de PAT ;
 - NiakGPT crée via le manifest flow GitHub une GitHub App privée propre au profil navigateur, limitée à **Contents: write** et **Metadata: read** ;
 - l’écran d’installation GitHub contrôle les dépôts autorisés et le sélecteur NiakGPT n’affiche que les dépôts privés non archivés réellement accordés ;

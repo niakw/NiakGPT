@@ -207,9 +207,13 @@
     if(target.before===box)return true; // already immediately after the selected primary tail
     return box.nextSibling===target.before;
   }
-  function originalPlacementStillSafe(root,box){
+  function originalPlacementStillSafe(root,box,ideal=null){
     const original=mountTargetByBox.get(box);
     if(!root||!box?.isConnected||!original||box.parentElement!==original.parent)return false;
+    // A genuine late native Projects section is an authority upgrade, not an equivalent
+    // reclassification: a catalogue originally mounted after primary controls must remount once
+    // before that newly arrived native section.
+    if(original.mode==='after-primary'&&ideal?.mode==='native-projects'&&ideal.before!==original.before)return false;
     const anchorIntact=original.before?original.before.isConnected&&original.before.parentElement===original.parent&&box.nextSibling===original.before:box.nextSibling===null;
     if(!anchorIntact)return false;
     const tail=primaryTail(root);
@@ -340,7 +344,7 @@
     if(box?.dataset.ng121Retired==='1')box=null;
     if(box?.isConnected){
       const ideal=placementTarget(root,box);
-      if(ideal&&!placementSatisfied(box,ideal)&&!originalPlacementStillSafe(root,box)){
+      if(ideal&&!placementSatisfied(box,ideal)&&!originalPlacementStillSafe(root,box,ideal)){
         // Preserve the direct-once invariant: never reparent the same React-adjacent node.
         // Retire only for a genuinely new/invalid slot. Equivalent authority reclassification
         // must not rebuild a stable catalogue whose original anchor is still intact below primary nav.
@@ -351,11 +355,11 @@
       const target=placementTarget(root,null);if(!target)return null;
       box=document.createElement('section');box.id='ng8-pins';box.hidden=true;box.dataset.ng121MountPolicy='direct-once';
       if(!safeInsert(target.parent,box,target.before))return null;
-      mountParentByBox.set(box,target.parent);mountTargetByBox.set(box,{parent:target.parent,before:target.before});
+      mountParentByBox.set(box,target.parent);mountTargetByBox.set(box,{parent:target.parent,before:target.before,mode:target.mode});
       box.dataset.ng121Placement=target.mode;box.dataset.ng119Placement=target.legacy;box.dataset.ng121MountCount='1';
     }else if(!mountedParent&&box.parentElement){
       mountParentByBox.set(box,box.parentElement);
-      mountTargetByBox.set(box,{parent:box.parentElement,before:box.nextSibling});
+      mountTargetByBox.set(box,{parent:box.parentElement,before:box.nextSibling,mode:box.dataset.ng121Placement||'stable-once'});
     }
     return box;
   }

@@ -105,16 +105,11 @@ jobs:
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node pins-late-hydration-v084.mjs
-      - name: Field regression 0.9.84 — Project Memory controls stay mounted
+      - name: Field regression 0.9.85 — launcher-only Pins placement
         working-directory: visual-lab
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
-        run: node project-memory-ui-stability-v084.mjs
-      - name: Field regression 0.9.84 — late sidebar hydration
-        working-directory: visual-lab
-        env:
-          NIAKGPT_BROWSER: ${{ matrix.browser }}
-        run: node pins-late-hydration-v084.mjs
+        run: node pins-launcher-only-v085.mjs
       - name: Field regression 0.9.84 — Project Memory controls stay mounted
         working-directory: visual-lab
         env:

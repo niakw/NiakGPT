@@ -2,6 +2,8 @@
 
 ## Native ChatGPT traffic first
 
+- Never auto-click ChatGPT's native Retry after verification/network incidents; preserve the draft and let the native app settle.
+
 - Abort NiakGPT-owned ChatGPT backend GETs as soon as a prompt is sent or native activity/verification/network recovery takes priority.
 - Hold a quiet period after native activity before allowing background reads to resume.
 - Never retry a transient fetch/network failure through an automatic XHR second transport.

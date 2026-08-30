@@ -122,9 +122,10 @@ identity
 https://chatgpt.com/*
 https://api.github.com/*
 https://github.com/login/*
+https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*
 ```
 
-Aucune télémétrie NiakGPT, aucun SDK publicitaire, aucune analytics et aucun compte cloud NiakGPT. Les endpoints GitHub ne sont utilisés **qu’après une action explicite de connexion Project Memory**. La permission `identity` pilote la fenêtre d’autorisation interactive et `github.com/login/*` sert uniquement à l’échange OAuth. Préférences, index, gouvernance et reprise restent locaux, tandis que le dépôt mémoire optionnel reste sous le contrôle de l’utilisateur.
+Aucune télémétrie NiakGPT, aucun SDK publicitaire, aucune analytics et aucun compte cloud NiakGPT. Les endpoints GitHub ne sont utilisés **qu’après une action explicite de connexion Project Memory**. La permission `identity` pilote la fenêtre d’autorisation interactive, `github.com/login/*` sert uniquement à l’échange OAuth et le host `chromiumapp.org` exact est seulement le callback HTTPS de l’extension. Aucune permission globale `tabs` n’est demandée. Préférences, index, gouvernance et reprise restent locaux, tandis que le dépôt mémoire optionnel reste sous le contrôle de l’utilisateur.
 
 Voir [Confidentialité](PRIVACY.md) et [Sécurité](SECURITY.md) pour le modèle exact des données, du token et du réseau.
 

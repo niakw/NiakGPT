@@ -50,7 +50,48 @@
     });
   }
   function nextFrames(){return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));}
-  async function waitHydrationStable(){await waitComplete();await waitForQuiet(650,4000);await nextFrames();await sleep(120);await nextFrames();}
+  function idleTurn(timeout=1800){
+    return new Promise(resolve=>{
+      let done=false;
+      const finish=()=>{if(done)return;done=true;clearTimeout(fallback);resolve();};
+      const fallback=setTimeout(finish,timeout);
+      try{
+        if(typeof requestIdleCallback==='function')requestIdleCallback(finish,{timeout});
+        else setTimeout(finish,140);
+      }catch{setTimeout(finish,140);}
+    });
+  }
+  function hostIdentity(){
+    return [
+      document.querySelector('nav,aside'),
+      document.querySelector('main'),
+      document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')
+    ];
+  }
+  async function waitStableHostIdentity(stableMs=1600,maxWait=8500){
+    const started=performance.now();
+    let refs=hostIdentity(),stableSince=performance.now();
+    while(performance.now()-started<maxWait){
+      await sleep(100);
+      const next=hostIdentity();
+      const enough=next.filter(Boolean).length>=2;
+      const same=enough&&refs.length===next.length&&next.every((node,index)=>node===refs[index]);
+      if(!same){refs=next;stableSince=performance.now();continue;}
+      if(performance.now()-stableSince>=stableMs)return true;
+    }
+    return false;
+  }
+  async function waitHydrationStable(){
+    await waitComplete(5000);
+    await waitStableHostIdentity(1600,8500);
+    await waitForQuiet(1200,7000);
+    await idleTurn(2200);
+    await idleTurn(2200);
+    await nextFrames();
+    await sleep(220);
+    await nextFrames();
+    await waitStableHostIdentity(500,2500);
+  }
 
   function rememberShell(root){
     if(!(root instanceof Element))return;

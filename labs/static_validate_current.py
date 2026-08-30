@@ -113,6 +113,7 @@ catalog=read('sidebar-projects-v121.js')
 for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','user-priority-armed','niakgpt:sidebar-projects-reconcile'):
     if token not in catalog: fail('session-stable Projects catalog incomplete '+token)
 if re.search(r"recentUser[^\n]*return\s+null|user-priority:[^\n]*return\s+null",catalog): fail('recent user Project scroll must arm a restore snapshot, not return null')
+if 'userIntentAt:userScrollIntentAt' not in catalog: fail('pending Project scroll snapshot lost user intent epoch binding')
 folders=read('pin-folders-v096.js')
 for token in ('drawerScrollMemory','innerScroll','outerScroll','niakgpt:hydrate-project'):
     if token not in folders: fail('drawer scroll/hydration continuity incomplete '+token)

@@ -181,8 +181,9 @@
     if(currentSignal(incident.type))return false;
     if(incident.type==='verify')setVerificationPause(false);
     restoreDraft();
-    const retry=nativeRetry();
-    if(retry&&!incident.retried){incident={...incident,retried:true,recoveredAt:Date.now()};saveIncident(incident);retry.click();window.__NIAKGPT_DIAGNOSTICS__?.set('interruption-119','REPRISE · bouton ChatGPT natif déclenché une fois');setTimeout(()=>{if(incident&&!currentSignal(incident.type))finishRecovery();},1200);return true;}
+    // Never click ChatGPT's native retry button automatically. During verification/network
+    // recovery the safest behavior is to preserve context and let the native app settle. Automatic
+    // retry can create another generation attempt exactly while the connection is still unstable.
     if(incident.type==='network'&&incident.assistantTail){
       incident={...incident,recovered:true,recoveredAt:Date.now()};saveIncident(incident);mount('network',{ready:true});
       window.__NIAKGPT_DIAGNOSTICS__?.set('interruption-119','REPRISE PRÊTE · fin de réponse partielle conservée');

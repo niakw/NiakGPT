@@ -62,7 +62,7 @@ if not (ROOT/'visual-lab/hydration-barrier-v080.mjs').exists(): fail('SSR hydrat
 css_runtime=[file for cs in manifest.get('content_scripts',[]) for file in cs.get('css',[])]
 if 'ux-v131.css' not in css_runtime: fail('v131 visual authority missing from manifest')
 sidebar_projects=read('sidebar-projects-v121.js')
-for token in ('safeInsert(parent,node,before=null)','dataset.ng121Retired','ng121MountPolicy','direct-once','retireStaleBox','placementTarget(root=navRoot(),box=null)'):
+for token in ('safeInsert(parent,node,before=null)','dataset.ng121Retired','mountParentByBox','box.parentElement!==mountedParent','ng121MountPolicy','direct-once','retireStaleBox','placementTarget(root=navRoot(),box=null)'):
     if token not in sidebar_projects: fail('sidebar no-reparent contract incomplete '+token)
 if "section.parentElement.insertBefore(box,section)" in sidebar_projects or "tail.insertAdjacentElement('afterend',box)" in sidebar_projects or "root.appendChild(box)" in sidebar_projects: fail('Pins reparenting path reintroduced')
 if not (ROOT/'visual-lab/dom-node-stability-v082.mjs').exists(): fail('DOM node stability regression gate missing')

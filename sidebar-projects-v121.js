@@ -18,7 +18,7 @@
   let cache={projects:[],chats:[],counts:{}},governance={hiddenProjectIds:[],coreProjectIds:[]};
   let observer=null,observedRoot=null,internal=false,timer=0,renderEpoch=0,lastPinFocus=null,lastPinFocusAt=0,bootstrapObserver=null,projectScrollMemory=0;
   let pendingProjectScroll=null,pendingScrollSeq=0,userScrollIntentAt=0,userScrollEpoch=0,retiredSeq=0;
-  const sessionOrder=new Map(),mountParentByBox=new WeakMap();let sessionSeq=0;
+  const sessionOrder=new Map(),mountParentByBox=new WeakMap(),mountTargetByBox=new WeakMap();let sessionSeq=0;
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -207,6 +207,18 @@
     if(target.before===box)return true; // already immediately after the selected primary tail
     return box.nextSibling===target.before;
   }
+  function originalPlacementStillSafe(root,box){
+    const original=mountTargetByBox.get(box);
+    if(!root||!box?.isConnected||!original||box.parentElement!==original.parent)return false;
+    const anchorIntact=original.before?original.before.isConnected&&original.before.parentElement===original.parent&&box.nextSibling===original.before:box.nextSibling===null;
+    if(!anchorIntact)return false;
+    const tail=primaryTail(root);
+    if(!tail?.isConnected)return false;
+    const order=tail.compareDocumentPosition(box);
+    if(!(order&Node.DOCUMENT_POSITION_FOLLOWING))return false;
+    const tr=tail.getBoundingClientRect(),br=box.getBoundingClientRect();
+    return br.top>=tr.bottom-4;
+  }
   function retireStaleBox(box){
     if(!box||!box.isConnected||box.dataset.ng121Retired==='1')return;
     // Capture the live scroll synchronously before retirement. A React/sidebar remount can land
@@ -328,9 +340,10 @@
     if(box?.dataset.ng121Retired==='1')box=null;
     if(box?.isConnected){
       const ideal=placementTarget(root,box);
-      if(ideal&&!placementSatisfied(box,ideal)){
+      if(ideal&&!placementSatisfied(box,ideal)&&!originalPlacementStillSafe(root,box)){
         // Preserve the direct-once invariant: never reparent the same React-adjacent node.
-        // Retire it and recreate a fresh catalogue at the newly authoritative native slot.
+        // Retire only for a genuinely new/invalid slot. Equivalent authority reclassification
+        // must not rebuild a stable catalogue whose original anchor is still intact below primary nav.
         retireStaleBox(box);box=null;
       }
     }
@@ -338,10 +351,11 @@
       const target=placementTarget(root,null);if(!target)return null;
       box=document.createElement('section');box.id='ng8-pins';box.hidden=true;box.dataset.ng121MountPolicy='direct-once';
       if(!safeInsert(target.parent,box,target.before))return null;
-      mountParentByBox.set(box,target.parent);
+      mountParentByBox.set(box,target.parent);mountTargetByBox.set(box,{parent:target.parent,before:target.before});
       box.dataset.ng121Placement=target.mode;box.dataset.ng119Placement=target.legacy;box.dataset.ng121MountCount='1';
     }else if(!mountedParent&&box.parentElement){
       mountParentByBox.set(box,box.parentElement);
+      mountTargetByBox.set(box,{parent:box.parentElement,before:box.nextSibling});
     }
     return box;
   }

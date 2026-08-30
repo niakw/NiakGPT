@@ -2,9 +2,12 @@
 
 - ChatGPT natif obtient une priorité réseau absolue : un envoi ou une génération annule les GET internes NiakGPT en vol.
 - Suppression du fallback automatique fetch → XHR sur erreur réseau afin d’éviter les requêtes doublées pendant une interruption.
+- L’analyse profonde n’a plus de `fetch()` ChatGPT direct : elle passe par le broker unique et annulable.
+- La reprise d’incident ne clique plus automatiquement sur le bouton natif « Réessayer ».
 - Project Memory devient strictement opportuniste : 45 s d’inactivité humaine, 8 s minimum entre deux lectures complètes d’historique et longue pause après 429/réseau.
 - Un incident vérification/réseau place le broker NiakGPT en quarantaine avant toute reprise.
 - Les Pins se montent depuis le launcher natif visible `/projects` même si les liens Project individuels ne sont pas encore hydratés.
+- L’ouverture explicite d’un drawer Project reste réactive après retour au calme, mais demeure bloquée pendant une génération/vérification/incident réseau réel ; un cache partiel est complété au lieu d’être considéré comme final.
 - Le header du bloc devient **PINS · PROJECTS** pour ne plus être confondu avec le menu Projects natif.
 - Nouveaux labs : `native-priority-network-v085.mjs` et `pins-launcher-only-v085.mjs`.
 

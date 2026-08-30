@@ -27,7 +27,7 @@ for(const file of files){
   for(const m of text.matchAll(personalGreeting))violations.push(`${file}: personal-looking greeting fixture "${m[0]}"`);
   for(const m of text.matchAll(email)){
     const domain=String(m[1]||'').toLowerCase();
-    if(!domain.endsWith('example.com')&&!domain.endsWith('example.invalid')&&!domain.endsWith('.invalid'))violations.push(`${file}: non-synthetic email fixture`);
+    if(!isSyntheticEmailDomain(domain))violations.push(`${file}: non-synthetic email fixture`);
   }
   if(secret.test(text))violations.push(`${file}: secret/token-looking fixture`);
   secret.lastIndex=0;

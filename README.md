@@ -6,7 +6,7 @@
   <p>Projects · long-thread performance · continuity · navigation · focused productivity</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.83-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.84-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -22,7 +22,7 @@ NiakGPT is a browser extension that turns the ChatGPT web interface into a more 
 
 It adds a native-first layer for Projects, navigation, long conversations, continuity, diagnostics and local productivity. Core features run locally in the browser: **no NiakGPT account, no NiakGPT analytics and no NiakGPT server are required**.
 
-> **Current version: 0.9.83.** Pins now reject hidden/early native Project anchors and stay below ChatGPT's real primary navigation; Project Memory always reappears in an already-open Control Center and automatically recreates a persistent first-sync queue for connected-but-never-synced vaults.
+> **Current version: 0.9.84.** Pins now wait for real native navigation during late ChatGPT hydration and retire/remount into a newly authoritative Projects slot instead of staying stuck at the top. Project Memory keeps its GitHub controls mounted during live state changes and lets only a visible tab own the sync lock, so persistent bootstrap queues can actually progress.
 
 ## Highlights
 
@@ -36,7 +36,7 @@ NiakGPT JavaScript no longer runs at `document_start`: the bootstrap group now s
 - expandable Project rows with their conversations directly underneath;
 - clicking a Project name opens/closes its drawer instead of unexpectedly navigating away;
 - stable order, DOM identity, focus and scroll across cache refreshes, React remounts, SPA navigation and BFCache restores;
-- direct-once Pins mounting: when ChatGPT replaces the sidebar, the old NiakGPT node is retired in place and a fresh block is mounted directly in the new active shell instead of moving a live node between React branches;
+- direct-once Pins mounting: when ChatGPT replaces the sidebar **or reveals a better native slot after late hydration**, the old NiakGPT node is retired in place and a fresh block is mounted directly in the authoritative location instead of moving a live node between React branches;
 - placement is anchored **below ChatGPT's visible primary navigation**; hidden/inert native Project surfaces or Project containers located above the primary controls cannot pull the NiakGPT catalogue to the top of the sidebar;
 - current conversation, dates, counts and attention state kept visible;
 - local search for large Projects;

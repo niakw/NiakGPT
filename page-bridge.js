@@ -151,9 +151,9 @@
     }
   }
 
-  async function getAccessToken(force = false) {
+  async function getAccessToken(force = false, foreground = false) {
     if (!force && cachedToken && Date.now() - tokenAt < 120000) return cachedToken;
-    if (nativeBusy()) return '';
+    if (foreground ? baseNativeBusy() : nativeBusy()) return '';
     const controller=new AbortController();activeGetControllers.add(controller);
     try {
       const r = await nativeFetch('/api/auth/session', {
@@ -220,11 +220,12 @@
     return fetchRequest(path, method, body, token);
   }
 
-  async function backendFetchCore(path, method, body, forceToken = false) {
-    // Last-second circuit breaker: requests queued before the user presses Send must not
-    // wake up during a long/complex ChatGPT generation or native verification phase.
-    if (nativeBusy()) return nativeBusyResult();
-    const token = await getAccessToken(forceToken);
+  async function backendFetchCore(path, method, body, forceToken = false, foreground = false) {
+    // Explicit user reads (opening a Project drawer) may bypass only the post-native quiet
+    // quarantine. They are still blocked by an active generation, verification or network incident.
+    const requestBusy=()=>foreground ? baseNativeBusy() : nativeBusy();
+    if (requestBusy()) return nativeBusyResult();
+    const token = await getAccessToken(forceToken, foreground);
     if (!token) return { ok:false, status:401, data:null, error:'auth_session_missing', transport:'auth' };
 
     const originalPath = path;
@@ -236,7 +237,7 @@
     const gap = gapFor(effectivePath, method);
     const wait = Math.max(0, lastNetworkAt + gap - now());
     if (wait) await sleep(wait);
-    if (nativeBusy()) return nativeBusyResult();
+    if (requestBusy()) return nativeBusyResult();
     const afterWaitCircuit = syntheticRateLimit();
     if (afterWaitCircuit) return afterWaitCircuit;
 
@@ -245,7 +246,7 @@
 
     if (result.status === 401 && !forceToken) {
       cachedToken = '';
-      return backendFetchCore(originalPath, method, body, true);
+      return backendFetchCore(originalPath, method, body, true, foreground);
     }
 
     if (method === 'GET' && projectConversationsRx.test(originalPath) && result.status === 422) {
@@ -254,11 +255,12 @@
         const retryCircuit=syntheticRateLimit();
         if(retryCircuit)return retryCircuit;
         const retryWait=Math.max(0,lastNetworkAt+gapFor(noLimitPath,method)-now());if(retryWait)await sleep(retryWait);
+        if(requestBusy())return nativeBusyResult();
         lastNetworkAt=now();
         const retry = await requestSingleTransport(noLimitPath, method, body, token);
         if (retry.status === 401 && !forceToken) {
           cachedToken = '';
-          return backendFetchCore(originalPath, method, body, true);
+          return backendFetchCore(originalPath, method, body, true, foreground);
         }
         result = retry;
         effectivePath = noLimitPath;
@@ -289,19 +291,19 @@
     return run;
   }
 
-  function backendFetch(path, method, body) {
+  function backendFetch(path, method, body, foreground = false) {
     const normalized = method === 'GET' ? normalizeProjectConversationPath(path,'safe') : path;
     const key=cacheKey(normalized,method);
     if(method==='GET'){
       const cached=cachedSuccess(key);if(cached)return Promise.resolve(cached);
       const pending=inflightGets.get(key);if(pending)return pending;
-      const promise=enqueueNetwork(()=>backendFetchCore(path,method,body)).then(result=>{
+      const promise=enqueueNetwork(()=>backendFetchCore(path,method,body,false,foreground)).then(result=>{
         if(result?.ok)rememberSuccess(key,result,normalized);
         return result;
       }).finally(()=>inflightGets.delete(key));
       inflightGets.set(key,promise);return promise;
     }
-    return enqueueNetwork(()=>backendFetchCore(path,method,body)).then(result=>{
+    return enqueueNetwork(()=>backendFetchCore(path,method,body,false,foreground)).then(result=>{
       if(result?.ok)invalidateAfterMutation(path);
       return result;
     });
@@ -369,7 +371,7 @@
       if(!validProjectCreate(d.body)){document.dispatchEvent(new CustomEvent(RES,{detail:{id,ok:false,status:400,data:null,error:'invalid_project_create_payload',transport:'governance-guard'}}));return;}
     }
 
-    const result = await backendFetch(path, method, d.body);
+    const result = await backendFetch(path, method, d.body, d.foreground === true);
     document.dispatchEvent(new CustomEvent(RES, { detail:{ id, ...result } }));
   });
 })();

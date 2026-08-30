@@ -95,6 +95,11 @@ jobs:
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node dom-node-stability-v082.mjs
+      - name: Reported Pins placement — native controls stay above Projects
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node pins-primary-slot-v083.mjs
       - name: Upload cross-platform evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -151,6 +156,11 @@ jobs:
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node dom-node-stability-v082.mjs
+      - name: Reported Pins placement — native controls stay above Projects
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node pins-primary-slot-v083.mjs
       - name: Upload cross-platform evidence
         if: always()
         uses: actions/upload-artifact@v4

@@ -111,6 +111,7 @@
     modal.querySelectorAll('[data-setting]').forEach(control=>control.addEventListener('change',async()=>{const key=control.dataset.setting,value=control instanceof HTMLInputElement&&control.type==='checkbox'?control.checked:control.value;await saveSettings({...settings,[key]:value});}));
     modal.querySelector('[data-purge-cache]')?.addEventListener('click',purgeHotCache);modal.querySelector('[data-rebuild-index]')?.addEventListener('click',rebuildIndex);modal.querySelector('[data-copy-diag]')?.addEventListener('click',copyDiagnostic);modal.querySelector('[data-export]')?.addEventListener('click',exportConfig);modal.querySelector('[data-import]')?.addEventListener('click',importConfig);modal.querySelector('[data-reset]')?.addEventListener('click',resetPreferences);modal.querySelector('[data-wipe]')?.addEventListener('click',wipeAllLocalData);
     if(focusSetting)queueMicrotask(()=>modal.querySelector(`[data-setting="${CSS.escape(focusSetting)}"]`)?.focus());
+    document.dispatchEvent(new CustomEvent('niakgpt:control-center-rendered',{detail:{version:VERSION}}));
   }
   function renderModalIfOpen(){if(modalOpen)renderModal();}
   function focusables(){const modal=document.getElementById('ng90-control');return modal?[...modal.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])')].filter(x=>x instanceof HTMLElement&&x.getClientRects().length):[];}

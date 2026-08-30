@@ -1,6 +1,6 @@
 # Confidentialité — NiakGPT
 
-NiakGPT 0.9.82 conserve un **cœur local-first** et ajoute Project Memory v132, une synchronisation GitHub privée **optionnelle et explicitement activée par l’utilisateur**.
+NiakGPT 0.9.83 conserve un **cœur local-first** et ajoute Project Memory v132, une synchronisation GitHub privée **optionnelle et explicitement activée par l’utilisateur**.
 
 ## Résumé
 
@@ -15,7 +15,7 @@ NiakGPT 0.9.82 conserve un **cœur local-first** et ajoute Project Memory v132, 
 
 ## Périmètre réseau
 
-Le manifest 0.9.82 déclare :
+Le manifest 0.9.83 déclare :
 
 ```text
 https://chatgpt.com/*
@@ -53,7 +53,7 @@ En fonctionnement normal, NiakGPT continue de refuser les `GET /backend-api/conv
 
 Après activation explicite de Project Memory, le bootstrap ou une synchronisation peut lire le payload complet d’une conversation afin d’en créer une copie privée durable. Cette exception est marquée `memoryBootstrap`, passe par le broker réseau unique, et reste soumise aux pauses pendant génération/vérification ainsi qu’aux limites de débit.
 
-Après le bootstrap, NiakGPT tente de ne relire que les conversations dont le timestamp d’activité a changé.
+La connexion au coffre écrit d’abord son marqueur d’initialisation puis crée localement une **file persistante** de Projects à synchroniser. Un seul onglet WORKER exécute la file. Si un coffre est déjà connecté mais qu’aucune synchronisation réussie n’a encore été enregistrée, 0.9.83 recrée automatiquement cette file au démarrage. Après le bootstrap, NiakGPT tente de ne relire que les conversations dont le timestamp d’activité a changé.
 
 ## Données enregistrées dans le dépôt privé
 
@@ -77,7 +77,7 @@ Cela peut contenir du **contenu privé de conversations**, les instructions/desc
 
 Le dépôt Git conserve un historique de versions : une ancienne version d’un fichier peut donc rester accessible dans l’historique Git jusqu’à suppression/réécriture volontaire de cet historique par le propriétaire du dépôt.
 
-Project Memory n’ajoute pas de chiffrement applicatif de bout en bout par-dessus GitHub dans la 0.9.82. La protection repose sur les contrôles d’accès du dépôt privé GitHub et du compte GitHub de l’utilisateur.
+Project Memory n’ajoute pas de chiffrement applicatif de bout en bout par-dessus GitHub dans la 0.9.83. La protection repose sur les contrôles d’accès du dépôt privé GitHub et du compte GitHub de l’utilisateur.
 
 ## Checkpoint envoyé à ChatGPT
 

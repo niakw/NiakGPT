@@ -6,7 +6,7 @@
   <p>Projects · performance des longs fils · continuité · navigation · productivité ciblée</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.82-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.83-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -22,7 +22,7 @@ NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
 
-> **Version actuelle : 0.9.82.** Le bloc Pins est désormais monté directement une seule fois dans la sidebar ChatGPT active, sans reparenting entre shells React, et le démarrage de la connexion GitHub ne transmet plus d’URL `chrome-extension://` à l’API d’authentification web.
+> **Version actuelle : 0.9.83.** Les Pins refusent désormais les surfaces Projects natives cachées/précoces et restent sous la vraie navigation primaire ChatGPT ; Project Memory réapparaît même si le Centre de contrôle était déjà ouvert et recrée automatiquement une file persistante pour un coffre connecté mais jamais synchronisé.
 
 ## Points forts
 
@@ -37,6 +37,7 @@ Le JavaScript NiakGPT ne s’exécute plus à `document_start` : le bootstrap d�
 - le clic sur le nom ouvre/ferme le tiroir sans navigation surprise ;
 - ordre, identité DOM, focus et scroll conservés pendant les refreshs de cache, remounts React, navigation SPA et retours BFCache ;
 - montage direct unique des Pins : si ChatGPT remplace sa sidebar, l’ancien nœud NiakGPT est neutralisé sur place et un nouveau bloc est monté directement dans le nouveau shell actif, sans déplacer le même nœud entre deux branches React ;
+- placement explicitement **sous la navigation primaire visible de ChatGPT** : une surface Projects native cachée/inert ou située au-dessus des contrôles principaux ne peut plus aspirer le catalogue NiakGPT en haut de la sidebar ;
 - conversation courante, dates, compteurs et états d’attention visibles ;
 - recherche locale dans les gros Projects ;
 - menus Project/chat sortis du clipping de la sidebar et utilisables à la souris comme au clavier ;
@@ -82,7 +83,7 @@ Le texte utilisateur reste toujours prioritaire : un brouillon modifié n’est 
 
 ### Project Memory privé (optionnel)
 
-NiakGPT 0.9.82 peut associer, depuis le Centre de contrôle, un **dépôt GitHub privé choisi par l’utilisateur** à la continuité des Projects, avec un parcours normal **Se connecter avec GitHub** puis choix du dépôt.
+NiakGPT 0.9.83 peut associer, depuis le Centre de contrôle, un **dépôt GitHub privé choisi par l’utilisateur** à la continuité des Projects, avec un parcours normal **Se connecter avec GitHub** puis choix du dépôt.
 
 - connexion explicite et désactivée par défaut ;
 - l’amorce du manifest GitHub App s’ouvre dans un onglet d’extension normal et revient uniquement par le callback HTTPS exact `chromiumapp.org` ; `launchWebAuthFlow` ne reçoit plus que des URL GitHub HTTP(S) ;
@@ -91,7 +92,9 @@ NiakGPT 0.9.82 peut associer, depuis le Centre de contrôle, un **dépôt GitHub
 - l’écran d’installation GitHub contrôle les dépôts autorisés et le sélecteur NiakGPT n’affiche que les dépôts privés non archivés réellement accordés ;
 - un dépôt privé **neuf sans aucun commit** est initialisé automatiquement à la première connexion ;
 - le dépôt sélectionné est vérifié comme **privé avant l’initialisation puis avant chaque lecture/écriture** ;
-- à la première connexion, tous les Projects ChatGPT existants non vides déjà indexés par NiakGPT sont amorcés ;
+- la connexion crée immédiatement une file de bootstrap persistante ; un onglet WORKER possède la synchro réelle et peut la reprendre après changement de rôle, masquage, reload ou session navigateur ultérieure ;
+- un coffre déjà connecté mais sans synchronisation réussie recrée automatiquement sa file au démarrage de 0.9.83 : aucune reconnexion GitHub n’est nécessaire ;
+- le Centre de contrôle expose le nombre de Projects en attente, la dernière synchro et la dernière erreur au lieu d’un simple état « Connecté » ;
 - description/instructions du Project, snapshots d’historique, signaux de tâches/décisions/architecture et checkpoint compact `PROJECT_STATE.md` sont stockés sous une racine mémoire dédiée ;
 - après le bootstrap, seuls les fils dont le timestamp a changé sont relus ;
 - l’historique complet reste dans GitHub et **n’est pas réinjecté à chaque prompt** ;
@@ -109,11 +112,12 @@ La couche UX v131 retire l’effet « seconde application autour de ChatGPT » :
 - ancienne barre pleine largeur remplacée par une capsule passive ;
 - prompteur local compact et opt-in ;
 - surfaces d’accueil/utilitaires débarrassées du chrome NiakGPT non essentiel ;
-- focus visible et `prefers-reduced-motion` intégrés au contrat.
+- focus visible et `prefers-reduced-motion` intégrés au contrat ;
+- sélectionner/copier le diagnostic ne perd plus la sélection lorsque les métriques évoluent ; le rafraîchissement reprend dès que la sélection est relâchée.
 
 ### Cœur local-first, synchro privée optionnelle
 
-Le cœur de NiakGPT reste local-first. La version 0.9.82 déclare :
+Le cœur de NiakGPT reste local-first. La version 0.9.83 déclare :
 
 ```text
 storage
@@ -200,7 +204,7 @@ Une fixture verte ne remplace **jamais** une capture utilisateur réelle qui la 
 | [README.md](README.md) | README anglais |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture runtime et invariants de propriété |
 | [CHANGELOG.md](CHANGELOG.md) | Historique détaillé |
-| [RELEASE_NOTES_0.9.82.md](RELEASE_NOTES_0.9.82.md) | Résumé de la release courante |
+| [RELEASE_NOTES_0.9.83.md](RELEASE_NOTES_0.9.83.md) | Résumé de la release courante |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnostic et reprise |
 | [PRIVACY.md](PRIVACY.md) | Données locales et comportement réseau |
 | [SECURITY.md](SECURITY.md) | Modèle de sécurité et signalement |

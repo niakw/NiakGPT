@@ -1,3 +1,20 @@
+# NiakGPT 0.9.83 — Pins slot + Project Memory bootstrap recovery
+
+## Régressions terrain — 2026-08-30
+
+- correction du bloc **PROJECTS** visible au-dessus du menu natif ChatGPT : une surface Projects native cachée, inert ou située avant/au-dessus de la navigation primaire ne peut plus servir d’ancre ;
+- `primaryTail()` ne remonte plus dans un parent qui mélange navigation primaire et liens Projects/chats ; le fallback Pins reste sous les contrôles natifs ChatGPT ;
+- nouveau lab `pins-primary-slot-v083.mjs` avec le scénario exact « faux Projects caché en haut → ChatGPT/Nouveau chat/Bibliothèque/Apps → Pins » sur Chromium/Firefox/WebKit ;
+- restauration de la section **PROJECT MEMORY · COFFRE GITHUB PRIVÉ** quand son runtime optionnel arrive alors que le Centre de contrôle est déjà ouvert ;
+- ajout de l’événement `niakgpt:control-center-rendered` et rendu initial immédiat de `project-memory-ui-v132.js` ;
+- un coffre connecté crée maintenant immédiatement une **file de bootstrap persistante** ; le WORKER peut reprendre cette file après changement de rôle, masquage, reload ou session ultérieure ;
+- un coffre déjà initialisé mais sans `lastSyncAt` recrée automatiquement sa file au démarrage de 0.9.83, sans reconnexion GitHub ;
+- le Control Center affiche le nombre de Projects en attente, la dernière synchro et les erreurs de sync ;
+- correction de la sélection qui sautait dans le Diagnostic : aucun rerender DOM du panneau pendant une sélection texte native active, puis reprise des métriques après relâchement ;
+- nouveau lab `diagnostic-selection-v083.mjs` et extension du lab Project Memory pour couvrir l’auto-render + la récupération d’un coffre connecté/non synchronisé.
+
+---
+
 # NiakGPT 0.9.82 — Sidebar DOM stability + GitHub auth transport hotfix
 
 ## Régressions terrain — 2026-08-30

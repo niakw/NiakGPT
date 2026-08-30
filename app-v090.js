@@ -18,7 +18,7 @@
     projects:[], projectById:new Map(), chats:[], chatById:new Map(), projectChats:new Map(), counts:new Map(), duplicates:new Map(),
     health:{bridge:'PRÊT',data:'CACHE',projects:'CACHE',quick:'PRÊT',coach:'INACTIF',toc:'INACTIF',performance:'PRÊT',matrix:'INACTIF',ui:'PRÊT'},
     errors:[], panelOpen:false, tab:'explorer', queue:[], queueTimer:0, indexing:false, indexComplete:false, generalLoaded:false,
-    mainObserver:null, sidebarObserver:null, mainRoot:null, sidebarRoot:null, mainTimer:0, sidebarTimer:0, sidebarNeedsPins:false, scanTimer:0, scanToken:0, scanRunning:false, scanRequested:false, diagTimer:0,
+    mainObserver:null, sidebarObserver:null, mainRoot:null, sidebarRoot:null, mainTimer:0, sidebarTimer:0, sidebarNeedsPins:false, scanTimer:0, scanToken:0, scanRunning:false, scanRequested:false, diagTimer:0, diagSelectionActive:false, diagSelectionGesture:false,
     cacheSaveTimer:0, lastCacheWriteAt:0, lastPath:location.pathname, projectsRefreshed:false, refreshingProjects:false,
     pendingMain:new Set(), turns:[], turnSeen:new WeakSet(), codeSeen:new WeakSet(), codeCount:0, turnTimeline:[], turnTimeById:new Map(), timelineRequestedFor:'',
     matrix:null, matrixCtx:null, matrixTimer:0, matrixResize:null, matrixCols:[], matrixW:0, matrixH:0,
@@ -413,14 +413,44 @@
     if(/^ATTENTE/i.test(String(merged.toc||'')))merged.toc=location.pathname.includes('/c/')?'VIDE · 0 bloc':'INACTIF · hors conversation';
     return Object.entries(merged);
   }
+  function panelSelectionActive(panel){
+    try{
+      const sel=window.getSelection?.();if(!sel||sel.isCollapsed||!sel.rangeCount)return false;
+      const range=sel.getRangeAt(0),node=range.commonAncestorContainer;
+      const host=node?.nodeType===Node.ELEMENT_NODE?node:node?.parentElement;
+      return !!(host&&panel?.contains(host)&&clean(sel.toString()));
+    }catch{return false;}
+  }
+  function diagnosticSelectionHeld(panel){
+    const active=panelSelectionActive(panel);
+    if(active)S.diagSelectionActive=true;
+    return S.diagSelectionGesture||S.diagSelectionActive||active;
+  }
+  function syncDiagnosticSelectionLock(){
+    if(!(S.panelOpen&&S.tab==='diag')){S.diagSelectionActive=false;S.diagSelectionGesture=false;return;}
+    const panel=document.getElementById('ng8-panel');
+    // Selection is a sticky read/copy mode. Browsers may emit transient collapsed
+    // selectionchange events while focus/painting settles; only a deliberate action
+    // outside the Diagnostic (or closing/switching the panel) releases the lock.
+    if(panelSelectionActive(panel))S.diagSelectionActive=true;
+  }
+  function releaseDiagnosticSelection(){
+    if(!S.diagSelectionActive&&!S.diagSelectionGesture)return;
+    S.diagSelectionActive=false;S.diagSelectionGesture=false;
+    renderPanelIfDiag();
+  }
   function renderPanelIfDiag(){
     if(!(S.panelOpen&&S.tab==='diag')||S.diagTimer)return;
-    S.diagTimer=setTimeout(()=>{S.diagTimer=0;if(S.panelOpen&&S.tab==='diag')renderPanel();},70);
+    const retry=()=>{S.diagTimer=0;if(!(S.panelOpen&&S.tab==='diag'))return;const panel=document.getElementById('ng8-panel');if(diagnosticSelectionHeld(panel)){S.diagTimer=setTimeout(retry,280);return;}renderPanel();};
+    S.diagTimer=setTimeout(retry,70);
   }
   function liveTurns(){ S.turns=S.turns.filter(t=>t?.isConnected);return S.turns; }
   function renderPanel(){
-    const panel=document.getElementById('ng8-panel');if(!panel)return;panel.classList.toggle('open',S.panelOpen);document.body.classList.toggle('ng8-panel-open',S.panelOpen);document.querySelectorAll('#ng8-rail [data-tab]').forEach(b=>b.classList.toggle('active',S.panelOpen&&b.dataset.tab===S.tab));if(!S.panelOpen)return;
+    const panel=document.getElementById('ng8-panel');if(!panel)return;
+    if(!S.panelOpen||S.tab!=='diag'){S.diagSelectionActive=false;S.diagSelectionGesture=false;}
+    panel.classList.toggle('open',S.panelOpen);document.body.classList.toggle('ng8-panel-open',S.panelOpen);document.querySelectorAll('#ng8-rail [data-tab]').forEach(b=>b.classList.toggle('active',S.panelOpen&&b.dataset.tab===S.tab));if(!S.panelOpen)return;
     if(S.tab==='diag'){
+      if(diagnosticSelectionHeld(panel)){renderPanelIfDiag();return;}
       panel.innerHTML=`<header><div><small>DIAGNOSTIC</small><b>État des modules</b></div><button aria-label="Fermer">×</button></header><div class="ng8-diag">${diagnosticRows().map(([k,v])=>`<div><span>${esc(k)}</span><b class="${/^OK|^PRÊT/.test(String(v))?'ok':/^ERREUR/.test(String(v))?'err':'wait'}">${esc(v)}</b></div>`).join('')}</div>${S.errors.length?`<details class="ng8-errors"><summary>Dernières erreurs</summary>${S.errors.map(e=>`<code>${esc(e)}</code>`).join('')}</details>`:''}<div class="ng8-joke">☠ SYSTEM // SKYNET</div>`;
     }else if(S.tab==='toc'){
       const turns=liveTurns();health('toc',turns.length?`OK · ${turns.length} blocs`:'VIDE · 0 bloc');
@@ -636,6 +666,27 @@
     ensureShell();await waitCacheGuard();await Promise.all([loadGovernance(),loadCache()]);brand();mergeDOM();buildDuplicates();decorateSidebar();mountObservers();ensureMatrix();ensureBots();bindEvents();bindNavigation();
     if(role()==='client')health('bridge','DÉLÉGUÉ · WORKER');scheduleTurnTimeline(900);
   }
+
+  // Selection protection is registered synchronously, before async boot/cache/index work.
+  // A user can open/copy diagnostics while the rest of NiakGPT is still settling.
+  document.addEventListener('selectionchange',syncDiagnosticSelectionLock);
+  document.addEventListener('pointerdown',e=>{
+    if(!(S.panelOpen&&S.tab==='diag'))return;
+    const panel=document.getElementById('ng8-panel'),inside=e.target instanceof Node&&panel?.contains(e.target);
+    if(inside){
+      S.diagSelectionGesture=true;
+      S.diagSelectionActive=true;
+      return;
+    }
+    releaseDiagnosticSelection();
+  },true);
+  document.addEventListener('pointerup',()=>{
+    if(!S.diagSelectionGesture)return;
+    S.diagSelectionGesture=false;
+    // Keep read/copy mode sticky after the drag; selectionchange may refine the Range
+    // but a transient collapsed event must never unlock it.
+    queueMicrotask(syncDiagnosticSelectionLock);
+  },true);
 
   if(document.body)boot();else{const mo=new MutationObserver(()=>{if(document.body){mo.disconnect();boot();}});mo.observe(document.documentElement,{childList:true,subtree:true});}
 })();

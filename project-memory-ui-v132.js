@@ -23,6 +23,8 @@
       return 'Synchronisation ' + p + '% · ' + (s.projectName || s.projectId || 'Project') + chat;
     }
     if (s.mode === 'error') return 'Erreur · ' + String(s.error || 'synchronisation interrompue');
+    if (s.mode === 'queued') return 'Coffre connecté · bootstrap en attente · ' + Number(s.queuedProjects || snapshot?.queue?.pending?.length || 0) + ' Project(s)';
+    if (snapshot && snapshot.connected && !Number(s.lastSyncAt || 0)) return 'Coffre initialisé · première synchronisation en attente';
     if (snapshot && snapshot.connected) return 'Connecté · dernière synchro ' + humanDate(s.lastSyncAt);
     if (github.authenticated) return 'GitHub connecté · choisis le dépôt coffre';
     if (snapshot && snapshot.configured && snapshot.config?.authMode === 'pat' && !snapshot.tokenAvailable) return 'Configuré · PAT à reconnecter pour cette session';
@@ -91,10 +93,17 @@
           '</div>';
       }
 
+      const queuePending = Array.isArray(snapshot.queue?.pending) ? snapshot.queue.pending.length : 0;
+      const stateInfo = snapshot.state || {};
+      const progressText = queuePending
+        ? ('File persistante · ' + queuePending + ' Project(s) restant(s)')
+        : (Number(stateInfo.lastSyncAt || 0) ? ('Dernière synchro · ' + humanDate(stateInfo.lastSyncAt) + ' · ' + Number(stateInfo.changed || 0) + ' fil(s) modifié(s)') : 'Aucune synchronisation complète enregistrée');
+
       section.innerHTML =
         '<h3>PROJECT MEMORY · COFFRE GITHUB PRIVÉ</h3>' +
         '<div class="ng132-memory-status ' + (snapshot.state && snapshot.state.mode === 'error' ? 'error' : connected ? 'ok' : '') + '">' +
           '<b>' + esc(statusText(snapshot)) + '</b>' +
+          '<small>' + esc(progressText) + '</small>' +
           '<small>Le dépôt public NiakGPT ne reçoit aucun nom de coffre, token ou secret. L’autorisation GitHub appartient à ton profil navigateur.</small>' +
         '</div>' +
         githubBlock +
@@ -164,6 +173,7 @@
           useRepo.textContent = 'Réessayer ce dépôt';
           return;
         }
+        status.textContent = 'Coffre connecté · bootstrap planifié · ' + Number(result.queuedProjects || 0) + ' Project(s)';
         schedule(50);
       };
 
@@ -236,15 +246,19 @@
       };
 
       section.querySelector('[data-ng132-sync]').onclick = async () => {
-        section.querySelector('[data-ng132-sync]').disabled = true;
-        await memory.syncNow({force:false});
+        const button=section.querySelector('[data-ng132-sync]');
+        button.disabled = true;
+        const result=await memory.syncNow({force:false});
+        if(!result?.ok){setFailure('Synchronisation impossible',result);button.disabled=false;}
         schedule(50);
       };
 
       section.querySelector('[data-ng132-force]').onclick = async () => {
         if (!confirm('Relire intégralement tous les fils des Projects non vides et reconstruire leurs checkpoints privés ?')) return;
-        section.querySelector('[data-ng132-force]').disabled = true;
-        await memory.syncNow({force:true});
+        const button=section.querySelector('[data-ng132-force]');
+        button.disabled = true;
+        const result=await memory.syncNow({force:true});
+        if(!result?.ok){setFailure('Reprise intégrale impossible',result);button.disabled=false;}
         schedule(50);
       };
 
@@ -281,8 +295,10 @@
 
   document.addEventListener('niakgpt:project-memory-state',() => schedule(60));
   document.addEventListener('niakgpt:project-memory-synced',() => schedule(60));
+  document.addEventListener('niakgpt:control-center-rendered',() => schedule(0));
   document.addEventListener('click',event => {
     if (!(event.target instanceof Element) || !event.target.closest('#ng90-settings-btn')) return;
     if (!document.querySelector('#ng90-control [data-ng132-memory]')) schedule(120);
   },true);
+  schedule(0);
 })();

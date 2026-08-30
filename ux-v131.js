@@ -16,7 +16,7 @@
   const own=el=>!!el?.closest?.(OWN);
 
   function score(el){
-    if(!(el instanceof HTMLElement)||el.closest('main,[role="main"]')||own(el))return-Infinity;
+    if(!(el instanceof HTMLElement)||el.closest('main,[role="main"]')||own(el)||!visible(el)||el.closest('[hidden],[inert],[aria-hidden="true"]'))return-Infinity;
     const r=el.getBoundingClientRect();if(r.width<140||r.height<240)return-Infinity;
     let n=0,tid=String(el.getAttribute('data-testid')||'').toLowerCase(),aria=String(el.getAttribute('aria-label')||'').toLowerCase();
     if(tid==='conversation-sidebar')n+=160;else if(tid.includes('sidebar'))n+=90;
@@ -27,6 +27,7 @@
     const projects=el.querySelectorAll(PROJECT).length,chats=el.querySelectorAll(CHAT).length;
     n+=Math.min(projects,8)*5+Math.min(chats,12)*2;
     if([...el.querySelectorAll('a[href]')].some(a=>PRIMARY.test(a.getAttribute('href')||'')))n+=28;
+    const hit=document.elementFromPoint(Math.max(1,Math.min(innerWidth-2,r.left+Math.min(24,r.width/2))),Math.max(1,Math.min(innerHeight-2,r.top+Math.min(120,r.height/3))));if(hit&&el.contains(hit))n+=55;else n-=24;
     return n;
   }
   function findSidebar(){

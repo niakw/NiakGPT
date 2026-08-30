@@ -25,9 +25,9 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.78': fail(f"version={version}")
-if manifest.get('permissions')!=['storage','scripting']: fail('permissions drift')
-if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*']: fail('host permissions drift')
+if version!='0.9.79': fail(f"version={version}")
+if manifest.get('permissions')!=['storage','scripting','identity']: fail('permissions drift')
+if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*']: fail('host permissions drift')
 
 # Release-facing documentation must never lag behind the installable manifest again.
 readme=read('README.md')
@@ -131,7 +131,7 @@ for token in ('↳ Suite en parallèle','LEGACY_HEADER','waiting','thinking','ex
 if 'setInterval(' in parallel: fail('parallel continuation must remain event-driven')
 
 memory_bg=read('project-memory-background-v132.js')
-for token in ('memory_repository_must_be_private','verifiedPrivateAt','chrome.storage.session','niakgpt:memory-connect-v132','niakgpt:memory-commit-v132','git/refs/heads','initializeEmptyRepo',"method: 'PUT'",'github_initial_content_commit_failed'):
+for token in ('memory_repository_must_be_private','verifiedPrivateAt','chrome.storage.session','niakgpt:memory-connect-v132','niakgpt:memory-commit-v132','git/refs/heads','initializeEmptyRepo',"method: 'PUT'",'github_initial_content_commit_failed','chrome.identity.launchWebAuthFlow','app-manifests/','request_oauth_on_install','niakgpt:memory-github-connect-repo-v132','github_repository_not_authorized_for_vault','refresh_token'):
     if token not in memory_bg: fail('Project Memory backend incomplete '+token)
 interruption=read('interruption-guard-v119.js')
 for token in ('nos\\s+systèmes\\s+effectuent\\s+quelques\\s+vérifications','connexion\\s+(?:perdue|interrompue)','assistantTail','settleRecovery','recoveryEpoch=0'):
@@ -140,12 +140,13 @@ bridge=read('page-bridge.js')
 if "interruption === 'network'" not in bridge or "interruption === 'verify'" not in bridge: fail('RPC interruption pause missing')
 
 memory=read('project-memory-v132.js')
-for token in ('memoryBootstrap: memoryBootstrap === true','PROJECT_STATE.md','conversations/','sync_already_running','injectOnNewChat','NIAKGPT PROJECT MEMORY — CHECKPOINT RÉCUPÉRÉ','canonicalUpdated','MEMORY_LOCK','autoOwner','niakgpt:tab-role-changed'):
+for token in ('memoryBootstrap: memoryBootstrap === true','PROJECT_STATE.md','conversations/','sync_already_running','injectOnNewChat','NIAKGPT PROJECT MEMORY — CHECKPOINT RÉCUPÉRÉ','canonicalUpdated','MEMORY_LOCK','autoOwner','niakgpt:tab-role-changed','githubLogin','githubRepositories','githubConnectRepo','githubLogout'):
     if token not in memory: fail('Project Memory runtime incomplete '+token)
 bridge=read('page-bridge.js')
 if "d.memoryBootstrap !== true" not in bridge or 'conversation_detail_get_disabled' not in bridge: fail('Project Memory full-history bridge guard incomplete')
 if 'project-memory-v132.css' not in css_runtime: fail('Project Memory UI CSS missing from manifest')
 if not (ROOT/'visual-lab/project-memory-v132.mjs').exists(): fail('Project Memory browser UX gate missing')
+if not (ROOT/'github-vault-start.html').exists() or not (ROOT/'github-vault-start.js').exists(): fail('GitHub auth launcher missing')
 if not (ROOT/'labs/project-memory-isolation-v133.mjs').exists(): fail('Project Memory isolation failure gate missing')
 if not (ROOT/'.github/workflows/project-memory-v132.yml').exists(): fail('Project Memory workflow missing')
 fixture=read('test/x.md')
@@ -198,7 +199,7 @@ package_tool=read('tools/package-extension.mjs')
 for token in (
     'sidebar-actions-v123.js','sidebar-actions-v123.css','native-actions-controller-v119.js','native-actions-v113.js','composer-continuation-v128.js',
     'long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js','live-stability-v129.css',
-    'ux-v131.js','ux-v131.css','project-memory-background-v132.js','project-memory-v132.js','project-memory-ui-v132.js','project-memory-v132.css'
+    'ux-v131.js','ux-v131.css','project-memory-background-v132.js','project-memory-v132.js','project-memory-ui-v132.js','project-memory-v132.css','github-vault-start.html','github-vault-start.js'
 ):
     if token not in package_tool: fail('package runtime policy missing '+token)
 

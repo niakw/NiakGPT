@@ -1,3 +1,19 @@
+/* Explicit Project/chat action hitboxes: never overlap the clickable title area. */
+#ng8-pins .ng113-native-actions{
+  position:relative!important;z-index:4!important;display:grid!important;place-items:center!important;
+  justify-self:center!important;align-self:center!important;box-sizing:border-box!important;
+  width:28px!important;height:28px!important;min-width:28px!important;min-height:28px!important;
+  margin:0!important;padding:0!important;border:1px solid transparent!important;border-radius:6px!important;
+  background:transparent!important;color:#8295a7!important;cursor:pointer!important;pointer-events:auto!important;
+  touch-action:manipulation!important;overflow:visible!important;
+}
+#ng8-pins .ng96-pin-entry>.ng113-native-actions-project{grid-column:2/3!important;grid-row:1!important;}
+#ng8-pins .ng96-chat-entry>.ng113-native-actions-chat{grid-column:2/3!important;grid-row:1!important;}
+#ng8-pins .ng113-native-actions:hover,#ng8-pins .ng113-native-actions:focus-visible{
+  border-color:#405565!important;background:#16232d!important;color:#fff!important;outline:none!important;
+}
+#ng8-pins .ng113-native-actions .ng113-dots{pointer-events:none!important;display:block!important;line-height:1!important;}
+
 /* NiakGPT 0.9.70 — single-owner custom sidebar actions, always outside sidebar clipping. */
 #ng123-action-menu{position:fixed!important;z-index:2147483647!important;width:min(278px,calc(100vw - 16px))!important;min-width:238px!important;padding:7px!important;margin:0!important;border:1px solid #33495a!important;border-radius:10px!important;background:#09131c!important;color:#dce7f1!important;box-shadow:0 18px 52px rgba(0,0,0,.56)!important;overflow:auto!important;overscroll-behavior:contain!important;font:11px/1.25 system-ui,sans-serif!important;pointer-events:auto!important;isolation:isolate!important}
 #ng123-action-menu>strong{display:block!important;padding:7px 8px 8px!important;margin-bottom:3px!important;border-bottom:1px solid #1f3040!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;color:#f2f7fb!important;font-size:11px!important}

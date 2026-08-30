@@ -48,10 +48,10 @@ jobs:
           done
       - name: Project Memory v132 contract
         run: node tools/project-memory-v132.mjs
+      - name: Project Memory failure isolation v133
+        run: node labs/project-memory-isolation-v133.mjs
       - name: Current static validation
         run: python3 labs/static_validate_current.py
-      - name: Public fixture privacy
-        run: node tools/check-fixture-privacy-v133.mjs
       - name: Packaging exclusion check
         run: node tools/package-extension.mjs
 

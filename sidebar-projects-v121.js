@@ -16,7 +16,7 @@
   const PRIMARY_PATH=/^(?:\/?$|\/new(?:\/|$)|\/search(?:\/|$)|\/library(?:\/|$)|\/images?(?:\/|$)|\/apps?(?:\/|$)|\/codex(?:\/|$))/i;
   let cache={projects:[],chats:[],counts:{}},governance={hiddenProjectIds:[],coreProjectIds:[]};
   let observer=null,observedRoot=null,internal=false,timer=0,renderEpoch=0,lastPinFocus=null,lastPinFocusAt=0,bootstrapObserver=null,projectScrollMemory=0;
-  let pendingProjectScroll=null,pendingScrollSeq=0,userScrollIntentAt=0;
+  let pendingProjectScroll=null,pendingScrollSeq=0,userScrollIntentAt=0,userScrollEpoch=0;
   const sessionOrder=new Map();let sessionSeq=0;
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
@@ -88,23 +88,49 @@
     return p;
   }
   function noteUserScrollIntent(){
-    userScrollIntentAt=performance.now();pendingProjectScroll=null;pendingScrollSeq++;
+    userScrollIntentAt=performance.now();userScrollEpoch++;pendingProjectScroll=null;pendingScrollSeq++;
     document.documentElement.dataset.ng121ScrollGuard='user-input';
   }
   function captureProjectScroll(reason='cache'){
     const list=document.querySelector('#ng8-pins>.ng8-pin-list');if(!(list instanceof HTMLElement))return null;
     const max=Math.max(0,list.scrollHeight-list.clientHeight);if(max<=0)return null;
     const top=Math.min(max,Math.max(0,list.scrollTop));projectScrollMemory=top;
-    // Wheel/touch/key input is authoritative. During its short input window we preserve the
-    // live position through renderCatalog itself and never arm a stale timer at the pre-scroll position.
-    if(performance.now()-userScrollIntentAt<600){pendingProjectScroll=null;document.documentElement.dataset.ng121ScrollGuard=`user-priority:${Math.round(top)}`;return null;}
+    const now=performance.now(),recentUser=now-userScrollIntentAt<600;
+    if(recentUser){
+      // A reconcile may arrive in the same task as wheel/touch/key input, before the browser has
+      // applied the user's new scroll position. Never arm the pre-input top. Bind a deferred
+      // snapshot to the user-intent epoch and read the live position after layout instead.
+      const intentEpoch=userScrollEpoch,seq=++pendingScrollSeq;
+      document.documentElement.dataset.ng121ScrollGuard=`user-priority-pending:${Math.round(top)}`;
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{
+        if(intentEpoch!==userScrollEpoch||seq!==pendingScrollSeq)return;
+        const live=document.querySelector('#ng8-pins>.ng8-pin-list');if(!(live instanceof HTMLElement))return;
+        const liveMax=Math.max(0,live.scrollHeight-live.clientHeight);if(liveMax<=0)return;
+        const liveTop=Math.min(liveMax,Math.max(0,live.scrollTop)),armedAt=performance.now();
+        projectScrollMemory=liveTop;
+        pendingProjectScroll={
+          top:liveTop,max:liveMax,
+          reason:'user-priority:'+reason,
+          seq,at:armedAt,until:armedAt+900,
+          userIntentAt:userScrollIntentAt,userIntentEpoch:intentEpoch
+        };
+        document.documentElement.dataset.ng121ScrollGuard=`user-priority-armed:${Math.round(liveTop)}`;
+        settlePendingScroll('user-priority');
+      }));
+      return null;
+    }
     const seq=++pendingScrollSeq;
-    pendingProjectScroll={top,max,reason,seq,at:performance.now(),until:performance.now()+1200,userIntentAt:userScrollIntentAt};
+    pendingProjectScroll={
+      top,max,reason,seq,at:now,until:now+1200,
+      userIntentAt:userScrollIntentAt,userIntentEpoch:userScrollEpoch
+    };
+    document.documentElement.dataset.ng121ScrollGuard=`armed:${Math.round(top)}`;
     return pendingProjectScroll;
   }
+
   function restorePendingScroll(source='reconcile'){
     const p=activePendingScroll(),list=document.querySelector('#ng8-pins>.ng8-pin-list');if(!p||!(list instanceof HTMLElement))return false;
-    if(userScrollIntentAt>p.userIntentAt){pendingProjectScroll=null;return false;}
+    if(userScrollIntentAt>p.userIntentAt||userScrollEpoch!==p.userIntentEpoch){pendingProjectScroll=null;return false;}
     restoreProjectScroll(list,p.top);document.documentElement.dataset.ng121ScrollGuard=`${source}:${Math.round(list.scrollTop)}`;return true;
   }
   function settlePendingScroll(source='reconcile'){
@@ -126,7 +152,15 @@
       if(tail?.parentElement){if(box.parentElement!==tail.parentElement||tail.nextElementSibling!==box){tail.insertAdjacentElement('afterend',box);moved=true;}box.dataset.ng121Placement='after-primary';box.dataset.ng119Placement='after-primary-v121';}
       else if(box.parentElement!==root){root.appendChild(box);moved=true;box.dataset.ng121Placement='sidebar-tail';box.dataset.ng119Placement='sidebar-tail-v121';}
     }
-    if(list&&(moved||pending)){restoreProjectScroll(list,scrollBefore);requestAnimationFrame(()=>{if(box.isConnected&&list.isConnected)restoreProjectScroll(list,scrollBefore);});}
+    if(list&&(moved||pending)){
+      const placeIntentEpoch=userScrollEpoch,pendingSeq=pending?.seq||0;
+      restoreProjectScroll(list,scrollBefore);
+      requestAnimationFrame(()=>{
+        if(!box.isConnected||!list.isConnected||userScrollEpoch!==placeIntentEpoch)return;
+        if(pendingSeq){const current=activePendingScroll();if(!current||current.seq!==pendingSeq)return;}
+        restoreProjectScroll(list,scrollBefore);
+      });
+    }
     box.hidden=false;box.removeAttribute('aria-hidden');box.dataset.ng121PlacementReady='1';document.documentElement.dataset.ng121PinsReady='1';document.documentElement.dataset.ng119PinsReady='1';restoreFocusedPin(box,moved);return true;
   }
 
@@ -236,7 +270,7 @@
   document.addEventListener('wheel',event=>{if(event.target instanceof Element&&event.target.closest('#ng8-pins>.ng8-pin-list'))noteUserScrollIntent();},{capture:true,passive:true});
   document.addEventListener('touchmove',event=>{if(event.target instanceof Element&&event.target.closest('#ng8-pins>.ng8-pin-list'))noteUserScrollIntent();},{capture:true,passive:true});
   document.addEventListener('keydown',event=>{if(event.target instanceof Element&&event.target.closest('#ng8-pins>.ng8-pin-list')&&/^(ArrowUp|ArrowDown|PageUp|PageDown|Home|End| )$/.test(event.key))noteUserScrollIntent();},true);
-  document.addEventListener('scroll',event=>{const target=event.target instanceof Element?event.target:null;if(target?.matches?.('#ng8-pins>.ng8-pin-list')){projectScrollMemory=target.scrollTop;const p=activePendingScroll(),recentIntent=performance.now()-userScrollIntentAt<500;if(p&&(userScrollIntentAt>p.userIntentAt||(recentIntent&&Math.abs(target.scrollTop-p.top)>2)))pendingProjectScroll=null;}},true);
+  document.addEventListener('scroll',event=>{const target=event.target instanceof Element?event.target:null;if(target?.matches?.('#ng8-pins>.ng8-pin-list')){projectScrollMemory=target.scrollTop;const p=activePendingScroll(),recentIntent=performance.now()-userScrollIntentAt<500;if(p&&(userScrollEpoch!==p.userIntentEpoch||userScrollIntentAt>p.userIntentAt||(recentIntent&&Math.abs(target.scrollTop-p.top)>2)))pendingProjectScroll=null;}},true);
   document.addEventListener('focusin',event=>{const target=event.target instanceof HTMLElement?event.target:null;if(target?.closest('#ng8-pins')){lastPinFocus=target;lastPinFocusAt=performance.now();}else if(target&&target!==document.body&&target!==document.documentElement){lastPinFocus=null;lastPinFocusAt=0;}},true);
   document.addEventListener('focusout',event=>{const target=event.target instanceof HTMLElement?event.target:null;if(target?.closest('#ng8-pins')&&(!event.relatedTarget||event.relatedTarget===document.body||event.relatedTarget===document.documentElement)){lastPinFocus=target;lastPinFocusAt=performance.now();}},true);
   document.addEventListener('click',event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;const a=event.target instanceof Element?event.target.closest('#ng8-pins a[data-ng8-pin="1"]'):null;if(a)event.preventDefault();},true);

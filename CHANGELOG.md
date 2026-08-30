@@ -1,3 +1,25 @@
+# NiakGPT 0.9.78 — Hotfix Project Memory isolé et connexion dépôt neuf
+
+## Correctifs critiques — 2026-08-30
+
+- Project Memory sort du runtime critique : `ISOLATED_RUNTIME` termine désormais jusqu’à `ux-v131.js`, puis Project Memory se charge dans `OPTIONAL_RUNTIME` en best-effort ;
+- l’échec de `project-memory-background-v132.js` est capturé dans le service worker et ne peut plus empêcher le bootstrap Projects/sidebar ;
+- le bootstrap principal répond avant toute injection Project Memory optionnelle : Pins, drawers et menus `...` ne dépendent plus de GitHub ;
+- prise en charge des dépôts GitHub privés totalement neufs, sans branche ni commit : création du premier blob/tree/commit/ref ;
+- token et configuration Project Memory ne sont persistés qu’après initialisation réussie ;
+- un échec de connexion conserve dépôt, branche, dossier, token et préférence “mémoriser” dans le formulaire, avec bouton de retry visible ;
+- nouveau gate `labs/project-memory-isolation-v133.mjs` : backend mémoire cassé et runtime mémoire cassé doivent laisser le bootstrap Projects vert ;
+- le lab UX Project Memory teste désormais l’échec visible, la conservation du formulaire et le retry ;
+- le lab global `sidebar-session-ux-v123.mjs` provoque un échec Project Memory puis reteste immédiatement le catalogue Pins/Projects et ses menus d’actions ;
+- la release passe en 0.9.78 afin que le hotfix soit distribué comme une vraie mise à jour ;
+- correction visuelle des lignes Project : colonne contenu + colonne action `...` explicites, hitboxes non chevauchantes et contrôle d’overflow/alignement dans le lab human UX ;
+- reconnaissance explicite de `Nos systèmes effectuent quelques vérifications …` et `Connexion interrompue. En attente de la réponse complète.` ;
+- toutes les RPC NiakGPT et la synchro Project Memory se suspendent pendant vérification ou interruption réseau ;
+- brouillon et fin de réponse assistant partielle sont conservés chiffrés en session ; après retour réseau, NiakGPT privilégie une reprise native unique, sinon prépare une continuité exacte sans envoi automatique ;
+- reprise réseau durcie par une fenêtre de stabilisation DOM bornée pour éviter les races WebKit/SPA.
+
+---
+
 # NiakGPT 0.9.77 — Project Memory GitHub privé et continuité durable
 
 ## Project Memory v132 — 2026-08-29

@@ -4,10 +4,10 @@ import { chromium, firefox, webkit } from '@playwright/test';
 
 const ROOT=path.resolve('..');
 const files=await Promise.all([
-  'sidebar-projects-v121.js','sidebar-ux-v119.js','pin-folders-v096.js','native-actions-controller-v119.js','native-actions-v113.js',
-  'sidebar-ux-v119.css','pin-folders-v096.css','native-actions-v113.css','sidebar-projects-authority-v112.css','project-chat-ux-v110.css'
+  'sidebar-projects-v121.js','sidebar-ux-v119.js','pin-folders-v096.js','sidebar-actions-v123.js',
+  'sidebar-ux-v119.css','pin-folders-v096.css','sidebar-actions-v123.css','sidebar-projects-authority-v112.css','project-chat-ux-v110.css'
 ].map(f=>fs.readFile(path.join(ROOT,f),'utf8')));
-const [projectsJs,legacySidebarJs,foldersJs,controllerJs,actionsJs,sidebarCss,foldersCss,actionsCss,authorityCss,chatCss]=files;
+const [projectsJs,legacySidebarJs,foldersJs,actionsJs,sidebarCss,foldersCss,actionsCss,authorityCss,chatCss]=files;
 const ALL={chromium,firefox,webkit},requested=String(process.env.NIAKGPT_BROWSER||'').trim(),engines=requested?{[requested]:ALL[requested]}:ALL;
 if(requested&&!ALL[requested])throw new Error(`Unsupported NIAKGPT_BROWSER=${requested}`);
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg);};
@@ -36,7 +36,7 @@ for(const [engine,launcher] of Object.entries(engines)){
     await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html',body:html}));
     await page.goto(`https://chatgpt.com/g/${p1}-niakgpt/c/${c1}`,{waitUntil:'domcontentloaded'});
     for(const css of [sidebarCss,foldersCss,actionsCss,authorityCss,chatCss])await page.addStyleTag({content:css});
-    await page.addScriptTag({content:projectsJs});await page.addScriptTag({content:legacySidebarJs});await page.addScriptTag({content:foldersJs});await page.addScriptTag({content:controllerJs});await page.addScriptTag({content:actionsJs});
+    await page.addScriptTag({content:projectsJs});await page.addScriptTag({content:legacySidebarJs});await page.addScriptTag({content:foldersJs});await page.addScriptTag({content:actionsJs});
     await page.waitForTimeout(500);
 
     let state=await page.evaluate(()=>{const b=document.getElementById('ng8-pins'),native=document.getElementById('native-projects'),owned=[...(b?.querySelectorAll('a[data-ng8-pin="1"]')||[])];return{parent:b?.parentElement?.id,next:b?.nextElementSibling?.id,count:owned.length,head:b?.querySelector('.ng8-pin-head b')?.textContent,ready:document.documentElement.dataset.ng121PinsReady,placement:b?.dataset.ng121Placement,legacyOwned:b?.querySelectorAll('a[href^="/g/g-p-"]').length||0,absoluteOwned:owned.every(a=>String(a.getAttribute('href')||'').startsWith('https://chatgpt.com/'))};});
@@ -73,25 +73,16 @@ for(const [engine,launcher] of Object.entries(engines)){
 
     const action=page.locator(`#ng8-pins .ng96-pin-entry[data-pid="${p1}"] > .ng113-native-actions-project`);
     await action.waitFor({state:'visible',timeout:5000});
-    let nativeMenuOpened=false;
-    for(let attempt=0;attempt<3&&!nativeMenuOpened;attempt++){
-      await action.scrollIntoViewIfNeeded();
-      await action.click({timeout:5000});
-      try{
-        await page.waitForFunction(()=>document.querySelector('#menu-1[role="menu"]'),null,{timeout:2500});
-        nativeMenuOpened=true;
-      }catch{
-        if(attempt<2)await page.waitForTimeout(180);
-      }
-    }
-    assert(nativeMenuOpened,'canonical slug Project action button did not open native menu after bounded human retries');
-    state=await page.evaluate(()=>{const m=document.getElementById('menu-1');return{menu:!!m,owned:m?.dataset.ng119Owned||'',floated:m?.dataset.ng113Floated||'',diag:window.__diag['actions-project']||''};});
-    assert(state.menu&&state.owned==='1'&&state.floated==='1',`canonical slug Project action button did not open native menu: ${JSON.stringify(state)}`);
-    await action.click();await page.waitForTimeout(250);assert(await page.locator('#menu-1').count()===0,'second click did not close native Project menu');
+    await action.scrollIntoViewIfNeeded();
+    await action.click({timeout:5000});
+    await page.waitForFunction(()=>document.querySelector('#ng123-action-menu[data-kind="project"]'),null,{timeout:2500});
+    state=await page.evaluate(()=>{const m=document.getElementById('ng123-action-menu'),side=document.querySelector('[data-testid="conversation-sidebar"]'),r=m?.getBoundingClientRect(),s=side?.getBoundingClientRect();return{menu:!!m,body:m?.parentElement===document.body,fixed:m?getComputedStyle(m).position==='fixed':false,outside:!!(r&&s&&r.left>=s.right+2),text:m?.innerText||''};});
+    assert(state.menu&&state.body&&state.fixed&&state.outside&&/Actualiser les conversations/.test(state.text)&&!/Déplacer vers/.test(state.text),`canonical slug Project action button did not open current v123 menu: ${JSON.stringify(state)}`);
+    await action.click();await page.waitForTimeout(120);assert(await page.locator('#ng123-action-menu').count()===0,'second click did not close current Project menu');
 
-    await page.locator(`#ng8-pins a[data-ng121-pid="${p1}"]`).click();await page.waitForTimeout(100);
-    const chatAction=page.locator('#ng8-pins .ng96-chat-entry').first().locator('.ng113-native-actions-chat');await chatAction.click();await page.waitForFunction(()=>document.querySelector('#chat-menu[role="menu"]')||document.querySelector('#main-menu[role="menu"]'),null,{timeout:3500});
-    assert(await page.locator('#ng113-actions-fallback').count()===0,'chat action fell back to a custom NiakGPT menu');
+    const p1Anchor=page.locator(`#ng8-pins a[data-ng121-pid="${p1}"]`);if(await p1Anchor.getAttribute('aria-expanded')!=='true')await p1Anchor.click();await page.waitForTimeout(120);
+    const chatAction=page.locator('#ng8-pins .ng96-chat-entry').first().locator('.ng113-native-actions-chat');await chatAction.scrollIntoViewIfNeeded();await chatAction.click();await page.waitForFunction(()=>document.querySelector('#ng123-action-menu[data-kind="chat"]'),null,{timeout:3500});
+    const chatText=await page.locator('#ng123-action-menu').innerText();assert(/Renommer/.test(chatText)&&/Déplacer vers/.test(chatText)&&!/Actualiser les conversations/.test(chatText),'chat action did not open current v123 chat menu');
 
     console.log(`${engine} live sidebar screenshot state: PASS`);
   }finally{await context.close();await browser.close();}

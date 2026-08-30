@@ -6,7 +6,7 @@
   <p>Projects · performance des longs fils · continuité · navigation · productivité ciblée</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.77-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.78-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -22,7 +22,7 @@ NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
 
-> **Version actuelle : 0.9.77.** Project Memory v132 ajoute une continuité GitHub privée optionnelle tout en conservant l’UX native-first v131, les protections des longs fils et les reprises bornées.
+> **Version actuelle : 0.9.78.** Project Memory reste optionnel et privé, sait initialiser un dépôt neuf sans commit et est désormais totalement isolé du chemin critique Projects/sidebar.
 
 ## Points forts
 
@@ -77,9 +77,11 @@ Le texte utilisateur reste toujours prioritaire : un brouillon modifié n’est 
 
 ### Project Memory privé (optionnel)
 
-NiakGPT 0.9.77 peut associer, depuis le Centre de contrôle, un **dépôt GitHub privé choisi par l’utilisateur** à la continuité des Projects.
+NiakGPT 0.9.78 peut associer, depuis le Centre de contrôle, un **dépôt GitHub privé choisi par l’utilisateur** à la continuité des Projects.
 
 - connexion explicite et désactivée par défaut ;
+- un dépôt privé **neuf sans aucun commit** est initialisé automatiquement à la première connexion ;
+- si GitHub refuse la connexion, dépôt/branche/dossier/token restent affichés pour permettre une correction et un nouvel essai ;
 - le dépôt sélectionné est vérifié comme **privé avant l’initialisation puis avant chaque lecture/écriture** ;
 - à la première connexion, tous les Projects ChatGPT existants non vides déjà indexés par NiakGPT sont amorcés ;
 - description/instructions du Project, snapshots d’historique, signaux de tâches/décisions/architecture et checkpoint compact `PROJECT_STATE.md` sont stockés sous une racine mémoire dédiée ;
@@ -103,7 +105,7 @@ La couche UX v131 retire l’effet « seconde application autour de ChatGPT » :
 
 ### Cœur local-first, synchro privée optionnelle
 
-Le cœur de NiakGPT reste local-first. La version 0.9.77 déclare :
+Le cœur de NiakGPT reste local-first. La version 0.9.78 déclare :
 
 ```text
 storage
@@ -155,7 +157,7 @@ NiakGPT est une extension **Manifest V3** avec une surface de privilèges volont
 - **Projects :** une autorité de visibilité, un propriétaire du catalogue/placement, une garde UX finale.
 - **Multi-onglets :** coordination WORKER/CLIENT via des primitives locales du navigateur.
 - **Reprise :** chemins natifs bornés ; aucun contournement de challenge et aucune boucle de reload automatique.
-- **Project Memory :** transport GitHub isolé côté worker + synchroniseur Project isolé ; vérification du dépôt privé obligatoire et contexte normal limité à un checkpoint compact.
+- **Project Memory :** runtime optionnel chargé après le cœur ; une panne backend/UI mémoire ne peut plus bloquer Projects, Pins ou leurs menus d’actions. Vérification du dépôt privé obligatoire et contexte normal limité à un checkpoint compact.
 
 Voir [ARCHITECTURE.md](ARCHITECTURE.md) pour l’ordre runtime et les invariants détaillés.
 
@@ -187,7 +189,7 @@ Une fixture verte ne remplace **jamais** une capture utilisateur réelle qui la 
 | [README.md](README.md) | README anglais |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture runtime et invariants de propriété |
 | [CHANGELOG.md](CHANGELOG.md) | Historique détaillé |
-| [RELEASE_NOTES_0.9.77.md](RELEASE_NOTES_0.9.77.md) | Résumé de la release courante |
+| [RELEASE_NOTES_0.9.78.md](RELEASE_NOTES_0.9.78.md) | Résumé de la release courante |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnostic et reprise |
 | [PRIVACY.md](PRIVACY.md) | Données locales et comportement réseau |
 | [SECURITY.md](SECURITY.md) | Modèle de sécurité et signalement |

@@ -25,7 +25,7 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.77': fail(f"version={version}")
+if version!='0.9.78': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*']: fail('host permissions drift')
 
@@ -53,16 +53,19 @@ if 'ux-v131.css' not in css_runtime: fail('v131 visual authority missing from ma
 
 main=runtime('MAIN_RUNTIME')
 isolated=runtime('ISOLATED_RUNTIME')
+optional=runtime('OPTIONAL_RUNTIME')
 if main!=['page-bridge.js']: fail(f'MAIN_RUNTIME={main!r}')
 required={
     'sidebar-metadata-v118.js','sidebar-projects-authority-v112.js','sidebar-projects-v121.js','sidebar-ux-v119.js','pin-folders-v096.js','app-v090.js','sidebar-actions-v123.js',
     'home-layout-v112.js','analysis-bridge-v112.js','reclassify-deep-v112.js','matrix-guardian-v112.js','performance-guard-v112.js','turn-headers-v112.js','continuity-v112.js',
     'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','interruption-guard-v119.js',
-    'project-memory-v132.js','project-memory-ui-v132.js','ux-v131.js'
+    'ux-v131.js'
 }
 missing_runtime=sorted(required-set(isolated))
 if missing_runtime: fail('current runtime missing: '+', '.join(missing_runtime))
 if isolated and isolated[-1]!='ux-v131.js': fail('v131 UX reconciler must be the final isolated runtime authority')
+if optional!=['project-memory-v132.js','project-memory-ui-v132.js']: fail(f'OPTIONAL_RUNTIME={optional!r}')
+if any(x.startswith('project-memory-') for x in isolated): fail('Project Memory leaked into critical isolated runtime')
 for forbidden in (
     'project-pins-v090.js','native-rename-v112.js','breadcrumb-v100.js','sidebar-authority-v107.js','sidebar-expando-guard-v108.js',
     'native-actions-controller-v119.js','native-actions-v113.js','composer-continuation-v128.js','long-run-watchdog-v129.js',
@@ -78,7 +81,7 @@ for file in recovery_overlays:
     if file in isolated: fail(f'0.9.71-0.9.73 recovery overlay wired: {file}')
     if (ROOT/file).exists(): fail(f'0.9.71-0.9.73 recovery overlay still shipped: {file}')
 
-refs=set(main+isolated)
+refs=set(main+isolated+optional)
 for cs in manifest.get('content_scripts',[]):
     refs.update(cs.get('js',[]))
     refs.update(cs.get('css',[]))
@@ -107,8 +110,14 @@ for token in ('ng123-action-menu','ng123-rename-dialog','dataset.ng123Action','d
     if token not in actions: fail('single-owner sidebar actions incomplete '+token)
 
 catalog=read('sidebar-projects-v121.js')
-for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','niakgpt:sidebar-projects-reconcile'):
+for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','userScrollEpoch','user-priority-armed','placeIntentEpoch=userScrollEpoch','niakgpt:sidebar-projects-reconcile'):
     if token not in catalog: fail('session-stable Projects catalog incomplete '+token)
+if re.search(r"recentUser[^\n]*return\s+null|user-priority:[^\n]*return\s+null",catalog): fail('recent user Project scroll must arm a restore snapshot, not return null')
+if 'userIntentAt:userScrollIntentAt' not in catalog: fail('pending Project scroll snapshot lost user intent epoch binding')
+continuity=read('continuity-v100.js')
+for token in ('armComposerObserver','composerObserver','CONTINUITÉ NIAKGPT','injectPending'):
+    if token not in continuity: fail('event-driven continuity injection incomplete '+token)
+
 folders=read('pin-folders-v096.js')
 for token in ('drawerScrollMemory','innerScroll','outerScroll','niakgpt:hydrate-project'):
     if token not in folders: fail('drawer scroll/hydration continuity incomplete '+token)
@@ -122,8 +131,14 @@ for token in ('↳ Suite en parallèle','LEGACY_HEADER','waiting','thinking','ex
 if 'setInterval(' in parallel: fail('parallel continuation must remain event-driven')
 
 memory_bg=read('project-memory-background-v132.js')
-for token in ('memory_repository_must_be_private','verifiedPrivateAt','chrome.storage.session','niakgpt:memory-connect-v132','niakgpt:memory-commit-v132','git/refs/heads'):
+for token in ('memory_repository_must_be_private','verifiedPrivateAt','chrome.storage.session','niakgpt:memory-connect-v132','niakgpt:memory-commit-v132','git/refs/heads','initializeEmptyRepo',"method: 'PUT'",'github_initial_content_commit_failed'):
     if token not in memory_bg: fail('Project Memory backend incomplete '+token)
+interruption=read('interruption-guard-v119.js')
+for token in ('nos\\s+systèmes\\s+effectuent\\s+quelques\\s+vérifications','connexion\\s+(?:perdue|interrompue)','assistantTail','settleRecovery','recoveryEpoch=0'):
+    if token not in interruption: fail('interruption recovery contract incomplete '+token)
+bridge=read('page-bridge.js')
+if "interruption === 'network'" not in bridge or "interruption === 'verify'" not in bridge: fail('RPC interruption pause missing')
+
 memory=read('project-memory-v132.js')
 for token in ('memoryBootstrap: memoryBootstrap === true','PROJECT_STATE.md','conversations/','sync_already_running','injectOnNewChat','NIAKGPT PROJECT MEMORY — CHECKPOINT RÉCUPÉRÉ','canonicalUpdated','MEMORY_LOCK','autoOwner','niakgpt:tab-role-changed'):
     if token not in memory: fail('Project Memory runtime incomplete '+token)
@@ -131,6 +146,7 @@ bridge=read('page-bridge.js')
 if "d.memoryBootstrap !== true" not in bridge or 'conversation_detail_get_disabled' not in bridge: fail('Project Memory full-history bridge guard incomplete')
 if 'project-memory-v132.css' not in css_runtime: fail('Project Memory UI CSS missing from manifest')
 if not (ROOT/'visual-lab/project-memory-v132.mjs').exists(): fail('Project Memory browser UX gate missing')
+if not (ROOT/'labs/project-memory-isolation-v133.mjs').exists(): fail('Project Memory isolation failure gate missing')
 if not (ROOT/'.github/workflows/project-memory-v132.yml').exists(): fail('Project Memory workflow missing')
 fixture=read('test/x.md')
 if 'Synthetic test data only' not in fixture or 'No real user text.' not in fixture: fail('Project Memory public lab fixture is not explicitly synthetic')
@@ -165,7 +181,7 @@ for gate in (
 ):
     if not (ROOT/gate).exists(): fail('current browser-fixture UX gate missing '+gate)
 workflow=read('.github/workflows/current-finalization.yml')
-for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble'):
+for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble','project-memory-isolation-v133.mjs'):
     if token not in workflow: fail('Current Finalization missing '+token)
 if re.search(r'^\s*npx playwright install --with-deps\b',workflow,re.M): fail('Linux Finalization reintroduced apt --with-deps')
 parallel_workflow=read('.github/workflows/parallel-continuation-v128.yml')

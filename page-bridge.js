@@ -37,9 +37,15 @@
   const cacheTTL = () => 1200;
   const gapFor = (_path, method) => method === 'GET' ? 180 : 450;
   const cacheKey = (path, method) => `${method}:${path}`;
-  const nativeBusy = () => document.documentElement.dataset.ng8Running === '1' ||
-    ['loading','waiting','thinking','executing'].includes(document.documentElement.dataset.ng86Activity || '') ||
-    document.documentElement.dataset.ng105Verification === '1';
+  const nativeBusy = () => {
+    const interruption=String(document.documentElement.dataset.ng119Interruption||'').toLowerCase();
+    return document.documentElement.dataset.ng8Running === '1' ||
+      ['loading','waiting','thinking','executing'].includes(document.documentElement.dataset.ng86Activity || '') ||
+      document.documentElement.dataset.ng105Verification === '1' ||
+      interruption === 'verify' ||
+      interruption === 'network' ||
+      navigator.onLine === false;
+  };
   const nativeBusyResult = () => ({ok:false,status:0,data:null,error:'native_busy',transport:'bridge-pause'});
 
   function retryAfterMsFrom(value) {

@@ -2,7 +2,7 @@
 
 ## Modèle de sécurité
 
-NiakGPT 0.9.77 est une extension Manifest V3 dont le cœur reste local-first. Project Memory v132 ajoute un canal GitHub **optionnel**, réservé à un dépôt privé choisi par l’utilisateur.
+NiakGPT 0.9.78 est une extension Manifest V3 dont le cœur reste local-first. Project Memory v132 ajoute un canal GitHub **optionnel**, réservé à un dépôt privé choisi par l’utilisateur.
 
 L’extension ne demande pas de clé API OpenAI et ne stocke volontairement ni cookie de session ChatGPT ni jeton d’accès ChatGPT dans un serveur NiakGPT externe.
 
@@ -32,9 +32,11 @@ Règles obligatoires :
 7. les écritures sont bornées en nombre de fichiers et en taille ;
 8. la mise à jour de branche n’utilise pas `force: true` ;
 9. un conflit de tête de branche provoque au plus une reconstruction/retry, jamais un écrasement forcé ;
-10. le dépôt public NiakGPT n’est jamais une destination spéciale ou par défaut.
+10. le dépôt public NiakGPT n’est jamais une destination spéciale ou par défaut ;
+11. un dépôt privé sans commit est initialisé par un premier commit/ref sans exiger une branche préexistante ;
+12. Project Memory est optionnel : une erreur de son backend ou de ses scripts ne peut pas rendre le bootstrap Projects/sidebar en échec.
 
-Le dépôt privé protège l’accès par GitHub ; **NiakGPT 0.9.77 n’ajoute pas de chiffrement applicatif E2E des fichiers mémoire**. Toute personne ou application disposant d’un accès suffisant au dépôt peut lire son contenu.
+Le dépôt privé protège l’accès par GitHub ; **NiakGPT 0.9.78 n’ajoute pas de chiffrement applicatif E2E des fichiers mémoire**. Toute personne ou application disposant d’un accès suffisant au dépôt peut lire son contenu.
 
 ## Token GitHub
 
@@ -93,13 +95,15 @@ Les autres règles du bridge restent inchangées :
 
 Les données dynamiques doivent utiliser `textContent` ou être échappées avant interpolation HTML.
 
-Le Control Center ne doit pas se rerendre en boucle pendant la saisie d’un dépôt/token : la section Project Memory est réinsérée uniquement lorsque le Control Center apparaît ou lorsqu’un événement mémoire réel nécessite un rafraîchissement.
+Le Control Center ne doit pas se rerendre en boucle pendant la saisie d’un dépôt/token et un échec de connexion ne doit pas effacer les valeurs saisies : la section Project Memory est réinsérée uniquement lorsque le Control Center apparaît ou lorsqu’un événement mémoire réel nécessite un rafraîchissement.
 
 ## Vérifications et challenges
 
 NiakGPT ne contourne jamais CAPTCHA, challenge ou iframe de vérification ChatGPT.
 
-Pendant une vérification, les requêtes NiakGPT — y compris Project Memory — sont suspendues ou échouent proprement.
+Pendant une vérification, les requêtes NiakGPT — y compris Project Memory — sont suspendues ou échouent proprement. NiakGPT ne clique jamais sur le challenge lui-même. Après disparition du challenge, une éventuelle action native ChatGPT de reprise peut être utilisée une seule fois.
+
+Le même circuit de pause s’applique aux interruptions réseau natives détectées. Les brouillons et extraits de continuité temporaires restent bornés et chiffrés dans `sessionStorage`; aucune reprise de texte préparée par NiakGPT n’est envoyée automatiquement.
 
 ## Secrets à ne jamais publier
 

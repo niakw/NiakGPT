@@ -5,12 +5,12 @@
 
   const KEY='niakgpt-interruption-v120';
   const LEGACY_KEY='niakgpt-interruption-v119';
-  const SIGNAL_SEL='[role="alert"],[role="status"],[data-testid*="error" i],[data-testid*="limit" i],[data-testid*="toast" i],[data-testid*="challenge" i],iframe[src*="challenge" i],iframe[src*="cloudflare" i]';
+  const SIGNAL_SEL='[role="alert"],[role="status"],[aria-live="polite"],[aria-live="assertive"],[data-testid*="error" i],[data-testid*="limit" i],[data-testid*="toast" i],[data-testid*="challenge" i],[data-testid*="verification" i],iframe[src*="challenge" i],iframe[src*="cloudflare" i]';
   const LIMIT_RX=/(maximum\s+(?:conversation|context|length)|conversation\s+(?:is\s+)?too\s+long|conversation.{0,36}(?:limit|maximum)|maximum\s+context\s+length|context\s+window.{0,32}(?:limit|maximum)|start\s+(?:a\s+)?new\s+chat|continue\s+in\s+(?:a\s+)?new\s+chat|you(?:'|’)ve\s+reached.{0,44}(?:limit|maximum)|conversation\s+trop\s+longue|limite.{0,32}(?:conversation|contexte)|(?:nouveau|nouvelle)\s+(?:chat|conversation).{0,40}(?:continuer|poursuivre)|ce\s+fil.{0,28}(?:plein|limite))/i;
-  const VERIFY_RX=/(vérification\s+en\s+cours|verification\s+in\s+progress|checking\s+your\s+browser|verify\s+(?:you|that\s+you)\s+are\s+human|vérifiez\s+que\s+vous\s+êtes\s+humain|cloudflare\s+(?:verification|challenge)|challenge\s+in\s+progress)/i;
+  const VERIFY_RX=/(nos\s+systèmes\s+effectuent\s+quelques\s+vérifications|our\s+systems\s+(?:are\s+)?(?:performing|running)\s+(?:some\s+)?checks|vérification\s+en\s+cours|verification\s+in\s+progress|checking\s+your\s+browser|verify\s+(?:you|that\s+you)\s+are\s+human|vérifiez\s+que\s+vous\s+êtes\s+humain|cloudflare\s+(?:verification|challenge)|challenge\s+in\s+progress)/i;
   const NETWORK_RX=/(connexion\s+(?:perdue|interrompue)|connection\s+(?:lost|interrupted)|network\s+error|erreur\s+réseau|disconnected|déconnecté|websocket.{0,24}(?:error|closed|failed)|reconnecting|reconnexion\s+en\s+cours|failed\s+to\s+fetch|fetch\s+failed|something\s+went\s+wrong|there\s+was\s+an\s+error\s+(?:generating|processing)|une\s+erreur\s+est\s+survenue|erreur\s+lors\s+de\s+la\s+(?:génération|generation)|impossible\s+de\s+générer|unable\s+to\s+generate)/i;
   const RETRY_RX=/(réessayer|reessayer|retry|régénérer|regenerer|regenerate|continuer\s+la\s+génération|continue\s+generating|resume\s+generating)/i;
-  let observer=null,timer=0,incident=null,marking=false,persistEpoch=0;
+  let observer=null,timer=0,incident=null,marking=false,persistEpoch=0,recoveryEpoch=0;
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const visible=el=>{if(!(el instanceof Element)||!el.isConnected)return false;const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden'&&el.getClientRects().length>0;};
@@ -84,7 +84,9 @@
       at:Number(data.at||0),
       retried:!!data.retried,
       recovered:!!data.recovered,
-      recoveredAt:data.recoveredAt?Number(data.recoveredAt):undefined
+      recoveredAt:data.recoveredAt?Number(data.recoveredAt):undefined,
+      draft:clean(data.draft||'').slice(0,12000),
+      assistantTail:clean(data.assistantTail||'').slice(-6000)
     };
   }
   function saveIncident(data){
@@ -106,7 +108,7 @@
     const kind=classifyText(candidateText(el));if(!kind)return'';
     const strong=el.matches('[data-testid*="error" i],[data-testid*="limit" i],[data-testid*="toast" i],[data-testid*="challenge" i],iframe[src*="challenge" i],iframe[src*="cloudflare" i]');
     if(strong)return kind;
-    return el.matches('[role="alert"],[role="status"]')?kind:'';
+    return el.matches('[role="alert"],[role="status"],[aria-live="polite"],[aria-live="assertive"]')?kind:'';
   }
   function currentSignal(type=''){
     const nodes=[...document.querySelectorAll(SIGNAL_SEL)];
@@ -123,12 +125,28 @@
   }
   function bar(){return document.getElementById('ng119-interruption');}
   function clearBar(){bar()?.remove();delete document.documentElement.dataset.ng119Interruption;}
-  function finishRecovery(){saveIncident(null);clearBar();window.__NIAKGPT_DIAGNOSTICS__?.set('interruption-119','OK · incident natif terminé');}
+  function finishRecovery(){recoveryEpoch++;saveIncident(null);clearBar();window.__NIAKGPT_DIAGNOSTICS__?.set('interruption-119','OK · incident natif terminé');}
   function rememberDraft(data){const text=editorText(editor());return text&&!data?.draft?{...data,draft:text}:data;}
+  function assistantTail(){
+    const turns=[...document.querySelectorAll('[data-message-author-role="assistant"]')].filter(el=>visible(el)&&!ownRecoveryNode(el));
+    const text=clean(turns.at(-1)?.innerText||turns.at(-1)?.textContent||'');
+    return text.slice(-6000);
+  }
+  function shouldRememberAssistantTail(data){
+    if(data?.type!=='network')return false;
+    const sample=clean(data?.sample||'');
+    const active=['loading','waiting','thinking','executing'].includes(String(document.documentElement.dataset.ng86Activity||'').toLowerCase())||document.documentElement.dataset.ng8Running==='1';
+    return active||/(en\s+attente\s+de\s+la\s+réponse\s+complète|waiting\s+for\s+the\s+full\s+response)/i.test(sample);
+  }
+  function rememberAssistantTail(data){if(!shouldRememberAssistantTail(data))return data;const tail=assistantTail();return tail&&!data?.assistantTail?{...data,assistantTail:tail}:data;}
+  function rememberRecoveryContext(data){return rememberAssistantTail(rememberDraft(data));}
   function restoreDraft(){const text=clean(incident?.draft);if(!text)return false;const ed=editor();if(!ed||editorText(ed))return false;return setEditor(ed,text);}
   function resumePrompt(){
-    const text='Reprends exactement là où le travail ou la réponse s’est interrompu avant l’incident. Ne recommence pas les étapes déjà terminées ; poursuis directement la tâche en cours et vérifie ce qui restait inachevé.';
-    const ed=editor();if(!ed)return false;const current=editorText(ed);if(current)return false;return setEditor(ed,text);
+    const tail=clean(incident?.assistantTail);
+    const continuity=tail
+      ? `La réponse précédente a été interrompue. Reprends exactement après l’extrait final ci-dessous, sans répéter ce qui est déjà écrit, puis poursuis la tâche en cours jusqu’au bout.\n\nFIN DE LA RÉPONSE REÇUE\n${tail}`
+      : 'Reprends exactement là où le travail ou la réponse s’est interrompu avant l’incident. Ne recommence pas les étapes déjà terminées ; poursuis directement la tâche en cours et vérifie ce qui restait inachevé.';
+    const ed=editor();if(!ed)return false;const current=editorText(ed);if(current)return false;return setEditor(ed,continuity);
   }
   function mount(type,{ready=false}={}){
     let box=bar();if(!box){box=document.createElement('aside');box.id='ng119-interruption';box.setAttribute('role','status');document.body.appendChild(box);}
@@ -154,8 +172,8 @@
   function begin(type,text=''){
     if(type==='limit'){handleLimit('native-signal');return;}
     if(type==='verify')setVerificationPause(true);else if(!currentSignal('verify'))setVerificationPause(false);
-    if(!incident||incident.type!==type)saveIncident(rememberDraft({type,at:Date.now(),retried:false,recovered:false,sample:clean(text).slice(0,240)}));
-    else if(!incident.draft){const next=rememberDraft(incident);if(next!==incident)saveIncident(next);}
+    if(!incident||incident.type!==type)saveIncident(rememberRecoveryContext({type,at:Date.now(),retried:false,recovered:false,sample:clean(text).slice(0,240)}));
+    else if(!incident.draft||!incident.assistantTail){const next=rememberRecoveryContext(incident);if(next!==incident)saveIncident(next);}
     mount(type,{ready:false});window.__NIAKGPT_DIAGNOSTICS__?.set('interruption-119',type==='verify'?'PAUSE · vérification native + bridge':'PAUSE · connexion native + brouillon conservé');scheduleRecovery(500);
   }
   function tryNativeRecovery(){
@@ -164,21 +182,34 @@
     if(incident.type==='verify')setVerificationPause(false);
     restoreDraft();
     const retry=nativeRetry();
-    if(retry&&!incident.retried){incident={...incident,retried:true,recoveredAt:Date.now()};saveIncident(incident);retry.click();window.__NIAKGPT_DIAGNOSTICS__?.set('interruption-119','REPRISE · bouton ChatGPT natif déclenché une fois');setTimeout(()=>{if(incident&&!currentSignal(incident.type))finishRecovery();},900);return true;}
+    if(retry&&!incident.retried){incident={...incident,retried:true,recoveredAt:Date.now()};saveIncident(incident);retry.click();window.__NIAKGPT_DIAGNOSTICS__?.set('interruption-119','REPRISE · bouton ChatGPT natif déclenché une fois');setTimeout(()=>{if(incident&&!currentSignal(incident.type))finishRecovery();},1200);return true;}
+    if(incident.type==='network'&&incident.assistantTail){
+      incident={...incident,recovered:true,recoveredAt:Date.now()};saveIncident(incident);mount('network',{ready:true});
+      window.__NIAKGPT_DIAGNOSTICS__?.set('interruption-119','REPRISE PRÊTE · fin de réponse partielle conservée');
+      return false;
+    }
     finishRecovery();return false;
   }
   function scheduleRecovery(delay=240){clearTimeout(timer);timer=setTimeout(()=>{timer=0;tryNativeRecovery();},delay);}
+  function settleRecovery(){
+    const epoch=++recoveryEpoch;
+    for(const delay of[0,120,320,700,1400,2400])setTimeout(()=>{
+      if(epoch!==recoveryEpoch||!incident||incident.recovered)return;
+      if(currentSignal(incident.type))return;
+      tryNativeRecovery();
+    },delay);
+  }
   function inspectNode(node){
     if(!(node instanceof Element)||ownRecoveryNode(node))return;
     const candidates=[];if(node.matches?.(SIGNAL_SEL))candidates.push(node);for(const el of node.querySelectorAll?.(SIGNAL_SEL)||[])candidates.push(el);
     for(const el of candidates){const type=trustedSignal(el);if(type){begin(type,candidateText(el));return;}}
   }
-  function scan(){const signal=currentSignal();if(signal)begin(signal.kind,candidateText(signal.node));else if(incident&&['verify','network'].includes(incident.type))scheduleRecovery(120);else setVerificationPause(false);}
+  function scan(){const signal=currentSignal();if(signal)begin(signal.kind,candidateText(signal.node));else if(incident&&['verify','network'].includes(incident.type))settleRecovery();else setVerificationPause(false);}
   function bind(){
     observer?.disconnect();observer=new MutationObserver(records=>{
       let structural=false;
       for(const r of records){if(r.type!=='childList')continue;const external=[...r.addedNodes,...r.removedNodes].some(node=>!(node instanceof Element)||!ownRecoveryNode(node));if(!external)continue;structural=true;for(const node of r.addedNodes)inspectNode(node);}
-      if(structural&&incident&&['verify','network'].includes(incident.type))scheduleRecovery(180);
+      if(structural&&incident&&['verify','network'].includes(incident.type))settleRecovery();
     });observer.observe(document.documentElement,{childList:true,subtree:true});
   }
   function onRoute(){clearBar();const p=String(location.pathname);if(!/\/c\//.test(p)&&incident?.type==='limit')saveIncident(null);setTimeout(scan,160);}
@@ -188,7 +219,7 @@
     event.preventDefault();const chatId=incident?.chatId||String(location.pathname).match(/\/c\/([A-Za-z0-9_-]+)/)?.[1]||'';
     if(chatId)window.__NIAKGPT_CONTINUITY__?.continueFrom?.(chatId);setTimeout(()=>clearBar(),0);
   },false);
-  window.addEventListener('online',()=>{if(incident?.type==='network')scheduleRecovery(80);});
+  window.addEventListener('online',()=>{if(incident?.type==='network')settleRecovery();});
   window.addEventListener('offline',()=>begin('network','browser offline'));
   window.addEventListener('popstate',onRoute);if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',onRoute);
   window.addEventListener('pageshow',()=>{bind();setTimeout(scan,120);});

@@ -16,11 +16,13 @@ Aucun serveur NiakGPT n’est requis. Les caches, réglages, états de gouvernan
 
 ## Barrière d’hydratation React
 
-Les scripts déclarés à `document_start` sont chargés tôt pour pouvoir armer les mécanismes de continuité, mais **ils n’ont plus le droit d’activer leur runtime avant l’hydratation initiale de ChatGPT**. `boot-gate-v100.js` attend `DOMContentLoaded`, le shell ChatGPT, `load`, une période de calme DOM renforcée et plusieurs frames, puis émet `niakgpt:host-hydrated-v100`.
+Depuis 0.9.81, **aucun JavaScript NiakGPT n’est déclaré à `document_start`**. Le groupe bootstrap démarre à `document_idle`, puis `boot-gate-v100.js` exige plusieurs preuves avant d’émettre `niakgpt:host-hydrated-v100` : chargement complet, identité stable des nœuds `nav/main/composer`, longue période sans mutation, deux passages via `requestIdleCallback` (avec fallback borné), puis plusieurs frames.
 
-Jusqu’à ce signal, `composer-continuation-v128.js`, `long-run-watchdog-v129.js`, `pin-interaction-rescue-v129.js`, `project-menu-augment-v129.js` et `continuity-native-handoff-v129.js` ne lancent **aucun observer, timer, interception ou mutation DOM**. Cette règle protège le HTML SSR attendu par React et vise directement les erreurs de récupération/hydration de type React #418.
+Cette combinaison corrige un angle mort de 0.9.80 : React peut continuer son scheduler via `MessagePort` sans muter le DOM pendant plusieurs centaines de millisecondes. Un simple « DOM calme » ne prouve donc pas que l’hydratation est terminée.
 
-Le gate `visual-lab/hydration-barrier-v080.mjs` vérifie l’immuabilité pré-hydratation puis l’activation après signal sur Chromium, Firefox et WebKit.
+Jusqu’au signal final, `composer-continuation-v128.js`, `long-run-watchdog-v129.js`, `pin-interaction-rescue-v129.js`, `project-menu-augment-v129.js` et `continuity-native-handoff-v129.js` restent dormants et ne lancent **aucun observer, timer, interception ou mutation DOM**.
+
+Le gate `visual-lab/hydration-barrier-v080.mjs` reproduit maintenant deux remplacements tardifs du shell via `MessageChannel`, après de fausses périodes de calme, et exige que NiakGPT reste inactif jusqu’à la stabilité finale sur Chromium, Firefox et WebKit.
 
 ## Deux mondes d’exécution
 

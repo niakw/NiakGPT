@@ -2,6 +2,7 @@
 
 - ChatGPT natif obtient une priorité réseau absolue : un envoi ou une génération annule les GET internes NiakGPT en vol.
 - Suppression du fallback automatique fetch → XHR sur erreur réseau afin d’éviter les requêtes doublées pendant une interruption.
+- Aucun clic automatique sur le bouton natif « Réessayer » après vérification/réseau : brouillon préservé, reprise laissée à ChatGPT.
 - L’analyse profonde n’a plus de `fetch()` ChatGPT direct : elle passe par le broker unique et annulable.
 - La reprise d’incident ne clique plus automatiquement sur le bouton natif « Réessayer ».
 - Project Memory devient strictement opportuniste : 45 s d’inactivité humaine, 8 s minimum entre deux lectures complètes d’historique et longue pause après 429/réseau.

@@ -52,7 +52,7 @@ for(const [engine,launcher] of Object.entries(selected)){
     await page.goto('https://chatgpt.com/c/11111111-1111-4111-8111-111111111111',{waitUntil:'domcontentloaded'});
     await page.addScriptTag({content:source});
     await page.waitForSelector('#ng8-rail button[data-tab="diag"]',{timeout:4000});
-    await page.locator('#ng8-rail button[data-tab="diag"]').click();
+    await page.locator('#ng8-rail button[data-tab="diag"]').evaluate(button=>button.click());
     await page.waitForFunction(()=>document.querySelector('#ng8-panel')?.innerText.includes('ONE'),null,{timeout:3000});
 
     const selectedText=await page.evaluate(()=>{

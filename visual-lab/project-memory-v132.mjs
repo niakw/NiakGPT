@@ -31,17 +31,39 @@ try{
     await page.goto('https://chatgpt.com/',{waitUntil:'domcontentloaded'});
     await page.evaluate(()=>{
       window.__calls=[];
-      window.__connectAttempt=0;
-      window.__snapshot={ok:true,connected:false,configured:false,tokenAvailable:false,config:null,state:{mode:'disconnected'},prefs:{autoSync:true,injectOnNewChat:true}};
+      window.__snapshot={
+        ok:true,connected:false,configured:false,tokenAvailable:false,config:null,
+        github:{authenticated:false,account:null,repositories:[],installations:[],manageUrl:''},
+        state:{mode:'disconnected'},prefs:{autoSync:true,injectOnNewChat:true}
+      };
       window.__NIAKGPT_PROJECT_MEMORY__={
         status:async()=>structuredClone(window.__snapshot),
-        connect:async options=>{
-          window.__calls.push({type:'connect',options});
-          window.__connectAttempt++;
-          if(window.__connectAttempt===1)return{ok:false,error:'github_http_401:Bad credentials'};
-          window.__snapshot={...window.__snapshot,connected:true,configured:true,tokenAvailable:true,config:{repo:options.repo,branch:options.branch,root:options.root,rememberToken:options.rememberToken},state:{mode:'connected'}};
+        githubLogin:async()=>{
+          window.__calls.push({type:'github-login'});
+          window.__snapshot.github={
+            authenticated:true,
+            account:{login:'synthetic-user'},
+            repositories:[
+              {fullName:'synthetic-user/vault-one',defaultBranch:'main'},
+              {fullName:'synthetic-user/vault-two',defaultBranch:'stable'}
+            ],
+            installations:[{id:42,manageUrl:'https://github.com/settings/installations/42'}],
+            manageUrl:'https://github.com/settings/installations/42'
+          };
           return{ok:true};
         },
+        githubRepositories:async()=>{window.__calls.push({type:'repos-refresh'});return{ok:true};},
+        githubConnectRepo:async options=>{
+          window.__calls.push({type:'github-repo',options});
+          window.__snapshot={
+            ...window.__snapshot,connected:true,configured:true,tokenAvailable:true,
+            config:{repo:options.repo,branch:options.branch,root:options.root,authMode:'github-app',rememberToken:false},
+            state:{mode:'connected'}
+          };
+          return{ok:true};
+        },
+        githubLogout:async()=>({ok:true}),
+        connect:async()=>({ok:false,error:'manual-not-used'}),
         disconnect:async()=>({ok:true}),
         syncNow:async options=>{window.__calls.push({type:'sync',options});return{ok:true};},
         setPrefs:async prefs=>{window.__calls.push({type:'prefs',prefs});window.__snapshot.prefs=prefs;return prefs;}
@@ -50,43 +72,81 @@ try{
     await page.addScriptTag({content:uiScript});
     await page.locator('#ng90-settings-btn').click();
     await page.locator('[data-ng132-memory]').waitFor();
-    await page.locator('[data-ng132-connect]').evaluate(button=>{button.dataset.ngLabStable='1';});
+    await page.locator('[data-ng132-github-login]').evaluate(button=>{button.dataset.ngLabStable='1';});
     await page.waitForTimeout(240);
-    assert(await page.locator('[data-ng132-connect]').getAttribute('data-ng-lab-stable')==='1','Project Memory form rerendered after initial mount/settings click');
+    assert(await page.locator('[data-ng132-github-login]').getAttribute('data-ng-lab-stable')==='1','Project Memory GitHub form rerendered after initial mount/settings click');
 
-    assert(await page.locator('[data-ng132-token]').getAttribute('type')==='password','GitHub token input is not password');
     const disclosure=await page.locator('[data-ng132-memory]').innerText();
-    assert(/dépôt public NiakGPT/i.test(disclosure)&&/doit être privé/i.test(disclosure),'private repository disclosure missing');
+    assert(/Se connecter avec GitHub/i.test(disclosure),'GitHub login is not the primary Project Memory CTA');
+    assert(/aucun nom de coffre, token ou secret/i.test(disclosure),'public/private repository isolation disclosure missing');
 
+    await page.locator('[data-ng132-github-login]').click();
+    await page.locator('[data-ng132-repo-select]').waitFor();
+    assert(await page.locator('[data-ng132-repo-select] option').count()===2,'authorized repository picker did not expose expected repositories');
+    assert(/@synthetic-user/.test(await page.locator('[data-ng132-memory]').innerText()),'authenticated GitHub account is not visible');
+
+    await page.locator('[data-ng132-repo-select]').selectOption('synthetic-user/vault-two');
+    assert(await page.locator('[data-ng132-app-branch]').inputValue()==='stable','repository default branch did not follow selection');
+    await page.locator('[data-ng132-app-root]').fill('.niakgpt-memory');
+    await page.locator('[data-ng132-use-repo]').click();
+    await page.waitForTimeout(120);
+    const calls=await page.evaluate(()=>window.__calls);
+    const selection=calls.find(call=>call.type==='github-repo');
+    assert(selection?.options?.repo==='synthetic-user/vault-two','chosen GitHub repository not forwarded');
+    assert(selection?.options?.branch==='stable','chosen GitHub branch not forwarded');
+    assert(/Connecté/.test(await page.locator('.ng132-memory-status').innerText()),'successful GitHub repository connection not visible');
+    await page.close();
+  }
+
+  {
+    const page=await newPage();
+    await page.route('https://chatgpt.com/**',route=>route.fulfill({
+      status:200,
+      contentType:'text/html; charset=utf-8',
+      body:'<!doctype html><html lang="fr"><body><button id="ng90-settings-btn">Réglages</button><div id="ng90-control" class="open"><div class="ng90-grid"></div></div></body></html>'
+    }));
+    await page.goto('https://chatgpt.com/',{waitUntil:'domcontentloaded'});
+    await page.evaluate(()=>{
+      window.__calls=[];
+      window.__connectAttempt=0;
+      window.__snapshot={ok:true,connected:false,configured:false,tokenAvailable:false,config:null,github:{authenticated:false,repositories:[]},state:{mode:'disconnected'},prefs:{autoSync:true,injectOnNewChat:true}};
+      window.__NIAKGPT_PROJECT_MEMORY__={
+        status:async()=>structuredClone(window.__snapshot),
+        githubLogin:async()=>({ok:false,error:'synthetic'}),
+        githubRepositories:async()=>({ok:true}),
+        githubConnectRepo:async()=>({ok:false}),
+        githubLogout:async()=>({ok:true}),
+        connect:async options=>{
+          window.__calls.push({type:'connect',options});
+          window.__connectAttempt++;
+          if(window.__connectAttempt===1)return{ok:false,error:'github_http_401:Bad credentials'};
+          window.__snapshot={...window.__snapshot,connected:true,configured:true,tokenAvailable:true,config:{repo:options.repo,branch:options.branch,root:options.root,authMode:'pat',rememberToken:options.rememberToken},state:{mode:'connected'}};
+          return{ok:true};
+        },
+        disconnect:async()=>({ok:true}),
+        syncNow:async()=>({ok:true}),
+        setPrefs:async prefs=>{window.__snapshot.prefs=prefs;return prefs;}
+      };
+    });
+    await page.addScriptTag({content:uiScript});
+    await page.locator('#ng90-settings-btn').click();
+    await page.locator('.ng132-advanced summary').click();
     const repo=page.locator('[data-ng132-repo]');
-    await repo.fill('niakw/private-memory-lab');
-    await page.waitForTimeout(520);
-    assert(await repo.inputValue()==='niakw/private-memory-lab','Project Memory UI rerendered while typing');
-
+    await repo.fill('synthetic-user/private-memory-lab');
     await page.locator('[data-ng132-branch]').fill('main');
     await page.locator('[data-ng132-root]').fill('.niakgpt-memory');
     await page.locator('[data-ng132-token]').fill('synthetic-token-value');
     await page.locator('[data-ng132-remember]').check();
     await page.locator('[data-ng132-connect]').click();
-    await page.waitForTimeout(150);
-    let calls=await page.evaluate(()=>window.__calls);
-    assert(calls.length===1&&calls[0].type==='connect','failed connect action not forwarded');
-    assert(/Connexion refusée/.test(await page.locator('.ng132-memory-status').innerText()),'failed connect is invisible to the user');
-    assert(await repo.inputValue()==='niakw/private-memory-lab','failed connect erased repository');
-    assert(await page.locator('[data-ng132-branch]').inputValue()==='main','failed connect erased branch');
-    assert(await page.locator('[data-ng132-root]').inputValue()==='.niakgpt-memory','failed connect erased root');
-    assert(await page.locator('[data-ng132-token]').inputValue()==='synthetic-token-value','failed connect erased token');
-    assert(await page.locator('[data-ng132-remember]').isChecked(),'failed connect erased remember preference');
-    assert(/Réessayer la connexion/.test(await page.locator('[data-ng132-connect]').innerText()),'failed connect did not expose retry');
-
+    await page.waitForTimeout(120);
+    assert(/Connexion PAT refusée/.test(await page.locator('.ng132-memory-status').innerText()),'manual PAT failure is invisible');
+    assert(await repo.inputValue()==='synthetic-user/private-memory-lab','failed PAT connect erased repository');
+    assert(await page.locator('[data-ng132-token]').inputValue()==='synthetic-token-value','failed PAT connect erased token');
     await page.locator('[data-ng132-connect]').click();
-    await page.waitForTimeout(150);
-    calls=await page.evaluate(()=>window.__calls);
-    assert(calls.length===2&&calls[1].type==='connect','retry connect action not forwarded');
-    assert(calls[1].options.repo==='niakw/private-memory-lab','repository value lost');
-    assert(calls[1].options.token==='synthetic-token-value','token value lost before background handoff');
-    assert(calls[1].options.rememberToken===true,'remember-token preference lost');
-    assert(await page.locator('[data-ng132-token]').inputValue()==='','token remained visible after successful connect');
+    await page.waitForTimeout(120);
+    const calls=await page.evaluate(()=>window.__calls);
+    assert(calls.length===2&&calls[1].options.rememberToken===true,'manual PAT retry contract broken');
+    assert(await page.locator('[data-ng132-token]').inputValue()==='','PAT remained visible after successful fallback connect');
     await page.close();
   }
 
@@ -151,7 +211,7 @@ try{
   }
 
   assert(errors.length===0,'browser errors: '+JSON.stringify(errors));
-  console.log('project-memory-v132 '+requested+': PASS failed-connect-preserves-form+retry+private-ui+stable-input+synchronous-first-send+single-injection');
+  console.log('project-memory-v132 '+requested+': PASS github-login+repo-picker+manual-fallback+synchronous-first-send+single-injection');
 }finally{
   await context.close();
   await browser.close();

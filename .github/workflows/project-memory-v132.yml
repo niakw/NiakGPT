@@ -8,6 +8,8 @@ on:
       - 'page-bridge.js'
       - 'project-memory-*.js'
       - 'project-memory-*.css'
+      - 'github-vault-start.html'
+      - 'github-vault-start.js'
       - 'tools/project-memory-v132.mjs'
       - 'visual-lab/project-memory-v132.mjs'
       - 'visual-lab/sidebar-session-ux-v123.mjs'

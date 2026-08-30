@@ -4,7 +4,7 @@ import { chromium, firefox, webkit } from '@playwright/test';
 
 const ROOT=path.resolve('..'),OUT=path.resolve('artifacts/sidebar-session-v123');
 const jsNames=['sidebar-projects-v121.js','pin-folders-v096.js','sidebar-actions-v123.js','project-memory-ui-v132.js'];
-const cssNames=['theme-v08.css','sidebar-ux-v119.css','pin-folders-v096.css','native-actions-v113.css','sidebar-actions-v123.css'];
+const cssNames=['theme-v08.css','sidebar-ux-v119.css','pin-folders-v096.css','native-actions-v113.css','sidebar-actions-v123.css','project-memory-v132.css'];
 const loaded=Object.fromEntries(await Promise.all([...jsNames,...cssNames].map(async n=>[n,await fs.readFile(path.join(ROOT,n),'utf8')])));
 const ALL={chromium,firefox,webkit},requested=String(process.env.NIAKGPT_BROWSER||'').trim(),engines=requested?{[requested]:ALL[requested]}:ALL;if(requested&&!ALL[requested])throw new Error(`Unsupported NIAKGPT_BROWSER=${requested}`);
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg);};
@@ -21,15 +21,19 @@ for(const [engine,launcher] of Object.entries(engines)){
   try{
     await page.addInitScript(({cache,P1,P2})=>{
       let data=structuredClone(cache);const subs=[],storageListeners=[];const publish=next=>{data=structuredClone(next);for(const fn of subs)fn(structuredClone(data));for(const fn of storageListeners)fn({'niakgpt-v08-cache':{newValue:structuredClone(data),oldValue:null}},'local');};
-      window.chrome={runtime:{id:'lab',getManifest:()=>({version:'0.9.70'})},storage:{local:{get:async keys=>{if(typeof keys==='string')return{[keys]:keys==='niakgpt-v08-cache'?structuredClone(data):{}};return{'niakgpt-v08-cache':structuredClone(data),'niakgpt-governance-v085':{coreProjectIds:[],hiddenProjectIds:[]}};},set:async obj=>{if(obj['niakgpt-v08-cache'])publish(obj['niakgpt-v08-cache']);}},onChanged:{addListener:fn=>storageListeners.push(fn)}}};
+      window.chrome={runtime:{id:'lab',getManifest:()=>({version:'0.9.79'})},storage:{local:{get:async keys=>{if(typeof keys==='string')return{[keys]:keys==='niakgpt-v08-cache'?structuredClone(data):{}};return{'niakgpt-v08-cache':structuredClone(data),'niakgpt-governance-v085':{coreProjectIds:[],hiddenProjectIds:[]}};},set:async obj=>{if(obj['niakgpt-v08-cache'])publish(obj['niakgpt-v08-cache']);}},onChanged:{addListener:fn=>storageListeners.push(fn)}}};
       window.__NIAKGPT_CACHE_BUS__={get:async()=>structuredClone(data),subscribe(fn){subs.push(fn);fn(structuredClone(data));return()=>{};},async update(mutator){const next=await mutator(structuredClone(data));publish(next);return structuredClone(data);}};
       window.__publishHumanCache=mutatorSource=>{const fn=(0,eval)(`(${mutatorSource})`);publish(fn(structuredClone(data)));};window.__humanCache=()=>structuredClone(data);
       document.addEventListener('niakgpt:rpc-request',event=>{const d=event.detail||{},m=String(d.path||'').match(/\/backend-api\/conversation\/([^/?]+)/);if(!m)return;let next=structuredClone(data),row=next.chats.find(c=>c.id===m[1]);if(row&&d.body&&Object.prototype.hasOwnProperty.call(d.body,'title'))row.title=String(d.body.title);if(row&&d.body&&Object.prototype.hasOwnProperty.call(d.body,'gizmo_id'))row.projectId=d.body.gizmo_id||'';setTimeout(()=>document.dispatchEvent(new CustomEvent('niakgpt:rpc-response',{detail:{id:d.id,ok:true,status:200,data:{id:m[1],title:row?.title||'',gizmo_id:row?.projectId||P1}}})),5);});
       window.__P1=P1;window.__P2=P2;
       window.__memoryFailureCalls=0;
       window.__NIAKGPT_PROJECT_MEMORY__={
-        status:async()=>({ok:true,connected:false,configured:false,tokenAvailable:false,config:null,state:{mode:'disconnected'},prefs:{autoSync:false,injectOnNewChat:true}}),
-        connect:async()=>{window.__memoryFailureCalls++;return{ok:false,error:'synthetic_github_failure'};},
+        status:async()=>({ok:true,connected:false,configured:false,tokenAvailable:false,config:null,github:{registered:false,authenticated:false,account:null,repositories:[],installations:[],manageUrl:''},state:{mode:'disconnected'},prefs:{autoSync:false,injectOnNewChat:true}}),
+        githubLogin:async()=>{window.__memoryFailureCalls++;return{ok:false,error:'synthetic_github_failure'};},
+        githubRepositories:async()=>({ok:false,error:'synthetic_github_failure'}),
+        githubConnectRepo:async()=>({ok:false,error:'synthetic_github_failure'}),
+        githubLogout:async()=>({ok:true}),
+        connect:async()=>({ok:false,error:'manual_fallback_not_used'}),
         disconnect:async()=>({ok:true}),
         syncNow:async()=>({ok:false,error:'synthetic_github_failure'}),
         setPrefs:async value=>value
@@ -52,18 +56,13 @@ for(const [engine,launcher] of Object.entries(engines)){
     await page.evaluate(()=>{document.getElementById('ng90-control').style.display='block';});
     await page.locator('#ng90-settings-btn').click();
     await page.locator('[data-ng132-memory]').waitFor({state:'visible',timeout:3000});
-    await page.locator('[data-ng132-connect]').evaluate(button=>{button.dataset.ngLabStable='1';});
+    await page.locator('[data-ng132-github-login]').evaluate(button=>{button.dataset.ngLabStable='1';});
     await page.waitForTimeout(240);
-    assert(await page.locator('[data-ng132-connect]').getAttribute('data-ng-lab-stable')==='1',`${engine}: mounted Project Memory form was replaced after settings open`);
-    await page.locator('[data-ng132-repo]').fill('niakw/private-memory-lab');
-    await page.locator('[data-ng132-branch]').fill('main');
-    await page.locator('[data-ng132-root]').fill('.niakgpt-memory');
-    await page.locator('[data-ng132-token]').fill('synthetic-token-value');
-    await page.locator('[data-ng132-connect]').click();
+    assert(await page.locator('[data-ng132-github-login]').getAttribute('data-ng-lab-stable')==='1',`${engine}: mounted Project Memory GitHub CTA was replaced after settings open`);
+    await page.locator('[data-ng132-github-login]').click();
     await page.waitForFunction(()=>window.__memoryFailureCalls===1,null,{timeout:3000});
-    await page.waitForFunction(()=>/Connexion refusée/.test(document.querySelector('.ng132-memory-status')?.innerText||''),null,{timeout:5000});
-    assert(await page.locator('[data-ng132-repo]').inputValue()==='niakw/private-memory-lab',`${engine}: failed Project Memory connect erased repository`);
-    assert(await page.locator('[data-ng132-token]').inputValue()==='synthetic-token-value',`${engine}: failed Project Memory connect erased token`);
+    await page.waitForFunction(()=>/Connexion GitHub refusée/.test(document.querySelector('.ng132-memory-status')?.innerText||''),null,{timeout:5000});
+    assert(/Réessayer avec GitHub/.test(await page.locator('[data-ng132-github-login]').innerText()),`${engine}: failed GitHub login did not expose retry`);
     await page.evaluate(()=>{document.getElementById('ng90-control').style.display='none';});
     assert(await page.locator('#ng8-pins a[data-ng121-pid="'+P1+'"]').count()===1,`${engine}: Project Memory failure removed Projects catalog`);
     const projectRows=await page.evaluate(()=>{

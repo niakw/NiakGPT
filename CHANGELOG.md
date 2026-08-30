@@ -1,3 +1,20 @@
+# NiakGPT 0.9.79 — Connexion GitHub native et choix du coffre
+
+## Project Memory GitHub UX — 2026-08-30
+
+- le parcours principal Project Memory devient **Se connecter avec GitHub → autoriser → choisir le dépôt** ; plus de PAT à fabriquer/copier dans le flux normal ;
+- ajout d’un GitHub App Manifest flow backendless : chaque profil crée son connecteur GitHub App privé, sans client secret partagé dans le dépôt public NiakGPT ;
+- permissions minimales du connecteur : **Contents: write** et **Metadata: read** ; GitHub reste propriétaire de l’écran « All repositories / Only select repositories » ;
+- ajout de la permission MV3 `identity` et du seul host supplémentaire `https://github.com/login/*` pour l’échange/renouvellement OAuth ;
+- validation de deux `state` indépendants et des callbacks `chromiumapp.org` avant tout échange de code ;
+- user access token GitHub App conservé en session, refresh token/client secret du connecteur personnel conservés localement ; la clé privée PEM renvoyée par le manifest flow n’est jamais persistée ;
+- le sélecteur NiakGPT liste uniquement les dépôts privés non archivés réellement autorisés à l’installation GitHub App ;
+- un dépôt demandé hors de cette liste est refusé côté service worker, même si l’UI est contournée ;
+- le fine-grained PAT reste disponible sous **Avancé · PAT manuel** pour les organisations/comptes qui interdisent l’installation de GitHub Apps ;
+- packaging, documentation Privacy/Security/Architecture et gates statiques/browser mis à jour pour couvrir ce nouveau modèle sans réintroduire de secret GitHub Actions.
+
+---
+
 # NiakGPT 0.9.78 — Hotfix Project Memory isolé et connexion dépôt neuf
 
 ## Correctifs critiques — 2026-08-30

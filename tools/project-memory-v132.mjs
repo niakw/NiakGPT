@@ -36,6 +36,8 @@ assert.equal(memory.normalizeRelativePath('../PROJECT_STATE.md'), '');
 assert.equal(memory.joinRoot('.niakgpt-memory','projects/g-p-test/PROJECT_STATE.md'), '.niakgpt-memory/projects/g-p-test/PROJECT_STATE.md');
 assert.match(memory.safeError(new Error('bad github_pat_ABCDEF1234567890')), /\[redacted\]/);
 assert.doesNotMatch(memory.safeError(new Error('bad github_pat_ABCDEF1234567890')), /ABCDEF1234567890/);
+assert.equal(memory.validateRedirect('https://abcdefghijklmnop.chromiumapp.org/oauth?code=abc&state=state-1','https://abcdefghijklmnop.chromiumapp.org/oauth','state-1'),'abc');
+assert.throws(()=>memory.validateRedirect('https://abcdefghijklmnop.chromiumapp.org/oauth?code=abc&state=evil','https://abcdefghijklmnop.chromiumapp.org/oauth','state-1'),/github_oauth_state_mismatch/);
 assert.equal(memory.MAX_FILES, 32);
 assert.ok(memory.MAX_BATCH_BYTES >= 5 * 1024 * 1024);
 
@@ -73,6 +75,8 @@ assert.equal(connected.ok,true);
 assert.equal(connected.initializedEmptyRepo,true);
 assert.equal(connected.repositoryPrivate,true);
 assert.equal(localStore['niakgpt-project-memory-config-v132'].repo,'niakw/empty-memory');
+assert.equal(localStore['niakgpt-project-memory-config-v132'].authMode,'pat');
+assert.equal(localStore['niakgpt-project-memory-config-v132'].schema,2);
 assert.equal(sessionStore['niakgpt-project-memory-session-token-v132'],'synthetic-empty-repo-token');
 assert.equal(localStore['niakgpt-project-memory-token-v132'],undefined);
 const initialContent = fetchCalls.find(call => call.path.endsWith('/contents/.niakgpt-memory/niakgpt-memory.json') && call.method === 'PUT');
@@ -91,9 +95,9 @@ assert.equal(localStore['niakgpt-project-memory-config-v132'],undefined,'failed 
 assert.equal(sessionStore['niakgpt-project-memory-session-token-v132'],undefined,'failed connect persisted token');
 
 const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
-assert.equal(manifest.version, '0.9.78');
-assert.deepEqual(manifest.permissions, ['storage','scripting']);
-assert.deepEqual(manifest.host_permissions, ['https://chatgpt.com/*','https://api.github.com/*']);
+assert.equal(manifest.version, '0.9.79');
+assert.deepEqual(manifest.permissions, ['storage','scripting','identity']);
+assert.deepEqual(manifest.host_permissions, ['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*']);
 
 const background = fs.readFileSync('background-v100.js','utf8');
 assert.match(background, /try\{\s*importScripts\('project-memory-background-v132\.js'\)/s);
@@ -116,6 +120,18 @@ assert.match(backend, /method: 'PUT'/);
 assert.match(backend, /github_initial_content_commit_failed/);
 assert.match(backend, /refs\/heads/);
 assert.doesNotMatch(backend, /github_pat_[A-Za-z0-9_]{20,}/);
+assert.match(backend, /chrome\.identity\.launchWebAuthFlow/);
+assert.match(backend, /app-manifests\//);
+assert.match(backend, /request_oauth_on_install: false/);
+assert.match(backend, /setup_url: clean\(flow\.installRedirect\)/);
+assert.match(backend, /code_challenge/);
+assert.match(backend, /code_challenge_method', 'S256'/);
+assert.match(backend, /code_verifier: flow\.pkceVerifier/);
+assert.match(backend, /validateStateRedirect\(installResult, installRedirect, flow\.installState\)/);
+assert.match(backend, /default_permissions: \{ contents: 'write', metadata: 'read' \}/);
+assert.match(backend, /niakgpt:memory-github-connect-repo-v132/);
+assert.match(backend, /github_repository_not_authorized_for_vault/);
+assert.match(backend, /grant_type: 'refresh_token'/);
 
 const bridge = fs.readFileSync('page-bridge.js','utf8');
 assert.match(bridge, /conversation_detail_get_disabled/);
@@ -134,11 +150,17 @@ assert.match(runtime, /lastHistoryFetchAt/);
 assert.match(runtime, /PROJECT_STATE\.md/);
 assert.match(runtime, /NIAKGPT PROJECT MEMORY — CHECKPOINT RÉCUPÉRÉ/);
 assert.match(runtime, /Superseded/);
+assert.match(runtime, /githubLogin/);
+assert.match(runtime, /githubRepositories/);
+assert.match(runtime, /githubConnectRepo/);
+assert.match(runtime, /githubLogout/);
 
 const ui = fs.readFileSync('project-memory-ui-v132.js','utf8');
 assert.match(ui, /GITHUB PRIVÉ/);
 assert.match(ui, /openWithoutMemory/);
-assert.match(ui, /Réessayer la connexion/);
+assert.match(ui, /Réessayer avec le PAT/);
+assert.match(ui, /Réessayer avec GitHub/);
+assert.match(ui, /Réessayer ce dépôt/);
 assert.match(ui, /token\.value = draft\.token/);
 assert.match(ui, /!document\.querySelector\('#ng90-control \[data-ng132-memory\]'\)/,'settings click must not rerender an already-mounted Project Memory form');
 assert.doesNotMatch(ui, /else if \(document\.querySelector\('#ng90-control\.open'\)\) schedule\(120\)/);
@@ -160,6 +182,14 @@ const memoryWorkflow=fs.readFileSync('.github/workflows/project-memory-v132.yml'
 assert.doesNotMatch(memoryWorkflow,/NIAKGPT_PRIVATE_REPO_TOKEN|NIAKGPT_PRIVATE_REPO|live-private-repo|niakgpt-private/,'public Project Memory CI must not know or access a private user vault');
 assert.doesNotMatch(memoryWorkflow,/secrets\./,'Project Memory public CI must remain credential-free');
 assert.match(ui,/COFFRE GITHUB PRIVÉ/);
-assert.match(ui,/Secret d’accès GitHub \(PAT\)/);
+assert.match(ui,/Se connecter avec GitHub/);
+assert.match(ui,/data-ng132-repo-select/);
+assert.match(ui,/Avancé · PAT manuel/);
+assert.match(ui,/data-ng132-use-repo/);
+assert.ok(fs.existsSync('github-vault-start.html'),'GitHub manifest launcher HTML missing');
+assert.ok(fs.existsSync('github-vault-start.js'),'GitHub manifest launcher JS missing');
+const launcher=fs.readFileSync('github-vault-start.js','utf8');
+assert.match(launcher,/github\.com\/settings\/apps\/new\?state=/);
+assert.match(launcher,/niakgpt:memory-github-manifest-v132/);
 
 console.log('PROJECT_MEMORY_V132_PASS');

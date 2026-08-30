@@ -101,3 +101,107 @@
 @media(prefers-reduced-motion:reduce){
   .ng132-memory-actions button{transition:none!important}
 }
+
+.ng132-github-connect,
+.ng132-github-connected{
+  border:1px solid color-mix(in srgb,currentColor 16%,transparent);
+  border-radius:12px;
+  padding:12px;
+  margin-bottom:10px;
+  background:color-mix(in srgb,currentColor 3%,transparent);
+}
+.ng132-github-connect{
+  display:flex;
+  gap:12px;
+  align-items:center;
+  justify-content:space-between;
+}
+.ng132-github-connect>div,
+.ng132-github-account>span:last-child{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  min-width:0;
+}
+.ng132-github-connect small,
+.ng132-github-account small,
+.ng132-advanced small{
+  opacity:.72;
+  line-height:1.35;
+}
+.ng132-github-account{
+  display:flex;
+  align-items:flex-start;
+  gap:9px;
+  margin-bottom:10px;
+}
+.ng132-github-dot{
+  width:9px;
+  height:9px;
+  border-radius:50%;
+  margin-top:5px;
+  flex:0 0 auto;
+  background:currentColor;
+}
+.ng132-repo-picker{
+  display:grid;
+  grid-template-columns:minmax(0,1.4fr) minmax(0,.8fr) minmax(0,.8fr);
+  gap:8px;
+}
+.ng132-repo-picker>label{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  min-width:0;
+}
+.ng132-repo-picker>label>span{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.ng132-repo-picker select,
+.ng132-repo-picker input{
+  width:100%;
+  min-width:0;
+  box-sizing:border-box;
+  border:1px solid color-mix(in srgb,currentColor 16%,transparent);
+  background:color-mix(in srgb,currentColor 4%,transparent);
+  color:inherit;
+  border-radius:9px;
+  padding:9px 10px;
+  font:inherit;
+}
+.ng132-primary{
+  font-weight:650!important;
+  border-color:color-mix(in srgb,currentColor 32%,transparent)!important;
+  background:color-mix(in srgb,currentColor 11%,transparent)!important;
+}
+.ng132-sync-actions{
+  padding-top:2px;
+  border-top:1px solid color-mix(in srgb,currentColor 10%,transparent);
+}
+.ng132-advanced{
+  margin:8px 0 4px;
+  border:1px solid color-mix(in srgb,currentColor 12%,transparent);
+  border-radius:10px;
+  overflow:hidden;
+}
+.ng132-advanced>summary{
+  cursor:pointer;
+  padding:9px 11px;
+  user-select:none;
+  font-weight:600;
+}
+.ng132-advanced-body{
+  padding:3px 11px 11px;
+}
+.ng132-advanced-body>.ng132-memory-form{
+  margin-top:9px;
+}
+@media(max-width:860px){
+  .ng132-repo-picker{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+  .ng132-github-connect{align-items:stretch;flex-direction:column}
+  .ng132-github-connect .ng132-primary{width:100%}
+}

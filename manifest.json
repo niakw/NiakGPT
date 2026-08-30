@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.81",
-  "description": "NiakGPT : Projects fiables, continuité longue et mémoire GitHub privée avec démarrage post-hydratation renforcé.",
+  "version": "0.9.82",
+  "description": "NiakGPT : Projects stables sans reparenting React, continuité longue et mémoire GitHub privée.",
   "permissions": [
     "storage",
     "scripting",
@@ -11,7 +11,8 @@
   "host_permissions": [
     "https://chatgpt.com/*",
     "https://api.github.com/*",
-    "https://github.com/login/*"
+    "https://github.com/login/*",
+    "https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*"
   ],
   "background": {
     "service_worker": "background-v100.js"

@@ -179,34 +179,6 @@
     try { return JSON.parse(text); } catch { return text; }
   }
 
-  function xhrRequest(path, method, body, token) {
-    return new Promise(resolve => {
-      try {
-        const xhr = new XMLHttpRequest();
-        xhr.open(method, path, true);
-        xhr.withCredentials = true;
-        xhr.setRequestHeader('Accept', 'application/json');
-        xhr.setRequestHeader('OAI-Language', document.documentElement.lang || 'fr-FR');
-        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-        if (method !== 'GET' && method !== 'DELETE') xhr.setRequestHeader('Content-Type', 'application/json');
-        xhr.timeout = 20000;
-        xhr.onload = () => resolve({
-          ok: xhr.status >= 200 && xhr.status < 300,
-          status: xhr.status,
-          data: parsePayload(xhr.responseText),
-          error: xhr.status >= 200 && xhr.status < 300 ? '' : `XHR HTTP ${xhr.status}`,
-          transport: 'xhr',
-          retry_after_ms: retryAfterMsFrom(xhr.getResponseHeader('Retry-After'))
-        });
-        xhr.onerror = () => resolve({ ok:false, status:0, data:null, error:'xhr_network_error', transport:'xhr' });
-        xhr.ontimeout = () => resolve({ ok:false, status:0, data:null, error:'xhr_timeout', transport:'xhr' });
-        xhr.send(method === 'GET' || method === 'DELETE' ? null : JSON.stringify(body ?? {}));
-      } catch (error) {
-        resolve({ ok:false, status:0, data:null, error:`xhr_exception:${String(error?.message || error)}`, transport:'xhr' });
-      }
-    });
-  }
-
   async function fetchRequest(path, method, body, token) {
     const controller = method === 'GET' ? new AbortController() : null;
     const init = {
@@ -242,10 +214,9 @@
     }
   }
 
-  async function requestWithTransportFallback(path, method, body, token) {
-    // Never duplicate a failed ChatGPT-internal request with a second transport. A transient
-    // network failure or native verification must reduce NiakGPT traffic, not turn one request
-    // into fetch + XHR while ChatGPT is already recovering.
+  async function requestSingleTransport(path, method, body, token) {
+    // One transport only: a transient network failure or native verification must reduce
+    // NiakGPT traffic, never generate a second attempt while ChatGPT is already recovering.
     return fetchRequest(path, method, body, token);
   }
 
@@ -270,7 +241,7 @@
     if (afterWaitCircuit) return afterWaitCircuit;
 
     lastNetworkAt = now();
-    let result = await requestWithTransportFallback(effectivePath, method, body, token);
+    let result = await requestSingleTransport(effectivePath, method, body, token);
 
     if (result.status === 401 && !forceToken) {
       cachedToken = '';
@@ -284,7 +255,7 @@
         if(retryCircuit)return retryCircuit;
         const retryWait=Math.max(0,lastNetworkAt+gapFor(noLimitPath,method)-now());if(retryWait)await sleep(retryWait);
         lastNetworkAt=now();
-        const retry = await requestWithTransportFallback(noLimitPath, method, body, token);
+        const retry = await requestSingleTransport(noLimitPath, method, body, token);
         if (retry.status === 401 && !forceToken) {
           cachedToken = '';
           return backendFetchCore(originalPath, method, body, true);

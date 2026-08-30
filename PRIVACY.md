@@ -1,6 +1,6 @@
 # Confidentialité — NiakGPT
 
-NiakGPT 0.9.84 conserve un **cœur local-first** et ajoute Project Memory v132, une synchronisation GitHub privée **optionnelle et explicitement activée par l’utilisateur**.
+NiakGPT 0.9.85 conserve un **cœur local-first** et ajoute Project Memory v132, une synchronisation GitHub privée **optionnelle et explicitement activée par l’utilisateur**.
 
 ## Résumé
 
@@ -15,7 +15,7 @@ NiakGPT 0.9.84 conserve un **cœur local-first** et ajoute Project Memory v132, 
 
 ## Périmètre réseau
 
-Le manifest 0.9.84 déclare :
+Le manifest 0.9.85 déclare :
 
 ```text
 https://chatgpt.com/*
@@ -53,7 +53,7 @@ En fonctionnement normal, NiakGPT continue de refuser les `GET /backend-api/conv
 
 Après activation explicite de Project Memory, le bootstrap ou une synchronisation peut lire le payload complet d’une conversation afin d’en créer une copie privée durable. Cette exception est marquée `memoryBootstrap`, passe par le broker réseau unique, et reste soumise aux pauses pendant génération/vérification ainsi qu’aux limites de débit.
 
-La connexion au coffre écrit d’abord son marqueur d’initialisation puis crée localement une **file persistante** de Projects à synchroniser. Un seul onglet **visible et utilisable** exécute la file à la fois, protégé par un `navigator.locks` dédié à Project Memory. Le verrou n’est plus couplé au WORKER général : un onglet caché ne peut donc plus monopoliser la synchronisation en attendant indéfiniment de redevenir visible. Si l’onglet actif devient caché, la file reste persistante et la reprise se fait sur un onglet visible. Si un coffre est déjà connecté mais qu’aucune synchronisation réussie n’a encore été enregistrée, 0.9.84 recrée automatiquement cette file au démarrage. Après le bootstrap, NiakGPT tente de ne relire que les conversations dont le timestamp d’activité a changé.
+La connexion au coffre écrit d’abord son marqueur d’initialisation puis crée localement une **file persistante** de Projects à synchroniser. Un seul onglet **visible et utilisable** exécute la file à la fois, protégé par un `navigator.locks` dédié à Project Memory. Le verrou n’est plus couplé au WORKER général : un onglet caché ne peut donc plus monopoliser la synchronisation en attendant indéfiniment de redevenir visible. Si l’onglet actif devient caché, la file reste persistante et la reprise se fait sur un onglet visible. Si un coffre est déjà connecté mais qu’aucune synchronisation réussie n’a encore été enregistrée, 0.9.85 recrée automatiquement cette file au démarrage. La synchronisation est désormais strictement opportuniste : toute activité humaine ou native ChatGPT la met en pause, les GET en vol peuvent être annulés, et la reprise attend une fenêtre calme. Après le bootstrap, NiakGPT tente de ne relire que les conversations dont le timestamp d’activité a changé.
 
 ## Données enregistrées dans le dépôt privé
 

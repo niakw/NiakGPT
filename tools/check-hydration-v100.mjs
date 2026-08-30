@@ -143,7 +143,7 @@ for(const token of ['native long-running analysis stays active beyond 10 minutes
 const parallelGate=read('visual-lab/parallel-continue-v128.mjs');
 for(const token of ['idle+thinking+executing+cancel+native-stop+contenteditable+visual','parallel-continuation.png','chromium,firefox,webkit'])need(parallelGate,token,'parallel cross-engine/visual gate incomplete');
 const parallelRuntime=read('visual-lab/tests/composer-continuation-runtime-v128.spec.js');
-for(const token of ['real MV3 static continuation layer prefixes only pre-existing parallel work','Message depuis une conversation au repos.','Ajoute ce contrôle sans arrêter ce que tu fais.','annule'])need(parallelRuntime,token,'parallel real-extension gate incomplete');
+for(const token of ['real MV3 static continuation layer prefixes only pre-existing parallel work','Message depuis une conversation au repos.','Ajoute ce contrôle sans arrêter ce que tu fais.','annule','__NIAKGPT_HOST_HYDRATED_100__','__NIAKGPT_PARALLEL_CONTINUE_128__'])need(parallelRuntime,token,'parallel real-extension/hydration gate incomplete');
 const liveSpec=read('visual-lab/tests/live-stability-v129.spec.js');
 for(const token of ['NIAKGPT_EXECUTABLE_PATH','long-run recovery + remount-safe pins + Project context + native limit handoff','Brouillon utilisateur à préserver','draft-protected','Personnaliser le Project','CONTINUITÉ NIAKGPT'])need(liveSpec,token,'0.9.76 focused live stability gate incomplete');
 

@@ -6,7 +6,7 @@
   <p>Projects · long-thread performance · continuity · navigation · focused productivity</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.82-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.83-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -22,7 +22,7 @@ NiakGPT is a browser extension that turns the ChatGPT web interface into a more 
 
 It adds a native-first layer for Projects, navigation, long conversations, continuity, diagnostics and local productivity. Core features run locally in the browser: **no NiakGPT account, no NiakGPT analytics and no NiakGPT server are required**.
 
-> **Current version: 0.9.82.** NiakGPT now mounts the Pins block directly once in the active ChatGPT sidebar instead of reparenting it across React shells, and the GitHub connection starter no longer sends a `chrome-extension://` URL to the web-auth API.
+> **Current version: 0.9.83.** Pins now reject hidden/early native Project anchors and stay below ChatGPT's real primary navigation; Project Memory always reappears in an already-open Control Center and automatically recreates a persistent first-sync queue for connected-but-never-synced vaults.
 
 ## Highlights
 
@@ -37,6 +37,7 @@ NiakGPT JavaScript no longer runs at `document_start`: the bootstrap group now s
 - clicking a Project name opens/closes its drawer instead of unexpectedly navigating away;
 - stable order, DOM identity, focus and scroll across cache refreshes, React remounts, SPA navigation and BFCache restores;
 - direct-once Pins mounting: when ChatGPT replaces the sidebar, the old NiakGPT node is retired in place and a fresh block is mounted directly in the new active shell instead of moving a live node between React branches;
+- placement is anchored **below ChatGPT's visible primary navigation**; hidden/inert native Project surfaces or Project containers located above the primary controls cannot pull the NiakGPT catalogue to the top of the sidebar;
 - current conversation, dates, counts and attention state kept visible;
 - local search for large Projects;
 - Project/chat action menus kept outside sidebar clipping and usable with mouse or keyboard;
@@ -82,7 +83,7 @@ User text always wins: modified drafts are never erased merely because they stil
 
 ### Private Project Memory (optional)
 
-NiakGPT 0.9.82 can attach a **user-selected private GitHub repository** to Project continuity from the Control Center, with a normal **Sign in with GitHub** flow and repository picker.
+NiakGPT 0.9.83 can attach a **user-selected private GitHub repository** to Project continuity from the Control Center, with a normal **Sign in with GitHub** flow and repository picker.
 
 - connection is explicit and disabled by default;
 - the GitHub App manifest starter opens in a normal extension tab and returns through the exact HTTPS `chromiumapp.org` callback; `launchWebAuthFlow` is used only with HTTP(S) GitHub URLs;
@@ -91,7 +92,9 @@ NiakGPT 0.9.82 can attach a **user-selected private GitHub repository** to Proje
 - GitHub's own installation screen controls which repositories are accessible; the NiakGPT picker lists only authorized private, non-archived repositories;
 - a newly created **zero-commit** private repository is initialized automatically on first connection;
 - the selected repository is verified as **private before initialization and again before reads/writes**;
-- first connection bootstraps every existing non-empty ChatGPT Project already indexed by NiakGPT;
+- first connection creates a persistent bootstrap queue immediately; a WORKER tab owns the actual sync and can resume it after tab-role changes, hides, reloads or a later browser session;
+- a connected vault with no recorded successful sync automatically recreates that queue on 0.9.83 startup, so an already-initialized repository does not require reconnecting GitHub;
+- the Control Center shows queued Projects, last sync and sync errors instead of reporting a bare “connected” state;
 - Project description/instructions, conversation history snapshots, task/decision/architecture signals and a compact `PROJECT_STATE.md` checkpoint are stored under a dedicated memory root;
 - after bootstrap, only conversations whose update timestamp changed are reread;
 - full history remains in GitHub and is **not** injected into every prompt;
@@ -109,11 +112,12 @@ The v131 UX layer removes the old “second application around ChatGPT” feelin
 - the full-width status bar is replaced by a passive capsule;
 - the prompt coach is opt-in and compact;
 - home/utility surfaces hide non-essential NiakGPT chrome;
-- focus-visible and reduced-motion behavior are part of the contract.
+- focus-visible and reduced-motion behavior are part of the contract;
+- selecting/copying text from the live Diagnostic panel no longer loses the browser selection when metrics update; refresh resumes after the selection is released.
 
 ### Local-first core, optional private sync
 
-NiakGPT's core remains local-first. Version 0.9.82 declares:
+NiakGPT's core remains local-first. Version 0.9.83 declares:
 
 ```text
 storage
@@ -201,7 +205,7 @@ A fixture passing does **not** override a contradictory real user screenshot. Se
 | [README.fr.md](README.fr.md) | French README |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Runtime architecture and ownership invariants |
 | [CHANGELOG.md](CHANGELOG.md) | Detailed release history |
-| [RELEASE_NOTES_0.9.82.md](RELEASE_NOTES_0.9.82.md) | Current release summary |
+| [RELEASE_NOTES_0.9.83.md](RELEASE_NOTES_0.9.83.md) | Current release summary |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnosis and recovery |
 | [PRIVACY.md](PRIVACY.md) | Local data and network behavior |
 | [SECURITY.md](SECURITY.md) | Security model and reporting |

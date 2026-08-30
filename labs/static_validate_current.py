@@ -114,6 +114,10 @@ for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjec
     if token not in catalog: fail('session-stable Projects catalog incomplete '+token)
 if re.search(r"recentUser[^\n]*return\s+null|user-priority:[^\n]*return\s+null",catalog): fail('recent user Project scroll must arm a restore snapshot, not return null')
 if 'userIntentAt:userScrollIntentAt' not in catalog: fail('pending Project scroll snapshot lost user intent epoch binding')
+continuity=read('continuity-v100.js')
+for token in ('armComposerObserver','composerObserver','CONTINUITÉ NIAKGPT','injectPending'):
+    if token not in continuity: fail('event-driven continuity injection incomplete '+token)
+
 folders=read('pin-folders-v096.js')
 for token in ('drawerScrollMemory','innerScroll','outerScroll','niakgpt:hydrate-project'):
     if token not in folders: fail('drawer scroll/hydration continuity incomplete '+token)

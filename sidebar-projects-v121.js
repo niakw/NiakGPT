@@ -69,7 +69,27 @@
     for(const a of root.querySelectorAll('a[href]')){
       if(isOwn(a)||!PRIMARY_PATH.test(a.getAttribute('href')||''))continue;const r=a.getBoundingClientRect();if(r.bottom>bestTop){best=a;bestTop=r.bottom;}
     }
-    if(!best)return null;let node=best;while(node.parentElement&&node.parentElement!==root&&node.parentElement.getBoundingClientRect().width<520)node=node.parentElement;return node;
+    if(!best)return null;
+    let node=best;
+    while(node.parentElement&&node.parentElement!==root&&node.parentElement.getBoundingClientRect().width<520){
+      const parent=node.parentElement;
+      if(projectLinks(parent).length||[...parent.querySelectorAll?.('a[href*="/c/"]')||[]].some(a=>!isOwn(a)))break;
+      node=parent;
+    }
+    return node;
+  }
+  function visiblePlacementNode(node){
+    if(!(node instanceof Element)||!node.isConnected||node.closest('[hidden],[inert],[aria-hidden="true"]'))return false;
+    const s=getComputedStyle(node),r=node.getBoundingClientRect();
+    return s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0;
+  }
+  function nativeSectionAfterPrimary(root,section,tail){
+    if(!section?.parentElement||!visiblePlacementNode(section))return false;
+    if(!tail||!visiblePlacementNode(tail))return true;
+    const order=tail.compareDocumentPosition(section);
+    if(!(order&Node.DOCUMENT_POSITION_FOLLOWING))return false;
+    const sr=section.getBoundingClientRect(),tr=tail.getBoundingClientRect();
+    return sr.top>=tr.bottom-4;
   }
   function restoreFocusedPin(box,moved){
     if(!moved||!(lastPinFocus instanceof HTMLElement)||!lastPinFocus.isConnected||!box.contains(lastPinFocus))return;
@@ -150,11 +170,10 @@
   }
   function placementTarget(root=navRoot(),box=null){
     if(!root||!root.isConnected||root.closest('[hidden],[inert],[aria-hidden="true"]')||box?.contains(root))return null;
-    const section=nativeProjectSection(root);
-    if(section?.parentElement&&(!box||(!section.contains(box)&&!box.contains(section.parentElement)))){
+    const tail=primaryTail(root),section=nativeProjectSection(root);
+    if(nativeSectionAfterPrimary(root,section,tail)&&(!box||(!section.contains(box)&&!box.contains(section.parentElement)))){
       return{parent:section.parentElement,before:section,mode:'native-projects',legacy:'projects-slot-v121'};
     }
-    const tail=primaryTail(root);
     if(tail?.parentElement&&(!box||(!tail.contains(box)&&!box.contains(tail.parentElement)))){
       return{parent:tail.parentElement,before:tail.nextSibling,mode:'after-primary',legacy:'after-primary-v121'};
     }

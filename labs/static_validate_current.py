@@ -190,7 +190,7 @@ menu=read('project-menu-augment-v129.js')
 for token in ('Personnaliser le Project','Nouveau chat dans ce Project','ng129-project-context','openProjectSettings'):
     if token not in menu: fail('Project menu augmentation incomplete '+token)
 app=read('app-v090.js')
-for token in ('panelSelectionActive','diagnosticSelectionHeld','syncDiagnosticSelectionLock','selectionchange','diagSelectionGesture','S.diagTimer=setTimeout(retry,280)'):
+for token in ('panelSelectionActive','diagnosticSelectionHeld','syncDiagnosticSelectionLock','releaseDiagnosticSelection','selectionchange','diagSelectionGesture','sticky read/copy mode','S.diagTimer=setTimeout(retry,280)'):
     if token not in app: fail('diagnostic selection stability incomplete '+token)
 
 handoff=read('continuity-native-handoff-v129.js')

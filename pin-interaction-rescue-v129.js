@@ -1,7 +1,9 @@
 (() => {
   'use strict';
-  if(location.hostname!=='chatgpt.com'||window.__NIAKGPT_PIN_INTERACTION_RESCUE_129__)return;
-  window.__NIAKGPT_PIN_INTERACTION_RESCUE_129__=true;
+  if(location.hostname!=='chatgpt.com')return;
+  const init=()=>{
+    if(window.__NIAKGPT_PIN_INTERACTION_RESCUE_129__)return;
+    window.__NIAKGPT_PIN_INTERACTION_RESCUE_129__=true;
 
   let gesture=null,clearTimer=0;
   const cid=h=>String(h||'').match(/\/c\/([0-9a-f-]{20,})/i)?.[1]||'';
@@ -60,4 +62,7 @@
     setTimeout(()=>fallback(g),90);setTimeout(clear,220);
   },true);
   document.addEventListener('pointercancel',clear,true);window.addEventListener('blur',clear);window.addEventListener('pagehide',clear);
-})();
+  };
+  if(window.__NIAKGPT_HOST_HYDRATED_100__)init();
+  else window.addEventListener('niakgpt:host-hydrated-v100',init,{once:true});
+})();;

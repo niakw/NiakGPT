@@ -1,3 +1,20 @@
+# NiakGPT 0.9.82 — Sidebar DOM stability + GitHub auth transport hotfix
+
+## Régressions terrain — 2026-08-30
+
+- correction du chargement Pins qui pouvait rester accroché à un ancien shell de conversation et nécessiter un passage par l’accueil + actualisation ;
+- `#ng8-pins` suit désormais un contrat **direct-once** : calcul de l’emplacement final avant création, aucun reparenting du même nœud entre deux branches React ;
+- lors d’un remount ChatGPT, l’ancien bloc est neutralisé sur place et un nouveau bloc est monté directement dans le shell visible actif ;
+- ajout d’un garde `safeInsert()` refusant toute insertion parent/descendant invalide ;
+- correction des erreurs terrain compatibles avec `Cannot moveNode ... new parent is already a descendant` et `Node cannot be found in the current page` ;
+- nouveau lab `dom-node-stability-v082.mjs` : départ direct dans un chat, remount tardif du sidebar, aucun passage accueil/refresh, aucune réutilisation/reparenting du vieux nœud ;
+- correction de **Connexion GitHub refusée · The auth url has an invalid scheme** : le launcher `chrome-extension://` n’est plus envoyé à `launchWebAuthFlow` ;
+- l’amorce GitHub App Manifest s’ouvre dans un onglet normal, POSTe vers GitHub et revient par le callback HTTPS exact de l’extension ;
+- `launchWebAuthFlow` est désormais encapsulé par une garde qui refuse tout schéma autre que HTTP(S) ;
+- ajout du callback exact `https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*` aux host permissions, sans permission globale `tabs`.
+
+---
+
 # NiakGPT 0.9.81 — Late React scheduler hydration hotfix
 
 ## Hydration / affichage — 2026-08-30

@@ -10,14 +10,14 @@
 
   const CACHE_KEY='niakgpt-v08-cache';
   const GOV_KEY='niakgpt-governance-v085';
-  const OWN='#ng8-pins,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb,#ng119-interruption';
+  const OWN='#ng8-pins,[data-ng121-retired="1"],#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb,#ng119-interruption';
   const PROJECT_RX=/\/g\/(g-p-[^/?#]+)(?:\/|$)/i;
   const QUEUE=new Set(['a classer','hors projet / a classer','hors projet/a classer','unclassified','to classify']);
   const PRIMARY_PATH=/^(?:\/?$|\/new(?:\/|$)|\/search(?:\/|$)|\/library(?:\/|$)|\/images?(?:\/|$)|\/apps?(?:\/|$)|\/codex(?:\/|$))/i;
   let cache={projects:[],chats:[],counts:{}},governance={hiddenProjectIds:[],coreProjectIds:[]};
   let observer=null,observedRoot=null,internal=false,timer=0,renderEpoch=0,lastPinFocus=null,lastPinFocusAt=0,bootstrapObserver=null,projectScrollMemory=0;
-  let pendingProjectScroll=null,pendingScrollSeq=0,userScrollIntentAt=0,userScrollEpoch=0;
-  const sessionOrder=new Map();let sessionSeq=0;
+  let pendingProjectScroll=null,pendingScrollSeq=0,userScrollIntentAt=0,userScrollEpoch=0,retiredSeq=0;
+  const sessionOrder=new Map(),mountParentByBox=new WeakMap();let sessionSeq=0;
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -42,15 +42,15 @@
   function navRoot(){
     const guarded=window.__NIAKGPT_FIND_SIDEBAR_V131__?.();if(guarded?.isConnected)return guarded;
     const candidates=[...document.querySelectorAll('[data-testid="conversation-sidebar"],[data-testid*="sidebar" i],aside,nav')].filter(el=>!el.closest('main,[role="main"]'));
-    const score=el=>{let n=0;if(el.matches('[data-testid="conversation-sidebar"]'))n+=40;if(el.querySelector('#ng8-pins'))n+=30;if(el.querySelector('a[href*="/g/g-p-"]'))n+=20;if(el.querySelector('a[href*="/c/"]'))n+=10;const r=el.getBoundingClientRect();if(r.left<innerWidth*.35&&r.width>150&&r.width<520)n+=8;return n;};
-    return candidates.sort((a,b)=>score(b)-score(a))[0]||null;
+    const score=el=>{const r=el.getBoundingClientRect(),s=getComputedStyle(el);if(r.width<140||r.height<220||s.display==='none'||s.visibility==='hidden'||el.closest('[hidden],[inert],[aria-hidden="true"]'))return-Infinity;let n=0;if(el.matches('[data-testid="conversation-sidebar"]'))n+=50;if(el.querySelector('a[href*="/g/g-p-"]'))n+=20;if(el.querySelector('a[href*="/c/"]'))n+=10;if(r.left<innerWidth*.35&&r.width>150&&r.width<520)n+=10;const hit=document.elementFromPoint(Math.max(1,Math.min(innerWidth-2,r.left+Math.min(24,r.width/2))),Math.max(1,Math.min(innerHeight-2,r.top+Math.min(120,r.height/3))));if(hit&&el.contains(hit))n+=35;return n;};
+    return candidates.map(el=>[el,score(el)]).filter(([,n])=>Number.isFinite(n)).sort((a,b)=>b[1]-a[1])[0]?.[0]||null;
   }
   function projectLinks(scope){return [...scope.querySelectorAll?.('a[href*="/g/g-p-"]')||[]].filter(a=>!isOwn(a));}
   function hasPrimary(scope){return [...scope.querySelectorAll?.('a[href]')||[]].some(a=>PRIMARY_PATH.test(a.getAttribute('href')||''));}
-  function nativeProjectSection(){
-    const root=navRoot();if(!root)return null;
+  function nativeProjectSection(root=navRoot()){
+    if(!root)return null;
     const box=document.getElementById('ng8-pins');
-    const marked=[...root.querySelectorAll('[data-ng112-native-projects="1"]')].filter(el=>!el.contains(box));
+    const marked=[...root.querySelectorAll('[data-ng112-native-projects="1"]')].filter(el=>!box||!el.contains(box));
     const labels=[...root.querySelectorAll('h1,h2,h3,[role="heading"],span,div,button,a')].filter(el=>!isOwn(el)&&projectLabel(el.getAttribute?.('aria-label')||el.textContent));
     for(const seed of [...labels,...marked]){
       let node=seed;
@@ -64,8 +64,8 @@
     if(link){let node=link;for(let depth=0;depth<7&&node?.parentElement&&node.parentElement!==root;depth++,node=node.parentElement){const parent=node.parentElement;if(projectLinks(parent).length>=1&&!hasPrimary(parent))return parent;}}
     return null;
   }
-  function primaryTail(){
-    const root=navRoot();if(!root)return null;let best=null,bestTop=-Infinity;
+  function primaryTail(root=navRoot()){
+    if(!root)return null;let best=null,bestTop=-Infinity;
     for(const a of root.querySelectorAll('a[href]')){
       if(isOwn(a)||!PRIMARY_PATH.test(a.getAttribute('href')||''))continue;const r=a.getBoundingClientRect();if(r.bottom>bestTop){best=a;bestTop=r.bottom;}
     }
@@ -140,28 +140,51 @@
     apply();requestAnimationFrame(()=>{apply();requestAnimationFrame(apply);});
     for(const delay of[40,120,260,520,900])setTimeout(apply,delay);
   }
-  function place(box){
-    const root=navRoot();if(!root||!box)return false;let moved=false;
-    const list=box.querySelector(':scope>.ng8-pin-list'),pending=activePendingScroll(),scrollBefore=pending?.top??(list?list.scrollTop:projectScrollMemory);
-    const section=nativeProjectSection();
-    if(section?.parentElement){
-      if(box.parentElement!==section.parentElement||box.nextElementSibling!==section){section.parentElement.insertBefore(box,section);moved=true;}
-      box.dataset.ng121Placement='native-projects';box.dataset.ng119Placement='projects-slot-v121';
-    }else{
-      const tail=primaryTail();
-      if(tail?.parentElement){if(box.parentElement!==tail.parentElement||tail.nextElementSibling!==box){tail.insertAdjacentElement('afterend',box);moved=true;}box.dataset.ng121Placement='after-primary';box.dataset.ng119Placement='after-primary-v121';}
-      else if(box.parentElement!==root){root.appendChild(box);moved=true;box.dataset.ng121Placement='sidebar-tail';box.dataset.ng119Placement='sidebar-tail-v121';}
+  function safeInsert(parent,node,before=null){
+    if(!(parent instanceof Element)||!(node instanceof Element)||!parent.isConnected)return false;
+    if(parent===node||node.contains(parent))return false;
+    if(before){
+      if(!(before instanceof Node)||before.parentNode!==parent||before===node||node.contains(before))return false;
     }
-    if(list&&(moved||pending)){
-      const placeIntentEpoch=userScrollEpoch,pendingSeq=pending?.seq||0;
+    try{parent.insertBefore(node,before);return true;}catch{return false;}
+  }
+  function placementTarget(root=navRoot(),box=null){
+    if(!root||!root.isConnected||root.closest('[hidden],[inert],[aria-hidden="true"]')||box?.contains(root))return null;
+    const section=nativeProjectSection(root);
+    if(section?.parentElement&&(!box||(!section.contains(box)&&!box.contains(section.parentElement)))){
+      return{parent:section.parentElement,before:section,mode:'native-projects',legacy:'projects-slot-v121'};
+    }
+    const tail=primaryTail(root);
+    if(tail?.parentElement&&(!box||(!tail.contains(box)&&!box.contains(tail.parentElement)))){
+      return{parent:tail.parentElement,before:tail.nextSibling,mode:'after-primary',legacy:'after-primary-v121'};
+    }
+    if(!box||!box.contains(root))return{parent:root,before:null,mode:'sidebar-tail',legacy:'sidebar-tail-v121'};
+    return null;
+  }
+  function retireStaleBox(box){
+    if(!box||!box.isConnected||box.dataset.ng121Retired==='1')return;
+    box.dataset.ng121Retired='1';box.hidden=true;box.setAttribute('aria-hidden','true');box.style.setProperty('pointer-events','none','important');
+    box.id='ng8-pins-retired-'+(++retiredSeq);
+  }
+  function place(box){
+    const root=navRoot();if(!root||!box||!box.isConnected||!root.contains(box))return false;
+    const target=placementTarget(root,box);
+    if(target&&box.parentElement===target.parent&&box.nextSibling===target.before){
+      box.dataset.ng121Placement=target.mode;box.dataset.ng119Placement=target.legacy;
+    }else if(!box.dataset.ng121Placement){
+      box.dataset.ng121Placement='stable-once';box.dataset.ng119Placement='stable-once-v121';
+    }
+    const list=box.querySelector(':scope>.ng8-pin-list'),pending=activePendingScroll();
+    if(list&&pending){
+      const scrollBefore=pending.top,placeIntentEpoch=userScrollEpoch,pendingSeq=pending.seq;
       restoreProjectScroll(list,scrollBefore);
       requestAnimationFrame(()=>{
         if(!box.isConnected||!list.isConnected||userScrollEpoch!==placeIntentEpoch)return;
-        if(pendingSeq){const current=activePendingScroll();if(!current||current.seq!==pendingSeq)return;}
+        const current=activePendingScroll();if(!current||current.seq!==pendingSeq)return;
         restoreProjectScroll(list,scrollBefore);
       });
     }
-    box.hidden=false;box.removeAttribute('aria-hidden');box.dataset.ng121PlacementReady='1';document.documentElement.dataset.ng121PinsReady='1';document.documentElement.dataset.ng119PinsReady='1';restoreFocusedPin(box,moved);return true;
+    box.hidden=false;box.removeAttribute('aria-hidden');box.dataset.ng121PlacementReady='1';box.dataset.ng121MountPolicy='direct-once';document.documentElement.dataset.ng121PinsReady='1';document.documentElement.dataset.ng119PinsReady='1';restoreFocusedPin(box,false);return true;
   }
 
   function canonicalProjects(){
@@ -226,8 +249,8 @@
         let host=pair.host;
         if(!host?.isConnected||host.closest('#ng8-pins')!==box)host=pair.a;
         const desired=cursor?cursor.nextSibling:list.firstChild;
-        if(host.parentElement!==list||host!==desired){list.insertBefore(host,desired);structural=true;}
-        if(pair.drawer?.isConnected){if(pair.drawer.parentElement!==list||host.nextSibling!==pair.drawer){list.insertBefore(pair.drawer,host.nextSibling);structural=true;}cursor=pair.drawer;}else cursor=host;
+        if(host.parentElement!==list||host!==desired){if(safeInsert(list,host,desired))structural=true;}
+        if(pair.drawer?.isConnected){if(pair.drawer.parentElement!==list||host.nextSibling!==pair.drawer){if(safeInsert(list,pair.drawer,host.nextSibling))structural=true;}cursor=pair.drawer;}else cursor=host;
       }
       const count=head.querySelector(':scope>b');if(count&&count.textContent!==String(projects.length))count.textContent=String(projects.length);
       box.dataset.ng121CatalogSig=sig;box.dataset.ng121CatalogCount=String(projects.length);box.dataset.ng121IdentityStable='1';
@@ -241,7 +264,25 @@
     window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',`OK · ${projects.length}/${projects.length} Projects NiakGPT · catalogue complet · nœuds stables · boucle legacy cassée`);
     return projects.length;
   }
-  function ensureBox(){const root=navRoot();if(!root)return null;let box=document.getElementById('ng8-pins');if(!box){box=document.createElement('section');box.id='ng8-pins';box.hidden=true;root.appendChild(box);}return box;}
+  function ensureBox(){
+    const root=navRoot();if(!root)return null;
+    let box=document.getElementById('ng8-pins');
+    const mountedParent=box?mountParentByBox.get(box):null;
+    if(box?.isConnected&&(!root.contains(box)||(mountedParent&&box.parentElement!==mountedParent))){
+      retireStaleBox(box);box=null;
+    }
+    if(box?.dataset.ng121Retired==='1')box=null;
+    if(!box){
+      const target=placementTarget(root,null);if(!target)return null;
+      box=document.createElement('section');box.id='ng8-pins';box.hidden=true;box.dataset.ng121MountPolicy='direct-once';
+      if(!safeInsert(target.parent,box,target.before))return null;
+      mountParentByBox.set(box,target.parent);
+      box.dataset.ng121Placement=target.mode;box.dataset.ng119Placement=target.legacy;box.dataset.ng121MountCount='1';
+    }else if(!mountedParent&&box.parentElement){
+      mountParentByBox.set(box,box.parentElement);
+    }
+    return box;
+  }
   function hideWelcome(){
     const main=document.querySelector('main,[role="main"]');if(!main||main.querySelector('[data-message-author-role]'))return;
     const rx=/^(?:bonjour|bonsoir|salut|hello|hi)(?:\s+[\p{L}\p{N}._'-]{1,40})?[!,.? ]*$|^(?:par quoi commençons-nous|comment puis-je vous aider|que puis-je faire pour vous|qu[’']est-ce qu[’']on fait|how can i help|what can i help with|what(?:'|’)s on your mind)[?!. ]*$/iu;

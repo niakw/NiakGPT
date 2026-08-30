@@ -44,12 +44,20 @@ for(const [engine,launcher] of Object.entries(engines)){
     assert(state.legacyOwned===0&&state.absoluteOwned,`managed Projects still match app-v090 legacy observer selector: ${JSON.stringify(state)}`);
 
     await page.evaluate(()=>{
-      window.__badFrames=0;window.__frameWatch=true;const watch=()=>{if(!window.__frameWatch)return;const b=document.getElementById('ng8-pins'),native=document.getElementById('native-projects');if(!b||b.parentElement?.id!=='sidebar-shell'||b.nextElementSibling!==native||b.querySelectorAll('a[data-ng8-pin="1"]').length!==25)window.__badFrames++;requestAnimationFrame(watch);};requestAnimationFrame(watch);
-      let n=0;window.__churn=setInterval(()=>{const b=document.getElementById('ng8-pins'),aside=document.querySelector('.sidebar'),shell=document.getElementById('sidebar-shell');if(!b||!aside||!shell)return;aside.insertBefore(b,shell);b.innerHTML='<div class="ng8-pin-head"><span>PROJECTS</span><b>8</b></div><div class="ng8-pin-list">'+Array.from({length:8},(_,i)=>'<a data-ng8-pin="1" href="/g/g-p-broken'+i+'/project"><span>Broken '+i+'</span></a>').join('')+'</div>';if(++n>=35){clearInterval(window.__churn);setTimeout(()=>window.__frameWatch=false,180);}},9);
+      window.__badFrames=0;window.__frameWatch=true;
+      const watch=()=>{if(!window.__frameWatch)return;const b=document.getElementById('ng8-pins'),native=document.getElementById('native-projects');if(!b||b.parentElement?.id!=='sidebar-shell'||b.nextElementSibling!==native||b.querySelectorAll('a[data-ng8-pin="1"]').length!==25)window.__badFrames++;requestAnimationFrame(watch);};
+      requestAnimationFrame(watch);
+      const b=document.getElementById('ng8-pins'),aside=document.querySelector('.sidebar'),shell=document.getElementById('sidebar-shell');
+      window.__corruptedPins=b;
+      aside.insertBefore(b,shell);
+      b.innerHTML='<div class="ng8-pin-head"><span>PROJECTS</span><b>8</b></div><div class="ng8-pin-list">'+Array.from({length:8},(_,i)=>'<a data-ng8-pin="1" href="/g/g-p-broken'+i+'/project"><span>Broken '+i+'</span></a>').join('')+'</div>';
+      setTimeout(()=>window.__frameWatch=false,220);
     });
-    await page.waitForTimeout(750);
-    state=await page.evaluate(()=>{const b=document.getElementById('ng8-pins'),native=document.getElementById('native-projects'),owned=[...(b?.querySelectorAll('a[data-ng8-pin="1"]')||[])];return{parent:b?.parentElement?.id,next:b?.nextElementSibling?.id,count:owned.length,badFrames:window.__badFrames,legacyOwned:b?.querySelectorAll('a[href^="/g/g-p-"]').length||0,absoluteOwned:owned.every(a=>String(a.getAttribute('href')||'').startsWith('https://chatgpt.com/')),diag:window.__diag['pins-ui']||''};});
-    assert(state.parent==='sidebar-shell'&&state.next==='native-projects'&&state.count===25&&state.badFrames===0,/0/.test(String(state.badFrames))?`catalog not recovered after competing renderer: ${JSON.stringify(state)}`:`Projects block visibly jumped during competing renders: ${JSON.stringify(state)}`);
+    await page.waitForFunction(()=>{const b=document.getElementById('ng8-pins'),native=document.getElementById('native-projects');return b&&b!==window.__corruptedPins&&b.parentElement?.id==='sidebar-shell'&&b.nextElementSibling===native&&b.querySelectorAll('a[data-ng8-pin="1"]').length===25;},null,{timeout:2500});
+    await page.waitForTimeout(260);
+    state=await page.evaluate(()=>{const b=document.getElementById('ng8-pins'),owned=[...(b?.querySelectorAll('a[data-ng8-pin="1"]')||[])],old=window.__corruptedPins;return{parent:b?.parentElement?.id,next:b?.nextElementSibling?.id,count:owned.length,badFrames:window.__badFrames,oldRetired:old?.dataset.ng121Retired||'',oldStillOutside:old?.parentElement?.classList?.contains('sidebar')||false,oldId:old?.id||'',legacyOwned:b?.querySelectorAll('a[href^="/g/g-p-"]').length||0,absoluteOwned:owned.every(a=>String(a.getAttribute('href')||'').startsWith('https://chatgpt.com/')),diag:window.__diag['pins-ui']||''};});
+    assert(state.parent==='sidebar-shell'&&state.next==='native-projects'&&state.count===25&&state.badFrames===0,`catalog not recovered atomically after external displacement: ${JSON.stringify(state)}`);
+    assert(state.oldRetired==='1'&&state.oldStillOutside&&/^ng8-pins-retired-/.test(state.oldId),`externally displaced node was moved back instead of retired in place: ${JSON.stringify(state)}`);
     assert(state.legacyOwned===0&&state.absoluteOwned,`recovered catalog re-entered legacy Project observer: ${JSON.stringify(state)}`);
 
     const before=page.url();await page.locator(`#ng8-pins a[data-ng121-pid="${p1}"]`).click();await page.waitForTimeout(180);

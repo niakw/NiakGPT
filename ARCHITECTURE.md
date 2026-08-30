@@ -1,16 +1,19 @@
 # Architecture de NiakGPT
 
-NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.81 privilégie quatre propriétés : **faible coût runtime**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
+NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.82 privilégie quatre propriétés : **faible coût runtime**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
 
 ## Périmètre
 
-Le manifest 0.9.81 déclare :
+Le manifest 0.9.82 déclare :
 
 ```text
 https://chatgpt.com/*
 https://api.github.com/*
 https://github.com/login/*
+https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*
 ```
+
+Le dernier host est le callback HTTPS exact dérivé de l’ID public et stable de l’extension ; il ne donne accès à aucun dépôt GitHub ni à aucune donnée utilisateur.
 
 Aucun serveur NiakGPT n’est requis. Les caches, réglages, états de gouvernance et verrous restent dans le profil navigateur local. Project Memory utilise `api.github.com`, la permission `identity` et l’échange OAuth borné sur `github.com/login/*` uniquement après un geste explicite de connexion.
 
@@ -23,6 +26,20 @@ Cette combinaison corrige un angle mort de 0.9.80 : React peut continuer son sch
 Jusqu’au signal final, `composer-continuation-v128.js`, `long-run-watchdog-v129.js`, `pin-interaction-rescue-v129.js`, `project-menu-augment-v129.js` et `continuity-native-handoff-v129.js` restent dormants et ne lancent **aucun observer, timer, interception ou mutation DOM**.
 
 Le gate `visual-lab/hydration-barrier-v080.mjs` reproduit maintenant deux remplacements tardifs du shell via `MessageChannel`, après de fausses périodes de calme, et exige que NiakGPT reste inactif jusqu’à la stabilité finale sur Chromium, Firefox et WebKit.
+
+## Invariant DOM 0.9.82 — mount direct, jamais de reparenting des Pins
+
+Le bloc `#ng8-pins` n’est plus créé à un endroit provisoire puis déplacé. `sidebar-projects-v121.js` calcule d’abord son emplacement final dans la **sidebar visible et active**, puis crée le nœud directement à cet emplacement.
+
+Si ChatGPT remonte sa sidebar pendant une conversation :
+
+1. l’ancien bloc Pins reste dans l’ancien shell et est neutralisé sur place (`data-ng121-retired="1"`) ;
+2. son ID actif est libéré sans déplacer ce nœud ;
+3. un nouveau `#ng8-pins` est créé directement dans le nouveau shell ;
+4. aucun même nœud Pins ne change de parent après son premier mount ;
+5. les insertions internes passent par `safeInsert()`, qui refuse toute relation parent/descendant invalide.
+
+`ux-v131.js` exclut les shells cachés/inertes/`aria-hidden` et privilégie le shell réellement hit-testable. Le lab `dom-node-stability-v082.mjs` démarre directement dans un chat, remonte tardivement la sidebar sans passer par l’accueil, puis échoue sur tout équivalent de `Cannot moveNode`, `Node cannot be found` ou changement de parent du même nœud Pins.
 
 ## Deux mondes d’exécution
 
@@ -383,7 +400,7 @@ peuvent être suspendus, tandis que composer, lecture, navigation et interface n
 
 Une modification architecturale n’est considérée terminée que si le niveau de preuve correspondant existe.
 
-La 0.9.81 utilise notamment :
+La 0.9.82 utilise notamment :
 
 1. `tools/check-hydration-v100.mjs` — invariants runtime et ordre de boot ;
 2. `labs/static_validate_current.py` — syntaxe, manifest, package/runtime, propriétaires uniques ;

@@ -426,7 +426,29 @@
   }
 
   async function githubLogin() {
-    const r = await send({ type:'niakgpt:memory-github-login-v132' });
+    if (!chrome?.runtime?.connect) {
+      const fallback = await send({ type:'niakgpt:memory-github-login-v132' });
+      if (fallback && fallback.ok) await state({mode:'github-ready',error:''});
+      return fallback;
+    }
+    const r = await new Promise(resolve => {
+      let settled=false,heartbeatTimer=0;
+      const port=chrome.runtime.connect({name:'niakgpt:memory-github-login-v132'});
+      const finish=value=>{
+        if(settled)return;settled=true;clearTimeout(heartbeatTimer);
+        try{port.disconnect();}catch{}
+        resolve(value||{ok:false,error:'github_auth_port_closed'});
+      };
+      const heartbeat=()=>{
+        if(settled)return;
+        try{port.postMessage({type:'keepalive'});}catch{return finish({ok:false,error:'github_auth_port_closed'});}
+        heartbeatTimer=setTimeout(heartbeat,20_000);
+      };
+      port.onMessage.addListener(message=>{if(message?.type==='result')finish(message.result);});
+      port.onDisconnect.addListener(()=>{if(!settled)finish({ok:false,error:chrome.runtime.lastError?.message||'github_auth_port_closed'});});
+      try{port.postMessage({type:'start'});heartbeatTimer=setTimeout(heartbeat,20_000);}
+      catch(error){finish({ok:false,error:String(error?.message||error)});}
+    });
     if (r && r.ok) await state({mode:'github-ready',error:''});
     return r;
   }

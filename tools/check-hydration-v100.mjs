@@ -8,9 +8,9 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 
 const manifest=JSON.parse(read('manifest.json'));
 if(manifest.manifest_version!==3)fail('manifest_version drift');
-if(manifest.version!=='0.9.81')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.82')fail(`unexpected release ${manifest.version}`);
 same(manifest.permissions,['storage','scripting','identity'],'permissions mismatch');
-same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*'],'host scope mismatch');
+same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*'],'host scope mismatch');
 const staticRuntime=['boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'];
 same(manifest.content_scripts.flatMap(x=>x.js||[]),staticRuntime,'unexpected static runtime');
 const jsScripts=manifest.content_scripts.filter(x=>(x.js||[]).length);
@@ -141,6 +141,7 @@ for(const css of ['native-rename-v112.css','sidebar-authority-v107.css','sidebar
 for(const file of ['visual-lab/sidebar-session-ux-v123.mjs','visual-lab/tests/sidebar-human-ux-v123.spec.js','visual-lab/tests/activity-long-running-v124.spec.js','visual-lab/experience-gate-v116.mjs','visual-lab/false-positive-signals-v121.mjs','visual-lab/live-sidebar-state-v122.mjs','visual-lab/user-reported-regressions-v120.mjs','visual-lab/parallel-continue-v128.mjs','visual-lab/tests/composer-continuation-runtime-v128.spec.js','visual-lab/tests/live-stability-v129.spec.js'])if(!fs.existsSync(file))fail(`required current regression gate missing ${file}`);
 const sessionGate=read('visual-lab/sidebar-session-ux-v123.mjs');
 for(const token of ['length:28','length:58','scroll snapped','Projects block drifted above native primary/logo area','Project menu is clipped/inside sidebar/not hit-testable','Chat menu is clipped/inside sidebar/not hit-testable','WCAG 2.5.8','sidebar remount did not recover','sidebar-session-ux-v123'])need(sessionGate,token,'cross-engine full-session sidebar gate incomplete');
+const liveSidebar=read('visual-lab/live-sidebar-state-v122.mjs');for(const token of ['__corruptedPins','oldRetired','retired in place','external displacement'])need(liveSidebar,token,'live sidebar displacement recovery gate incomplete');
 const humanSpec=read('visual-lab/tests/sidebar-human-ux-v123.spec.js');
 for(const token of ['full human sidebar session UX','Projects catalog is complete, scrollable and visually stable','Project folder and chat drawer keep independent scroll positions','true toggles','Keyboard, focus and modal accessibility','Custom chat rename and move','Project custom rename targets only the exact Project native row','Late sidebar mount and route diversity','Conversation limit CTA really starts continuity','Network/generation error recovery preserves draft','more than 10 logical minutes'])need(humanSpec,token,'browser-fixture sidebar gate incomplete');
 const longRunSpec=read('visual-lab/tests/activity-long-running-v124.spec.js');
@@ -149,6 +150,13 @@ const parallelGate=read('visual-lab/parallel-continue-v128.mjs');
 for(const token of ['idle+thinking+executing+cancel+native-stop+contenteditable+visual','parallel-continuation.png','chromium,firefox,webkit'])need(parallelGate,token,'parallel cross-engine/visual gate incomplete');
 const parallelRuntime=read('visual-lab/tests/composer-continuation-runtime-v128.spec.js');
 for(const token of ['real MV3 static continuation layer prefixes only pre-existing parallel work','Message depuis une conversation au repos.','Ajoute ce contrôle sans arrêter ce que tu fais.','annule',"page.locator('#ng8-rail')",'isolated world'])need(parallelRuntime,token,'parallel real-extension/hydration gate incomplete');
+const sidebarProjects=read('sidebar-projects-v121.js');
+for(const token of ['safeInsert(parent,node,before=null)','retireStaleBox','mountParentByBox','box.parentElement!==mountedParent','ng121MountPolicy','direct-once','placementTarget(root=navRoot(),box=null)'])need(sidebarProjects,token,'sidebar no-reparent contract incomplete');
+for(const forbidden of ["section.parentElement.insertBefore(box,section)","tail.insertAdjacentElement('afterend',box)","root.appendChild(box)"])if(sidebarProjects.includes(forbidden))fail('Pins reparenting path reintroduced: '+forbidden);
+const domNodeLab=read('visual-lab/dom-node-stability-v082.mjs');
+for(const token of ['syntheticMoveNodeErrors','mountParents','late shell remount','Node cannot be found','direct-once'])need(domNodeLab,token,'DOM node stability lab incomplete');
+for(const token of ['launchManifestRegistrationTab','chrome.tabs.create','github_auth_url_invalid_scheme','launchIdentityFlow','chrome.runtime.onConnect.addListener'])need(memoryBackend,token,'GitHub auth transport contract incomplete');
+if(/launchWebAuthFlow\(\{\s*url:\s*chrome\.runtime\.getURL/s.test(memoryBackend))fail('launchWebAuthFlow still receives chrome-extension:// starter URL');
 const humanSidebar=read('visual-lab/tests/sidebar-human-ux-v123.spec.js');
 for(const token of ["page.locator('#ng8-status')","manifest.version,{timeout:20000}","CONTINUITÉ NIAKGPT',{timeout:12000}"])need(humanSidebar,token,'real continuity reload must wait for post-hydration runtime readiness');
 const liveSpec=read('visual-lab/tests/live-stability-v129.spec.js');
@@ -156,8 +164,9 @@ for(const token of ['NIAKGPT_EXECUTABLE_PATH','long-run recovery + remount-safe 
 
 const packageJson=read('visual-lab/package.json');
 const packageVersion=JSON.parse(packageJson).devDependencies?.['@playwright/test'];if(packageVersion!=='1.62.1')fail(`Playwright package/image version drift: ${packageVersion}`);
+need(JSON.parse(packageJson).scripts?.['test:current']||'','dom-node-stability-v082.mjs','current visual gate missing DOM node stability regression');
 const workflow=read('.github/workflows/current-finalization.yml');
-for(const token of ['chromium, firefox, webkit','sidebar-session-ux-v123.mjs','CURRENT LEFT SIDEBAR complete session contract','sidebar-human-ux-v123.spec.js','PRIMARY real Brave — FULL human sidebar','experience-linux:','extension-runtime-linux:','mcr.microsoft.com/playwright:v1.62.1-noble','PLAYWRIGHT_BROWSERS_PATH: /ms-playwright','HOME: /root'])need(workflow,token,'current full-session/cross-platform workflow incomplete');
+for(const token of ['chromium, firefox, webkit','sidebar-session-ux-v123.mjs','CURRENT LEFT SIDEBAR complete session contract','dom-node-stability-v082.mjs','Reported DOM node stability — direct chat and late shell remount','sidebar-human-ux-v123.spec.js','PRIMARY real Brave — FULL human sidebar','experience-linux:','extension-runtime-linux:','mcr.microsoft.com/playwright:v1.62.1-noble','PLAYWRIGHT_BROWSERS_PATH: /ms-playwright','HOME: /root'])need(workflow,token,'current full-session/cross-platform workflow incomplete');
 const imageLines=workflow.split(/\r?\n/).filter(line=>/^\s+image:\s+mcr\.microsoft\.com\/playwright:v1\.62\.1-noble\s*$/.test(line));if(imageLines.length!==3)fail(`expected 3 pinned Linux Playwright image jobs, got ${imageLines.length}`);
 if(/^\s*npx playwright install --with-deps\b/m.test(workflow))fail('Linux Finalization reintroduced apt --with-deps');
 const parallelWorkflow=read('.github/workflows/parallel-continuation-v128.yml');

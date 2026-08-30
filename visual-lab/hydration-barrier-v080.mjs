@@ -30,7 +30,7 @@ for(const [name,launcher] of Object.entries(selected)){
       window.chrome={
         runtime:{
           id:'hydration-lab',
-          getManifest:()=>({version:'0.9.81'}),
+          getManifest:()=>({version:'0.9.82'}),
           sendMessage:async()=>({ok:true,errors:[]})
         },
         storage:{
@@ -92,7 +92,7 @@ for(const [name,launcher] of Object.entries(selected)){
 
     await page.goto('https://chatgpt.com/c/hydration-fixture',{waitUntil:'load'});
 
-    // Production 0.9.81 runs the JS content-script group at document_idle, never document_start.
+    // Production 0.9.82 runs the JS content-script group at document_idle, never document_start.
     await page.addScriptTag({content:manifestOrderedSource});
 
     await page.waitForFunction(()=>document.documentElement.dataset.lateHydrationStage==='1',null,{timeout:4000});

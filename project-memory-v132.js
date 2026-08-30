@@ -12,7 +12,7 @@
   const MAX_STATE = 18000;
   const CHUNK = 360000;
   const HISTORY_FETCH_GAP_MS = 3000;
-  let seq = 0, syncing = false, autoTimer = 0, routeTimer = 0, lastHistoryFetchAt = 0;
+  let seq = 0, syncing = false, syncAuto = false, autoTimer = 0, routeTimer = 0, lastHistoryFetchAt = 0;
   let contextProject = '', contextText = '';
 
   const clean = v => String(v == null ? '' : v).replace(/\r/g, '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
@@ -60,10 +60,12 @@
 
   async function waitIdle(limit) {
     const start = Date.now(), max = limit || 10 * 60 * 1000;
-    while (busy() || document.hidden) {
+    while (busy()) {
+      if (document.hidden || (syncAuto && !autoOwner())) return false;
       if (Date.now() - start > max) return false;
       await sleep(1000);
     }
+    if (document.hidden || (syncAuto && !autoOwner())) return false;
     return true;
   }
 
@@ -256,6 +258,8 @@
     const chats = project.chats.slice().sort((a,b) => Number(a.updated || 0) - Number(b.updated || 0));
     let changed = 0;
     for (let i = 0; i < chats.length; i++) {
+      if (document.hidden) throw new Error('memory_sync_paused_hidden');
+      if (syncAuto && !autoOwner()) throw new Error('memory_sync_paused_owner_change');
       const chat = chats[i], old = idx.conversations[chat.id], updated = parseTime(chat.updated);
       if (!force && old && Number(old.updated || 0) >= updated && Number(old.parts || 0) > 0) continue;
       await state({ mode:'syncing', projectId:project.id, projectName:project.name, chatId:chat.id, chatTitle:chat.title, chatDone:i, chatTotal:chats.length });
@@ -278,6 +282,7 @@
       await commit(files, 'NiakGPT memory: ' + one(project.name || project.id) + ' / ' + one(chat.title || chat.id));
       idx.conversations[chat.id] = chatIndex;
       changed++;
+      await state({ mode:'syncing', projectId:project.id, projectName:project.name, chatId:chat.id, chatTitle:chat.title, chatDone:i+1, chatTotal:chats.length });
       await sleep(300);
     }
 
@@ -294,14 +299,20 @@
 
   async function deepInventory() {
     let raw = await cache(), list = projects(raw);
-    if (!list.some(p => p.count > 0 && !p.indexed)) return list;
-    if (!await waitIdle(90000)) return list;
+    const unresolved=()=>list.filter(p => p.count > 0 && !p.indexed);
+    if (!unresolved().length) return list;
+    await state({ mode:'preparing', inventoryPending:unresolved().length, projectDone:0, projectTotal:list.length, error:'' });
+    if (!await waitIdle(15000)) return list;
     document.dispatchEvent(new CustomEvent('niakgpt:force-server-index', { detail:{ source:'project-memory-v132' } }));
-    const end = Date.now() + 90000;
+    // Do not hold the first Project Memory run at 0% for 90 seconds. Give the native index a
+    // short bounded window, then persist the inventory already known; later cache/index events
+    // schedule another incremental pass for anything discovered afterwards.
+    const end = Date.now() + 15000;
     while (Date.now() < end) {
-      if (busy() || document.hidden) { await sleep(1000); continue; }
-      await sleep(1000); raw = await cache(); list = projects(raw);
-      if (!list.some(p => p.count > 0 && !p.indexed)) break;
+      if (document.hidden || (syncAuto && !autoOwner())) break;
+      if (busy()) { await sleep(750); continue; }
+      await sleep(750); raw = await cache(); list = projects(raw);
+      if (!unresolved().length) break;
     }
     return list;
   }
@@ -337,52 +348,83 @@
     return primeBootstrapQueue(false);
   }
 
-  async function bootstrap(options) {
-    const opt = options || {};
-    if (navigator.locks && navigator.locks.request && opt.__lockHeld !== true) {
-      let lockedResult = { ok:true, skipped:'sync_owned_by_other_tab' };
-      await navigator.locks.request(MEMORY_LOCK,{mode:'exclusive',ifAvailable:true},async lock => {
-        if (!lock) return;
-        lockedResult = await bootstrap(Object.assign({},opt,{__lockHeld:true}));
-      });
-      return lockedResult;
-    }
-    if (syncing) return { ok:false, error:'sync_already_running' };
-    const st = await send({ type:'niakgpt:memory-status-v132' });
-    if (!st || !st.connected) return { ok:false, error:st && st.configured ? 'github_token_missing' : 'not_connected' };
-    syncing = true;
-    try {
-      let list = await deepInventory();
-      list = list.filter(p => p.count > 0 && (!Array.isArray(opt.projectIds) || opt.projectIds.includes(p.id)));
-      await saveQueue(list.map(p => p.id), opt.force);
-      await state({ mode:'syncing', projectDone:0, projectTotal:list.length, error:'' });
-      let changed = 0;
-      for (let i = 0; i < list.length; i++) {
-        await saveQueue(list.slice(i).map(p => p.id), opt.force);
-        if (!await waitIdle()) throw new Error('memory_sync_idle_timeout');
-        changed += await syncProject(list[i], opt.force === true);
-        await state({ mode:'syncing', projectDone:i+1, projectTotal:list.length, projectId:list[i].id, projectName:list[i].name });
-      }
-      try { await chrome.storage.local.remove(QUEUE_KEY); } catch {}
-      const done = await state({ mode:'idle', projectDone:list.length, projectTotal:list.length, changed, lastSyncAt:Date.now(), error:'' });
-      document.dispatchEvent(new CustomEvent('niakgpt:project-memory-synced', { detail:done }));
-      return { ok:true, projects:list.length, changed };
-    } catch (error) {
-      await state({ mode:'error', error:String(error && error.message || error).slice(0,260) });
-      return { ok:false, error:String(error && error.message || error) };
-    } finally { syncing = false; }
+  async function queuedState(reason='') {
+    let q={};
+    try { q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{}; } catch {}
+    const pending=Array.isArray(q.pending)?q.pending:[];
+    return state({mode:'queued',queuedProjects:pending.length,projectTotal:pending.length,error:'',pauseReason:reason});
   }
 
   const autoOwner = () => {
     const role = String(document.documentElement.dataset.ng8TabRole || '').toLowerCase();
-    return !role || role === 'worker';
+    // Project Memory has its own navigator.lock. It should follow a visible usable tab instead
+    // of the heavier general WORKER election, otherwise a hidden WORKER can own the sync lock
+    // while waiting forever for visibility.
+    return !document.hidden && role !== 'inactive';
   };
+
+  async function bootstrap(options) {
+    const opt = options || {};
+    const automatic = opt.auto === true;
+    if (document.hidden || (automatic && !autoOwner())) {
+      if (automatic) await queuedState(document.hidden?'hidden':'owner');
+      return { ok:false, paused:true, error:document.hidden?'memory_sync_paused_hidden':'memory_sync_paused_owner_change' };
+    }
+    if (busy()) {
+      if (automatic) await queuedState('busy');
+      return { ok:false, paused:true, error:'memory_sync_paused_busy' };
+    }
+    if (navigator.locks && navigator.locks.request && opt.__lockHeld !== true) {
+      let acquired=false, lockedResult = automatic ? { ok:true, skipped:'sync_owned_by_other_tab' } : { ok:false, error:'memory_sync_owned_by_other_tab' };
+      await navigator.locks.request(MEMORY_LOCK,{mode:'exclusive',ifAvailable:true},async lock => {
+        if (!lock) return;
+        acquired=true;
+        lockedResult = await bootstrap(Object.assign({},opt,{__lockHeld:true}));
+      });
+      if(!acquired&&automatic)return lockedResult;
+      return lockedResult;
+    }
+    if (syncing) return automatic ? {ok:true,skipped:'sync_already_running'} : { ok:false, error:'sync_already_running' };
+    const st = await send({ type:'niakgpt:memory-status-v132' });
+    if (!st || !st.connected) return { ok:false, error:st && st.configured ? 'github_token_missing' : 'not_connected' };
+    syncing = true;
+    syncAuto = automatic;
+    try {
+      let list = await deepInventory();
+      list = list.filter(p => p.count > 0 && (!Array.isArray(opt.projectIds) || opt.projectIds.includes(p.id)));
+      await saveQueue(list.map(p => p.id), opt.force);
+      await state({ mode:'syncing', projectDone:0, projectTotal:list.length, chatDone:0, chatTotal:0, error:'' });
+      let changed = 0;
+      for (let i = 0; i < list.length; i++) {
+        if (document.hidden) throw new Error('memory_sync_paused_hidden');
+        if (automatic && !autoOwner()) throw new Error('memory_sync_paused_owner_change');
+        await saveQueue(list.slice(i).map(p => p.id), opt.force);
+        if (!await waitIdle()) throw new Error(document.hidden?'memory_sync_paused_hidden':(automatic&&!autoOwner()?'memory_sync_paused_owner_change':'memory_sync_idle_timeout'));
+        changed += await syncProject(list[i], opt.force === true);
+        await state({ mode:'syncing', projectDone:i+1, projectTotal:list.length, projectId:list[i].id, projectName:list[i].name, chatDone:0, chatTotal:0 });
+      }
+      try { await chrome.storage.local.remove(QUEUE_KEY); } catch {}
+      const done = await state({ mode:'idle', projectDone:list.length, projectTotal:list.length, changed, lastSyncAt:Date.now(), error:'',pauseReason:'' });
+      document.dispatchEvent(new CustomEvent('niakgpt:project-memory-synced', { detail:done }));
+      return { ok:true, projects:list.length, changed };
+    } catch (error) {
+      const message=String(error && error.message || error);
+      if(/^memory_sync_paused_(?:hidden|owner_change|busy)$/.test(message)){
+        await queuedState(message.replace('memory_sync_paused_',''));
+        return {ok:false,paused:true,error:message};
+      }
+      await state({ mode:'error', error:message.slice(0,260) });
+      return { ok:false, error:message };
+    } finally { syncing = false; syncAuto = false; }
+  }
 
   async function resume() {
     if (syncing || !autoOwner()) return;
     try {
       const q = (await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY], p = await prefs();
-      if (q && q.pending && q.pending.length && p.autoSync) bootstrap({ force:q.force, projectIds:q.pending });
+      if (!q?.pending?.length || !p.autoSync) return;
+      if (busy()) { schedule(3500); return; }
+      bootstrap({ force:q.force, projectIds:q.pending, auto:true });
     } catch {}
   }
 
@@ -391,9 +433,11 @@
     if (!autoOwner() || !(await prefs()).autoSync) return;
     autoTimer = setTimeout(async () => {
       if (!autoOwner()) return;
-      if (busy() || document.hidden) return schedule(15000);
+      if (busy()) return schedule(5000);
       const st = await send({ type:'niakgpt:memory-status-v132' });
-      if (st && st.connected) bootstrap({ force:false });
+      if (!st?.connected) return;
+      let q={};try{q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
+      bootstrap({ force:q.force===true, projectIds:Array.isArray(q.pending)&&q.pending.length?q.pending:undefined, auto:true });
     }, delay || 12000);
   }
 
@@ -450,7 +494,7 @@
     const r = await send(Object.assign({ type:'niakgpt:memory-connect-v132' }, options || {}));
     if (r && r.ok) {
       const pending=await primeBootstrapQueue(false);
-      resume();schedule(800);
+      setTimeout(()=>{ if(!document.hidden&&!busy()) bootstrap({force:false,projectIds:pending,auto:false}); else { resume();schedule(1200); } },250);
       return Object.assign({},r,{bootstrapQueued:true,queuedProjects:pending.length});
     }
     return r;
@@ -492,7 +536,7 @@
     const r = await send(Object.assign({ type:'niakgpt:memory-github-connect-repo-v132' }, options || {}));
     if (r && r.ok) {
       const pending=await primeBootstrapQueue(false);
-      resume();schedule(800);
+      setTimeout(()=>{ if(!document.hidden&&!busy()) bootstrap({force:false,projectIds:pending,auto:false}); else { resume();schedule(1200); } },250);
       return Object.assign({},r,{bootstrapQueued:true,queuedProjects:pending.length});
     }
     return r;
@@ -536,7 +580,7 @@
     githubLogout,
     disconnect,
     status,
-    syncNow:o => bootstrap({force:o && o.force === true}),
+    syncNow:o => bootstrap({force:o && o.force === true,auto:false}),
     getPrefs:prefs,
     setPrefs,
     refreshContext
@@ -564,7 +608,7 @@
   });
   document.addEventListener('niakgpt:activity-changed', () => { if (!busy()) schedule(5000); });
   document.addEventListener('niakgpt:tab-role-changed', event => {
-    if (event.detail && event.detail.role === 'worker') { resume(); schedule(2500); }
+    if (event.detail && event.detail.role !== 'inactive' && !document.hidden) { resume(); schedule(2500); }
     else clearTimeout(autoTimer);
   });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { refreshContext(); resume(); } });

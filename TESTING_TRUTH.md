@@ -68,3 +68,17 @@ The 0.9.76/v131 line explicitly covers:
 The 0.9.71–0.9.73 overlay stack is not a stable baseline. A recovery release must not reintroduce `native-ux-v125/v126`, `continuity-limit-v125`, `continuity-live-v126`, `sidebar-route-placement-v125` or `sidebar-truth-v127` without a new authenticated validation cycle.
 
 Fixture CI alone cannot authorize their return.
+
+## Native chat network safety baseline — 0.9.87
+
+A synthetic browser lab is **not** proof that an authenticated production ChatGPT account will never encounter a platform-side network incident. It can, however, prove what NiakGPT itself does or does not emit.
+
+The mandatory regression baseline is therefore explicit:
+
+- loading NiakGPT on a `/c/{id}` conversation must emit **zero automatic NiakGPT RPC/auth/backend GET**;
+- Project Memory, server indexing and deep analysis cannot bypass that route guard;
+- a visible peer conversation quarantines background GETs in other ChatGPT tabs/windows;
+- only an explicit user foreground action may request Project data, and even that yields to native generation, verification or network recovery;
+- CI success must never be described as authenticated live-field proof unless an authenticated live test actually ran.
+
+The field report that motivated 0.9.87 is treated as higher-priority evidence than a green synthetic gate when the two disagree.

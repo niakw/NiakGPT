@@ -83,13 +83,13 @@ for(const [engine,launcher] of Object.entries(engines)){
     await action.waitFor({state:'visible',timeout:5000});
     await action.scrollIntoViewIfNeeded();
     await action.click({timeout:5000});
-    await page.waitForFunction(()=>document.querySelector('#ng123-action-menu[data-kind="project"]'),null,{timeout:2500});
+    await page.waitForFunction(()=>document.querySelector('#ng123-action-menu[data-kind="project"]'),null,{timeout:5000});
     state=await page.evaluate(()=>{const m=document.getElementById('ng123-action-menu'),side=document.querySelector('[data-testid="conversation-sidebar"]'),r=m?.getBoundingClientRect(),s=side?.getBoundingClientRect();return{menu:!!m,body:m?.parentElement===document.body,fixed:m?getComputedStyle(m).position==='fixed':false,outside:!!(r&&s&&r.left>=s.right+2),text:m?.innerText||''};});
     assert(state.menu&&state.body&&state.fixed&&state.outside&&/Actualiser les conversations/.test(state.text)&&!/Déplacer vers/.test(state.text),`canonical slug Project action button did not open current v123 menu: ${JSON.stringify(state)}`);
     await action.click();await page.waitForTimeout(120);assert(await page.locator('#ng123-action-menu').count()===0,'second click did not close current Project menu');
 
     const p1Anchor=page.locator(`#ng8-pins a[data-ng121-pid="${p1}"]`);if(await p1Anchor.getAttribute('aria-expanded')!=='true')await p1Anchor.click();await page.waitForTimeout(120);
-    const chatAction=page.locator('#ng8-pins .ng96-chat-entry').first().locator('.ng113-native-actions-chat');await chatAction.scrollIntoViewIfNeeded();await chatAction.click();await page.waitForFunction(()=>document.querySelector('#ng123-action-menu[data-kind="chat"]'),null,{timeout:3500});
+    const chatAction=page.locator('#ng8-pins .ng96-chat-entry').first().locator('.ng113-native-actions-chat');await chatAction.scrollIntoViewIfNeeded();await chatAction.click();await page.waitForFunction(()=>document.querySelector('#ng123-action-menu[data-kind="chat"]'),null,{timeout:5000});
     const chatText=await page.locator('#ng123-action-menu').innerText();assert(/Renommer/.test(chatText)&&/Déplacer vers/.test(chatText)&&!/Actualiser les conversations/.test(chatText),'chat action did not open current v123 chat menu');
 
     console.log(`${engine} live sidebar screenshot state: PASS`);

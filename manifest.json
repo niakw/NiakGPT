@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.87",
-  "description": "NiakGPT : zéro trafic backend automatique pendant les chats, Pins fiables et Project Memory strictement opportuniste.",
+  "version": "0.9.88",
+  "description": "NiakGPT : zéro trafic ChatGPT pendant les discussions, Pins ancrés hors du DOM Projects natif et coffre GitHub amorcé depuis le cache local.",
   "permissions": [
     "storage",
     "scripting",

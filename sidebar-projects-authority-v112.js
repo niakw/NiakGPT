@@ -91,8 +91,14 @@
     const list=[...new Set(items)].filter(el=>el&&outsideOwn(el)&&sharesSidebarShell(el)&&!el.contains(ownProjects()));
     return list.filter(el=>!list.some(other=>other!==el&&other.contains(el)));
   }
+  function placementSiblingTarget(){
+    const box=ownProjects(),next=box?.nextElementSibling;
+    if(!box||!next||!sharesSidebarShell(next)||next.contains(box)||!structuralProjectSurface(next))return null;
+    return next;
+  }
   function nativeTargets(){
-    const found=new Set(),names=managedNames();
+    const found=new Set(),names=managedNames(),sibling=placementSiblingTarget();
+    if(sibling)found.add(sibling);
     for(const link of document.querySelectorAll('a[href*="/g/g-p-"]')){if(!sharesSidebarShell(link))continue;const row=rowTarget(link);if(row)found.add(row);const host=nearestProjectHost(link);if(host)found.add(host);}
     for(const host of identityHosts())found.add(host);
     for(const link of document.querySelectorAll('a[href]')){if(!sharesSidebarShell(link)||!projectHomeHref(link.getAttribute('href')))continue;const row=rowTarget(link);if(row)found.add(row);}

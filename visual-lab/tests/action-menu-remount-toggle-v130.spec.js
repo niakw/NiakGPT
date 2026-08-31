@@ -95,6 +95,9 @@ test('Project rename stages an authority-hidden native row and submits exact nat
       nativeName:document.querySelector('#native-projects a')?.textContent||''
     }));
     expect(result,{message:JSON.stringify(result)}).toMatchObject({submits:1,stage:'submitted',nativeName:'Studio Renommé UX'});
+    await expect(page.locator('#ng8-pins a[data-ng8-pin="1"][data-ng121-pid="g-p-aaaaaaaaaaaaaaaa"]')).toContainText('Studio Renommé UX');
+    const outerAnchor=await page.evaluate(()=>getComputedStyle(document.querySelector('#ng8-pins>.ng8-pin-list')).overflowAnchor);
+    expect(outerAnchor).toBe('none');
   }finally{await browser.close();}
 });
 

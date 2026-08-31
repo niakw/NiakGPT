@@ -12,6 +12,7 @@ on:
       - 'github-vault-start.js'
       - 'tools/project-memory-v132.mjs'
       - 'visual-lab/project-memory-v132.mjs'
+      - 'visual-lab/project-memory-wake-v086.mjs'
       - 'visual-lab/sidebar-session-ux-v123.mjs'
       - 'labs/project-memory-isolation-v133.mjs'
       - 'test/x.md'
@@ -73,3 +74,7 @@ jobs:
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node project-memory-v132.mjs
+      - name: Persistent queue self-wake regression
+        if: matrix.browser == 'chromium'
+        working-directory: visual-lab
+        run: node project-memory-wake-v086.mjs

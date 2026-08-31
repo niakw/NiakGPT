@@ -4,7 +4,10 @@ import { chromium } from '@playwright/test';
 
 const ROOT=path.resolve('..');
 let source=await fs.readFile(path.join(ROOT,'project-memory-v132.js'),'utf8');
-source=source.replace('const WAKE_HEARTBEAT_MS = 15000;','const WAKE_HEARTBEAT_MS = 120;');
+source=source
+  .replace('const HISTORY_FETCH_GAP_MS = 20000;','const HISTORY_FETCH_GAP_MS = 60;')
+  .replace('const HUMAN_QUIET_MS = 5*60*1000;','const HUMAN_QUIET_MS = 180;')
+  .replace('const WAKE_HEARTBEAT_MS = 60000;','const WAKE_HEARTBEAT_MS = 120;');
 
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg);};
 const browser=await chromium.launch({headless:true});
@@ -72,8 +75,8 @@ try{
     let snapshot=await page.evaluate(()=>({locks:window.__wakeLockCalls,commits:window.__wakeCommitCalls,state:window.__wakeLocal['niakgpt-project-memory-state-v132']||{}}));
     assert(snapshot.commits===0,'busy bootstrap wrote before native ChatGPT became idle: '+JSON.stringify(snapshot));
 
-    // Clear native busy with NO activity/visibility/storage event. Only the independent heartbeat
-    // can discover that the persistent queue is runnable again.
+    // Clear native busy with NO activity/visibility/storage event. The shortened lab-only quiet
+    // window + heartbeat must recover the persistent queue without restoring production aggressiveness.
     await page.evaluate(()=>{document.documentElement.dataset.ng8Running='0';});
     await page.waitForFunction(()=>window.__wakeCommitCalls>=2,null,{timeout:5000});
 
@@ -92,4 +95,4 @@ try{
   }finally{await context.close();}
 }finally{await browser.close();}
 
-console.log('project-memory-wake-v086: PASS queued bootstrap self-wakes after lost busy/lock races without external events');
+console.log('project-memory-wake-v086: PASS queued bootstrap self-wakes after lost busy/lock races using production-safe quiet semantics');

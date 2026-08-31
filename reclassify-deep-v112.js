@@ -13,7 +13,8 @@
   const tokens=v=>norm(v).split(/[^a-z0-9à-ÿ_-]+/i).filter(x=>x.length>3&&!/^(avec|sans|dans|pour|cette|chat|conversation|projet|project|nouveau|nouvelle|faire|plus|moins|probleme|problème|suite)$/.test(x));
   const currentCid=()=>location.pathname.match(/\/c\/([A-Za-z0-9_-]+)/)?.[1]||'';
   const heavy=()=>document.documentElement.dataset.ng8Heavy==='1';
-  const can=()=>!document.hidden&&document.documentElement.dataset.ng90Safe!=='1'&&document.documentElement.dataset.ng8Running!=='1'&&!['loading','waiting','thinking','executing'].includes(document.documentElement.dataset.ng86Activity||'')&&Number(document.documentElement.dataset.ng100RateLimitedUntil||0)<=Date.now();
+  const conversationQuiet=()=>/(?:^|\/)c\/[A-Za-z0-9_-]+(?:$|[/?#])/.test(String(location.pathname||''))||document.documentElement.dataset.ng90PeerChatActive==='1';
+  const can=()=>!conversationQuiet()&&!document.hidden&&document.documentElement.dataset.ng90Safe!=='1'&&document.documentElement.dataset.ng8Running!=='1'&&!['loading','waiting','thinking','executing'].includes(document.documentElement.dataset.ng86Activity||'')&&Number(document.documentElement.dataset.ng100RateLimitedUntil||0)<=Date.now();
   const projectHrefPid=h=>String(h||'').match(/\/g\/(g-p-[^/?#]+)/i)?.[1]||'';
   const updatedMs=c=>{const n=Number(c?.updated||c?.update_time||c?.create_time||0);return n>1e12?n:n>1e9?n*1000:0;};
   const canonical=p=>p&&String(p.id||'').startsWith('g-p-')&&!p.domOnly&&clean(p.name);

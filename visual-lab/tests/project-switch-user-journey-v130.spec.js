@@ -107,13 +107,13 @@ async function launch(){
 
   await page.evaluate(()=>{
     window.__uxRpcSeq=0;
-    window.__uxRpc=(path,timeout=2500)=>new Promise(resolve=>{
+    window.__uxRpc=(path,foreground=false,timeout=2500)=>new Promise(resolve=>{
       const id=`ux130-${Date.now()}-${++window.__uxRpcSeq}`;
       const done=result=>{clearTimeout(timer);document.removeEventListener('niakgpt:rpc-response',handler);resolve(result);};
       const handler=e=>{if(e.detail?.id===id)done(e.detail);};
       const timer=setTimeout(()=>{document.removeEventListener('niakgpt:rpc-response',handler);resolve({ok:false,error:'ux_timeout'});},timeout);
       document.addEventListener('niakgpt:rpc-response',handler);
-      document.dispatchEvent(new CustomEvent('niakgpt:rpc-request',{detail:{id,path,method:'GET'}}));
+      document.dispatchEvent(new CustomEvent('niakgpt:rpc-request',{detail:{id,path,method:'GET',foreground}}));
     });
   });
 
@@ -153,48 +153,42 @@ async function runJourney(){
       await shot(page,'02-rapid-switch-final.png');
     });
 
-    await runStep('busy transition blocks backend work without freezing Project UX',async()=>{
-      // Fast-forward only the synthetic wall clock past any boot quarantine so this step can
-      // establish one baseline request without waiting 30 real seconds.
-      await page.evaluate(()=>{
-        window.__ngV085RealDateNow=Date.now;
-        window.__ngV085ClockOffset=31_000;
-        Date.now=()=>window.__ngV085RealDateNow()+window.__ngV085ClockOffset;
-      });
-      try{
-        const prime=await page.evaluate(()=>window.__uxRpc('/backend-api/conversations?offset=0&limit=100'));
-        expect(prime.ok).toBeTruthy();
-        const before=rt.traffic.projectCalls.length;
-        const blocked=await page.evaluate(async pid=>{
-          document.documentElement.dataset.ng86Activity='ready';
-          const pending=window.__uxRpc(`/backend-api/gizmos/${pid}/conversations?limit=20&cursor=777`);
-          setTimeout(()=>{document.documentElement.dataset.ng86Activity='thinking';document.documentElement.dataset.ng8Running='1';},35);
-          return pending;
-        },P1);
-        expect(blocked.ok).toBeFalsy();
-        expect(blocked.error).toBe('native_busy');
-        expect(rt.traffic.projectCalls.length).toBe(before);
+    await runStep('conversation quarantine + busy transition never freeze Project UX',async()=>{
+      const generalBefore=rt.traffic.general;
+      const background=await page.evaluate(()=>window.__uxRpc('/backend-api/conversations?offset=0&limit=100'));
+      expect(background.ok).toBeFalsy();
+      expect(background.error).toBe('native_conversation_quiet');
+      expect(rt.traffic.general).toBe(generalBefore);
 
-        await pin(page,P1).click();
-        await expect(pin(page,P1)).toBeFocused();
-        await expect(page.locator('#ng8-pins')).toBeVisible();
-        expect(page.url()).toBe(initialUrl);
-        await shot(page,'03-thinking-local-interaction.png');
+      // A deliberate foreground Project read remains available while native ChatGPT is idle.
+      const foregroundPrime=await page.evaluate(pid=>window.__uxRpc(`/backend-api/gizmos/${pid}/conversations?limit=20&cursor=777`,true),P1);
+      expect(foregroundPrime.ok).toBeTruthy();
+      const before=rt.traffic.projectCalls.length;
 
-        await page.evaluate(()=>{document.documentElement.dataset.ng86Activity='ready';delete document.documentElement.dataset.ng8Running;});
-        const quarantined=await page.evaluate(pid=>window.__uxRpc(`/backend-api/gizmos/${pid}/conversations?limit=20&cursor=777`),P1);
-        expect(quarantined.ok).toBeFalsy();
-        expect(quarantined.error).toBe('native_busy');
-        expect(rt.traffic.projectCalls.length).toBe(before);
+      // Native generation wins even over an explicit foreground read.
+      await page.evaluate(()=>{document.documentElement.dataset.ng86Activity='thinking';document.documentElement.dataset.ng8Running='1';});
+      const blocked=await page.evaluate(pid=>window.__uxRpc(`/backend-api/gizmos/${pid}/conversations?limit=20&cursor=778`,true),P1);
+      expect(blocked.ok).toBeFalsy();
+      expect(blocked.error).toBe('native_busy');
+      expect(rt.traffic.projectCalls.length).toBe(before);
 
-        // Once the 30s post-native quiet window has elapsed, the exact same queued work may run.
-        await page.evaluate(()=>{window.__ngV085ClockOffset=62_000;});
-        const retry=await page.evaluate(pid=>window.__uxRpc(`/backend-api/gizmos/${pid}/conversations?limit=20&cursor=777`),P1);
-        expect(retry.ok).toBeTruthy();
-        expect(rt.traffic.projectCalls.length).toBe(before+1);
-      }finally{
-        await page.evaluate(()=>{if(window.__ngV085RealDateNow){Date.now=window.__ngV085RealDateNow;delete window.__ngV085RealDateNow;delete window.__ngV085ClockOffset;}});
-      }
+      await pin(page,P1).click();
+      await expect(pin(page,P1)).toBeFocused();
+      await expect(page.locator('#ng8-pins')).toBeVisible();
+      expect(page.url()).toBe(initialUrl);
+      await shot(page,'03-thinking-local-interaction.png');
+
+      await page.evaluate(()=>{document.documentElement.dataset.ng86Activity='ready';delete document.documentElement.dataset.ng8Running;});
+      const foregroundAfter=await page.evaluate(pid=>window.__uxRpc(`/backend-api/gizmos/${pid}/conversations?limit=20&cursor=779`,true),P1);
+      expect(foregroundAfter.ok).toBeTruthy();
+      expect(rt.traffic.projectCalls.length).toBe(before+1);
+
+      // Background work remains forbidden for the whole lifetime of the conversation route,
+      // regardless of how long ChatGPT has looked idle.
+      const stillQuarantined=await page.evaluate(pid=>window.__uxRpc(`/backend-api/gizmos/${pid}/conversations?limit=20&cursor=780`),P1);
+      expect(stillQuarantined.ok).toBeFalsy();
+      expect(stillQuarantined.error).toBe('native_conversation_quiet');
+      expect(rt.traffic.projectCalls.length).toBe(before+1);
     });
 
     await runStep('focus, drawer content and action menu remain usable after stress',async()=>{

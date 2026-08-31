@@ -138,7 +138,7 @@ assert.equal(localStore['niakgpt-project-memory-config-v132'],undefined,'failed 
 assert.equal(sessionStore['niakgpt-project-memory-session-token-v132'],undefined,'failed connect persisted token');
 
 const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
-assert.equal(manifest.version, '0.9.87');
+assert.equal(manifest.version, '0.9.88');
 assert.deepEqual(manifest.permissions, ['storage','scripting','identity']);
 assert.deepEqual(manifest.host_permissions, ['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']);
 
@@ -203,7 +203,7 @@ assert.match(runtime, /autoOwner/);
 assert.match(runtime, /niakgpt:tab-role-changed/);
 assert.match(runtime, /HISTORY_FETCH_GAP_MS = 20000/);
 assert.match(runtime, /HUMAN_QUIET_MS = 5\*60\*1000/);
-assert.match(runtime, /WAKE_HEARTBEAT_MS = 60000/);
+assert.match(runtime, /WAKE_HEARTBEAT_MS = 30000/);
 assert.match(runtime, /async function wakeHeartbeat\(\)/);
 assert.match(runtime, /ng132WakeBeat/);
 assert.match(runtime, /if\(!acquired&&automatic\)\{ schedule\(WAKE_HEARTBEAT_MS\); return lockedResult; \}/);
@@ -235,7 +235,7 @@ assert.match(ui, /openWithoutMemory/);
 assert.match(ui, /Réessayer avec le PAT/);
 assert.match(ui, /Réessayer avec GitHub/);
 assert.match(ui, /Réessayer ce dépôt/);
-assert.match(ui, /Coffre initialisé · première synchronisation en attente/);
+assert.match(ui, /Coffre initialisé · snapshot local en attente/);
 assert.match(ui, /File persistante/);
 assert.match(ui, /niakgpt:control-center-rendered/);
 assert.match(ui, /schedule\(0\);/);

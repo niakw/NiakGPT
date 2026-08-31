@@ -82,7 +82,7 @@ try{
     // Clear native busy with NO activity/visibility/storage event. The shortened lab-only quiet
     // window + heartbeat must recover the persistent queue without restoring production aggressiveness.
     await page.evaluate(()=>{document.documentElement.dataset.ng8Running='0';});
-    await page.waitForFunction(({cachedCommitCount})=>window.__wakeRpcCalls>=1&&window.__wakeCommitCalls>cachedCommitCount,{cachedCommitCount},{timeout:5000});
+    await page.waitForFunction(({cachedCommitCount})=>{const q=window.__wakeLocal['niakgpt-project-memory-queue-v132'];const st=window.__wakeLocal['niakgpt-project-memory-state-v132']||{};return window.__wakeRpcCalls>=1&&window.__wakeCommitCalls>cachedCommitCount&&!q?.pending?.length&&st.mode==='idle';},{cachedCommitCount},{timeout:7000});
 
     snapshot=await page.evaluate(()=>({
       locks:window.__wakeLockCalls,

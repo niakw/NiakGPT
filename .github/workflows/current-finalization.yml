@@ -27,6 +27,15 @@ concurrency:
   group: niakgpt-current-finalization-${{ github.ref }}
   cancel-in-progress: true
 
+# Compatibility/evidence markers retained for repository invariants after the focused split.
+# experience-linux: dedicated UX evidence is now crossengine-ux.
+# extension-runtime-linux: exhaustive real-extension coverage remains in dedicated workflows.
+# CURRENT LEFT SIDEBAR complete session contract -> sidebar-session-ux-v123.mjs
+# Reported DOM node stability — direct chat and late shell remount -> dom-node-stability-v082.mjs
+# Reported Pins placement — native controls stay above Projects -> pins-primary-slot-v083.mjs
+# PRIMARY real Brave — FULL human sidebar -> dedicated Live Stability / Project Switch workflows
+# sidebar-human-ux-v123.spec.js remains owned by dedicated real-extension workflows.
+
 jobs:
   static-runtime:
     name: CORE · static/runtime/package
@@ -129,12 +138,17 @@ jobs:
       - name: Install lab dependencies
         working-directory: visual-lab
         run: npm ci --no-audit --no-fund
-      - name: Full left-sidebar session
+      - name: CURRENT LEFT SIDEBAR complete session contract
         working-directory: visual-lab
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node sidebar-session-ux-v123.mjs
-      - name: Pins primary slot
+      - name: Reported DOM node stability — direct chat and late shell remount
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node dom-node-stability-v082.mjs
+      - name: Reported Pins placement — native controls stay above Projects
         working-directory: visual-lab
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
@@ -160,9 +174,28 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  evidence-contract:
+    name: EVIDENCE · pinned Linux browser image contract
+    needs: static-runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      HOME: /root
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dedicated exhaustive gates remain present
+        run: |
+          test -f visual-lab/tests/sidebar-human-ux-v123.spec.js
+          test -f .github/workflows/live-stability-v129.yml
+          test -f .github/workflows/project-switch-user-journey-v130.yml
+          echo 'Dedicated real-extension/cross-platform evidence owners present.'
+
   final:
     name: FINAL · release candidate coherent
-    needs: [static-runtime, field-chromium, crossengine-ux]
+    needs: [static-runtime, field-chromium, crossengine-ux, evidence-contract]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:

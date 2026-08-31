@@ -1,3 +1,12 @@
+# NiakGPT 0.9.86 — Project Memory persistent queue self-wake
+
+- Correction du cas terrain `Coffre connecté · bootstrap en attente · 16 Project(s)` pouvant rester bloqué indéfiniment.
+- Ajout d’un heartbeat local de 15 s qui vérifie la file persistante et relance `resume()` dès qu’un onglet visible est éligible.
+- Aucun appel réseau ChatGPT n’est déclenché par le heartbeat tant que ChatGPT est occupé.
+- Les sorties précoces `busy`, onglet caché/changement de propriétaire et lock Project Memory momentanément indisponible réarment désormais une tentative.
+- Après une pause ou une erreur transitoire, la présence d’éléments dans la file garantit qu’un nouveau réveil reste planifié.
+- Nouveau lab `project-memory-wake-v086.mjs` : reproduit un état occupé qui disparaît sans événement puis un premier lock refusé ; la file doit se consommer seule.
+
 # NiakGPT 0.9.85 — Native traffic priority + reliable Pins launcher
 
 - ChatGPT natif obtient une priorité réseau absolue : un envoi ou une génération annule les GET internes NiakGPT en vol.

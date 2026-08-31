@@ -9,6 +9,7 @@
   const CONTEXT_KEY = 'niakgpt-project-memory-context-v132';
   const QUEUE_KEY = 'niakgpt-project-memory-queue-v132';
   const MEMORY_LOCK = 'niakgpt-project-memory-sync-v132';
+  const CACHE_BOOTSTRAP_LOCK = 'niakgpt-project-memory-cache-bootstrap-v088';
   const MAX_STATE = 18000;
   const CHUNK = 360000;
   const HISTORY_FETCH_GAP_MS = 20000;
@@ -386,6 +387,9 @@
   }
 
   async function writeCachedBootstrap(options={}) {
+    if(navigator.locks?.request&&options.__lockHeld!==true){
+      return navigator.locks.request(CACHE_BOOTSTRAP_LOCK,{mode:'exclusive'},()=>writeCachedBootstrap(Object.assign({},options,{__lockHeld:true})));
+    }
     const raw=await cache(),list=projects(raw),generatedAt=new Date().toISOString(),signature=cachedBootstrapSignature(list);
     let current={};try{current=(await chrome.storage.local.get(STATE_KEY))[STATE_KEY]||{};}catch{}
     if(options.force!==true&&signature&&current.bootstrapCacheSignature===signature&&Number(current.bootstrapCachedAt||0)>0){
@@ -788,13 +792,16 @@
 
   prefs().finally(async() => {
     refreshContext();
-    let pending=[];
+    let pending=[],bootstrapFailed=false;
     try{pending=await ensureBootstrapQueued();}catch{}
     if(pending.length){
-      try{await writeCachedBootstrap();}catch(error){await state({mode:'error',error:'cached_bootstrap_write_failed:'+String(error?.message||error).slice(0,180),queuedProjects:pending.length});}
+      try{await writeCachedBootstrap();}
+      catch(error){bootstrapFailed=true;await state({mode:'error',error:'cached_bootstrap_write_failed:'+String(error?.message||error).slice(0,180),queuedProjects:pending.length});}
     }
-    if (conversationPage()) await queuedState('conversation');
-    else if(document.documentElement.dataset.ng90PeerChatActive==='1')await queuedState('peer-conversation');
+    if(!bootstrapFailed){
+      if (conversationPage()) await queuedState('conversation');
+      else if(document.documentElement.dataset.ng90PeerChatActive==='1')await queuedState('peer-conversation');
+    }
     resume();
     schedule(backgroundDelay());
     wakeHeartbeat();

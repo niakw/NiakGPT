@@ -139,11 +139,12 @@
     if(detail?.ok===false)return;
     const expected=detail?.detached?'':normalizePid(detail?.projectId||'');
     const nativeAccepted=detail?.ok===true&&Number(detail?.status||0)>=200&&Number(detail?.status||0)<300;
-    // A successful native PATCH is already ChatGPT's authoritative acknowledgement of the user's
-    // manual move. Apply the protection immediately so broker quiet windows cannot leave the row
-    // visually unlocked. Lightweight inventory verification remains reconciliation, not UX gating.
-    if(nativeAccepted){
-      config.locks={...(config.locks||{}),[id]:{projectId:expected,at:Date.now(),source:'manual-native-ack'}};
+    const trustedMenuIntent=detail?.source==='trusted-project-menu';
+    // A successful native PATCH OR an exact trusted Project-menu selection is sufficient user
+    // authority to protect the intended placement immediately. The lightweight inventory lookup
+    // reconciles afterwards; it must not gate the visible lock behind a background quiet window.
+    if(nativeAccepted||trustedMenuIntent){
+      config.locks={...(config.locks||{}),[id]:{projectId:expected,at:Date.now(),source:nativeAccepted?'manual-native-ack':'manual-menu-intent'}};
       applyMoveToCache(id,expected);await saveCache();await saveConfig();toast('Placement manuel protégé 🔒');
       const verify=await verifyDestination(id,expected,{attempts:3});
       if(verify.ok&&verify.got!==expected){

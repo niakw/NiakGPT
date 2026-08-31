@@ -98,6 +98,8 @@ jobs:
 
       - name: Release-critical field regressions
         working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: chromium
         run: |
           node hydration-barrier-v080.mjs
           node dom-node-stability-v082.mjs

@@ -160,16 +160,18 @@ async function runJourney(){
       expect(background.error).toBe('native_conversation_quiet');
       expect(rt.traffic.general).toBe(generalBefore);
 
-      // A deliberate foreground Project read remains available while native ChatGPT is idle.
-      const foregroundPrime=await page.evaluate(pid=>window.__uxRpc(`/backend-api/gizmos/${pid}/conversations?limit=20&cursor=777`,true),P1);
-      expect(foregroundPrime.ok).toBeTruthy();
+      // 0.9.88 field rule: even a deliberate foreground Project read is cache-only on a chat route.
       const before=rt.traffic.projectCalls.length;
+      const foregroundPrime=await page.evaluate(pid=>window.__uxRpc(`/backend-api/gizmos/${pid}/conversations?limit=20&cursor=777`,true),P1);
+      expect(foregroundPrime.ok).toBeFalsy();
+      expect(foregroundPrime.error).toBe('native_conversation_quiet');
+      expect(rt.traffic.projectCalls.length).toBe(before);
 
-      // Native generation wins even over an explicit foreground read.
+      // The absolute route quarantine wins during native generation too; no auth/backend request starts.
       await page.evaluate(()=>{document.documentElement.dataset.ng86Activity='thinking';document.documentElement.dataset.ng8Running='1';});
       const blocked=await page.evaluate(pid=>window.__uxRpc(`/backend-api/gizmos/${pid}/conversations?limit=20&cursor=778`,true),P1);
       expect(blocked.ok).toBeFalsy();
-      expect(blocked.error).toBe('native_busy');
+      expect(blocked.error).toBe('native_conversation_quiet');
       expect(rt.traffic.projectCalls.length).toBe(before);
 
       await pin(page,P1).click();
@@ -180,15 +182,29 @@ async function runJourney(){
 
       await page.evaluate(()=>{document.documentElement.dataset.ng86Activity='ready';delete document.documentElement.dataset.ng8Running;});
       const foregroundAfter=await page.evaluate(pid=>window.__uxRpc(`/backend-api/gizmos/${pid}/conversations?limit=20&cursor=779`,true),P1);
-      expect(foregroundAfter.ok).toBeTruthy();
-      expect(rt.traffic.projectCalls.length).toBe(before+1);
+      expect(foregroundAfter.ok).toBeFalsy();
+      expect(foregroundAfter.error).toBe('native_conversation_quiet');
+      expect(rt.traffic.projectCalls.length).toBe(before);
 
-      // Background work remains forbidden for the whole lifetime of the conversation route,
-      // regardless of how long ChatGPT has looked idle.
       const stillQuarantined=await page.evaluate(pid=>window.__uxRpc(`/backend-api/gizmos/${pid}/conversations?limit=20&cursor=780`),P1);
       expect(stillQuarantined.ok).toBeFalsy();
       expect(stillQuarantined.error).toBe('native_conversation_quiet');
+      expect(rt.traffic.projectCalls.length).toBe(before);
+
+      // Off-chat foreground hydration remains available, and active native state still wins there.
+      await page.evaluate(()=>{history.pushState({},'', '/');dispatchEvent(new PopStateEvent('popstate'));});
+      await page.waitForTimeout(120);
+      await page.evaluate(()=>{document.documentElement.dataset.ng86Activity='thinking';document.documentElement.dataset.ng8Running='1';});
+      const offChatBusy=await page.evaluate(pid=>window.__uxRpc(`/backend-api/gizmos/${pid}/conversations?limit=20&cursor=781`,true),P1);
+      expect(offChatBusy.ok).toBeFalsy();
+      expect(offChatBusy.error).toBe('native_busy');
+      expect(rt.traffic.projectCalls.length).toBe(before);
+      await page.evaluate(()=>{document.documentElement.dataset.ng86Activity='ready';delete document.documentElement.dataset.ng8Running;});
+      const offChatAllowed=await page.evaluate(pid=>window.__uxRpc(`/backend-api/gizmos/${pid}/conversations?limit=20&cursor=782`,true),P1);
+      expect(offChatAllowed.ok).toBeTruthy();
       expect(rt.traffic.projectCalls.length).toBe(before+1);
+      await page.evaluate(url=>{history.pushState({},'',new URL(url).pathname);dispatchEvent(new PopStateEvent('popstate'));},initialUrl);
+      await page.waitForTimeout(120);
     });
 
     await runStep('focus, drawer content and action menu remain usable after stress',async()=>{

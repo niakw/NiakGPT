@@ -68,16 +68,39 @@ for(const [engine,launcher] of Object.entries(engines)){
 
     const hydrated=[101,102,103].map((n,i)=>({id:chatId(n),title:`Hydrated chat ${i+1}`,update_time:(Date.now()-i*1000)/1000}));
     await page.evaluate(({p10,hydrated})=>{
+      window.__p10Rpc=0;
       document.addEventListener('niakgpt:rpc-request',event=>{
         const d=event.detail||{};if(!String(d.path||'').startsWith(`/backend-api/gizmos/${p10}/conversations`))return;
+        window.__p10Rpc++;
         queueMicrotask(()=>document.dispatchEvent(new CustomEvent('niakgpt:rpc-response',{detail:{id:d.id,ok:true,status:200,data:{items:hydrated,cursor:null},transport:'lab'}})));
       });
     },{p10,hydrated});
     assert((await page.evaluate(p10=>window.__store['niakgpt-v08-cache'].chats.filter(c=>c.projectId===p10).length,p10))===0,'hydration fixture Project unexpectedly had cached chats');
+
+    // 0.9.88 field invariant: opening an uncached Project from a visible conversation is cache-only.
+    // The drawer may open, but it must not emit a foreground ChatGPT backend request.
     await page.locator(`#ng8-pins a[data-ng121-pid="${p10}"]`).click();
-    await page.waitForFunction(p10=>document.querySelector(`#ng8-pins a[data-ng121-pid="${p10}"]`)?.getAttribute('aria-expanded')==='true'&&document.querySelectorAll('#ng8-pins .ng96-folder-list a[data-chat]').length===3,p10,{timeout:3500});
-    state=await page.evaluate(p10=>({rows:document.querySelectorAll('#ng8-pins .ng96-folder-list a[data-chat]').length,count:window.__store['niakgpt-v08-cache'].counts?.[p10],cached:window.__store['niakgpt-v08-cache'].chats.filter(c=>c.projectId===p10).length,diag:window.__diag['pins-chats']||''}),p10);
-    assert(state.rows===3&&state.count===3&&state.cached===3&&/^OK/.test(state.diag),`empty Project did not hydrate on demand: ${JSON.stringify(state)}`);
+    await page.waitForFunction(p10=>document.querySelector(`#ng8-pins a[data-ng121-pid="${p10}"]`)?.getAttribute('aria-expanded')==='true',p10,{timeout:3500});
+    await page.waitForTimeout(140);
+    state=await page.evaluate(p10=>({
+      rows:document.querySelectorAll('#ng8-pins .ng96-folder-list a[data-chat]').length,
+      cached:window.__store['niakgpt-v08-cache'].chats.filter(c=>c.projectId===p10).length,
+      rpc:window.__p10Rpc,
+      empty:document.querySelector('#ng8-pins .ng96-folder-empty')?.textContent||'',
+      diag:window.__diag['pins-chats']||''
+    }),p10);
+    assert(state.rows===0&&state.cached===0&&state.rpc===0&&/Cache local uniquement pendant la discussion/.test(state.empty)&&/^CACHE/.test(state.diag),`conversation Project drawer escaped cache-only quarantine: ${JSON.stringify(state)}`);
+
+    // Once off-chat, the waiting foreground hydration is allowed and must populate the same drawer.
+    await page.evaluate(()=>{
+      history.pushState({},'', '/');
+      dispatchEvent(new PopStateEvent('popstate'));
+      document.dispatchEvent(new CustomEvent('niakgpt:activity-changed',{detail:{active:false}}));
+    });
+    await page.waitForFunction(p10=>document.querySelectorAll('#ng8-pins .ng96-folder-list a[data-chat]').length===3&&window.__p10Rpc===1,p10,{timeout:5000});
+    state=await page.evaluate(p10=>({rows:document.querySelectorAll('#ng8-pins .ng96-folder-list a[data-chat]').length,count:window.__store['niakgpt-v08-cache'].counts?.[p10],cached:window.__store['niakgpt-v08-cache'].chats.filter(c=>c.projectId===p10).length,rpc:window.__p10Rpc,diag:window.__diag['pins-chats']||''}),p10);
+    assert(state.rows===3&&state.count===3&&state.cached===3&&state.rpc===1&&/^OK/.test(state.diag),`off-chat Project hydration did not complete exactly once: ${JSON.stringify(state)}`);
+    await page.evaluate(url=>{history.pushState({},'',new URL(url).pathname);dispatchEvent(new PopStateEvent('popstate'));},before);
 
     const action=page.locator(`#ng8-pins .ng96-pin-entry[data-pid="${p1}"] > .ng113-native-actions-project`);
     await action.waitFor({state:'visible',timeout:5000});

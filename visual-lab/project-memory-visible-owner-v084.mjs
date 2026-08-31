@@ -4,9 +4,9 @@ import { chromium } from '@playwright/test';
 
 const ROOT=path.resolve('..');
 let source=await fs.readFile(path.join(ROOT,'project-memory-v132.js'),'utf8');
-// Keep the production five-minute quiet policy intact; only compress time inside this focused
+// Keep the production one-minute quiet policy intact; only compress time inside this focused
 // ownership lab so it can still prove hidden-tab lock exclusion + visible-tab queue consumption.
-source=source.replace('const HUMAN_QUIET_MS = 5*60*1000;','const HUMAN_QUIET_MS = 180;').replace('const WAKE_HEARTBEAT_MS = 60000;','const WAKE_HEARTBEAT_MS = 120;');
+source=source.replace('const HUMAN_QUIET_MS = 60*1000;','const HUMAN_QUIET_MS = 180;').replace('const WAKE_HEARTBEAT_MS = 30000;','const WAKE_HEARTBEAT_MS = 120;');
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg);};
 const browser=await chromium.launch({headless:true});
 try{

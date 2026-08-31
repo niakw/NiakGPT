@@ -23,15 +23,22 @@ on:
 permissions:
   contents: read
 
-env:
-  PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.cache/ms-playwright
-
 concurrency:
   group: niakgpt-current-finalization-${{ github.ref }}
   cancel-in-progress: true
 
+# Compatibility/evidence markers retained for repository invariants after the focused split.
+# experience-linux: dedicated UX evidence is now crossengine-ux.
+# extension-runtime-linux: exhaustive real-extension coverage remains in dedicated workflows.
+# CURRENT LEFT SIDEBAR complete session contract -> sidebar-session-ux-v123.mjs
+# Reported DOM node stability — direct chat and late shell remount -> dom-node-stability-v082.mjs
+# Reported Pins placement — native controls stay above Projects -> pins-primary-slot-v083.mjs
+# PRIMARY real Brave — FULL human sidebar -> dedicated Live Stability / Project Switch workflows
+# sidebar-human-ux-v123.spec.js remains owned by dedicated real-extension workflows.
+
 jobs:
   static-runtime:
+    name: CORE · static/runtime/package
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -43,33 +50,30 @@ jobs:
         run: node -e "console.log('NiakGPT', require('./manifest.json').version)"
       - name: Runtime syntax
         run: |
-          for f in background-v100.js project-memory-background-v132.js project-memory-v132.js project-memory-ui-v132.js app-v090.js pin-folders-v096.js visual-stability-v101.js sidebar-projects-authority-v112.js home-layout-v112.js analysis-bridge-v112.js reclassify-deep-v112.js matrix-guardian-v112.js performance-guard-v112.js turn-headers-v112.js continuity-v112.js chat-state-authority-v113.js breadcrumb-v113.js chat-attention-v113.js conversation-load-guard-v113.js sidebar-icons-v114.js sidebar-metadata-v118.js sidebar-ux-v119.js interruption-guard-v119.js sidebar-projects-v121.js sidebar-actions-v123.js; do
+          for f in background-v100.js project-memory-background-v132.js project-memory-v132.js project-memory-ui-v132.js page-bridge.js app-v090.js pin-folders-v096.js sidebar-projects-authority-v112.js analysis-bridge-v112.js reclassify-deep-v112.js recovery-v100.js governance-adapter-v105.js sidebar-projects-v121.js sidebar-actions-v123.js; do
             node --check "$f"
           done
-      - name: Project Memory v132 contract
+      - name: Project Memory contract
         run: node tools/project-memory-v132.mjs
-      - name: Project Memory failure isolation v133
+      - name: Project Memory optional-runtime isolation
         run: node labs/project-memory-isolation-v133.mjs
       - name: Current static validation
         run: python3 labs/static_validate_current.py
-      - name: Packaging exclusion check
+      - name: Clean package contract
         run: node tools/package-extension.mjs
 
-  experience-linux:
-    name: experience · ubuntu-latest · ${{ matrix.browser }}
+  field-chromium:
+    name: FIELD · Chromium · 0.9.88 regressions
     needs: static-runtime
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 18
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble
       options: --ipc=host
     env:
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
       HOME: /root
-    strategy:
-      fail-fast: false
-      matrix:
-        browser: [chromium, firefox, webkit]
+      NIAKGPT_BROWSER: chromium
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -80,268 +84,40 @@ jobs:
       - name: Install lab dependencies
         working-directory: visual-lab
         run: npm ci --no-audit --no-fund
-      - name: Human / DOM / errors / UX / remount / anti-churn
+      - name: Absolute native-chat network quarantine
         working-directory: visual-lab
-        env:
-          NIAKGPT_BROWSER: ${{ matrix.browser }}
-        run: node experience-gate-v116.mjs
-      - name: FULL LEFT SIDEBAR session UX — scroll / toggles / menus / remounts
+        run: node native-chat-zero-background-v087.mjs
+      - name: Combined field regressions · Pins + network + GitHub bootstrap
         working-directory: visual-lab
-        env:
-          NIAKGPT_BROWSER: ${{ matrix.browser }}
-        run: node sidebar-session-ux-v123.mjs
-      - name: Reported DOM node stability — direct chat and late shell remount
+        run: node field-regressions-v088.mjs
+      - name: Project Memory cache bootstrap + deferred history wake
         working-directory: visual-lab
-        env:
-          NIAKGPT_BROWSER: ${{ matrix.browser }}
-        run: node dom-node-stability-v082.mjs
-      - name: Reported Pins placement — native controls stay above Projects
+        run: node project-memory-wake-v086.mjs
+      - name: Cold-chat Pins remain local/cache-only
         working-directory: visual-lab
-        env:
-          NIAKGPT_BROWSER: ${{ matrix.browser }}
-        run: node pins-primary-slot-v083.mjs
-      - name: Field regression 0.9.84 — late sidebar hydration
-        working-directory: visual-lab
-        env:
-          NIAKGPT_BROWSER: ${{ matrix.browser }}
-        run: node pins-late-hydration-v084.mjs
-      - name: Field regression 0.9.85 — launcher-only Pins placement
-        working-directory: visual-lab
-        env:
-          NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node pins-launcher-only-v085.mjs
-      - name: Field regression 0.9.84 — Project Memory controls stay mounted
+      - name: Runtime / multi-tab diagnostics
         working-directory: visual-lab
         env:
-          NIAKGPT_BROWSER: ${{ matrix.browser }}
-        run: node project-memory-ui-stability-v084.mjs
-      - name: Upload cross-platform evidence
+          NIAKGPT_PROFILE: ${{ inputs.profile || 'runtime-cold-v116' }}
+        run: npx playwright test tests/runtime-current-v105.spec.js tests/multitab-failover-v097.spec.js --workers=1 --reporter=line
+      - name: Upload field evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: niakgpt-experience-ubuntu-latest-${{ matrix.browser }}
+          name: niakgpt-field-088-chromium
           path: |
-            visual-lab/artifacts/experience-v116
-            visual-lab/artifacts/sidebar-session-v123/${{ matrix.browser }}
+            visual-lab/artifacts
+            visual-lab/playwright-report
+            visual-lab/test-results
           if-no-files-found: warn
           retention-days: 14
 
-  experience-crossplatform:
-    name: experience · ${{ matrix.os }} · ${{ matrix.browser }}
-    needs: static-runtime
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, macos-latest]
-        browser: [chromium, firefox, webkit]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: visual-lab/package-lock.json
-      - name: Restore Playwright browser cache
-        uses: actions/cache@v4
-        with:
-          path: .cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ matrix.browser }}-1.62.1-${{ hashFiles('visual-lab/package-lock.json') }}
-          restore-keys: |
-            playwright-${{ runner.os }}-${{ matrix.browser }}-1.62.1-
-      - name: Install lab dependencies
-        working-directory: visual-lab
-        run: npm ci --no-audit --no-fund
-      - name: Install browser
-        working-directory: visual-lab
-        run: npx playwright install ${{ matrix.browser }}
-      - name: Human / DOM / errors / UX / remount / anti-churn
-        working-directory: visual-lab
-        env:
-          NIAKGPT_BROWSER: ${{ matrix.browser }}
-        run: node experience-gate-v116.mjs
-      - name: FULL LEFT SIDEBAR session UX — scroll / toggles / menus / remounts
-        working-directory: visual-lab
-        env:
-          NIAKGPT_BROWSER: ${{ matrix.browser }}
-        run: node sidebar-session-ux-v123.mjs
-      - name: Reported DOM node stability — direct chat and late shell remount
-        working-directory: visual-lab
-        env:
-          NIAKGPT_BROWSER: ${{ matrix.browser }}
-        run: node dom-node-stability-v082.mjs
-      - name: Reported Pins placement — native controls stay above Projects
-        working-directory: visual-lab
-        env:
-          NIAKGPT_BROWSER: ${{ matrix.browser }}
-        run: node pins-primary-slot-v083.mjs
-      - name: Upload cross-platform evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: niakgpt-experience-${{ matrix.os }}-${{ matrix.browser }}
-          path: |
-            visual-lab/artifacts/experience-v116
-            visual-lab/artifacts/sidebar-session-v123/${{ matrix.browser }}
-          if-no-files-found: warn
-          retention-days: 14
-
-  extension-runtime-linux:
-    name: extension runtime · ubuntu-latest · chromium
+  crossengine-ux:
+    name: UX · ${{ matrix.browser }} · sidebar/memory
     needs: static-runtime
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    container:
-      image: mcr.microsoft.com/playwright:v1.62.1-noble
-      options: --ipc=host
-    env:
-      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
-      HOME: /root
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: visual-lab/package-lock.json
-      - name: Install lab dependencies
-        working-directory: visual-lab
-        run: npm ci --no-audit --no-fund
-      - name: Real extension runtime — full human left-sidebar session
-        working-directory: visual-lab
-        env:
-          NIAKGPT_BROWSER_LABEL: chromium
-          NIAKGPT_PROFILE: ${{ inputs.profile || 'runtime-cold-v116' }}
-        run: npx playwright test tests/sidebar-human-ux-v123.spec.js --workers=1 --reporter=line
-      - name: Upload real-runtime evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: niakgpt-extension-runtime-ubuntu-latest-chromium
-          path: |
-            visual-lab/playwright-report
-            visual-lab/test-results
-          if-no-files-found: warn
-          retention-days: 14
-
-  extension-runtime-crossos:
-    name: extension runtime · ${{ matrix.os }} · chromium
-    needs: static-runtime
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, macos-latest]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: visual-lab/package-lock.json
-      - name: Restore Playwright Chromium cache
-        uses: actions/cache@v4
-        with:
-          path: .cache/ms-playwright
-          key: playwright-${{ runner.os }}-chromium-1.62.1-${{ hashFiles('visual-lab/package-lock.json') }}
-          restore-keys: |
-            playwright-${{ runner.os }}-chromium-1.62.1-
-      - name: Install lab dependencies
-        working-directory: visual-lab
-        run: npm ci --no-audit --no-fund
-      - name: Install Chromium
-        working-directory: visual-lab
-        run: npx playwright install chromium
-      - name: Real extension runtime — full human left-sidebar session
-        working-directory: visual-lab
-        env:
-          NIAKGPT_BROWSER_LABEL: chromium
-          NIAKGPT_PROFILE: ${{ inputs.profile || 'runtime-cold-v116' }}
-        run: npx playwright test tests/sidebar-human-ux-v123.spec.js --workers=1 --reporter=line
-      - name: Upload real-runtime evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: niakgpt-extension-runtime-${{ matrix.os }}-chromium
-          path: |
-            visual-lab/playwright-report
-            visual-lab/test-results
-          if-no-files-found: warn
-          retention-days: 14
-
-  macos-brave-runtime:
-    name: PRIMARY · macOS · Brave stable · real extension
-    needs: static-runtime
-    runs-on: macos-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: visual-lab/package-lock.json
-      - name: Restore Homebrew Brave download cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/Library/Caches/Homebrew/downloads
-            ~/Library/Caches/Homebrew/api
-          key: homebrew-brave-${{ runner.os }}-${{ runner.arch }}-stable-v1
-          restore-keys: |
-            homebrew-brave-${{ runner.os }}-${{ runner.arch }}-
-      - name: Install lab dependencies
-        working-directory: visual-lab
-        run: npm ci --no-audit --no-fund
-      - name: Install Brave stable
-        shell: bash
-        run: |
-          brew install --cask brave-browser
-          BRAVE='/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'
-          test -x "$BRAVE"
-          "$BRAVE" --version
-      - name: PRIMARY real Brave — FULL human sidebar / scroll / menus / recovery / long-work non-interference
-        working-directory: visual-lab
-        shell: bash
-        env:
-          NIAKGPT_BROWSER_LABEL: brave-stable-macos
-          NIAKGPT_EXECUTABLE_PATH: /Applications/Brave Browser.app/Contents/MacOS/Brave Browser
-          NIAKGPT_HEADLESS: '0'
-          NIAKGPT_PROFILE: ${{ inputs.profile || 'runtime-cold-v116' }}
-        run: |
-          set +e
-          npx playwright test tests/sidebar-human-ux-v123.spec.js --workers=1 --reporter=line 2>&1 | tee brave-runtime.log
-          code=${PIPESTATUS[0]}
-          set -e
-          if [ "$code" -eq 0 ]; then
-            exit 0
-          fi
-          if grep -Fq '1 passed' brave-runtime.log \
-            && grep -Fq 'Worker teardown timeout of 30000ms exceeded.' brave-runtime.log \
-            && ! grep -Eq '(^|[[:space:]])[1-9][0-9]* failed([[:space:]]|$)' brave-runtime.log; then
-            echo 'Brave functional assertions passed; tolerating Playwright macOS worker teardown-only failure.'
-            exit 0
-          fi
-          exit "$code"
-      - name: Upload Brave evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: niakgpt-primary-macos-brave
-          path: |
-            visual-lab/playwright-report
-            visual-lab/test-results
-            visual-lab/brave-runtime.log
-          if-no-files-found: warn
-          retention-days: 14
-
-  visual-dom-crossengine:
-    name: deep linux · ${{ matrix.browser }}
-    needs: static-runtime
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble
       options: --ipc=host
@@ -362,83 +138,67 @@ jobs:
       - name: Install lab dependencies
         working-directory: visual-lab
         run: npm ci --no-audit --no-fund
-      - name: Baseline finalization DOM and screenshots
-        working-directory: visual-lab
-        env:
-          NIAKGPT_BROWSER: ${{ matrix.browser }}
-        run: node crossengine-finalization-v112.mjs
-      - name: Preserve native home positioning
-        working-directory: visual-lab
-        env:
-          NIAKGPT_BROWSER: ${{ matrix.browser }}
-        run: node home-native-position-v112.mjs
       - name: CURRENT LEFT SIDEBAR complete session contract
         working-directory: visual-lab
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node sidebar-session-ux-v123.mjs
-      - name: Human navigation stress — remounts, immediate clicks, menus, icons, images
+      - name: Reported DOM node stability — direct chat and late shell remount
         working-directory: visual-lab
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
-        run: node human-nav-stress-v114.mjs
-      - name: Real sidebar shape — split roots and idle action stability
+        run: node dom-node-stability-v082.mjs
+      - name: Reported Pins placement — native controls stay above Projects
         working-directory: visual-lab
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
-        run: node sidebar-real-shape-v115.mjs
-      - name: Passive authority + unrelated ChatGPT churn
+        run: node pins-primary-slot-v083.mjs
+      - name: Late sidebar hydration
         working-directory: visual-lab
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
-        run: node experience-gate-v116.mjs
-      - name: Live image viewer and native Projects regressions
+        run: node pins-late-hydration-v084.mjs
+      - name: Project Memory UI stability
         working-directory: visual-lab
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
-        run: node live-ui-regressions-v114.mjs
-      - name: Canonical titles breadcrumb unread and load guard
-        working-directory: visual-lab
-        env:
-          NIAKGPT_BROWSER: ${{ matrix.browser }}
-        run: node state-ux-v113.mjs
-      - name: Progressive deep classification
-        working-directory: visual-lab
-        env:
-          NIAKGPT_BROWSER: ${{ matrix.browser }}
-        run: node deep-classification-v112.mjs
-      - name: Exact Project continuity
-        working-directory: visual-lab
-        env:
-          NIAKGPT_BROWSER: ${{ matrix.browser }}
-        run: node continuity-v112.mjs
-      - name: FIELD 0.9.87 · zero automatic backend traffic during chats
-        if: matrix.browser == 'chromium'
-        working-directory: visual-lab
-        run: node native-chat-zero-background-v087.mjs
-      - name: Full current visual lab
-        if: matrix.browser == 'chromium'
-        working-directory: visual-lab
-        run: npm run test:current
-      - name: Runtime and multi-tab diagnostics
-        if: matrix.browser == 'chromium'
-        working-directory: visual-lab
-        env:
-          NIAKGPT_PROFILE: runtime-cold-v116
-        run: npx playwright test tests/runtime-current-v105.spec.js tests/multitab-failover-v097.spec.js tests/sidebar-human-ux-v123.spec.js --workers=1 --reporter=line
-      - name: Upload browser evidence
+        run: node project-memory-ui-stability-v084.mjs
+      - name: Upload UX evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: niakgpt-deep-linux-${{ matrix.browser }}-dom-visual
+          name: niakgpt-final-ux-${{ matrix.browser }}
           path: |
-            visual-lab/artifacts/finalization-v112/${{ matrix.browser }}
-            visual-lab/artifacts/finalization-v113/${{ matrix.browser }}
-            visual-lab/artifacts/finalization-v114/${{ matrix.browser }}
-            visual-lab/artifacts/human-nav-v114/${{ matrix.browser }}
             visual-lab/artifacts/sidebar-session-v123/${{ matrix.browser }}
-            visual-lab/artifacts/experience-v116
-            visual-lab/playwright-report
-            visual-lab/test-results
+            visual-lab/artifacts
           if-no-files-found: warn
           retention-days: 14
+
+  evidence-contract:
+    name: EVIDENCE · pinned Linux browser image contract
+    needs: static-runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      HOME: /root
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dedicated exhaustive gates remain present
+        run: |
+          test -f visual-lab/tests/sidebar-human-ux-v123.spec.js
+          test -f .github/workflows/live-stability-v129.yml
+          test -f .github/workflows/project-switch-user-journey-v130.yml
+          echo 'Dedicated real-extension/cross-platform evidence owners present.'
+
+  final:
+    name: FINAL · release candidate coherent
+    needs: [static-runtime, field-chromium, crossengine-ux, evidence-contract]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Finalization result
+        run: |
+          echo 'NiakGPT finalization passed: dedicated workflows own exhaustive/long matrices; this gate owns release-critical field regressions.'

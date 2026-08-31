@@ -6,8 +6,8 @@ const ROOT=path.resolve('..');
 let source=await fs.readFile(path.join(ROOT,'project-memory-v132.js'),'utf8');
 source=source
   .replace('const HISTORY_FETCH_GAP_MS = 20000;','const HISTORY_FETCH_GAP_MS = 60;')
-  .replace('const HUMAN_QUIET_MS = 5*60*1000;','const HUMAN_QUIET_MS = 180;')
-  .replace('const WAKE_HEARTBEAT_MS = 60000;','const WAKE_HEARTBEAT_MS = 120;');
+  .replace('const HUMAN_QUIET_MS = 60*1000;','const HUMAN_QUIET_MS = 180;')
+  .replace('const WAKE_HEARTBEAT_MS = 30000;','const WAKE_HEARTBEAT_MS = 120;');
 
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg);};
 const browser=await chromium.launch({headless:true});
@@ -16,7 +16,7 @@ try{
   const page=await context.newPage();
   try{
     await page.addInitScript(()=>{
-      window.__wakeLockCalls=0;window.__wakeCommitCalls=0;
+      window.__wakeLockCalls=0;window.__wakeCommitCalls=0;window.__wakeRpcCalls=0;
       Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});
       Object.defineProperty(navigator,'locks',{configurable:true,value:{request:async(_name,_opts,fn)=>{
         window.__wakeLockCalls++;
@@ -61,6 +61,7 @@ try{
       document.documentElement.dataset.ng8TabRole='worker';
       document.documentElement.dataset.ng8Running='1';
       document.addEventListener('niakgpt:rpc-request',event=>{
+        window.__wakeRpcCalls++;
         const id=event.detail?.id;if(!id)return;
         setTimeout(()=>document.dispatchEvent(new CustomEvent('niakgpt:rpc-response',{detail:{
           id,ok:true,status:200,data:{
@@ -72,27 +73,32 @@ try{
     });
     await page.addScriptTag({content:source});
     await page.waitForTimeout(300);
-    let snapshot=await page.evaluate(()=>({locks:window.__wakeLockCalls,commits:window.__wakeCommitCalls,state:window.__wakeLocal['niakgpt-project-memory-state-v132']||{}}));
-    assert(snapshot.commits===0,'busy bootstrap wrote before native ChatGPT became idle: '+JSON.stringify(snapshot));
+    let snapshot=await page.evaluate(()=>({locks:window.__wakeLockCalls,commits:window.__wakeCommitCalls,rpc:window.__wakeRpcCalls,state:window.__wakeLocal['niakgpt-project-memory-state-v132']||{}}));
+    assert(snapshot.commits>=1,'busy startup did not persist the required local-cache GitHub snapshot: '+JSON.stringify(snapshot));
+    assert(snapshot.rpc===0,'busy startup touched ChatGPT history before native ChatGPT became idle: '+JSON.stringify(snapshot));
+    assert(snapshot.state.bootstrapSource==='local-cache-only'&&snapshot.state.bootstrapCachedFiles===4,'busy startup commit was not the metadata-only cache bootstrap: '+JSON.stringify(snapshot));
+    const cachedCommitCount=snapshot.commits;
 
     // Clear native busy with NO activity/visibility/storage event. The shortened lab-only quiet
     // window + heartbeat must recover the persistent queue without restoring production aggressiveness.
     await page.evaluate(()=>{document.documentElement.dataset.ng8Running='0';});
-    await page.waitForFunction(()=>window.__wakeCommitCalls>=2,null,{timeout:5000});
+    await page.waitForFunction(({cachedCommitCount})=>{const q=window.__wakeLocal['niakgpt-project-memory-queue-v132'];const st=window.__wakeLocal['niakgpt-project-memory-state-v132']||{};return window.__wakeRpcCalls>=1&&window.__wakeCommitCalls>cachedCommitCount&&!q?.pending?.length&&st.mode==='idle';},{cachedCommitCount},{timeout:7000});
 
     snapshot=await page.evaluate(()=>({
       locks:window.__wakeLockCalls,
       commits:window.__wakeCommitCalls,
+      rpc:window.__wakeRpcCalls,
       queue:window.__wakeLocal['niakgpt-project-memory-queue-v132'],
       state:window.__wakeLocal['niakgpt-project-memory-state-v132']||{},
       wakeBeat:document.documentElement.dataset.ng132WakeBeat||''
     }));
     assert(snapshot.locks>=2,'lock-unavailable attempt was not retried by heartbeat: '+JSON.stringify(snapshot));
-    assert(snapshot.commits>=2,'persistent Project Memory queue did not self-wake: '+JSON.stringify(snapshot));
+    assert(snapshot.rpc>=1,'persistent Project Memory history did not resume after heartbeat recovery: '+JSON.stringify(snapshot));
+    assert(snapshot.commits>cachedCommitCount,'persistent Project Memory queue did not produce a post-idle history commit: '+JSON.stringify(snapshot));
     assert(!snapshot.queue?.pending?.length,'persistent queue was not consumed after heartbeat recovery: '+JSON.stringify(snapshot));
     assert(snapshot.state.mode==='idle','Project Memory did not reach idle after heartbeat recovery: '+JSON.stringify(snapshot));
     assert(!!snapshot.wakeBeat,'heartbeat diagnostic marker was never published: '+JSON.stringify(snapshot));
   }finally{await context.close();}
 }finally{await browser.close();}
 
-console.log('project-memory-wake-v086: PASS queued bootstrap self-wakes after lost busy/lock races using production-safe quiet semantics');
+console.log('project-memory-wake-v086: PASS immediate cache-only GitHub bootstrap + zero busy ChatGPT RPC + queued history self-wake after idle');

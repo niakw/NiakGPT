@@ -40,6 +40,8 @@
   const gapFor = (path, method) => method !== 'GET' ? 650 : conversationRx.test(String(path||'')) ? 2500 : 650;
   const cacheKey = (path, method) => `${method}:${path}`;
   const conversationPage = () => /(?:^|\/)c\/[A-Za-z0-9_-]+(?:$|[/?#])/.test(String(location.pathname || ''));
+  const peerConversationPage = () => document.documentElement.dataset.ng90PeerChatActive === '1';
+  const conversationQuiet = () => conversationPage() || peerConversationPage();
   const baseNativeBusy = () => {
     const interruption=String(document.documentElement.dataset.ng119Interruption||'').toLowerCase();
     return document.documentElement.dataset.ng8Running === '1' ||
@@ -79,6 +81,7 @@
   };
   const nativeBusy = path => baseNativeBusy() || now() < nativePriorityUntil || (conversationRx.test(String(path||'')) && now() < backgroundPriorityUntil);
   const nativeBusyResult = () => ({ok:false,status:0,data:null,error:'native_busy',transport:'bridge-pause'});
+  const conversationQuietResult = () => ({ok:false,status:0,data:null,error:'native_conversation_quiet',transport:'chat-route-guard'});
 
   function retryAfterMsFrom(value) {
     const raw = String(value || '').trim();
@@ -159,6 +162,7 @@
 
   async function getAccessToken(force = false, foreground = false, path = '') {
     if (!force && cachedToken && Date.now() - tokenAt < 120000) return cachedToken;
+    if (conversationQuiet()) return '';
     if (foreground ? baseNativeBusy() : nativeBusy(path)) return '';
     const controller=new AbortController();activeGetControllers.add(controller);
     try {
@@ -227,12 +231,14 @@
   }
 
   async function backendFetchCore(path, method, body, forceToken = false, foreground = false) {
-    // Explicit user reads (opening a Project drawer) may bypass only the post-native quiet
-    // quarantine. They are still blocked by an active generation, verification or network incident.
-    const requestBusy=()=>foreground ? baseNativeBusy() : nativeBusy(path);
+    // 0.9.88 field invariant: a visible conversation in this tab or another visible ChatGPT
+    // tab quarantines ALL NiakGPT ChatGPT-backend traffic, including foreground drawer reads
+    // and governance mutations. Native ChatGPT actions do not use this broker and remain intact.
+    const requestBusy=()=>conversationQuiet() || (foreground ? baseNativeBusy() : nativeBusy(path));
+    if (conversationQuiet()) return conversationQuietResult();
     if (requestBusy()) return nativeBusyResult();
     const token = await getAccessToken(forceToken, foreground, path);
-    if (!token) return { ok:false, status:401, data:null, error:'auth_session_missing', transport:'auth' };
+    if (!token) return conversationQuiet() ? conversationQuietResult() : { ok:false, status:401, data:null, error:'auth_session_missing', transport:'auth' };
 
     const originalPath = path;
     let effectivePath = method === 'GET' ? normalizeProjectConversationPath(path, 'safe') : path;
@@ -243,6 +249,7 @@
     const gap = gapFor(effectivePath, method);
     const wait = Math.max(0, lastNetworkAt + gap - now());
     if (wait) await sleep(wait);
+    if (conversationQuiet()) return conversationQuietResult();
     if (requestBusy()) return nativeBusyResult();
     const afterWaitCircuit = syntheticRateLimit();
     if (afterWaitCircuit) return afterWaitCircuit;
@@ -261,6 +268,7 @@
         const retryCircuit=syntheticRateLimit();
         if(retryCircuit)return retryCircuit;
         const retryWait=Math.max(0,lastNetworkAt+gapFor(noLimitPath,method)-now());if(retryWait)await sleep(retryWait);
+        if(conversationQuiet())return conversationQuietResult();
         if(requestBusy())return nativeBusyResult();
         lastNetworkAt=now();
         const retry = await requestSingleTransport(noLimitPath, method, body, token);
@@ -335,10 +343,15 @@
   window.addEventListener('online',()=>noteNativePriority(10000,60000,'online-recovery',false));
   const nativeGuardObserver = new MutationObserver(records => {
     if (records.some(r => ['data-ng8-running','data-ng86-activity','data-ng105-verification','data-ng119-interruption'].includes(r.attributeName))) refreshNativePriority('native-state');
+    if (records.some(r => r.attributeName === 'data-ng90-peer-chat-active') && conversationQuiet()) abortOwnGets('peer-conversation-quarantine');
   });
-  nativeGuardObserver.observe(document.documentElement,{attributes:true,attributeFilter:['data-ng8-running','data-ng86-activity','data-ng105-verification','data-ng119-interruption']});
+  nativeGuardObserver.observe(document.documentElement,{attributes:true,attributeFilter:['data-ng8-running','data-ng86-activity','data-ng105-verification','data-ng119-interruption','data-ng90-peer-chat-active']});
+  const enforceConversationQuiet = () => { if (conversationQuiet()) abortOwnGets('conversation-quarantine'); };
+  window.addEventListener('popstate',enforceConversationQuiet);
+  if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',enforceConversationQuiet);
   window.addEventListener('pagehide',()=>{abortOwnGets('pagehide');nativeGuardObserver.disconnect();},{once:true});
   refreshNativePriority('boot');
+  enforceConversationQuiet();
 
   document.addEventListener(REQ, async event => {
     const d = event.detail || {};
@@ -353,14 +366,12 @@
       return;
     }
 
-    // Hard field-safety boundary: while the user is on a ChatGPT conversation route, no
-    // background NiakGPT GET may touch ChatGPT's internal backend. This is stronger than
-    // merely aborting after native activity starts: it prevents the extension from being the
-    // traffic that triggers a verification / "Connexion interrompue" incident in the first place.
-    // Explicit foreground reads caused by a user gesture (for example opening a Project drawer)
-    // remain allowed and are still blocked by active generation/verification/network guards.
-    if (method === 'GET' && d.foreground !== true && (conversationPage() || document.documentElement.dataset.ng90PeerChatActive === '1')) {
-      document.dispatchEvent(new CustomEvent(RES,{detail:{id,ok:false,status:0,data:null,error:'native_conversation_quiet',transport:'chat-route-guard'}}));
+    // Absolute field-safety boundary: while any visible ChatGPT conversation exists, NiakGPT
+    // emits ZERO ChatGPT-backend traffic. This includes foreground reads and NiakGPT mutations.
+    // GitHub Project Memory writes are unaffected because they run in the extension service worker
+    // against api.github.com, not through this ChatGPT broker.
+    if (conversationQuiet()) {
+      document.dispatchEvent(new CustomEvent(RES,{detail:{id,...conversationQuietResult()}}));
       return;
     }
 

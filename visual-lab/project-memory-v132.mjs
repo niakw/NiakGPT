@@ -58,10 +58,10 @@ try{
           window.__snapshot={
             ...window.__snapshot,connected:true,configured:true,tokenAvailable:true,
             config:{repo:options.repo,branch:options.branch,root:options.root,authMode:'github-app',rememberToken:false},
-            state:{mode:'queued',queuedProjects:2,lastSyncAt:0},
+            state:{mode:'queued',queuedProjects:2,lastSyncAt:0,bootstrapCachedAt:Date.now(),bootstrapCachedProjects:2,bootstrapCachedFiles:7,pauseReason:'quiet'},
             queue:{pending:['g-p-one','g-p-two'],force:false,at:Date.now()}
           };
-          return{ok:true,bootstrapQueued:true,queuedProjects:2};
+          return{ok:true,bootstrapQueued:true,queuedProjects:2,bootstrapWritten:true,bootstrapProjects:2,bootstrapFiles:7};
         },
         githubLogout:async()=>({ok:true}),
         connect:async()=>({ok:false,error:'manual-not-used'}),
@@ -95,7 +95,7 @@ try{
     assert(selection?.options?.repo==='synthetic-user/vault-two','chosen GitHub repository not forwarded');
     assert(selection?.options?.branch==='stable','chosen GitHub branch not forwarded');
     const connectedText=await page.locator('.ng132-memory-status').innerText();
-    assert(/bootstrap/i.test(connectedText)&&/2 Project/.test(connectedText),'queued bootstrap state not visible after repository connection: '+connectedText);
+    assert(/Coffre écrit/i.test(connectedText)&&/2 Project/.test(connectedText)&&/7 fichier/.test(connectedText),'immediate cached GitHub snapshot state not visible after repository connection: '+connectedText);
     await page.close();
   }
 
@@ -237,6 +237,7 @@ try{
               ok:true,connected:true,configured:true,tokenAvailable:true,
               config:{repo:'synthetic-user/private-vault',branch:'main',root:'.niakgpt-memory',authMode:'github-app'}
             });
+            else if(message.type==='niakgpt:memory-commit-v132')cb({ok:true,sha:'synthetic-bootstrap'});
             else cb({ok:false,error:'not-used-in-bootstrap-queue-lab'});
           }
         },
@@ -274,11 +275,12 @@ try{
     assert(recovered.queue.pending.length===2,'configured unsynced vault did not recreate persistent bootstrap queue');
     assert(recovered.queue.pending.includes('g-p-one')&&recovered.queue.pending.includes('g-p-two'),'bootstrap queue lost Project IDs');
     assert(recovered.state.mode==='queued'&&recovered.state.queuedProjects===2,'bootstrap recovery state is not visible/persistent');
+    assert(Number(recovered.state.bootstrapCachedAt||0)>0&&recovered.state.bootstrapCachedProjects===2&&recovered.state.bootstrapCachedFiles===7,'configured vault did not immediately persist local-cache bootstrap metadata');
     await page.close();
   }
 
   assert(errors.length===0,'browser errors: '+JSON.stringify(errors));
-  console.log('project-memory-v132 '+requested+': PASS auto-render+github-picker+persistent-bootstrap-queue+manual-fallback+single-injection');
+  console.log('project-memory-v132 '+requested+': PASS auto-render+github-picker+immediate-cache-bootstrap+persistent-history-queue+manual-fallback+single-injection');
 }finally{
   await context.close();
   await browser.close();

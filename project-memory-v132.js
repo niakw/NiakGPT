@@ -9,11 +9,12 @@
   const CONTEXT_KEY = 'niakgpt-project-memory-context-v132';
   const QUEUE_KEY = 'niakgpt-project-memory-queue-v132';
   const MEMORY_LOCK = 'niakgpt-project-memory-sync-v132';
+  const CACHE_BOOTSTRAP_LOCK = 'niakgpt-project-memory-cache-bootstrap-v088';
   const MAX_STATE = 18000;
   const CHUNK = 360000;
   const HISTORY_FETCH_GAP_MS = 20000;
-  const HUMAN_QUIET_MS = 5*60*1000;
-  const WAKE_HEARTBEAT_MS = 60000;
+  const HUMAN_QUIET_MS = 60*1000;
+  const WAKE_HEARTBEAT_MS = 30000;
   let seq = 0, syncing = false, syncAuto = false, autoTimer = 0, wakeTimer = 0, routeTimer = 0, lastHistoryFetchAt = 0, lastHumanAt = Date.now();
   let contextProject = '', contextText = '';
 
@@ -112,7 +113,20 @@
 
   function projects(raw) {
     const ps = Array.isArray(raw.projects) ? raw.projects : [];
-    const chats = Array.isArray(raw.chats) ? raw.chats : [];
+    const byChat = new Map();
+    for (const chat of (Array.isArray(raw.chats) ? raw.chats : [])) {
+      if (!chat?.id) continue;
+      byChat.set(String(chat.id), Object.assign({}, chat));
+    }
+    for (const [pid,list] of Object.entries(raw.projectChats || {})) {
+      if (!Array.isArray(list)) continue;
+      for (const chat of list) {
+        if (!chat?.id) continue;
+        const id=String(chat.id),old=byChat.get(id)||{};
+        byChat.set(id,Object.assign({},old,chat,{projectId:String(chat.projectId||old.projectId||pid)}));
+      }
+    }
+    const chats=[...byChat.values()];
     const indexed = new Set(Array.isArray(raw.indexedProjectIds) ? raw.indexedProjectIds : []);
     return ps.filter(p => String(p && p.id || '').startsWith('g-p-')).map(p => {
       const rows = chats.filter(c => c && c.projectId === p.id);
@@ -362,6 +376,69 @@
     return primeBootstrapQueue(false);
   }
 
+  function cachedBootstrapSignature(list) {
+    const rows=(list||[]).map(project=>[
+      String(project.id||''),one(project.name||''),Number(project.count||0),project.indexed?1:0,
+      (project.chats||[]).map(chat=>[String(chat.id||''),one(chat.title||''),parseTime(chat.updated||chat.update_time||chat.create_time)]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])))
+    ]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])));
+    const input=JSON.stringify(rows);let h=2166136261;
+    for(const ch of input){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}
+    return (h>>>0).toString(36);
+  }
+
+  async function writeCachedBootstrap(options={}) {
+    if(navigator.locks?.request&&options.__lockHeld!==true){
+      return navigator.locks.request(CACHE_BOOTSTRAP_LOCK,{mode:'exclusive'},()=>writeCachedBootstrap(Object.assign({},options,{__lockHeld:true})));
+    }
+    const raw=await cache(),list=projects(raw),generatedAt=new Date().toISOString(),signature=cachedBootstrapSignature(list);
+    let current={};try{current=(await chrome.storage.local.get(STATE_KEY))[STATE_KEY]||{};}catch{}
+    if(options.force!==true&&signature&&current.bootstrapCacheSignature===signature&&Number(current.bootstrapCachedAt||0)>0){
+      return {ok:true,skipped:true,projects:list.length,files:Number(current.bootstrapCachedFiles||0),signature};
+    }
+    const files=[{
+      path:'PROJECTS.json',
+      content:JSON.stringify({
+        schema:1,kind:'NiakGPTCachedBootstrap',source:'local-cache-only',generatedAt,
+        projectCount:list.length,
+        projects:list.map(project=>({
+          id:project.id,name:one(project.name||''),href:String(project.href||''),knownConversationCount:Number(project.count||0),cachedConversationCount:(project.chats||[]).length,indexed:project.indexed===true
+        }))
+      },null,2)+'\n'
+    }];
+    for(const project of list){
+      const conversations={};
+      for(const chat of (project.chats||[])){
+        if(!chat?.id)continue;
+        const updated=parseTime(chat.updated||chat.update_time||chat.create_time);
+        conversations[String(chat.id)]={
+          schema:1,id:String(chat.id),title:one(chat.title||'Conversation'),updated,
+          capturedAt:generatedAt,parts:0,messages:0,bootstrapMetadataOnly:true,
+          signals:{tasks:[],architecture:[],decisions:[],recent:[]}
+        };
+      }
+      const idx={
+        schema:1,projectId:project.id,projectName:one(project.name||''),updatedAt:generatedAt,
+        bootstrapMetadataOnly:true,conversations
+      };
+      files.push(
+        {path:ppath(project.id,'project.json'),content:JSON.stringify({
+          schema:1,id:project.id,name:one(project.name||''),description:clean(project.description||''),instructions:clean(project.instructions||''),
+          conversationCount:Object.keys(conversations).length,knownConversationCount:Number(project.count||0),indexed:project.indexed===true,
+          bootstrapMetadataOnly:true,updatedAt:generatedAt
+        },null,2)+'\n'},
+        {path:ppath(project.id,'index.json'),content:JSON.stringify(idx,null,2)+'\n'},
+        {path:ppath(project.id,'PROJECT_STATE.md'),content:buildState(project,idx)}
+      );
+    }
+    await commit(files,'NiakGPT memory: cached bootstrap inventory');
+    await state({
+      bootstrapCachedAt:Date.now(),bootstrapCachedProjects:list.length,bootstrapCachedFiles:files.length,
+      bootstrapCacheSignature:signature,bootstrapSource:'local-cache-only',error:''
+    });
+    document.dispatchEvent(new CustomEvent('niakgpt:project-memory-bootstrap-written',{detail:{projects:list.length,files:files.length,signature}}));
+    return {ok:true,projects:list.length,files:files.length,signature};
+  }
+
   async function queuedState(reason='') {
     let q={};
     try { q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{}; } catch {}
@@ -539,9 +616,17 @@
     const r = await send(Object.assign({ type:'niakgpt:memory-connect-v132' }, options || {}));
     if (r && r.ok) {
       const pending=await primeBootstrapQueue(false);
-      await queuedState(conversationPage()?'conversation':'quiet');
+      let cached;
+      try{cached=await writeCachedBootstrap({force:true});}
+      catch(error){
+        const message='cached_bootstrap_write_failed:'+String(error?.message||error).slice(0,180);
+        await state({mode:'error',error:message,queuedProjects:pending.length});
+        schedule(backgroundDelay());
+        return Object.assign({},r,{bootstrapQueued:true,queuedProjects:pending.length,bootstrapWritten:false,bootstrapError:message});
+      }
+      await queuedState(conversationPage()?'conversation':document.documentElement.dataset.ng90PeerChatActive==='1'?'peer-conversation':'quiet');
       schedule(backgroundDelay());
-      return Object.assign({},r,{bootstrapQueued:true,queuedProjects:pending.length});
+      return Object.assign({},r,{bootstrapQueued:true,queuedProjects:pending.length,bootstrapWritten:true,bootstrapFiles:cached.files,bootstrapProjects:cached.projects});
     }
     return r;
   }
@@ -582,9 +667,17 @@
     const r = await send(Object.assign({ type:'niakgpt:memory-github-connect-repo-v132' }, options || {}));
     if (r && r.ok) {
       const pending=await primeBootstrapQueue(false);
-      await queuedState(conversationPage()?'conversation':'quiet');
+      let cached;
+      try{cached=await writeCachedBootstrap({force:true});}
+      catch(error){
+        const message='cached_bootstrap_write_failed:'+String(error?.message||error).slice(0,180);
+        await state({mode:'error',error:message,queuedProjects:pending.length});
+        schedule(backgroundDelay());
+        return Object.assign({},r,{bootstrapQueued:true,queuedProjects:pending.length,bootstrapWritten:false,bootstrapError:message});
+      }
+      await queuedState(conversationPage()?'conversation':document.documentElement.dataset.ng90PeerChatActive==='1'?'peer-conversation':'quiet');
       schedule(backgroundDelay());
-      return Object.assign({},r,{bootstrapQueued:true,queuedProjects:pending.length});
+      return Object.assign({},r,{bootstrapQueued:true,queuedProjects:pending.length,bootstrapWritten:true,bootstrapFiles:cached.files,bootstrapProjects:cached.projects});
     }
     return r;
   }
@@ -619,6 +712,24 @@
     });
   }
 
+  async function syncNow(options={}) {
+    const force=options.force===true;
+    if(conversationPage()||document.documentElement.dataset.ng90PeerChatActive==='1'){
+      const pending=await primeBootstrapQueue(force);
+      try{
+        const cached=await writeCachedBootstrap({force});
+        await queuedState(conversationPage()?'conversation':'peer-conversation');
+        schedule(backgroundDelay());
+        return {ok:true,cachedOnly:true,historyDeferred:true,projects:cached.projects,files:cached.files,queuedProjects:pending.length};
+      }catch(error){
+        const message='cached_bootstrap_write_failed:'+String(error?.message||error).slice(0,180);
+        await state({mode:'error',error:message,queuedProjects:pending.length});
+        return {ok:false,error:message,cachedOnly:true,historyDeferred:true};
+      }
+    }
+    return bootstrap({force,auto:false});
+  }
+
   window.__NIAKGPT_PROJECT_MEMORY__ = {
     connect,
     githubLogin,
@@ -627,7 +738,7 @@
     githubLogout,
     disconnect,
     status,
-    syncNow:o => bootstrap({force:o && o.force === true,auto:false}),
+    syncNow,
     getPrefs:prefs,
     setPrefs,
     refreshContext
@@ -672,7 +783,24 @@
     if (event.detail && event.detail.role !== 'inactive' && !document.hidden) { resume(); schedule(backgroundDelay()); }
     else clearTimeout(autoTimer);
   });
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { lastHumanAt=Date.now(); refreshContext(); resume(); schedule(backgroundDelay()); } });
+  async function repairCachedBootstrapIfVisible() {
+    if(document.hidden)return {ok:true,skipped:'hidden'};
+    let pending=[];
+    try{pending=await ensureBootstrapQueued();}catch{}
+    if(!pending.length)return {ok:true,skipped:'empty'};
+    try{return await writeCachedBootstrap();}
+    catch(error){
+      const message='cached_bootstrap_write_failed:'+String(error?.message||error).slice(0,180);
+      await state({mode:'error',error:message,queuedProjects:pending.length});
+      return {ok:false,error:message};
+    }
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      lastHumanAt=Date.now(); refreshContext();
+      repairCachedBootstrapIfVisible().finally(()=>{resume();schedule(backgroundDelay());});
+    }
+  });
 
   function route() { clearTimeout(routeTimer); lastHumanAt=Date.now(); routeTimer = setTimeout(()=>{refreshContext();resume();schedule(backgroundDelay());},120); }
   window.addEventListener('popstate',route);
@@ -681,8 +809,16 @@
 
   prefs().finally(async() => {
     refreshContext();
-    try{await ensureBootstrapQueued();}catch{}
-    if (conversationPage()) await queuedState('conversation');
+    let pending=[],bootstrapFailed=false;
+    try{pending=await ensureBootstrapQueued();}catch{}
+    if(pending.length&&!document.hidden){
+      const repaired=await repairCachedBootstrapIfVisible();
+      bootstrapFailed=repaired?.ok===false;
+    }
+    if(!bootstrapFailed){
+      if (conversationPage()) await queuedState('conversation');
+      else if(document.documentElement.dataset.ng90PeerChatActive==='1')await queuedState('peer-conversation');
+    }
     resume();
     schedule(backgroundDelay());
     wakeHeartbeat();

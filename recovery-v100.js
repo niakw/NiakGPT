@@ -21,7 +21,8 @@
   const parseTime=v=>{if(typeof v==='number'&&Number.isFinite(v))return v>1e12?v:v*1000;if(typeof v==='string'){const n=Number(v);if(Number.isFinite(n))return n>1e12?n:n*1000;const d=Date.parse(v);return Number.isFinite(d)?d:0;}return 0;};
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   const ratePaused=()=>Number(document.documentElement.dataset.ng100RateLimitedUntil||0)>Date.now();
-  const ready=()=>document.documentElement.dataset.ng100CacheGuard!=='pending'&&!ratePaused()&&!document.hidden&&document.documentElement.dataset.ng90Safe!=='1'&&document.documentElement.dataset.ng8Running!=='1'&&!['loading','waiting','thinking','executing'].includes(document.documentElement.dataset.ng86Activity||'');
+  const conversationQuiet=()=>/(?:^|\/)c\/[A-Za-z0-9_-]+(?:$|[/?#])/.test(String(location.pathname||''))||document.documentElement.dataset.ng90PeerChatActive==='1';
+  const ready=()=>!conversationQuiet()&&document.documentElement.dataset.ng100CacheGuard!=='pending'&&!ratePaused()&&!document.hidden&&document.documentElement.dataset.ng90Safe!=='1'&&document.documentElement.dataset.ng8Running!=='1'&&!['loading','waiting','thinking','executing'].includes(document.documentElement.dataset.ng86Activity||'');
   const isQueueName=name=>QUEUE_NAMES.has(norm(name));
   const listFrom=(data,...keys)=>{for(const key of keys)if(Array.isArray(data?.[key]))return data[key];return[];};
   const nextCursor=data=>data?.cursor??data?.next_cursor??data?.nextCursor??null;

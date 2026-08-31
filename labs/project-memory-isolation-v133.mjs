@@ -12,7 +12,7 @@ async function runCase({backendThrows=false,optionalFails=false}={}){
     runtime:{
       onInstalled:{addListener(){}},
       onMessage:{addListener(fn){listener=fn;}},
-      getManifest:()=>({version:'0.9.87'})
+      getManifest:()=>({version:'0.9.88'})
     },
     storage:{local:{async get(){return{};},async set(){}}},
     scripting:{

@@ -34,7 +34,7 @@ try{
         },
         onChanged:{addListener(){}}
       },
-      runtime:{getManifest:()=>({version:'0.9.87'})}
+      runtime:{getManifest:()=>({version:'0.9.88'})}
     };
     window.addEventListener('niakgpt:rpc-request',event=>{
       window.__startupRpc.push({
@@ -101,20 +101,33 @@ try{
     assert(result.error==='native_conversation_quiet','background GET escaped chat-route quarantine: '+JSON.stringify({request,result}));
     assert(result.transport==='chat-route-guard','wrong chat-route guard transport: '+JSON.stringify(result));
   }
+  const foregroundOnChat=await rpc({
+    path:'/backend-api/gizmos/g-p-abcdefghijklmnop/conversations?limit=20',
+    method:'GET',
+    foreground:true
+  });
+  assert(foregroundOnChat.error==='native_conversation_quiet'&&foregroundOnChat.transport==='chat-route-guard','foreground GET escaped absolute conversation quarantine: '+JSON.stringify(foregroundOnChat));
+  const mutationOnChat=await rpc({
+    path:'/backend-api/conversation/abcdefghijklmnop',
+    method:'PATCH',
+    body:{gizmo_id:'g-p-abcdefghijklmnop'},
+    governance:true
+  });
+  assert(mutationOnChat.error==='native_conversation_quiet','NiakGPT mutation escaped absolute conversation quarantine: '+JSON.stringify(mutationOnChat));
   snapshot=await page.evaluate(()=>({session:window.__sessionCalls,backend:window.__backendCalls}));
   assert(snapshot.session===0&&snapshot.backend===0,'blocked chat-route requests still reached network: '+JSON.stringify(snapshot));
 
-  // Cross-tab safety: even from a non-chat route, a visible peer conversation blocks background work.
+  // Cross-tab safety: even from a non-chat route, a visible peer conversation blocks all NiakGPT backend work, including foreground.
   await page.evaluate(()=>{
     history.pushState({},'', '/');
     document.documentElement.dataset.ng90PeerChatActive='1';
   });
-  const peerBlocked=await rpc({path:'/backend-api/gizmos/snorlax/sidebar?conversations_per_gizmo=0',method:'GET'});
+  const peerBlocked=await rpc({path:'/backend-api/gizmos/snorlax/sidebar?conversations_per_gizmo=0',method:'GET',foreground:true});
   assert(peerBlocked.error==='native_conversation_quiet','peer chat did not quarantine background GET: '+JSON.stringify(peerBlocked));
   snapshot=await page.evaluate(()=>({session:window.__sessionCalls,backend:window.__backendCalls}));
   assert(snapshot.session===0&&snapshot.backend===0,'peer-quarantined request reached network: '+JSON.stringify(snapshot));
 
-  // Explicit user foreground hydration remains possible when ChatGPT itself is idle.
+  // Explicit user foreground hydration remains possible only off-chat, when no visible peer conversation exists.
   await page.evaluate(()=>{delete document.documentElement.dataset.ng90PeerChatActive;});
   const foreground=await rpc({
     path:'/backend-api/gizmos/g-p-abcdefghijklmnop/conversations?limit=20',
@@ -139,4 +152,4 @@ try{
   await browser.close();
 }
 
-console.log('native-chat-zero-background-v087: PASS zero automatic ChatGPT backend traffic on chat startup/routes + peer-chat quarantine + foreground-only exception');
+console.log('native-chat-zero-background-v087: PASS absolute current/peer conversation quarantine + off-chat foreground-only exception');

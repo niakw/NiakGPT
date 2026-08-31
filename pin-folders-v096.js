@@ -25,7 +25,8 @@
   const actionMarkup=id=>`<button type="button" class="ng113-native-actions ng113-native-actions-chat" data-ng113-actions="chat" data-ng113-id="${esc(id)}" aria-label="${CHAT_ACTION_LABEL}" title="${CHAT_ACTION_LABEL}"><span class="ng113-dots" aria-hidden="true">•••</span></button>`;
   const listFrom=(data,...keys)=>{for(const key of keys)if(Array.isArray(data?.[key]))return data[key];return[];};
   const nextCursor=data=>data?.cursor??data?.next_cursor??data?.nextCursor??null;
-  const bridgeBusy=()=>document.documentElement.dataset.ng8Running==='1'||['loading','waiting','thinking','executing'].includes(document.documentElement.dataset.ng86Activity||'')||document.documentElement.dataset.ng105Verification==='1';
+  const conversationQuiet=()=>/(?:^|\/)c\/[A-Za-z0-9_-]+(?:$|[/?#])/.test(String(location.pathname||''))||document.documentElement.dataset.ng90PeerChatActive==='1';
+  const bridgeBusy=()=>conversationQuiet()||document.documentElement.dataset.ng8Running==='1'||['loading','waiting','thinking','executing'].includes(document.documentElement.dataset.ng86Activity||'')||document.documentElement.dataset.ng105Verification==='1';
 
   try{openPid=normalizePid(sessionStorage.getItem(SESSION_KEY)||'');}catch{}
 
@@ -112,7 +113,7 @@
   async function hydrateProject(pid){
     pid=normalizePid(pid);if(!pid||projectInventoryComplete(pid))return;
     const state=loadState.get(pid);if(state==='loading')return;
-    if(bridgeBusy()){loadState.set(pid,'waiting');window.__NIAKGPT_DIAGNOSTICS__?.set('pins-chats',`ATTENTE · ${pid} · reprise après réponse ChatGPT`);if(openPid===pid){drawerDirty=true;schedule(40);}return;}
+    if(bridgeBusy()){loadState.set(pid,'waiting');window.__NIAKGPT_DIAGNOSTICS__?.set('pins-chats',conversationQuiet()?`CACHE · ${pid} · aucune lecture ChatGPT pendant une discussion`:`ATTENTE · ${pid} · reprise après réponse ChatGPT`);if(openPid===pid){drawerDirty=true;schedule(40);}return;}
     loadState.set(pid,'loading');if(openPid===pid&&!chatsFor(pid).length){drawerDirty=true;schedule(0);}window.__NIAKGPT_DIAGNOSTICS__?.set('pins-chats',`CHARGEMENT · ${pid}`);
     const out=new Map(),seen=new Set();let cursor=null,error='';
     for(let page=0;page<40;page++){
@@ -130,7 +131,7 @@
   }
 
   function closeDrawers(){for(const d of document.querySelectorAll('#ng8-pins .ng96-pin-drawer'))d.remove();document.querySelectorAll(PIN_SEL).forEach(a=>a.setAttribute('aria-expanded','false'));}
-  function emptyMessage(pid){const state=loadState.get(pid);if(state==='loading')return'Chargement des conversations…';if(state==='waiting')return'En attente de la fin de la réponse ChatGPT…';if(state==='error')return'Chargement impossible · reclique pour réessayer';if(state==='ready-empty')return'Aucune conversation dans ce Project';return'Chargement des conversations…';}
+  function emptyMessage(pid){const state=loadState.get(pid);if(state==='loading')return'Chargement des conversations…';if(state==='waiting')return conversationQuiet()?'Cache local uniquement pendant la discussion · actualisation hors chat':'En attente de la fin de la réponse ChatGPT…';if(state==='error')return'Chargement impossible · reclique pour réessayer';if(state==='ready-empty')return'Aucune conversation dans ce Project';return conversationQuiet()?'Cache local uniquement pendant la discussion · actualisation hors chat':'Chargement des conversations…';}
   function restoreDrawerScroll(pid,list,desired){
     desired=Math.max(0,Number(desired)||0);if(!(list instanceof HTMLElement)){if(desired)drawerScrollMemory.set(pid,desired);return;}if(!desired){drawerScrollMemory.set(pid,0);return;}
     drawerScrollMemory.set(pid,desired);let settled=false;

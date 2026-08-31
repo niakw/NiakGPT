@@ -104,6 +104,18 @@
     if(link){let node=link;for(let depth=0;depth<7&&node?.parentElement&&node.parentElement!==root;depth++,node=node.parentElement){const parent=node.parentElement;if(projectLinks(parent).length>=1&&!hasPrimary(parent))return parent;}}
     return null;
   }
+  function nativeProjectHost(root,seed){
+    if(!root||!seed||!seed.isConnected)return null;
+    let host=seed;
+    while(host.parentElement&&host.parentElement!==root){
+      const parent=host.parentElement;
+      if(hasPrimary(parent))break;
+      const genericChats=[...parent.querySelectorAll?.('a[href*="/c/"]')||[]].filter(a=>!isOwn(a)&&!/\/g\/g-p-/i.test(String(a.getAttribute('href')||''))).length;
+      if(genericChats)break;
+      host=parent;
+    }
+    return host;
+  }
   function primaryTail(root=navRoot()){
     if(!root)return null;let best=null,bestTop=-Infinity;
     for(const a of primaryControls(root)){
@@ -219,11 +231,11 @@
   }
   function placementTarget(root=navRoot(),box=null){
     if(!root||!root.isConnected||root.closest('[hidden],[inert],[aria-hidden="true"]')||box?.contains(root))return null;
-    const tail=primaryTail(root),section=nativeProjectSection(root);
+    const tail=primaryTail(root),section=nativeProjectHost(root,nativeProjectSection(root));
     if(nativeSectionAfterPrimary(root,section,tail)&&(!box||(!section.contains(box)&&!box.contains(section.parentElement)))){
       return{parent:section.parentElement,before:section,mode:'native-projects',legacy:'projects-slot-v121'};
     }
-    const launcher=nativeProjectsLauncher(root);
+    const launcher=nativeProjectHost(root,nativeProjectsLauncher(root));
     if(launcher?.parentElement&&(!tail||nativeSectionAfterPrimary(root,launcher,tail))&&(!box||(!launcher.contains(box)&&!box.contains(launcher.parentElement)))){
       return{parent:launcher.parentElement,before:launcher.nextSibling,mode:'native-projects-launcher',legacy:'projects-launcher-v121'};
     }

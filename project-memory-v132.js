@@ -26,6 +26,7 @@
   const conversationPage = () => /(?:^|\/)c\/[A-Za-z0-9_-]+(?:$|[/?#])/.test(String(location.pathname || ''));
   const quietFor = () => Date.now() - lastHumanAt;
   const remainingQuiet = (floor=1000) => Math.max(floor, HUMAN_QUIET_MS - quietFor() + floor);
+  const backgroundDelay = () => (conversationPage() || document.documentElement.dataset.ng90PeerChatActive === '1') ? WAKE_HEARTBEAT_MS : remainingQuiet();
   const defaults = { autoSync: true, injectOnNewChat: true };
   let prefsCache = Object.assign({}, defaults), prefsReady = false;
 
@@ -399,7 +400,7 @@
       return { ok:false, paused:true, error:'memory_sync_paused_conversation' };
     }
     if (document.hidden || (automatic && !autoOwner())) {
-      if (automatic) { await queuedState(document.hidden?'hidden':'owner'); schedule(15000); }
+      if (automatic) { await queuedState(document.hidden?'hidden':'owner'); schedule(WAKE_HEARTBEAT_MS); }
       return { ok:false, paused:true, error:document.hidden?'memory_sync_paused_hidden':'memory_sync_paused_owner_change' };
     }
     if (busy(automatic)) {
@@ -413,7 +414,7 @@
         acquired=true;
         lockedResult = await bootstrap(Object.assign({},opt,{__lockHeld:true}));
       });
-      if(!acquired&&automatic){ schedule(15000); return lockedResult; }
+      if(!acquired&&automatic){ schedule(WAKE_HEARTBEAT_MS); return lockedResult; }
       return lockedResult;
     }
     if (syncing) return automatic ? {ok:true,skipped:'sync_already_running'} : { ok:false, error:'sync_already_running' };
@@ -453,7 +454,7 @@
       syncing = false; syncAuto = false;
       try{
         const q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};
-        if(Array.isArray(q.pending)&&q.pending.length) schedule(conversationPage()?WAKE_HEARTBEAT_MS:remainingQuiet());
+        if(Array.isArray(q.pending)&&q.pending.length) schedule(backgroundDelay());
       }catch{}
     }
   }
@@ -464,6 +465,7 @@
       const q = (await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY], p = await prefs();
       if (!q?.pending?.length || !p.autoSync) return;
       if (conversationPage()) { await queuedState('conversation'); schedule(WAKE_HEARTBEAT_MS); return; }
+      if (document.documentElement.dataset.ng90PeerChatActive === '1') { await queuedState('peer-conversation'); schedule(WAKE_HEARTBEAT_MS); return; }
       if (busy(true)) { schedule(remainingQuiet()); return; }
       bootstrap({ force:q.force, projectIds:q.pending, auto:true });
     } catch {}
@@ -475,6 +477,7 @@
     autoTimer = setTimeout(async () => {
       if (!autoOwner()) return;
       if (conversationPage()) { await queuedState('conversation'); return schedule(WAKE_HEARTBEAT_MS); }
+      if (document.documentElement.dataset.ng90PeerChatActive === '1') { await queuedState('peer-conversation'); return schedule(WAKE_HEARTBEAT_MS); }
       if (busy(true)) return schedule(remainingQuiet());
       const st = await send({ type:'niakgpt:memory-status-v132' });
       if (!st?.connected) return;
@@ -537,7 +540,7 @@
     if (r && r.ok) {
       const pending=await primeBootstrapQueue(false);
       await queuedState(conversationPage()?'conversation':'quiet');
-      schedule(conversationPage()?WAKE_HEARTBEAT_MS:remainingQuiet());
+      schedule(backgroundDelay());
       return Object.assign({},r,{bootstrapQueued:true,queuedProjects:pending.length});
     }
     return r;
@@ -580,7 +583,7 @@
     if (r && r.ok) {
       const pending=await primeBootstrapQueue(false);
       await queuedState(conversationPage()?'conversation':'quiet');
-      schedule(conversationPage()?WAKE_HEARTBEAT_MS:remainingQuiet());
+      schedule(backgroundDelay());
       return Object.assign({},r,{bootstrapQueued:true,queuedProjects:pending.length});
     }
     return r;
@@ -650,7 +653,6 @@
     if (event?.isTrusted === false || ownSurface(event?.target)) return;
     lastHumanAt=Date.now();
     if (syncAuto) clearTimeout(autoTimer);
-    if (!conversationPage()) schedule(remainingQuiet());
   };
   document.addEventListener('pointerdown',noteHuman,true);
   document.addEventListener('keydown',noteHuman,true);
@@ -658,31 +660,31 @@
   document.addEventListener('touchstart',noteHuman,{capture:true,passive:true});
 
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes[CACHE_KEY]) schedule(conversationPage()?WAKE_HEARTBEAT_MS:remainingQuiet());
+    if (area === 'local' && changes[CACHE_KEY]) schedule(backgroundDelay());
     if (area === 'local' && changes[CONTEXT_KEY]) refreshContext();
     if (area === 'local' && changes[QUEUE_KEY] && autoOwner()) resume();
   });
   document.addEventListener('niakgpt:activity-changed', event => {
-    if (event.detail?.active === true || busy(false)) { lastHumanAt=Date.now(); clearTimeout(autoTimer); schedule(conversationPage()?WAKE_HEARTBEAT_MS:remainingQuiet()); return; }
-    schedule(conversationPage()?WAKE_HEARTBEAT_MS:remainingQuiet());
+    if (event.detail?.active === true || busy(false)) { lastHumanAt=Date.now(); clearTimeout(autoTimer); schedule(backgroundDelay()); return; }
+    schedule(backgroundDelay());
   });
   document.addEventListener('niakgpt:tab-role-changed', event => {
-    if (event.detail && event.detail.role !== 'inactive' && !document.hidden) { resume(); schedule(conversationPage()?WAKE_HEARTBEAT_MS:remainingQuiet()); }
+    if (event.detail && event.detail.role !== 'inactive' && !document.hidden) { resume(); schedule(backgroundDelay()); }
     else clearTimeout(autoTimer);
   });
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { lastHumanAt=Date.now(); refreshContext(); resume(); schedule(conversationPage()?WAKE_HEARTBEAT_MS:remainingQuiet()); } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { lastHumanAt=Date.now(); refreshContext(); resume(); schedule(backgroundDelay()); } });
 
-  function route() { clearTimeout(routeTimer); lastHumanAt=Date.now(); routeTimer = setTimeout(()=>{refreshContext();resume();schedule(conversationPage()?WAKE_HEARTBEAT_MS:remainingQuiet());},120); }
+  function route() { clearTimeout(routeTimer); lastHumanAt=Date.now(); routeTimer = setTimeout(()=>{refreshContext();resume();schedule(backgroundDelay());},120); }
   window.addEventListener('popstate',route);
   if (window.navigation && window.navigation.addEventListener) window.navigation.addEventListener('navigatesuccess',route);
-  window.addEventListener('pageshow',() => { lastHumanAt=Date.now(); refreshContext(); resume(); schedule(conversationPage()?WAKE_HEARTBEAT_MS:remainingQuiet()); });
+  window.addEventListener('pageshow',() => { lastHumanAt=Date.now(); refreshContext(); resume(); schedule(backgroundDelay()); });
 
   prefs().finally(async() => {
     refreshContext();
     try{await ensureBootstrapQueued();}catch{}
     if (conversationPage()) await queuedState('conversation');
     resume();
-    schedule(conversationPage()?WAKE_HEARTBEAT_MS:remainingQuiet());
+    schedule(backgroundDelay());
     wakeHeartbeat();
   });
 })();

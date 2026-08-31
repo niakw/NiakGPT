@@ -1,3 +1,14 @@
+# NiakGPT 0.9.87 — Native chat zero-background network quarantine
+
+- Corrige une régression terrain où l’extension pouvait contribuer aux messages natifs ChatGPT « Connexion interrompue » / vérification dès son installation.
+- `server-index-v100.js` ne démarre plus à ~80 ms : aucun GET backend automatique NiakGPT n’est autorisé sur une route de conversation ; hors conversation, l’index attend 2 minutes de calme.
+- `server-index-bootstrap-v124.js` ne peut plus envoyer jusqu’à 28 relances espacées de 550 ms ; le bootstrap devient lent, borné et conversation-safe.
+- `page-bridge.js` impose la barrière centrale `native_conversation_quiet` avant réseau, y compris lorsqu’un autre onglet visible signale une conversation active.
+- Project Memory attend désormais 5 minutes de calme, espace les lectures d’historique complet d’au moins 20 s et conserve un heartbeat local de secours de 60 s.
+- Une lecture Project explicitement déclenchée par l’utilisateur reste possible seulement si ChatGPT n’est pas en génération, vérification ou incident réseau.
+- Nouveau lab `native-chat-zero-background-v087.mjs` : zéro RPC/auth/backend automatique au démarrage d’un chat, quarantaine multi-onglets, exception foreground bornée.
+- Les anciens tests de réveil ont été réalignés : ils prouvent toujours la reprise d’une file persistante sans imposer les délais agressifs de 0.9.86.
+
 # NiakGPT 0.9.86 — Project Memory persistent queue self-wake
 
 - Correction du cas terrain `Coffre connecté · bootstrap en attente · 16 Project(s)` pouvant rester bloqué indéfiniment.

@@ -40,6 +40,21 @@ try{
   await page.goto('https://chatgpt.com/c/native-priority',{waitUntil:'domcontentloaded'});
   await page.addScriptTag({content:source});
 
+  // 0.9.87 first prevents the old failure mode entirely: a background conversation GET on
+  // /c/... must be rejected before auth/backend network even starts.
+  const chatBackground=await page.evaluate(()=>new Promise(resolve=>{
+    const id='network-v085-chat-background';
+    const handler=event=>{if(event.detail?.id!==id)return;document.removeEventListener('niakgpt:rpc-response',handler);resolve(event.detail);};
+    document.addEventListener('niakgpt:rpc-response',handler);
+    document.dispatchEvent(new CustomEvent('niakgpt:rpc-request',{detail:{id,path:'/backend-api/conversation/abcdefghijklmnop',method:'GET',memoryBootstrap:true,governance:true}}));
+  }));
+  let state=await page.evaluate(()=>({backend:window.__backendCalls,session:window.__sessionCalls,xhr:window.__xhrCalls}));
+  assert(chatBackground.error==='native_conversation_quiet','chat-route background GET was not prevented before network: '+JSON.stringify(chatBackground));
+  assert(state.backend===0&&state.session===0&&state.xhr===0,'chat-route prevention still emitted network traffic: '+JSON.stringify(state));
+
+  // Preserve the original v085 contract too: when an allowed request is already in flight off
+  // a conversation route, a native send must abort it immediately and must never retry via XHR.
+  await page.evaluate(()=>history.pushState({},'', '/'));
   const first=page.evaluate(()=>new Promise(resolve=>{
     const id='network-v085-first';
     const handler=event=>{if(event.detail?.id!==id)return;document.removeEventListener('niakgpt:rpc-response',handler);resolve(event.detail);};
@@ -66,4 +81,4 @@ try{
   assert(second.error==='native_busy','second NiakGPT request was not blocked during native priority: '+JSON.stringify(second));
   assert(finalState.backend===1&&finalState.xhr===0,'native priority still emitted background traffic: '+JSON.stringify(finalState));
 }finally{await browser.close();}
-console.log('native-priority-network-v085: PASS native send aborts NiakGPT GET + no XHR duplicate + quarantine blocks new traffic');
+console.log('native-priority-network-v085: PASS chat-route prevention + native send abort + no XHR duplicate + quarantine blocks new traffic');

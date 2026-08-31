@@ -135,8 +135,26 @@
 
   async function unlockChat(chatId){if(!config.locks?.[chatId])return;const next={...(config.locks||{})};delete next[chatId];config.locks=next;await saveConfig();toast('Conversation rendue au classement automatique');renderGovernanceModal();}
   async function verifyAndLockManualMove(detail){
-    const id=String(detail?.id||'');if(!id)return;const expected=detail?.detached?'':normalizePid(detail?.projectId||'');const verify=await verifyDestination(id,expected,{attempts:3});if(!verify.ok)return;
-    config.locks={...(config.locks||{}),[id]:{projectId:verify.got||'',at:Date.now(),source:'manual'}};applyMoveToCache(id,verify.got||'');await saveCache();await saveConfig();toast('Placement manuel protégé 🔒');
+    const id=String(detail?.id||'');if(!id)return;
+    if(detail?.ok===false)return;
+    const expected=detail?.detached?'':normalizePid(detail?.projectId||'');
+    const nativeAccepted=detail?.ok===true&&Number(detail?.status||0)>=200&&Number(detail?.status||0)<300;
+    // A successful native PATCH is already ChatGPT's authoritative acknowledgement of the user's
+    // manual move. Apply the protection immediately so broker quiet windows cannot leave the row
+    // visually unlocked. Lightweight inventory verification remains reconciliation, not UX gating.
+    if(nativeAccepted){
+      config.locks={...(config.locks||{}),[id]:{projectId:expected,at:Date.now(),source:'manual-native-ack'}};
+      applyMoveToCache(id,expected);await saveCache();await saveConfig();toast('Placement manuel protégé 🔒');
+      const verify=await verifyDestination(id,expected,{attempts:3});
+      if(verify.ok&&verify.got!==expected){
+        config.locks={...(config.locks||{}),[id]:{projectId:verify.got||'',at:Date.now(),source:'manual-reconciled'}};
+        applyMoveToCache(id,verify.got||'');await saveCache();await saveConfig();
+      }
+      return;
+    }
+    const verify=await verifyDestination(id,expected,{attempts:3});if(!verify.ok)return;
+    config.locks={...(config.locks||{}),[id]:{projectId:verify.got||'',at:Date.now(),source:'manual'}};
+    applyMoveToCache(id,verify.got||'');await saveCache();await saveConfig();toast('Placement manuel protégé 🔒');
   }
 
   function projectType(p,plan){if(plan.duplicateOf.has(p.id))return'DOUBLON';if(plan.coreIds.includes(p.id))return'PRINCIPAL';if(isSuspectProject(p))return'TEST/TEMP';if(isLegacyProject(p))return'RELIQUAT';return'AUTRE';}

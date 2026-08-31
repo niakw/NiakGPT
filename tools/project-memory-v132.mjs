@@ -138,7 +138,7 @@ assert.equal(localStore['niakgpt-project-memory-config-v132'],undefined,'failed 
 assert.equal(sessionStore['niakgpt-project-memory-session-token-v132'],undefined,'failed connect persisted token');
 
 const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
-assert.equal(manifest.version, '0.9.86');
+assert.equal(manifest.version, '0.9.87');
 assert.deepEqual(manifest.permissions, ['storage','scripting','identity']);
 assert.deepEqual(manifest.host_permissions, ['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']);
 
@@ -187,6 +187,9 @@ assert.match(bridge, /conversation_detail_get_disabled/);
 assert.match(bridge, /d\.memoryBootstrap !== true/);
 assert.match(bridge, /activeGetControllers/);
 assert.match(bridge, /fetch_aborted_native_priority/);
+assert.match(bridge, /native_conversation_quiet/);
+assert.match(bridge, /chat-route-guard/);
+assert.match(bridge, /ng90PeerChatActive/);
 assert.match(bridge, /return fetchRequest\(path, method, body, token\)/);
 assert.doesNotMatch(bridge, /transport:'fetch\+xhr'/);
 
@@ -198,12 +201,12 @@ assert.match(runtime, /canonicalUpdated/);
 assert.match(runtime, /MEMORY_LOCK/);
 assert.match(runtime, /autoOwner/);
 assert.match(runtime, /niakgpt:tab-role-changed/);
-assert.match(runtime, /HISTORY_FETCH_GAP_MS = 8000/);
-assert.match(runtime, /HUMAN_QUIET_MS = 45000/);
-assert.match(runtime, /WAKE_HEARTBEAT_MS = 15000/);
+assert.match(runtime, /HISTORY_FETCH_GAP_MS = 20000/);
+assert.match(runtime, /HUMAN_QUIET_MS = 5\*60\*1000/);
+assert.match(runtime, /WAKE_HEARTBEAT_MS = 60000/);
 assert.match(runtime, /async function wakeHeartbeat\(\)/);
 assert.match(runtime, /ng132WakeBeat/);
-assert.match(runtime, /if\(!acquired&&automatic\)\{ schedule\(15000\); return lockedResult; \}/);
+assert.match(runtime, /if\(!acquired&&automatic\)\{ schedule\(WAKE_HEARTBEAT_MS\); return lockedResult; \}/);
 assert.match(runtime, /fetch_aborted_native_priority/);
 assert.match(runtime, /memory_sync_paused_rate_limit/);
 assert.match(runtime, /memory_sync_paused_network/);
@@ -221,6 +224,10 @@ assert.match(runtime, /primeBootstrapQueue/);
 assert.match(runtime, /ensureBootstrapQueued/);
 assert.match(runtime, /queuedProjects/);
 assert.match(runtime, /changes\[QUEUE_KEY\]/);
+assert.match(runtime, /conversationPage/);
+assert.match(runtime, /ng90PeerChatActive/);
+assert.match(runtime, /memory_sync_paused_conversation/);
+assert.doesNotMatch(runtime, /setTimeout\(\(\)=>\{ if\(!document\.hidden&&!busy\(\)\) bootstrap/,'Project Memory reconnect must not restart immediate backend bootstrap');
 
 const ui = fs.readFileSync('project-memory-ui-v132.js','utf8');
 assert.match(ui, /GITHUB PRIVÉ/);
@@ -247,6 +254,7 @@ assert.match(packager, /importScripts/);
 assert.match(packager, /project-memory-background-v132\.js/);
 
 assert.ok(fs.existsSync('visual-lab/project-memory-v132.mjs'),'Project Memory browser gate missing');
+assert.ok(fs.existsSync('visual-lab/native-chat-zero-background-v087.mjs'),'native chat zero-background gate missing');
 const memoryLab=fs.readFileSync('visual-lab/project-memory-v132.mjs','utf8');
 assert.match(memoryLab,/configured unsynced vault did not recreate persistent bootstrap queue/);
 assert.match(memoryLab,/page\.locator\('\[data-ng132-memory\]'\)\.waitFor/);

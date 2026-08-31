@@ -25,7 +25,7 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.86': fail(f"version={version}")
+if version!='0.9.87': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting','identity']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']: fail('host permissions drift')
 
@@ -156,6 +156,7 @@ for token in ('nos\\s+systèmes\\s+effectuent\\s+quelques\\s+vérifications','co
     if token not in interruption: fail('interruption recovery contract incomplete '+token)
 bridge=read('page-bridge.js')
 if "interruption === 'network'" not in bridge or "interruption === 'verify'" not in bridge: fail('RPC interruption pause missing')
+if 'native_conversation_quiet' not in bridge or 'chat-route-guard' not in bridge or 'ng90PeerChatActive' not in bridge: fail('chat-route zero-background network guard missing')
 
 memory=read('project-memory-v132.js')
 for token in ('memoryBootstrap: memoryBootstrap === true','PROJECT_STATE.md','conversations/','sync_already_running','injectOnNewChat','NIAKGPT PROJECT MEMORY — CHECKPOINT RÉCUPÉRÉ','canonicalUpdated','MEMORY_LOCK','autoOwner','niakgpt:tab-role-changed','primeBootstrapQueue','ensureBootstrapQueued','queuedProjects','changes[QUEUE_KEY]','githubLogin','chrome.runtime.connect','setTimeout(heartbeat,20_000)','githubRepositories','githubConnectRepo','githubLogout'):
@@ -164,6 +165,7 @@ bridge=read('page-bridge.js')
 if "d.memoryBootstrap !== true" not in bridge or 'conversation_detail_get_disabled' not in bridge: fail('Project Memory full-history bridge guard incomplete')
 if 'project-memory-v132.css' not in css_runtime: fail('Project Memory UI CSS missing from manifest')
 if not (ROOT/'visual-lab/project-memory-v132.mjs').exists(): fail('Project Memory browser UX gate missing')
+if not (ROOT/'visual-lab/native-chat-zero-background-v087.mjs').exists(): fail('native chat zero-background regression gate missing')
 if not (ROOT/'github-vault-start.html').exists() or not (ROOT/'github-vault-start.js').exists(): fail('GitHub auth launcher missing')
 if not (ROOT/'labs/project-memory-isolation-v133.mjs').exists(): fail('Project Memory isolation failure gate missing')
 if not (ROOT/'.github/workflows/project-memory-v132.yml').exists(): fail('Project Memory workflow missing')

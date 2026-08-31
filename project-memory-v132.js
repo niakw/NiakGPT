@@ -11,10 +11,10 @@
   const MEMORY_LOCK = 'niakgpt-project-memory-sync-v132';
   const MAX_STATE = 18000;
   const CHUNK = 360000;
-  const HISTORY_FETCH_GAP_MS = 8000;
-  const HUMAN_QUIET_MS = 45000;
-  const WAKE_HEARTBEAT_MS = 15000;
-  let seq = 0, syncing = false, syncAuto = false, autoTimer = 0, wakeTimer = 0, routeTimer = 0, lastHistoryFetchAt = 0, lastHumanAt = 0;
+  const HISTORY_FETCH_GAP_MS = 20000;
+  const HUMAN_QUIET_MS = 5*60*1000;
+  const WAKE_HEARTBEAT_MS = 60000;
+  let seq = 0, syncing = false, syncAuto = false, autoTimer = 0, wakeTimer = 0, routeTimer = 0, lastHistoryFetchAt = 0, lastHumanAt = Date.now();
   let contextProject = '', contextText = '';
 
   const clean = v => String(v == null ? '' : v).replace(/\r/g, '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
@@ -23,6 +23,10 @@
   const safe = v => one(v).replace(/[^A-Za-z0-9_.-]+/g, '_').slice(0, 160);
   const parseTime = v => { const n = Number(v); if (Number.isFinite(n) && n > 0) return n > 1e12 ? n : n * 1000; const d = Date.parse(String(v || '')); return Number.isFinite(d) ? d : 0; };
   const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const conversationPage = () => /(?:^|\/)c\/[A-Za-z0-9_-]+(?:$|[/?#])/.test(String(location.pathname || ''));
+  const quietFor = () => Date.now() - lastHumanAt;
+  const remainingQuiet = (floor=1000) => Math.max(floor, HUMAN_QUIET_MS - quietFor() + floor);
+  const backgroundDelay = () => (conversationPage() || document.documentElement.dataset.ng90PeerChatActive === '1') ? WAKE_HEARTBEAT_MS : remainingQuiet();
   const defaults = { autoSync: true, injectOnNewChat: true };
   let prefsCache = Object.assign({}, defaults), prefsReady = false;
 
@@ -50,30 +54,32 @@
     });
   }
 
-  const busy = () => {
+  const busy = (background = syncAuto) => {
     const interruption=String(document.documentElement.dataset.ng119Interruption||'').toLowerCase();
     const bridgePriorityUntil=Math.max(
       Number(document.documentElement.dataset.ng100NativePriorityUntil||0),
       Number(document.documentElement.dataset.ng100BackgroundPriorityUntil||0)
     );
-    return document.documentElement.dataset.ng8Running === '1' ||
+    return conversationPage() ||
+      document.documentElement.dataset.ng90PeerChatActive === '1' ||
+      document.documentElement.dataset.ng8Running === '1' ||
       ['loading','waiting','thinking','executing'].includes(String(document.documentElement.dataset.ng86Activity || '').toLowerCase()) ||
       document.documentElement.dataset.ng105Verification === '1' ||
       interruption === 'verify' ||
       interruption === 'network' ||
       navigator.onLine === false ||
       Date.now() < bridgePriorityUntil ||
-      (lastHumanAt>0 && Date.now()-lastHumanAt < HUMAN_QUIET_MS);
+      (background && quietFor() < HUMAN_QUIET_MS);
   };
 
   async function waitIdle(limit) {
     const start = Date.now(), max = limit || 10 * 60 * 1000;
-    while (busy()) {
-      if (document.hidden || (syncAuto && !autoOwner())) return false;
+    while (busy(syncAuto)) {
+      if (conversationPage() || document.hidden || (syncAuto && !autoOwner())) return false;
       if (Date.now() - start > max) return false;
       await sleep(1000);
     }
-    if (document.hidden || (syncAuto && !autoOwner())) return false;
+    if (conversationPage() || document.hidden || (syncAuto && !autoOwner())) return false;
     return true;
   }
 
@@ -243,6 +249,7 @@
     const r = await rpc('/backend-api/conversation/' + encodeURIComponent(id), true);
     if (r && r.ok) return r.data;
     const error=String(r?.error||'');
+    if(error==='native_conversation_quiet')throw new Error('memory_sync_paused_conversation');
     if(error==='native_busy'||/fetch_aborted_native_priority|bridge-pause/.test(error))throw new Error('memory_sync_paused_busy');
     if(r?.status===429)throw new Error('memory_sync_paused_rate_limit');
     if(r?.status===0)throw new Error('memory_sync_paused_network');
@@ -378,7 +385,7 @@
         const q=local[QUEUE_KEY]||{},p=Object.assign({},defaults,local[PREFS_KEY]||{});
         const pending=Array.isArray(q.pending)?q.pending:[];
         document.documentElement.dataset.ng132WakeBeat=String(Date.now());
-        if(p.autoSync!==false&&pending.length&&autoOwner()) await resume();
+        if(p.autoSync!==false&&pending.length&&autoOwner()&&!conversationPage()&&quietFor()>=HUMAN_QUIET_MS) await resume();
       }catch{}
       wakeHeartbeat();
     },WAKE_HEARTBEAT_MS);
@@ -387,12 +394,17 @@
   async function bootstrap(options) {
     const opt = options || {};
     const automatic = opt.auto === true;
+    if (conversationPage()) {
+      await queuedState('conversation');
+      if (automatic) schedule(WAKE_HEARTBEAT_MS);
+      return { ok:false, paused:true, error:'memory_sync_paused_conversation' };
+    }
     if (document.hidden || (automatic && !autoOwner())) {
-      if (automatic) { await queuedState(document.hidden?'hidden':'owner'); schedule(15000); }
+      if (automatic) { await queuedState(document.hidden?'hidden':'owner'); schedule(WAKE_HEARTBEAT_MS); }
       return { ok:false, paused:true, error:document.hidden?'memory_sync_paused_hidden':'memory_sync_paused_owner_change' };
     }
-    if (busy()) {
-      if (automatic) { await queuedState('busy'); schedule(15000); }
+    if (busy(automatic)) {
+      if (automatic) { await queuedState(quietFor()<HUMAN_QUIET_MS?'quiet':'busy'); schedule(remainingQuiet()); }
       return { ok:false, paused:true, error:'memory_sync_paused_busy' };
     }
     if (navigator.locks && navigator.locks.request && opt.__lockHeld !== true) {
@@ -402,7 +414,7 @@
         acquired=true;
         lockedResult = await bootstrap(Object.assign({},opt,{__lockHeld:true}));
       });
-      if(!acquired&&automatic){ schedule(15000); return lockedResult; }
+      if(!acquired&&automatic){ schedule(WAKE_HEARTBEAT_MS); return lockedResult; }
       return lockedResult;
     }
     if (syncing) return automatic ? {ok:true,skipped:'sync_already_running'} : { ok:false, error:'sync_already_running' };
@@ -430,10 +442,10 @@
       return { ok:true, projects:list.length, changed };
     } catch (error) {
       const message=String(error && error.message || error);
-      if(/^memory_sync_paused_(?:hidden|owner_change|busy|rate_limit|network)$/.test(message)){
+      if(/^memory_sync_paused_(?:conversation|hidden|owner_change|busy|rate_limit|network)$/.test(message)){
         const reason=message.replace('memory_sync_paused_','');
         await queuedState(reason);
-        schedule(reason==='rate_limit'||reason==='network'?120000:45000);
+        schedule(reason==='rate_limit'||reason==='network'?120000:(reason==='conversation'?WAKE_HEARTBEAT_MS:remainingQuiet()));
         return {ok:false,paused:true,error:message};
       }
       await state({ mode:'error', error:message.slice(0,260) });
@@ -442,7 +454,7 @@
       syncing = false; syncAuto = false;
       try{
         const q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};
-        if(Array.isArray(q.pending)&&q.pending.length) schedule(15000);
+        if(Array.isArray(q.pending)&&q.pending.length) schedule(backgroundDelay());
       }catch{}
     }
   }
@@ -452,7 +464,9 @@
     try {
       const q = (await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY], p = await prefs();
       if (!q?.pending?.length || !p.autoSync) return;
-      if (busy()) { schedule(45000); return; }
+      if (conversationPage()) { await queuedState('conversation'); schedule(WAKE_HEARTBEAT_MS); return; }
+      if (document.documentElement.dataset.ng90PeerChatActive === '1') { await queuedState('peer-conversation'); schedule(WAKE_HEARTBEAT_MS); return; }
+      if (busy(true)) { schedule(remainingQuiet()); return; }
       bootstrap({ force:q.force, projectIds:q.pending, auto:true });
     } catch {}
   }
@@ -462,12 +476,14 @@
     if (!autoOwner() || !(await prefs()).autoSync) return;
     autoTimer = setTimeout(async () => {
       if (!autoOwner()) return;
-      if (busy()) return schedule(45000);
+      if (conversationPage()) { await queuedState('conversation'); return schedule(WAKE_HEARTBEAT_MS); }
+      if (document.documentElement.dataset.ng90PeerChatActive === '1') { await queuedState('peer-conversation'); return schedule(WAKE_HEARTBEAT_MS); }
+      if (busy(true)) return schedule(remainingQuiet());
       const st = await send({ type:'niakgpt:memory-status-v132' });
       if (!st?.connected) return;
       let q={};try{q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
       bootstrap({ force:q.force===true, projectIds:Array.isArray(q.pending)&&q.pending.length?q.pending:undefined, auto:true });
-    }, delay || 12000);
+    }, delay || remainingQuiet());
   }
 
   function currentPid() {
@@ -523,7 +539,8 @@
     const r = await send(Object.assign({ type:'niakgpt:memory-connect-v132' }, options || {}));
     if (r && r.ok) {
       const pending=await primeBootstrapQueue(false);
-      setTimeout(()=>{ if(!document.hidden&&!busy()) bootstrap({force:false,projectIds:pending,auto:false}); else { resume();schedule(1200); } },250);
+      await queuedState(conversationPage()?'conversation':'quiet');
+      schedule(backgroundDelay());
       return Object.assign({},r,{bootstrapQueued:true,queuedProjects:pending.length});
     }
     return r;
@@ -565,7 +582,8 @@
     const r = await send(Object.assign({ type:'niakgpt:memory-github-connect-repo-v132' }, options || {}));
     if (r && r.ok) {
       const pending=await primeBootstrapQueue(false);
-      setTimeout(()=>{ if(!document.hidden&&!busy()) bootstrap({force:false,projectIds:pending,auto:false}); else { resume();schedule(1200); } },250);
+      await queuedState(conversationPage()?'conversation':'quiet');
+      schedule(backgroundDelay());
       return Object.assign({},r,{bootstrapQueued:true,queuedProjects:pending.length});
     }
     return r;
@@ -642,30 +660,31 @@
   document.addEventListener('touchstart',noteHuman,{capture:true,passive:true});
 
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes[CACHE_KEY]) schedule(12000);
+    if (area === 'local' && changes[CACHE_KEY]) schedule(backgroundDelay());
     if (area === 'local' && changes[CONTEXT_KEY]) refreshContext();
     if (area === 'local' && changes[QUEUE_KEY] && autoOwner()) resume();
   });
   document.addEventListener('niakgpt:activity-changed', event => {
-    if (event.detail?.active === true || busy()) { lastHumanAt=Date.now(); clearTimeout(autoTimer); return; }
-    schedule(30000);
+    if (event.detail?.active === true || busy(false)) { lastHumanAt=Date.now(); clearTimeout(autoTimer); schedule(backgroundDelay()); return; }
+    schedule(backgroundDelay());
   });
   document.addEventListener('niakgpt:tab-role-changed', event => {
-    if (event.detail && event.detail.role !== 'inactive' && !document.hidden) { resume(); schedule(2500); }
+    if (event.detail && event.detail.role !== 'inactive' && !document.hidden) { resume(); schedule(backgroundDelay()); }
     else clearTimeout(autoTimer);
   });
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { refreshContext(); resume(); schedule(2500); } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { lastHumanAt=Date.now(); refreshContext(); resume(); schedule(backgroundDelay()); } });
 
-  function route() { clearTimeout(routeTimer); routeTimer = setTimeout(refreshContext,120); }
+  function route() { clearTimeout(routeTimer); lastHumanAt=Date.now(); routeTimer = setTimeout(()=>{refreshContext();resume();schedule(backgroundDelay());},120); }
   window.addEventListener('popstate',route);
   if (window.navigation && window.navigation.addEventListener) window.navigation.addEventListener('navigatesuccess',route);
-  window.addEventListener('pageshow',() => { refreshContext(); resume(); schedule(15000); });
+  window.addEventListener('pageshow',() => { lastHumanAt=Date.now(); refreshContext(); resume(); schedule(backgroundDelay()); });
 
   prefs().finally(async() => {
     refreshContext();
     try{await ensureBootstrapQueued();}catch{}
+    if (conversationPage()) await queuedState('conversation');
     resume();
-    schedule(18000);
+    schedule(backgroundDelay());
     wakeHeartbeat();
   });
 })();

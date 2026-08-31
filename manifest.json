@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.86",
-  "description": "NiakGPT : priorité au flux natif ChatGPT, Pins fiables et Project Memory auto-réveillée sans concurrence réseau.",
+  "version": "0.9.87",
+  "description": "NiakGPT : zéro trafic backend automatique pendant les chats, Pins fiables et Project Memory strictement opportuniste.",
   "permissions": [
     "storage",
     "scripting",

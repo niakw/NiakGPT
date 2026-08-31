@@ -13,6 +13,7 @@ on:
       - 'tools/project-memory-v132.mjs'
       - 'visual-lab/project-memory-v132.mjs'
       - 'visual-lab/project-memory-wake-v086.mjs'
+      - 'visual-lab/native-chat-zero-background-v087.mjs'
       - 'visual-lab/sidebar-session-ux-v123.mjs'
       - 'labs/project-memory-isolation-v133.mjs'
       - 'test/x.md'
@@ -78,3 +79,7 @@ jobs:
         if: matrix.browser == 'chromium'
         working-directory: visual-lab
         run: node project-memory-wake-v086.mjs
+      - name: Native chat zero-background network regression
+        if: matrix.browser == 'chromium'
+        working-directory: visual-lab
+        run: node native-chat-zero-background-v087.mjs

@@ -32,7 +32,12 @@
       return 'Synchronisation ' + p + '% · ' + (s.projectName || s.projectId || 'Project') + chat;
     }
     if (s.mode === 'error') return 'Erreur · ' + String(s.error || 'synchronisation interrompue');
-    if (s.mode === 'queued') return 'Coffre connecté · bootstrap en attente · ' + Number(s.queuedProjects || snapshot?.queue?.pending?.length || 0) + ' Project(s)';
+    if (s.mode === 'queued') {
+      const count=Number(s.queuedProjects || snapshot?.queue?.pending?.length || 0);
+      if(s.pauseReason==='conversation'||s.pauseReason==='peer-conversation')return 'Coffre connecté · bootstrap protégé pendant une discussion · ' + count + ' Project(s)';
+      if(s.pauseReason==='quiet')return 'Coffre connecté · bootstrap différé jusqu’au calme · ' + count + ' Project(s)';
+      return 'Coffre connecté · bootstrap en attente · ' + count + ' Project(s)';
+    }
     if (snapshot && snapshot.connected && !Number(s.lastSyncAt || 0)) return 'Coffre initialisé · première synchronisation en attente';
     if (snapshot && snapshot.connected) return 'Connecté · dernière synchro ' + humanDate(s.lastSyncAt);
     if (github.authenticated) return 'GitHub connecté · choisis le dépôt coffre';
@@ -110,7 +115,7 @@
       const progressText = stateInfo.mode === 'syncing' && Number(stateInfo.chatTotal || 0)
         ? ('Progression · ' + syncPercent(stateInfo) + '% · conversation ' + Number(stateInfo.chatDone || 0) + '/' + Number(stateInfo.chatTotal || 0))
         : queuePending
-          ? ('File persistante · ' + queuePending + ' Project(s) restant(s)')
+          ? ('File persistante · ' + queuePending + ' Project(s) restant(s)' + ((stateInfo.pauseReason==='conversation'||stateInfo.pauseReason==='peer-conversation') ? ' · aucune lecture backend pendant la discussion' : stateInfo.pauseReason==='quiet' ? ' · reprise après 5 min de calme' : ''))
           : (Number(stateInfo.lastSyncAt || 0) ? ('Dernière synchro · ' + humanDate(stateInfo.lastSyncAt) + ' · ' + Number(stateInfo.changed || 0) + ' fil(s) modifié(s)') : 'Aucune synchronisation complète enregistrée');
 
       const viewKey=githubConnected?'github':'login';
@@ -163,9 +168,9 @@
             '<div class="ng132-memory-actions"><button data-ng132-connect>Connecter avec le PAT</button></div>' +
           '</div>' +
         '</details>' +
-        '<label class="ng132-option"><input data-ng132-auto type="checkbox" ' + (prefs.autoSync !== false ? 'checked' : '') + '><span><b>Synchronisation incrémentale</b><small>Après le bootstrap, seuls les fils modifiés sont relus. La synchro se met en pause pendant une génération ChatGPT.</small></span></label>' +
+        '<label class="ng132-option"><input data-ng132-auto type="checkbox" ' + (prefs.autoSync !== false ? 'checked' : '') + '><span><b>Synchronisation incrémentale</b><small>Après le bootstrap, seuls les fils modifiés sont relus. Aucun GET automatique n’est autorisé pendant une discussion ; hors conversation, la reprise attend 5 min de calme.</small></span></label>' +
         '<label class="ng132-option"><input data-ng132-inject type="checkbox" ' + (prefs.injectOnNewChat !== false ? 'checked' : '') + '><span><b>Restaurer le checkpoint dans un nouveau fil</b><small>Ajoute une seule fois le contexte compact du Project au premier message du nouveau fil, jamais à chaque prompt.</small></span></label>' +
-        '<div class="ng132-memory-info"><b>Bootstrap des Projects existants</b><span>À la première connexion, NiakGPT indexe automatiquement chaque Project non vide : contexte Project, historique des conversations, tâches/contraintes/architecture détectées et checkpoint compact.</span></div>' +
+        '<div class="ng132-memory-info"><b>Bootstrap des Projects existants</b><span>À la première connexion, la file est créée immédiatement mais l’indexation attend une page hors discussion et une vraie fenêtre de calme. Elle archive ensuite contexte Project, historique, tâches/contraintes/architecture détectées et checkpoint compact.</span></div>' +
         '<div class="ng132-memory-info"><b>Historique complet ≠ prompt complet</b><span>Les conversations restent archivées dans GitHub. ChatGPT ne reçoit normalement que PROJECT_STATE.md, borné et mis à jour.</span></div>';
 
       const status = section.querySelector('.ng132-memory-status b');

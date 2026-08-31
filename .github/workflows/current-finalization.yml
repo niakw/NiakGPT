@@ -412,6 +412,10 @@ jobs:
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node continuity-v112.mjs
+      - name: FIELD 0.9.87 · zero automatic backend traffic during chats
+        if: matrix.browser == 'chromium'
+        working-directory: visual-lab
+        run: node native-chat-zero-background-v087.mjs
       - name: Full current visual lab
         if: matrix.browser == 'chromium'
         working-directory: visual-lab

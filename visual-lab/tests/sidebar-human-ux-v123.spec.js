@@ -63,8 +63,32 @@ async function launchRuntime(){
     traffic.other.push(`${method} ${url.pathname}`);if(traffic.other.length>40)traffic.other.shift();return route.fulfill({status:204,body:''});
   });
   const page=context.pages()[0]||await context.newPage(),pageErrors=[],consoleErrors=[];page.on('pageerror',e=>pageErrors.push(String(e?.stack||e)));page.on('console',m=>{if(m.type()==='error')consoleErrors.push(m.text());});
-  const goto=async pathname=>{await page.goto(`https://chatgpt.com${pathname}`,{waitUntil:'commit'});if(!HEADLESS)await page.bringToFront();await expect(page.locator('#ng8-status')).toContainText(manifest.version,{timeout:20000});await expect(page.locator('#ng8-pins a[data-ng8-pin="1"]')).toHaveCount(server.projects.length,{timeout:20000});};
-  await goto(`/c/${CHAT1}`);
+  const goto=async (pathname,expectedPins=server.projects.length)=>{await page.goto(`https://chatgpt.com${pathname}`,{waitUntil:'commit'});if(!HEADLESS)await page.bringToFront();await expect(page.locator('#ng8-status')).toContainText(manifest.version,{timeout:20000});await expect(page.locator('#ng8-pins a[data-ng8-pin="1"]')).toHaveCount(expectedPins,{timeout:20000});};
+  // Cold install on a conversation route is intentionally network-silent in 0.9.87.
+  // Only the two Projects exposed by the synthetic native DOM are available until a safe
+  // off-conversation indexing window exists.
+  await goto(`/c/${CHAT1}`,2);
+  expect(traffic.session).toBe(0);
+  expect(traffic.projects).toBe(0);
+  expect(traffic.general).toBe(0);
+  expect(Object.values(traffic.projectChats).reduce((sum,n)=>sum+n,0)).toBe(0);
+
+  // Continue the full sidebar UX session from a realistic already-indexed local cache. The
+  // cold-start network policy was proven above; this seed is intentionally local-only so the
+  // human UX lab does not require a hidden test bypass for the production 2-minute quiet gate.
+  const fullCache={
+    schema:2,
+    at:Date.now(),
+    projectInventoryAt:Date.now(),
+    serverIndexedAt:Date.now(),
+    projects:server.projects.map(p=>({id:p.id,name:p.name,description:`Description ${p.name}`,instructions:'',href:`/g/${p.id}/project`,domOnly:false})),
+    chats:server.chats.map(c=>({id:c.id,title:c.title,snippet:'',projectId:c.projectId,updated:c.updated,href:''})),
+    counts:Object.fromEntries(server.projects.map(p=>[p.id,server.chats.filter(c=>c.projectId===p.id).length])),
+    indexedProjectIds:server.projects.map(p=>p.id)
+  };
+  await worker.evaluate(async cache=>chrome.storage.local.set({'niakgpt-v08-cache':cache}),fullCache);
+  await goto('/');
+
   // Extend the fixture's native Project Rename command into a real modal. The user-visible
   // NiakGPT menu remains custom; this only lets the exact native Project mutation path be certified.
   await page.evaluate(({P1})=>{

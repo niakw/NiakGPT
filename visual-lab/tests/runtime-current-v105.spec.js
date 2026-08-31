@@ -90,7 +90,7 @@ test('current activity path sees the real Send click before native thinking DOM'
   }finally{await rt.close();}
 });
 
-test('trusted Project menu move is locked without any full conversation GET',async()=>{
+test('trusted native Project move is locally locked with zero NiakGPT Project/conversation GET on chat route',async()=>{
   const rt=await launch();
   try{
     const p2=rt.page.locator(`#ng8-pins a[href*="${P2}"]`).first();
@@ -102,7 +102,7 @@ test('trusted Project menu move is locked without any full conversation GET',asy
     await expect(row).toHaveAttribute('data-ng85-manual','1',{timeout:10000});
     await expect(row.locator('.ng85-manual-lock')).toBeVisible();
     expect(rt.state.projectByChat[CHAT1]).toBe(P2);
-    expect(rt.state.projectGets).toBeGreaterThan(0);
+    expect(rt.state.projectGets).toBe(0);
     expect(rt.state.conversationGets).toBe(0);
     await row.locator('.ng85-manual-lock').click();
     await expect(row).toHaveAttribute('data-ng85-manual','0');

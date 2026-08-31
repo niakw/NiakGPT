@@ -11,6 +11,7 @@
   let seq=0;
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
+  const conversationQuiet=()=>/(?:^|\/)c\/[A-Za-z0-9_-]+(?:$|[/?#])/.test(String(location.pathname||''))||document.documentElement.dataset.ng90PeerChatActive==='1';
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const currentChatId=()=>location.pathname.match(/\/c\/([0-9a-f-]{20,})/i)?.[1]||'';
   const normalizePid=v=>{const s=String(v||'').trim();return PROJECT_RX.test(s)?s:'';};
@@ -32,7 +33,21 @@
     });
   }
 
+  async function localConversation(chatId){
+    let raw=null;
+    try{raw=window.__NIAKGPT_CACHE_BUS__?.peek?.()||await window.__NIAKGPT_CACHE_BUS__?.get?.();}catch{}
+    if(!raw)try{raw=(await chrome.storage.local.get('niakgpt-v08-cache'))['niakgpt-v08-cache'];}catch{}
+    const all=new Map();
+    for(const item of (raw?.chats||[]))if(item?.id)all.set(String(item.id),item);
+    for(const [pid,list] of Object.entries(raw?.projectChats||{}))for(const item of (list||[]))if(item?.id){const old=all.get(String(item.id))||{};all.set(String(item.id),{...old,...item,projectId:item.projectId||old.projectId||pid});}
+    return all.get(String(chatId))||null;
+  }
+
   async function lookupGeneral(chatId){
+    if(conversationQuiet()){
+      const item=await localConversation(chatId);
+      return item?{ok:true,projectId:normalizePid(item.projectId||''),item,transport:'governance-local-cache'}:{ok:false,error:'conversation_not_in_local_cache'};
+    }
     const r=await rpc('/backend-api/conversations?offset=0&limit=100');
     if(!r.ok)return{ok:false,error:r.error||`HTTP ${r.status||0}`};
     const item=listFrom(r.data).find(x=>String(x?.id||x?.conversation_id||'')===chatId);
@@ -42,6 +57,10 @@
 
   async function lookupProject(chatId,projectId){
     const pid=normalizePid(projectId);if(!pid)return lookupGeneral(chatId);
+    if(conversationQuiet()){
+      const item=await localConversation(chatId),got=normalizePid(item?.projectId||'');
+      return item&&got===pid?{ok:true,projectId:pid,item,transport:'governance-local-cache'}:{ok:false,error:'conversation_not_in_expected_project_cache'};
+    }
     const r=await rpc(`/backend-api/gizmos/${encodeURIComponent(pid)}/conversations?limit=20`);
     if(!r.ok)return{ok:false,error:r.error||`HTTP ${r.status||0}`};
     const found=listFrom(r.data).some(x=>String(x?.id||x?.conversation_id||'')===chatId);
@@ -59,7 +78,7 @@
     if(manual&&!manual.detached&&manual.projectId)lookup=await lookupProject(chatId,manual.projectId);
     else lookup=await lookupGeneral(chatId);
     if(lookup.ok){
-      document.dispatchEvent(new CustomEvent(RES,{detail:{id,ok:true,status:200,data:{id:chatId,gizmo_id:lookup.projectId||null},transport:'governance-light-inventory'}}));
+      document.dispatchEvent(new CustomEvent(RES,{detail:{id,ok:true,status:200,data:{id:chatId,gizmo_id:lookup.projectId||null},transport:lookup.transport||'governance-light-inventory'}}));
     }else{
       document.dispatchEvent(new CustomEvent(RES,{detail:{id,ok:false,status:0,data:null,error:lookup.error||'governance_light_verify_failed',transport:'governance-light-inventory'}}));
     }

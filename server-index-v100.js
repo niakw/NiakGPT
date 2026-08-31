@@ -7,7 +7,8 @@
   const LOCK_NAME='niakgpt-data-mutation-v100';
   const FRESH_MS=30*60*1000;
   const PROJECT_FRESH_MS=10*60*1000;
-  let busy=false,timer=0,rpcSeq=0,partialRetries=0,pendingDeep=false;
+  const BACKGROUND_QUIET_MS=2*60*1000;
+  let busy=false,timer=0,rpcSeq=0,partialRetries=0,pendingDeep=false,lastUserOrNativeAt=Date.now();
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const parseTime=v=>{if(typeof v==='number'&&Number.isFinite(v))return v>1e12?v:v*1000;if(typeof v==='string'){const n=Number(v);if(Number.isFinite(n))return n>1e12?n:n*1000;const d=Date.parse(v);return Number.isFinite(d)?d:0;}return 0;};
@@ -16,8 +17,10 @@
   const nextCursor=data=>data?.cursor??data?.next_cursor??data?.nextCursor??null;
   const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   const ratePaused=()=>Number(document.documentElement.dataset.ng100RateLimitedUntil||0)>Date.now();
-  const nativeBusy=()=>document.documentElement.dataset.ng8Running==='1'||['loading','waiting','thinking','executing'].includes(document.documentElement.dataset.ng86Activity||'')||document.documentElement.dataset.ng105Verification==='1';
-  const projectReady=()=>document.documentElement.dataset.ng100CacheGuard!=='pending'&&!ratePaused()&&!document.hidden&&document.documentElement.dataset.ng90Safe!=='1'&&!document.documentElement.dataset.ng100Recovery&&!nativeBusy();
+  const nativeBusy=()=>document.documentElement.dataset.ng8Running==='1'||['loading','waiting','thinking','executing'].includes(document.documentElement.dataset.ng86Activity||'')||document.documentElement.dataset.ng105Verification==='1'||['verify','network'].includes(String(document.documentElement.dataset.ng119Interruption||'').toLowerCase());
+  const conversationPage=()=>/(?:^|\/)c\/[A-Za-z0-9_-]+(?:$|[/?#])/.test(String(location.pathname||''));
+  const quietFor=()=>Date.now()-lastUserOrNativeAt;
+  const projectReady=()=>!conversationPage()&&quietFor()>=BACKGROUND_QUIET_MS&&document.documentElement.dataset.ng100CacheGuard!=='pending'&&!ratePaused()&&!document.hidden&&document.documentElement.dataset.ng90Safe!=='1'&&!document.documentElement.dataset.ng100Recovery&&!nativeBusy();
   const chatReady=()=>projectReady();
 
   function diagnostic(text){window.__NIAKGPT_DIAGNOSTICS__?.set('index-serveur',text);}
@@ -173,12 +176,22 @@
     }
     return indexNow(force);
   }
+  function remainingQuiet(extra=150){return Math.max(extra,BACKGROUND_QUIET_MS-quietFor()+extra);}
   function schedule(delay=900,force=false){clearTimeout(timer);timer=setTimeout(()=>locked(force),delay);}
-  document.addEventListener('niakgpt:cache-guard-ready',()=>schedule(40,true));document.addEventListener('niakgpt:force-server-index',()=>schedule(0,true));
-  document.addEventListener('niakgpt:recovery-complete',()=>schedule(250,true));
-  document.addEventListener('niakgpt:tab-role-changed',()=>schedule(500,false));
-  document.addEventListener('niakgpt:activity-changed',event=>{if(event.detail?.active===false||chatReady()){const force=pendingDeep;pendingDeep=false;schedule(250,force);}});document.addEventListener('niakgpt:rate-limit-cleared',()=>schedule(450,true));
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden){const force=pendingDeep&&chatReady();if(force)pendingDeep=false;schedule(700,force);}});
-  window.addEventListener('popstate',()=>schedule(900,false));
-  schedule(80,false);
+  function noteHuman(){lastUserOrNativeAt=Date.now();schedule(BACKGROUND_QUIET_MS+250,false);}
+  for(const type of ['pointerdown','keydown','touchstart','wheel'])document.addEventListener(type,noteHuman,{capture:true,passive:type==='touchstart'||type==='wheel'});
+  document.addEventListener('niakgpt:cache-guard-ready',()=>schedule(remainingQuiet(),true));
+  document.addEventListener('niakgpt:force-server-index',()=>schedule(remainingQuiet(),true));
+  document.addEventListener('niakgpt:recovery-complete',()=>{lastUserOrNativeAt=Date.now();schedule(BACKGROUND_QUIET_MS+250,true);});
+  document.addEventListener('niakgpt:tab-role-changed',()=>schedule(remainingQuiet(500),false));
+  document.addEventListener('niakgpt:activity-changed',event=>{
+    if(event.detail?.active===true||nativeBusy()){lastUserOrNativeAt=Date.now();schedule(BACKGROUND_QUIET_MS+250,pendingDeep);return;}
+    const force=pendingDeep;pendingDeep=false;schedule(remainingQuiet(250),force);
+  });
+  document.addEventListener('niakgpt:rate-limit-cleared',()=>schedule(remainingQuiet(450),true));
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden){lastUserOrNativeAt=Date.now();schedule(BACKGROUND_QUIET_MS+250,pendingDeep);}});
+  window.addEventListener('popstate',()=>{lastUserOrNativeAt=Date.now();schedule(BACKGROUND_QUIET_MS+250,false);});
+  // Never fire an undocumented ChatGPT inventory request immediately after extension startup.
+  // Background indexing begins only off conversation routes after two quiet minutes.
+  schedule(BACKGROUND_QUIET_MS+500,false);
 })();

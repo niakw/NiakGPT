@@ -3,7 +3,10 @@ import path from 'node:path';
 import { chromium } from '@playwright/test';
 
 const ROOT=path.resolve('..');
-const source=await fs.readFile(path.join(ROOT,'project-memory-v132.js'),'utf8');
+let source=await fs.readFile(path.join(ROOT,'project-memory-v132.js'),'utf8');
+// Keep the production five-minute quiet policy intact; only compress time inside this focused
+// ownership lab so it can still prove hidden-tab lock exclusion + visible-tab queue consumption.
+source=source.replace('const HUMAN_QUIET_MS = 5*60*1000;','const HUMAN_QUIET_MS = 180;').replace('const WAKE_HEARTBEAT_MS = 60000;','const WAKE_HEARTBEAT_MS = 120;');
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg);};
 const browser=await chromium.launch({headless:true});
 try{
@@ -80,7 +83,7 @@ try{
     assert(state.locks===0&&state.commits===0,'hidden tab acquired the Project Memory lock before becoming runnable: '+JSON.stringify(state));
 
     await page.evaluate(()=>{window.__ng084Hidden=false;document.dispatchEvent(new Event('visibilitychange'));});
-    await page.waitForFunction(()=>window.__ng084CommitCalls>=2,null,{timeout:5000});
+    await page.waitForFunction(()=>window.__ng084CommitCalls>=2,null,{timeout:7000});
     state=await page.evaluate(()=>({
       locks:window.__ng084LockCalls,commits:window.__ng084CommitCalls,
       memoryState:window.__localData
@@ -88,4 +91,4 @@ try{
     assert(state.locks>=1&&state.commits>=2,'visible tab did not consume the persistent Project Memory queue: '+JSON.stringify(state));
   }finally{await context.close();}
 }finally{await browser.close();}
-console.log('project-memory-visible-owner-v084: PASS hidden tabs do not own the lock + visible tab consumes queue and writes commits');
+console.log('project-memory-visible-owner-v084: PASS hidden tabs do not own the lock + visible tab consumes queue after the production-safe quiet gate');

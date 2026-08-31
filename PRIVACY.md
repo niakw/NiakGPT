@@ -15,7 +15,7 @@ NiakGPT 0.9.88 conserve un **cœur local-first** et ajoute Project Memory v132, 
 
 ## Réveil de la file privée
 
-En 0.9.87, une file Project Memory persistante possède un heartbeat **strictement local** de 30 s. Sur une route de conversation — ou lorsqu’un autre onglet visible signale une conversation active — la reprise reste locale et **aucune requête backend ChatGPT appartenant à NiakGPT n’est autorisée**, y compris foreground et mutations. Hors conversation, la synchronisation automatique attend une minute sans activité avant de reprendre.
+En 0.9.88, une file Project Memory persistante possède un heartbeat **strictement local** de 30 s. Sur une route de conversation — ou lorsqu’un autre onglet visible signale une conversation active — la reprise reste locale et **aucune requête backend ChatGPT appartenant à NiakGPT n’est autorisée**, y compris foreground et mutations. Hors conversation, la synchronisation automatique attend une minute sans activité avant de reprendre.
 
 ## Périmètre réseau
 

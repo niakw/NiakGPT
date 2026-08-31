@@ -200,4 +200,5 @@ jobs:
     timeout-minutes: 2
     steps:
       - name: Finalization result
-        run: echo 'NiakGPT finalization passed: dedicated workflows own exhaustive/long matrices; this gate owns release-critical field regressions.'
+        run: |
+          echo 'NiakGPT finalization passed: dedicated workflows own exhaustive/long matrices; this gate owns release-critical field regressions.'

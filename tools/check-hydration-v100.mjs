@@ -8,7 +8,7 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 
 const manifest=JSON.parse(read('manifest.json'));
 if(manifest.manifest_version!==3)fail('manifest_version drift');
-if(manifest.version!=='0.9.84')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.85')fail(`unexpected release ${manifest.version}`);
 same(manifest.permissions,['storage','scripting','identity'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*'],'host scope mismatch');
 const staticRuntime=['boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'];
@@ -128,8 +128,8 @@ for(const token of ['ng96-chat-entry','hydrateProject','publishProjectChats','dr
 forbid(folders,'ensureFullProjectInventory','pin-folders must not compete with v121 catalog ownership');
 
 const interruption=read('interruption-guard-v119.js');
-for(const token of ['LIMIT_RX','VERIFY_RX','NETWORK_RX','nativeRetry','markCurrentOut','ng100-continue','tryNativeRecovery','incident.retried','resumePrompt','continueFrom?.(chatId)','failed\\s+to\\s+fetch','persistedIncident','allowedType','type:allowedType'])need(interruption,token,'bounded interruption recovery/security incomplete');
-for(const token of ['setInterval(','location.reload(','challenge.click(','iframe.click('])forbid(interruption,token,'interruption guard must not bypass security or loop recovery');
+for(const token of ['LIMIT_RX','VERIFY_RX','NETWORK_RX','markCurrentOut','ng100-continue','tryNativeRecovery','restoreDraft','resumePrompt','data-ng119-resume','assistantTail','setVerificationPause','continueFrom?.(chatId)','failed\\s+to\\s+fetch','persistedIncident','allowedType','type:allowedType'])need(interruption,token,'bounded interruption recovery/security incomplete');
+for(const token of ['setInterval(','location.reload(','challenge.click(','iframe.click(','retry.click('])forbid(interruption,token,'interruption guard must not bypass security, auto-retry native generation, or loop recovery');
 
 const turnHeaders=read('turn-headers-v112.js');
 for(const token of ['LIVE_KEY','nativeAt','pendingUserAt','pendingAssistantAt','data-ng8-time','date/heure fiable prioritaire'])need(turnHeaders,token,'turn timestamp/header contract incomplete');

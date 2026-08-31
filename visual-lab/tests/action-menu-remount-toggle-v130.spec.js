@@ -6,6 +6,7 @@ const ROOT=path.resolve(__dirname,'..','..');
 const ACTIONS=fs.readFileSync(path.join(ROOT,'sidebar-actions-v123.js'),'utf8');
 const ACTIONS_CSS=fs.readFileSync(path.join(ROOT,'sidebar-actions-v123.css'),'utf8');
 const AUTHORITY_CSS=fs.readFileSync(path.join(ROOT,'sidebar-projects-authority-v112.css'),'utf8');
+const PIN_FOLDERS_CSS=fs.readFileSync(path.join(ROOT,'pin-folders-v096.css'),'utf8');
 const CHAT='11111111-1111-4111-8111-111111111111';
 
 async function lab(){
@@ -95,6 +96,8 @@ test('Project rename stages an authority-hidden native row and submits exact nat
       nativeName:document.querySelector('#native-projects a')?.textContent||''
     }));
     expect(result,{message:JSON.stringify(result)}).toMatchObject({submits:1,stage:'submitted',nativeName:'Studio Renommé UX'});
+    await expect(page.locator('#ng8-pins a[data-ng8-pin="1"][data-ng121-pid="g-p-aaaaaaaaaaaaaaaa"]')).toContainText('Studio Renommé UX');
+    expect(PIN_FOLDERS_CSS).toMatch(/#ng8-pins>\.ng8-pin-list\{overflow-anchor:none!important\}/);
   }finally{await browser.close();}
 });
 

@@ -181,8 +181,9 @@
     if(currentSignal(incident.type))return false;
     if(incident.type==='verify')setVerificationPause(false);
     restoreDraft();
-    const retry=nativeRetry();
-    if(retry&&!incident.retried){incident={...incident,retried:true,recoveredAt:Date.now()};saveIncident(incident);retry.click();window.__NIAKGPT_DIAGNOSTICS__?.set('interruption-119','REPRISE · bouton ChatGPT natif déclenché une fois');setTimeout(()=>{if(incident&&!currentSignal(incident.type))finishRecovery();},1200);return true;}
+    // Never click ChatGPT's native retry button automatically. During verification/network
+    // recovery the safest behavior is to preserve context and let the native app settle. Automatic
+    // retry can create another generation attempt exactly while the connection is still unstable.
     if(incident.type==='network'&&incident.assistantTail){
       incident={...incident,recovered:true,recoveredAt:Date.now()};saveIncident(incident);mount('network',{ready:true});
       window.__NIAKGPT_DIAGNOSTICS__?.set('interruption-119','REPRISE PRÊTE · fin de réponse partielle conservée');
@@ -204,12 +205,17 @@
     const candidates=[];if(node.matches?.(SIGNAL_SEL))candidates.push(node);for(const el of node.querySelectorAll?.(SIGNAL_SEL)||[])candidates.push(el);
     for(const el of candidates){const type=trustedSignal(el);if(type){begin(type,candidateText(el));return;}}
   }
-  function scan(){const signal=currentSignal();if(signal)begin(signal.kind,candidateText(signal.node));else if(incident&&['verify','network'].includes(incident.type))settleRecovery();else setVerificationPause(false);}
+  function scan(){const signal=currentSignal();if(signal)begin(signal.kind,candidateText(signal.node));else if(incident?.type==='verify')tryNativeRecovery();else if(incident?.type==='network')settleRecovery();else setVerificationPause(false);}
   function bind(){
     observer?.disconnect();observer=new MutationObserver(records=>{
       let structural=false;
       for(const r of records){if(r.type!=='childList')continue;const external=[...r.addedNodes,...r.removedNodes].some(node=>!(node instanceof Element)||!ownRecoveryNode(node));if(!external)continue;structural=true;for(const node of r.addedNodes)inspectNode(node);}
-      if(structural&&incident&&['verify','network'].includes(incident.type))settleRecovery();
+      if(!structural||!incident||!['verify','network'].includes(incident.type))return;
+      // Verification is binary: once the trusted native challenge node is gone, keeping the
+      // bridge paused only increases user-visible "checking" / interruption time. Recover
+      // immediately instead of letting unrelated sidebar DOM churn keep invalidating timers.
+      if(incident.type==='verify'&&!currentSignal('verify')){tryNativeRecovery();return;}
+      settleRecovery();
     });observer.observe(document.documentElement,{childList:true,subtree:true});
   }
   function onRoute(){clearBar();const p=String(location.pathname);if(!/\/c\//.test(p)&&incident?.type==='limit')saveIncident(null);setTimeout(scan,160);}

@@ -4,6 +4,7 @@
   window.__NIAKGPT_PIN_FOLDERS_096__ = true;
 
   const CACHE_KEY='niakgpt-v08-cache';
+  const PROJECT_CHAT_FRESH_MS=10*60*1000;
   const PIN_SEL='#ng8-pins a[data-ng8-pin="1"]';
   const SESSION_KEY='niakgpt-open-pin-folder-v096';
   const CHAT_ACTION_LABEL='Actions de la conversation (menu ChatGPT)';
@@ -30,7 +31,7 @@
 
   function rpc(path,{timeout=18000}={}){
     const id=`ng96-folder-${Date.now()}-${++rpcSeq}`;
-    return new Promise(resolve=>{const t=setTimeout(()=>{off();resolve({ok:false,status:0,error:'rpc_timeout'});},timeout),h=e=>{if(e.detail?.id!==id)return;off();resolve(e.detail);},off=()=>{clearTimeout(t);document.removeEventListener('niakgpt:rpc-response',h);};document.addEventListener('niakgpt:rpc-response',h);document.dispatchEvent(new CustomEvent('niakgpt:rpc-request',{detail:{id,path,method:'GET'}}));});
+    return new Promise(resolve=>{const t=setTimeout(()=>{off();resolve({ok:false,status:0,error:'rpc_timeout'});},timeout),h=e=>{if(e.detail?.id!==id)return;off();resolve(e.detail);},off=()=>{clearTimeout(t);document.removeEventListener('niakgpt:rpc-response',h);};document.addEventListener('niakgpt:rpc-response',h);document.dispatchEvent(new CustomEvent('niakgpt:rpc-request',{detail:{id,path,method:'GET',foreground:true}}));});
   }
   function projectSnapshotSignature(raw,pid){
     if(!pid)return'';const chats=(raw?.chats||[]).filter(c=>normalizePid(c?.projectId)===pid).map(c=>[c.id,c.title||'',normalizePid(c.projectId||pid)]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])));return JSON.stringify([raw?.counts?.[pid]??null,chats]);
@@ -88,17 +89,31 @@
       latest=latest&&typeof latest==='object'?latest:{};const chats=new Map((latest.chats||[]).filter(c=>c?.id).map(c=>[c.id,{...c}]));
       for(const c of list){const old=chats.get(c.id)||{};chats.set(c.id,{...old,...c,projectId:pid,updated:Math.max(parseTime(old.updated||old.update_time),parseTime(c.updated||c.update_time||c.create_time))});}
       const projectChats={...(latest.projectChats||{}),[pid]:list.map(c=>({...c,projectId:pid}))};
-      return{...latest,at:Date.now(),chats:[...chats.values()],projectChats,counts:{...(latest.counts||{}),[pid]:list.length},indexedProjectIds:[...new Set([...(latest.indexedProjectIds||[]),pid])]};
+      const projectChatInventoryAt={...(latest.projectChatInventoryAt||{}),[pid]:Date.now()};
+      return{...latest,at:Date.now(),chats:[...chats.values()],projectChats,projectChatInventoryAt,counts:{...(latest.counts||{}),[pid]:list.length},indexedProjectIds:[...new Set([...(latest.indexedProjectIds||[]),pid])]};
     };
     try{
       const bus=window.__NIAKGPT_CACHE_BUS__;if(bus?.update){const next=await bus.update(merge);if(next)acceptCache(next);}else{const raw=(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||cache,next=merge(raw);await chrome.storage.local.set({[CACHE_KEY]:next});acceptCache(next);}
     }catch{}
   }
+  function projectInventoryComplete(pid){
+    pid=normalizePid(pid);const current=chatsFor(pid).length;
+    const indexed=(cache.indexedProjectIds||[]).some(id=>normalizePid(id)===pid);
+    const direct=Object.entries(cache.counts||{}).find(([id])=>normalizePid(id)===pid)?.[1];
+    const expected=Number(direct);
+    const perProject=Object.entries(cache.projectChatInventoryAt||{}).find(([id])=>normalizePid(id)===pid)?.[1];
+    const freshAt=Math.max(Number(perProject)||0,Number(cache.serverIndexedAt)||0);
+    const fresh=freshAt>0&&Date.now()-freshAt<PROJECT_CHAT_FRESH_MS;
+    // indexedProjectIds/counts alone can describe a stale partial snapshot. A user opening a
+    // drawer must not be trapped forever at that old count: only a recent full server index or
+    // a recent foreground hydration is authoritative enough to suppress a refresh.
+    return fresh&&indexed&&Number.isFinite(expected)&&expected>=0&&current>=expected;
+  }
   async function hydrateProject(pid){
-    pid=normalizePid(pid);if(!pid||chatsFor(pid).length)return;
-    const state=loadState.get(pid);if(state==='loading'||state==='ready-empty')return;
+    pid=normalizePid(pid);if(!pid||projectInventoryComplete(pid))return;
+    const state=loadState.get(pid);if(state==='loading')return;
     if(bridgeBusy()){loadState.set(pid,'waiting');window.__NIAKGPT_DIAGNOSTICS__?.set('pins-chats',`ATTENTE · ${pid} · reprise après réponse ChatGPT`);if(openPid===pid){drawerDirty=true;schedule(40);}return;}
-    loadState.set(pid,'loading');if(openPid===pid){drawerDirty=true;schedule(0);}window.__NIAKGPT_DIAGNOSTICS__?.set('pins-chats',`CHARGEMENT · ${pid}`);
+    loadState.set(pid,'loading');if(openPid===pid&&!chatsFor(pid).length){drawerDirty=true;schedule(0);}window.__NIAKGPT_DIAGNOSTICS__?.set('pins-chats',`CHARGEMENT · ${pid}`);
     const out=new Map(),seen=new Set();let cursor=null,error='';
     for(let page=0;page<40;page++){
       if(bridgeBusy()){error='native_busy';break;}
@@ -109,7 +124,7 @@
       const next=nextCursor(r.data);if(!items.length||next==null||next==='')break;const key=String(next);if(seen.has(key))break;seen.add(key);cursor=next;
     }
     if(error){
-      const waiting=error==='native_busy'||/native_busy|bridge-pause/i.test(error);loadState.set(pid,waiting?'waiting':'error');window.__NIAKGPT_DIAGNOSTICS__?.set('pins-chats',`${waiting?'ATTENTE':'ERREUR'} · ${pid} · ${String(error).slice(0,80)}`);if(openPid===pid){drawerDirty=true;schedule(80);}return;
+      const waiting=error==='native_busy'||/native_busy|bridge-pause/i.test(error);loadState.set(pid,waiting?'waiting':'error');window.__NIAKGPT_DIAGNOSTICS__?.set('pins-chats',`${waiting?'ATTENTE':'ERREUR'} · ${pid} · ${String(error).slice(0,80)}`);if(openPid===pid&&!chatsFor(pid).length){drawerDirty=true;schedule(80);}return;
     }
     const list=[...out.values()].sort((a,b)=>(b.updated||0)-(a.updated||0));await publishProjectChats(pid,list);loadState.set(pid,list.length?'ready':'ready-empty');window.__NIAKGPT_DIAGNOSTICS__?.set('pins-chats',`OK · ${pid} · ${list.length} chats`);if(openPid===pid){drawerDirty=true;schedule(0);}
   }
@@ -145,7 +160,11 @@
     const input=drawer.querySelector('input');if(input){input.addEventListener('input',()=>{filter=input.value;renderDrawer(pid,anchor);requestAnimationFrame(()=>{const next=document.querySelector(`#${CSS.escape(drawerId(pid))} input`);if(next){next.focus();next.setSelectionRange(next.value.length,next.value.length);}});});}
     drawer.querySelectorAll('.ng96-chat-entry>a[data-chat]').forEach(link=>link.addEventListener('click',event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;const c=all.find(x=>x.id===link.dataset.chat);if(!c)return;event.preventDefault();event.stopPropagation();routeNative(link.getAttribute('href')||chatHref(c,pid));}));
     document.dispatchEvent(new CustomEvent('niakgpt:folder-rendered',{detail:{projectId:pid,chats:shown.length,drawerId:drawer.id}}));
-    if(!all.length&&loadState.get(pid)!=='ready-empty')queueMicrotask(()=>hydrateProject(pid));
+    const inventoryState=loadState.get(pid);
+    // Cached rows are useful immediately, but they do not prove completeness. A stale/partial
+    // snapshot (for example 2 cached chats out of 72) must hydrate in foreground as soon as the
+    // user opens the Project. Avoid automatic retry loops after a hard error; a new click resets it.
+    if(!projectInventoryComplete(pid)&&!['loading','waiting','error'].includes(inventoryState))queueMicrotask(()=>hydrateProject(pid));
   }
   function toggle(pid,anchor){
     pid=normalizePid(pid);if(openPid===pid){setOpen('');closeDrawers();return;}

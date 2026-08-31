@@ -138,7 +138,7 @@ assert.equal(localStore['niakgpt-project-memory-config-v132'],undefined,'failed 
 assert.equal(sessionStore['niakgpt-project-memory-session-token-v132'],undefined,'failed connect persisted token');
 
 const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
-assert.equal(manifest.version, '0.9.84');
+assert.equal(manifest.version, '0.9.85');
 assert.deepEqual(manifest.permissions, ['storage','scripting','identity']);
 assert.deepEqual(manifest.host_permissions, ['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']);
 
@@ -185,6 +185,10 @@ assert.match(backend, /grant_type: 'refresh_token'/);
 const bridge = fs.readFileSync('page-bridge.js','utf8');
 assert.match(bridge, /conversation_detail_get_disabled/);
 assert.match(bridge, /d\.memoryBootstrap !== true/);
+assert.match(bridge, /activeGetControllers/);
+assert.match(bridge, /fetch_aborted_native_priority/);
+assert.match(bridge, /return fetchRequest\(path, method, body, token\)/);
+assert.doesNotMatch(bridge, /transport:'fetch\+xhr'/);
 
 const runtime = fs.readFileSync('project-memory-v132.js','utf8');
 assert.match(runtime, /function inject\(ed\)/);
@@ -194,7 +198,11 @@ assert.match(runtime, /canonicalUpdated/);
 assert.match(runtime, /MEMORY_LOCK/);
 assert.match(runtime, /autoOwner/);
 assert.match(runtime, /niakgpt:tab-role-changed/);
-assert.match(runtime, /HISTORY_FETCH_GAP_MS = 3000/);
+assert.match(runtime, /HISTORY_FETCH_GAP_MS = 8000/);
+assert.match(runtime, /HUMAN_QUIET_MS = 45000/);
+assert.match(runtime, /fetch_aborted_native_priority/);
+assert.match(runtime, /memory_sync_paused_rate_limit/);
+assert.match(runtime, /memory_sync_paused_network/);
 assert.match(runtime, /lastHistoryFetchAt/);
 assert.match(runtime, /PROJECT_STATE\.md/);
 assert.match(runtime, /NIAKGPT PROJECT MEMORY — CHECKPOINT RÉCUPÉRÉ/);

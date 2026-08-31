@@ -32,20 +32,51 @@
   let rateLimitedUntil = 0;
   let rateStrike = 0;
   let rateClearTimer = 0;
+  let nativePriorityUntil = 0, backgroundPriorityUntil = 0, nativeWasBusy = false;
+  const activeGetControllers = new Set();
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const now = () => Date.now();
   const cacheTTL = () => 1200;
-  const gapFor = (_path, method) => method === 'GET' ? 180 : 450;
+  const gapFor = (path, method) => method !== 'GET' ? 650 : conversationRx.test(String(path||'')) ? 2500 : 650;
   const cacheKey = (path, method) => `${method}:${path}`;
-  const nativeBusy = () => {
+  const baseNativeBusy = () => {
     const interruption=String(document.documentElement.dataset.ng119Interruption||'').toLowerCase();
     return document.documentElement.dataset.ng8Running === '1' ||
-      ['loading','waiting','thinking','executing'].includes(document.documentElement.dataset.ng86Activity || '') ||
+      ['loading','waiting','thinking','executing'].includes(String(document.documentElement.dataset.ng86Activity || '').toLowerCase()) ||
       document.documentElement.dataset.ng105Verification === '1' ||
       interruption === 'verify' ||
       interruption === 'network' ||
       navigator.onLine === false;
   };
+  const abortOwnGets = reason => {
+    for (const controller of [...activeGetControllers]) {
+      try { controller.abort(reason || 'native_priority'); } catch {}
+    }
+  };
+  const noteNativePriority = (shortMs, backgroundMs, reason, abort = true) => {
+    const at=now();
+    nativePriorityUntil = Math.max(nativePriorityUntil, at + Math.max(0, Number(shortMs) || 0));
+    backgroundPriorityUntil = Math.max(backgroundPriorityUntil, at + Math.max(0, Number(backgroundMs) || 0));
+    document.documentElement.dataset.ng100NativePriorityUntil = String(nativePriorityUntil);
+    document.documentElement.dataset.ng100BackgroundPriorityUntil = String(backgroundPriorityUntil);
+    document.documentElement.dataset.ng100NativePriorityReason = String(reason || 'native');
+    if (abort) abortOwnGets(reason || 'native_priority');
+  };
+  const refreshNativePriority = reason => {
+    const interruption=String(document.documentElement.dataset.ng119Interruption||'').toLowerCase();
+    const busy=baseNativeBusy();
+    if (busy) {
+      nativeWasBusy = true;
+      abortOwnGets(reason || interruption || 'native_busy');
+      if (interruption === 'verify' || interruption === 'network') noteNativePriority(15000,120000,interruption,false);
+    } else if (nativeWasBusy) {
+      nativeWasBusy = false;
+      // UI/sidebar indexes may recover quickly after ChatGPT settles. Full conversation reads
+      // remain quarantined much longer so Project Memory / deep analysis cannot compete.
+      noteNativePriority(2500,45000,'post-native-idle',false);
+    }
+  };
+  const nativeBusy = path => baseNativeBusy() || now() < nativePriorityUntil || (conversationRx.test(String(path||'')) && now() < backgroundPriorityUntil);
   const nativeBusyResult = () => ({ok:false,status:0,data:null,error:'native_busy',transport:'bridge-pause'});
 
   function retryAfterMsFrom(value) {
@@ -125,13 +156,16 @@
     }
   }
 
-  async function getAccessToken(force = false) {
+  async function getAccessToken(force = false, foreground = false, path = '') {
     if (!force && cachedToken && Date.now() - tokenAt < 120000) return cachedToken;
+    if (foreground ? baseNativeBusy() : nativeBusy(path)) return '';
+    const controller=new AbortController();activeGetControllers.add(controller);
     try {
       const r = await nativeFetch('/api/auth/session', {
         method: 'GET',
         credentials: 'include',
-        headers: { Accept: 'application/json' }
+        headers: { Accept: 'application/json' },
+        signal: controller.signal
       });
       if (!r.ok) return '';
       const session = await r.json();
@@ -140,6 +174,8 @@
       return cachedToken;
     } catch {
       return '';
+    } finally {
+      activeGetControllers.delete(controller);
     }
   }
 
@@ -148,35 +184,8 @@
     try { return JSON.parse(text); } catch { return text; }
   }
 
-  function xhrRequest(path, method, body, token) {
-    return new Promise(resolve => {
-      try {
-        const xhr = new XMLHttpRequest();
-        xhr.open(method, path, true);
-        xhr.withCredentials = true;
-        xhr.setRequestHeader('Accept', 'application/json');
-        xhr.setRequestHeader('OAI-Language', document.documentElement.lang || 'fr-FR');
-        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-        if (method !== 'GET' && method !== 'DELETE') xhr.setRequestHeader('Content-Type', 'application/json');
-        xhr.timeout = 20000;
-        xhr.onload = () => resolve({
-          ok: xhr.status >= 200 && xhr.status < 300,
-          status: xhr.status,
-          data: parsePayload(xhr.responseText),
-          error: xhr.status >= 200 && xhr.status < 300 ? '' : `XHR HTTP ${xhr.status}`,
-          transport: 'xhr',
-          retry_after_ms: retryAfterMsFrom(xhr.getResponseHeader('Retry-After'))
-        });
-        xhr.onerror = () => resolve({ ok:false, status:0, data:null, error:'xhr_network_error', transport:'xhr' });
-        xhr.ontimeout = () => resolve({ ok:false, status:0, data:null, error:'xhr_timeout', transport:'xhr' });
-        xhr.send(method === 'GET' || method === 'DELETE' ? null : JSON.stringify(body ?? {}));
-      } catch (error) {
-        resolve({ ok:false, status:0, data:null, error:`xhr_exception:${String(error?.message || error)}`, transport:'xhr' });
-      }
-    });
-  }
-
   async function fetchRequest(path, method, body, token) {
+    const controller = method === 'GET' ? new AbortController() : null;
     const init = {
       method,
       credentials: 'include',
@@ -186,6 +195,7 @@
         Authorization: `Bearer ${token}`
       }
     };
+    if (controller) { init.signal = controller.signal; activeGetControllers.add(controller); }
     if (method !== 'GET' && method !== 'DELETE') {
       init.headers['Content-Type'] = 'application/json';
       init.body = JSON.stringify(body ?? {});
@@ -202,31 +212,25 @@
         retry_after_ms: retryAfterMsFrom(r.headers.get('Retry-After'))
       };
     } catch (error) {
-      return { ok:false, status:0, data:null, error:`fetch_exception:${String(error?.message || error)}`, transport:'fetch' };
+      const aborted = controller?.signal?.aborted || error?.name === 'AbortError';
+      return { ok:false, status:0, data:null, error:aborted?'fetch_aborted_native_priority':`fetch_exception:${String(error?.message || error)}`, transport:'fetch' };
+    } finally {
+      if (controller) activeGetControllers.delete(controller);
     }
   }
 
-  async function requestWithTransportFallback(path, method, body, token) {
-    let result = await fetchRequest(path, method, body, token);
-    if (result.status === 0) {
-      const xhr = await xhrRequest(path, method, body, token);
-      if (xhr.ok || xhr.status !== 0) result = xhr;
-      else result = {
-        ok:false,
-        status:0,
-        data:null,
-        error:`${result.error};${xhr.error}`,
-        transport:'fetch+xhr'
-      };
-    }
-    return result;
+  async function requestSingleTransport(path, method, body, token) {
+    // One transport only: a transient network failure or native verification must reduce
+    // NiakGPT traffic, never generate a second attempt while ChatGPT is already recovering.
+    return fetchRequest(path, method, body, token);
   }
 
-  async function backendFetchCore(path, method, body, forceToken = false) {
-    // Last-second circuit breaker: requests queued before the user presses Send must not
-    // wake up during a long/complex ChatGPT generation or native verification phase.
-    if (nativeBusy()) return nativeBusyResult();
-    const token = await getAccessToken(forceToken);
+  async function backendFetchCore(path, method, body, forceToken = false, foreground = false) {
+    // Explicit user reads (opening a Project drawer) may bypass only the post-native quiet
+    // quarantine. They are still blocked by an active generation, verification or network incident.
+    const requestBusy=()=>foreground ? baseNativeBusy() : nativeBusy(path);
+    if (requestBusy()) return nativeBusyResult();
+    const token = await getAccessToken(forceToken, foreground, path);
     if (!token) return { ok:false, status:401, data:null, error:'auth_session_missing', transport:'auth' };
 
     const originalPath = path;
@@ -238,16 +242,16 @@
     const gap = gapFor(effectivePath, method);
     const wait = Math.max(0, lastNetworkAt + gap - now());
     if (wait) await sleep(wait);
-    if (nativeBusy()) return nativeBusyResult();
+    if (requestBusy()) return nativeBusyResult();
     const afterWaitCircuit = syntheticRateLimit();
     if (afterWaitCircuit) return afterWaitCircuit;
 
     lastNetworkAt = now();
-    let result = await requestWithTransportFallback(effectivePath, method, body, token);
+    let result = await requestSingleTransport(effectivePath, method, body, token);
 
     if (result.status === 401 && !forceToken) {
       cachedToken = '';
-      return backendFetchCore(originalPath, method, body, true);
+      return backendFetchCore(originalPath, method, body, true, foreground);
     }
 
     if (method === 'GET' && projectConversationsRx.test(originalPath) && result.status === 422) {
@@ -256,11 +260,12 @@
         const retryCircuit=syntheticRateLimit();
         if(retryCircuit)return retryCircuit;
         const retryWait=Math.max(0,lastNetworkAt+gapFor(noLimitPath,method)-now());if(retryWait)await sleep(retryWait);
+        if(requestBusy())return nativeBusyResult();
         lastNetworkAt=now();
-        const retry = await requestWithTransportFallback(noLimitPath, method, body, token);
+        const retry = await requestSingleTransport(noLimitPath, method, body, token);
         if (retry.status === 401 && !forceToken) {
           cachedToken = '';
-          return backendFetchCore(originalPath, method, body, true);
+          return backendFetchCore(originalPath, method, body, true, foreground);
         }
         result = retry;
         effectivePath = noLimitPath;
@@ -269,7 +274,7 @@
 
     if (result.status === 429) {
       rateStrike=Math.min(6,rateStrike+1);
-      const fallback=Math.min(45000,4000*Math.pow(2,rateStrike-1));
+      const fallback=Math.min(300000,30000*Math.pow(2,rateStrike-1));
       const delay=Math.max(Number(result.retry_after_ms)||0,fallback)+Math.floor(Math.random()*350);
       result.retry_after_ms=delay;
       publishRateLimit(delay,'429');
@@ -291,23 +296,48 @@
     return run;
   }
 
-  function backendFetch(path, method, body) {
+  function backendFetch(path, method, body, foreground = false) {
     const normalized = method === 'GET' ? normalizeProjectConversationPath(path,'safe') : path;
     const key=cacheKey(normalized,method);
     if(method==='GET'){
       const cached=cachedSuccess(key);if(cached)return Promise.resolve(cached);
       const pending=inflightGets.get(key);if(pending)return pending;
-      const promise=enqueueNetwork(()=>backendFetchCore(path,method,body)).then(result=>{
+      const promise=enqueueNetwork(()=>backendFetchCore(path,method,body,false,foreground)).then(result=>{
         if(result?.ok)rememberSuccess(key,result,normalized);
         return result;
       }).finally(()=>inflightGets.delete(key));
       inflightGets.set(key,promise);return promise;
     }
-    return enqueueNetwork(()=>backendFetchCore(path,method,body)).then(result=>{
+    return enqueueNetwork(()=>backendFetchCore(path,method,body,false,foreground)).then(result=>{
       if(result?.ok)invalidateAfterMutation(path);
       return result;
     });
   }
+
+  const composerSelector = '#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]';
+  const sendLike = button => {
+    if (!(button instanceof Element)) return false;
+    const label = `${button.getAttribute('aria-label')||''} ${button.getAttribute('data-testid')||''} ${button.getAttribute('title')||''}`;
+    return /(?:^|\b)(?:send|envoyer|submit)(?:\b|$)/i.test(label);
+  };
+  document.addEventListener('click', event => {
+    const button = event.target instanceof Element ? event.target.closest('button,[role="button"]') : null;
+    if (sendLike(button)) noteNativePriority(10000,60000,'user-send');
+  }, true);
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey || event.isComposing) return;
+    const target = event.target instanceof Element ? event.target.closest(composerSelector) : null;
+    if (target) noteNativePriority(10000,60000,'user-send-enter');
+  }, true);
+  document.addEventListener('niakgpt:activity-changed',()=>refreshNativePriority('activity'));
+  window.addEventListener('offline',()=>noteNativePriority(120000,120000,'offline'));
+  window.addEventListener('online',()=>noteNativePriority(10000,60000,'online-recovery',false));
+  const nativeGuardObserver = new MutationObserver(records => {
+    if (records.some(r => ['data-ng8-running','data-ng86-activity','data-ng105-verification','data-ng119-interruption'].includes(r.attributeName))) refreshNativePriority('native-state');
+  });
+  nativeGuardObserver.observe(document.documentElement,{attributes:true,attributeFilter:['data-ng8-running','data-ng86-activity','data-ng105-verification','data-ng119-interruption']});
+  window.addEventListener('pagehide',()=>{abortOwnGets('pagehide');nativeGuardObserver.disconnect();},{once:true});
+  refreshNativePriority('boot');
 
   document.addEventListener(REQ, async event => {
     const d = event.detail || {};
@@ -325,7 +355,7 @@
     // Full conversation payloads stay forbidden during normal runtime. Project Memory may
     // request one explicitly during a user-enabled private GitHub bootstrap/sync. Those reads
     // still pass through the single broker, native-busy guard, gap and rate-limit circuit.
-    if (method === 'GET' && conversationRx.test(path) && d.memoryBootstrap !== true) {
+    if (method === 'GET' && conversationRx.test(path) && d.memoryBootstrap !== true && d.analysis !== true) {
       document.dispatchEvent(new CustomEvent(RES,{detail:{id,ok:false,status:0,data:null,error:'conversation_detail_get_disabled',transport:'guard'}}));
       return;
     }
@@ -346,7 +376,7 @@
       if(!validProjectCreate(d.body)){document.dispatchEvent(new CustomEvent(RES,{detail:{id,ok:false,status:400,data:null,error:'invalid_project_create_payload',transport:'governance-guard'}}));return;}
     }
 
-    const result = await backendFetch(path, method, d.body);
+    const result = await backendFetch(path, method, d.body, d.foreground === true);
     document.dispatchEvent(new CustomEvent(RES, { detail:{ id, ...result } }));
   });
 })();

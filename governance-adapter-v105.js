@@ -25,7 +25,10 @@
       const handler=e=>{if(e.detail?.id!==id)return;cleanup();resolve(e.detail);};
       const cleanup=()=>{clearTimeout(timer);document.removeEventListener(RES,handler);};
       document.addEventListener(RES,handler);
-      document.dispatchEvent(new CustomEvent(REQ,{detail:{id,path,method:'GET'}}));
+      // This lookup confirms an explicit user Project-menu action. Treat it as foreground UI
+      // traffic so post-native background quarantine does not suppress it; page-bridge still
+      // blocks foreground calls while ChatGPT is actively generating/verifying/offline.
+      document.dispatchEvent(new CustomEvent(REQ,{detail:{id,path,method:'GET',foreground:true,governanceInventory:true}}));
     });
   }
 

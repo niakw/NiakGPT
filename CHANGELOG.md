@@ -1,3 +1,15 @@
+# NiakGPT 0.9.88 — Field regressions: Pins, chat quarantine, GitHub bootstrap
+
+- Corrige ensemble les trois régressions terrain déjà signalées : mauvais placement/masquage des Pins, interférence réseau possible pendant une discussion, et coffre GitHub connecté sans fichiers Project réellement écrits.
+- `page-bridge.js` impose désormais une quarantaine absolue : si cet onglet ou un pair visible est sur une conversation, **aucune requête backend ChatGPT appartenant à NiakGPT** ne part, y compris foreground, PATCH, POST et DELETE. Les actions natives ChatGPT ne passent pas par ce broker.
+- `pin-folders-v096.js`, l’analyse profonde, le reclassement et la récupération restent cache-only / en pause pendant une conversation ; les drawers n’essaient plus de s’hydrater en réseau pendant le chat.
+- `sidebar-projects-v121.js` remonte désormais jusqu’au host Projects natif complet avant de monter les Pins : `#ng8-pins` doit être son sibling précédent, jamais un enfant d’un Project déplié. L’autorité v112 masque ensuite ce sibling natif de manière déterministe.
+- Project Memory écrit immédiatement dans le dépôt GitHub privé un snapshot **local-cache-only** : `PROJECTS.json`, puis `project.json`, `index.json` et `PROJECT_STATE.md` pour chaque Project connu. Cette étape ne lit pas le backend ChatGPT.
+- L’historique complet reste en file pendant une discussion et reprend hors chat après une minute de calme, avec 20 s minimum entre lectures complètes. Le heartbeat local passe à 30 s.
+- « Synchroniser maintenant » pendant un chat réécrit le snapshot local GitHub et diffère l’historique ; un échec d’écriture GitHub devient une erreur visible au lieu de rester indéfiniment sur « bootstrap en attente ».
+- Nouveau lab `field-regressions-v088.mjs` : Project natif déplié avec sous-chats, quarantaine absolue current/peer sur toutes méthodes NiakGPT, et fichiers GitHub immédiats depuis le cache sans aucun RPC ChatGPT.
+- Les tests Project Switch et réseau existants sont réalignés : foreground est autorisé uniquement hors discussion.
+
 # NiakGPT 0.9.87 — Native chat zero-background network quarantine
 
 - Corrige une régression terrain où l’extension pouvait contribuer aux messages natifs ChatGPT « Connexion interrompue » / vérification dès son installation.

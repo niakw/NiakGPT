@@ -63,8 +63,30 @@ async function launchRuntime(){
     traffic.other.push(`${method} ${url.pathname}`);if(traffic.other.length>40)traffic.other.shift();return route.fulfill({status:204,body:''});
   });
   const page=context.pages()[0]||await context.newPage(),pageErrors=[],consoleErrors=[];page.on('pageerror',e=>pageErrors.push(String(e?.stack||e)));page.on('console',m=>{if(m.type()==='error')consoleErrors.push(m.text());});
-  const goto=async pathname=>{await page.goto(`https://chatgpt.com${pathname}`,{waitUntil:'commit'});if(!HEADLESS)await page.bringToFront();await expect(page.locator('#ng8-status')).toContainText(manifest.version,{timeout:20000});await expect(page.locator('#ng8-pins a[data-ng8-pin="1"]')).toHaveCount(server.projects.length,{timeout:20000});};
-  await goto(`/c/${CHAT1}`);
+  const goto=async (pathname,expectedPins=server.projects.length)=>{await page.goto(`https://chatgpt.com${pathname}`,{waitUntil:'commit'});if(!HEADLESS)await page.bringToFront();await expect(page.locator('#ng8-status')).toContainText(manifest.version,{timeout:20000});await expect(page.locator('#ng8-pins a[data-ng8-pin="1"]')).toHaveCount(expectedPins,{timeout:20000});};
+  // Cold install on a conversation route is intentionally network-silent in 0.9.87.
+  // Only the two Projects exposed by the synthetic native DOM are available until a safe
+  // off-conversation indexing window exists.
+  await goto(`/c/${CHAT1}`,2);
+  expect(traffic.session).toBe(0);
+  expect(traffic.projects).toBe(0);
+  expect(traffic.general).toBe(0);
+  expect(Object.values(traffic.projectChats).reduce((sum,n)=>sum+n,0)).toBe(0);
+
+  // Exercise the production policy without waiting two real minutes: move off the conversation,
+  // advance only the synthetic page clock past the quiet threshold, then request the normal
+  // background index. This preserves the full 30-Project UX session coverage without bringing
+  // automatic backend crawling back onto /c/... routes.
+  await goto('/',2);
+  await page.evaluate(()=>{
+    window.__humanIndexRealDateNow=Date.now;
+    window.__humanIndexClockOffset=3*60*1000;
+    Date.now=()=>window.__humanIndexRealDateNow()+window.__humanIndexClockOffset;
+    document.dispatchEvent(new CustomEvent('niakgpt:force-server-index'));
+  });
+  await expect(page.locator('#ng8-pins a[data-ng8-pin="1"]')).toHaveCount(server.projects.length,{timeout:20000});
+  await page.evaluate(()=>{if(window.__humanIndexRealDateNow){Date.now=window.__humanIndexRealDateNow;delete window.__humanIndexRealDateNow;delete window.__humanIndexClockOffset;}});
+
   // Extend the fixture's native Project Rename command into a real modal. The user-visible
   // NiakGPT menu remains custom; this only lets the exact native Project mutation path be certified.
   await page.evaluate(({P1})=>{

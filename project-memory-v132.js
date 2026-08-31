@@ -60,6 +60,7 @@
       Number(document.documentElement.dataset.ng100BackgroundPriorityUntil||0)
     );
     return conversationPage() ||
+      document.documentElement.dataset.ng90PeerChatActive === '1' ||
       document.documentElement.dataset.ng8Running === '1' ||
       ['loading','waiting','thinking','executing'].includes(String(document.documentElement.dataset.ng86Activity || '').toLowerCase()) ||
       document.documentElement.dataset.ng105Verification === '1' ||

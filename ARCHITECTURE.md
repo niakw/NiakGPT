@@ -35,13 +35,13 @@ Jusqu’au signal final, `composer-continuation-v128.js`, `long-run-watchdog-v12
 Le gate `visual-lab/hydration-barrier-v080.mjs` reproduit maintenant deux remplacements tardifs du shell via `MessageChannel`, après de fausses périodes de calme, et exige que NiakGPT reste inactif jusqu’à la stabilité finale sur Chromium, Firefox et WebKit.
 
 
-## Invariant Project Memory 0.9.87 — file persistante, mais jamais au détriment du chat
+## Invariant Project Memory 0.9.88 — coffre écrit immédiatement, historique opportuniste
 
-`project-memory-v132.js` conserve un heartbeat local de secours de 60 s lorsque l’auto-sync est activée, mais une file persistante ne peut plus déclencher de lecture backend sur une route de conversation ni pendant qu’un autre onglet visible signale une conversation active. La synchronisation automatique exige désormais cinq minutes de calme, espace les lectures complètes d’au moins 20 s, et se réarme après `busy`, `hidden`, changement de propriétaire ou lock indisponible sans contourner ces barrières.
+`project-memory-v132.js` conserve une file persistante et un heartbeat local de secours de 30 s. La connexion au coffre écrit immédiatement un snapshot depuis le cache local sans lecture ChatGPT. L’historique complet n’est jamais lu tant qu’une conversation visible existe ; hors discussion, l’auto-sync exige une minute de calme et espace les lectures complètes d’au moins 20 s. Les sorties `busy`, `hidden`, changement de propriétaire ou lock indisponible réarment la file sans contourner ces barrières.
 
-## Invariant réseau 0.9.87 — zéro GET automatique pendant une discussion
+## Invariant réseau 0.9.88 — zéro trafic NiakGPT pendant une discussion
 
-`page-bridge.js` refuse avant réseau tout GET backend NiakGPT non explicitement `foreground` lorsqu’un onglet visible est sur une route de conversation, y compris si la conversation active se trouve dans un autre onglet/fenêtre via la coordination `BroadcastChannel`. Cette barrière précède les anciennes protections d’annulation : NiakGPT ne doit plus être la charge qui provoque elle-même une vérification ou une rupture native. `server-index-v100.js` ne démarre plus à ~80 ms : il attend une page hors conversation et deux minutes sans activité. `server-index-bootstrap-v124.js` ne martèle plus 28 reprises à 550 ms. Project Memory attend cinq minutes de calme. Une lecture de drawer explicitement déclenchée par l’utilisateur reste autorisée uniquement si aucune génération, vérification ou panne réseau native n’est active.
+`page-bridge.js` refuse avant réseau **toute requête backend ChatGPT appartenant à NiakGPT** lorsqu’un onglet visible est sur une route de conversation, y compris si la conversation active se trouve dans un autre onglet/fenêtre via `BroadcastChannel`. La règle couvre les GET background et foreground ainsi que les PATCH/POST/DELETE NiakGPT. Les actions natives de ChatGPT ne passent pas par ce broker. Hors chat, `server-index-v100.js` attend toujours deux minutes sans activité et `server-index-bootstrap-v124.js` reste borné ; les lectures Project foreground ne redeviennent possibles qu’en l’absence de conversation visible et d’état natif busy/vérification/réseau.
 
 ## Invariant Pins 0.9.87 — le launcher Projects suffit
 

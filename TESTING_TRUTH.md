@@ -69,16 +69,21 @@ The 0.9.71–0.9.73 overlay stack is not a stable baseline. A recovery release m
 
 Fixture CI alone cannot authorize their return.
 
-## Native chat network safety baseline — 0.9.87
+## Native chat network safety baseline — 0.9.88
 
 A synthetic browser lab is **not** proof that an authenticated production ChatGPT account will never encounter a platform-side network incident. It can, however, prove what NiakGPT itself does or does not emit.
 
 The mandatory regression baseline is therefore explicit:
 
-- loading NiakGPT on a `/c/{id}` conversation must emit **zero automatic NiakGPT RPC/auth/backend GET**;
-- Project Memory, server indexing and deep analysis cannot bypass that route guard;
-- a visible peer conversation quarantines background GETs in other ChatGPT tabs/windows;
-- only an explicit user foreground action may request Project data, and even that yields to native generation, verification or network recovery;
+- loading NiakGPT on a `/c/{id}` conversation must emit **zero NiakGPT ChatGPT-backend traffic**, not merely zero automatic GET;
+- foreground Project reads and NiakGPT-owned PATCH/POST/DELETE are also quarantined for the full lifetime of a visible conversation;
+- Project Memory, server indexing, recovery, governance and deep analysis cannot bypass that route guard;
+- a visible peer conversation applies the same absolute quarantine in other ChatGPT tabs/windows;
+- off-chat foreground Project reads remain possible only when no visible peer conversation and no native busy/verification/network state exists;
 - CI success must never be described as authenticated live-field proof unless an authenticated live test actually ran.
 
-The field report that motivated 0.9.87 is treated as higher-priority evidence than a green synthetic gate when the two disagree.
+The field reports that motivated 0.9.87 and 0.9.88 is treated as higher-priority evidence than a green synthetic gate when the two disagree.
+
+## Combined field regression — 0.9.88
+
+`visual-lab/field-regressions-v088.mjs` reproduces the three field failures together: an expanded native Project subtree, absolute current/peer conversation network quarantine, and immediate GitHub files from local cache. Green fixture evidence still does not replace an authenticated field check.

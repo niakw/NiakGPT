@@ -72,6 +72,21 @@
   }
   function stage(row){const staged=[];let n=row;while(n&&n!==document.body){const s=getComputedStyle(n);if(s.display==='none'||s.visibility==='hidden'||n.getAttribute?.('data-ng112-native-projects')==='1'){n.classList.add('ng123-native-stage','ng113-actions-staging');staged.push(n);}n=n.parentElement;}if(row&&!staged.includes(row)){row.classList.add('ng123-native-stage-leaf');staged.push(row);}return()=>staged.forEach(x=>x.classList.remove('ng123-native-stage','ng113-actions-staging','ng123-native-stage-leaf'));}
   function setNativeInput(input,value){try{const proto=Object.getPrototypeOf(input),setter=Object.getOwnPropertyDescriptor(proto,'value')?.set;setter?setter.call(input,value):input.value=value;input.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:value}));input.dispatchEvent(new Event('change',{bubbles:true}));return true;}catch{return false;}}
+  async function publishAcceptedProjectName(projectId,next){
+    const cleanName=String(next||'').trim();if(!projectId||!cleanName)return;
+    try{
+      document.querySelectorAll(`#ng8-pins a[data-ng8-pin="1"][data-ng121-pid="${CSS.escape(projectId)}"] span`).forEach(span=>{span.textContent=cleanName;});
+    }catch{}
+    try{
+      const key='niakgpt-v08-cache',raw=(await chrome.storage.local.get(key))[key]||{};
+      let changed=false;
+      const projects=Array.isArray(raw.projects)?raw.projects.map(p=>{
+        const id=String(p?.id||'');if(id!==projectId)return p;changed=true;return{...p,name:cleanName,title:cleanName};
+      }):[];
+      if(changed)await chrome.storage.local.set({[key]:{...raw,projects,at:Date.now()}});
+    }catch{}
+  }
+
   async function nativeProjectRenameAttempt(projectId,next,attempt){
     const row=exactProjectRow(projectId);if(!row){document.documentElement.dataset.ng123ProjectRename='row-missing';return false;}
     const restore=stage(row),baselineMenus=new Set(document.querySelectorAll(MENU_SEL)),baselineDialogs=new Set(document.querySelectorAll('[role="dialog"]'));
@@ -91,6 +106,7 @@
       const save=[...dialog.querySelectorAll('button')].find(b=>!b.disabled&&/^(enregistrer|save|renommer|rename|valider|confirm)$/i.test(clean(b.textContent||b.getAttribute('aria-label'))));
       if(!save){document.documentElement.dataset.ng123ProjectRename='save-missing';return false;}
       save.click();document.documentElement.dataset.ng123ProjectRename='submitted';
+      await publishAcceptedProjectName(projectId,next);
       // The native mutation may settle asynchronously. Do not hold the custom dialog open merely
       // because React removes its modal a few frames later; the click itself is the authoritative
       // accepted action, and the server-index refresh verifies the canonical result afterwards.

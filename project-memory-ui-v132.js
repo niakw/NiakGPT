@@ -33,12 +33,13 @@
     }
     if (s.mode === 'error') return 'Erreur · ' + String(s.error || 'synchronisation interrompue');
     if (s.mode === 'queued') {
-      const count=Number(s.queuedProjects || snapshot?.queue?.pending?.length || 0);
-      if(s.pauseReason==='conversation'||s.pauseReason==='peer-conversation')return 'Coffre connecté · bootstrap protégé pendant une discussion · ' + count + ' Project(s)';
-      if(s.pauseReason==='quiet')return 'Coffre connecté · bootstrap différé jusqu’au calme · ' + count + ' Project(s)';
-      return 'Coffre connecté · bootstrap en attente · ' + count + ' Project(s)';
+      const count=Number(s.queuedProjects || snapshot?.queue?.pending?.length || 0),cached=Number(s.bootstrapCachedAt||0)>0;
+      if(s.pauseReason==='conversation'||s.pauseReason==='peer-conversation')return (cached?'Coffre écrit · historique protégé pendant la discussion · ':'Coffre connecté · snapshot local en attente · ') + count + ' Project(s)';
+      if(s.pauseReason==='quiet')return (cached?'Coffre écrit · historique différé jusqu’au calme · ':'Coffre connecté · snapshot local en attente · ') + count + ' Project(s)';
+      return (cached?'Coffre écrit · historique en attente · ':'Coffre connecté · snapshot local en attente · ') + count + ' Project(s)';
     }
-    if (snapshot && snapshot.connected && !Number(s.lastSyncAt || 0)) return 'Coffre initialisé · première synchronisation en attente';
+    if (snapshot && snapshot.connected && !Number(s.lastSyncAt || 0) && Number(s.bootstrapCachedAt||0)>0) return 'Coffre écrit · inventaire local synchronisé';
+    if (snapshot && snapshot.connected && !Number(s.lastSyncAt || 0)) return 'Coffre initialisé · snapshot local en attente';
     if (snapshot && snapshot.connected) return 'Connecté · dernière synchro ' + humanDate(s.lastSyncAt);
     if (github.authenticated) return 'GitHub connecté · choisis le dépôt coffre';
     if (snapshot && snapshot.configured && snapshot.config?.authMode === 'pat' && !snapshot.tokenAvailable) return 'Configuré · PAT à reconnecter pour cette session';
@@ -112,11 +113,13 @@
 
       const queuePending = Array.isArray(snapshot.queue?.pending) ? snapshot.queue.pending.length : 0;
       const stateInfo = snapshot.state || {};
+      const cachedWritten=Number(stateInfo.bootstrapCachedAt||0)>0;
+      const cachedDetail=cachedWritten ? ('Snapshot local GitHub écrit · ' + Number(stateInfo.bootstrapCachedProjects||0) + ' Project(s) · ' + Number(stateInfo.bootstrapCachedFiles||0) + ' fichier(s)') : '';
       const progressText = stateInfo.mode === 'syncing' && Number(stateInfo.chatTotal || 0)
         ? ('Progression · ' + syncPercent(stateInfo) + '% · conversation ' + Number(stateInfo.chatDone || 0) + '/' + Number(stateInfo.chatTotal || 0))
         : queuePending
-          ? ('File persistante · ' + queuePending + ' Project(s) restant(s)' + ((stateInfo.pauseReason==='conversation'||stateInfo.pauseReason==='peer-conversation') ? ' · aucune lecture backend pendant la discussion' : stateInfo.pauseReason==='quiet' ? ' · reprise après 5 min de calme' : ''))
-          : (Number(stateInfo.lastSyncAt || 0) ? ('Dernière synchro · ' + humanDate(stateInfo.lastSyncAt) + ' · ' + Number(stateInfo.changed || 0) + ' fil(s) modifié(s)') : 'Aucune synchronisation complète enregistrée');
+          ? ((cachedDetail ? cachedDetail + ' · ' : '') + 'Historique complet en file · ' + queuePending + ' Project(s)' + ((stateInfo.pauseReason==='conversation'||stateInfo.pauseReason==='peer-conversation') ? ' · zéro trafic ChatGPT NiakGPT pendant la discussion' : stateInfo.pauseReason==='quiet' ? ' · reprise après 1 min de calme hors chat' : ''))
+          : (Number(stateInfo.lastSyncAt || 0) ? ('Dernière synchro · ' + humanDate(stateInfo.lastSyncAt) + ' · ' + Number(stateInfo.changed || 0) + ' fil(s) modifié(s)') : (cachedDetail || 'Aucune synchronisation enregistrée'));
 
       const viewKey=githubConnected?'github':'login';
       const liveOnly=section.dataset.ng132Built==='1'&&section.dataset.ng132View===viewKey&&!rebuildRequested;
@@ -168,9 +171,9 @@
             '<div class="ng132-memory-actions"><button data-ng132-connect>Connecter avec le PAT</button></div>' +
           '</div>' +
         '</details>' +
-        '<label class="ng132-option"><input data-ng132-auto type="checkbox" ' + (prefs.autoSync !== false ? 'checked' : '') + '><span><b>Synchronisation incrémentale</b><small>Après le bootstrap, seuls les fils modifiés sont relus. Aucun GET automatique n’est autorisé pendant une discussion ; hors conversation, la reprise attend 5 min de calme.</small></span></label>' +
+        '<label class="ng132-option"><input data-ng132-auto type="checkbox" ' + (prefs.autoSync !== false ? 'checked' : '') + '><span><b>Synchronisation incrémentale</b><small>Pendant une discussion visible, NiakGPT n’émet aucun trafic vers le backend ChatGPT. Hors discussion, l’historique complet reprend après 1 min de calme.</small></span></label>' +
         '<label class="ng132-option"><input data-ng132-inject type="checkbox" ' + (prefs.injectOnNewChat !== false ? 'checked' : '') + '><span><b>Restaurer le checkpoint dans un nouveau fil</b><small>Ajoute une seule fois le contexte compact du Project au premier message du nouveau fil, jamais à chaque prompt.</small></span></label>' +
-        '<div class="ng132-memory-info"><b>Bootstrap des Projects existants</b><span>À la première connexion, la file est créée immédiatement mais l’indexation attend une page hors discussion et une vraie fenêtre de calme. Elle archive ensuite contexte Project, historique, tâches/contraintes/architecture détectées et checkpoint compact.</span></div>' +
+        '<div class="ng132-memory-info"><b>Bootstrap des Projects existants</b><span>Dès la connexion, NiakGPT écrit dans GitHub un snapshot depuis son cache local, sans lire le backend ChatGPT. L’historique complet reste ensuite en file et n’est relu que hors discussion, après une fenêtre de calme.</span></div>' +
         '<div class="ng132-memory-info"><b>Historique complet ≠ prompt complet</b><span>Les conversations restent archivées dans GitHub. ChatGPT ne reçoit normalement que PROJECT_STATE.md, borné et mis à jour.</span></div>';
 
       const status = section.querySelector('.ng132-memory-status b');
@@ -209,13 +212,13 @@
           branch: appBranch?.value.trim() || '',
           root: appRoot?.value.trim() || '.niakgpt-memory'
         });
-        if (!result || !result.ok) {
-          setFailure('Connexion au coffre refusée', result);
+        if (!result || !result.ok || result.bootstrapWritten === false) {
+          setFailure(result?.bootstrapWritten===false?'Coffre connecté mais snapshot GitHub impossible':'Connexion au coffre refusée', result?.bootstrapWritten===false?{error:result.bootstrapError}:result);
           useRepo.disabled = false;
           useRepo.textContent = 'Réessayer ce dépôt';
           return;
         }
-        status.textContent = 'Coffre connecté · bootstrap planifié · ' + Number(result.queuedProjects || 0) + ' Project(s)';
+        status.textContent = 'Coffre écrit · ' + Number(result.bootstrapFiles || 0) + ' fichier(s) · historique en file';
         schedule(50,true);
       };
 
@@ -271,8 +274,8 @@
           rememberToken: remember.checked
         };
         const result = await memory.connect(draft);
-        if (!result || !result.ok) {
-          setFailure('Connexion PAT refusée', result);
+        if (!result || !result.ok || result.bootstrapWritten === false) {
+          setFailure(result?.bootstrapWritten===false?'Coffre connecté mais snapshot GitHub impossible':'Connexion PAT refusée', result?.bootstrapWritten===false?{error:result.bootstrapError}:result);
           manualConnect.disabled = false;
           manualConnect.textContent = 'Réessayer avec le PAT';
           repo.value = draft.repo;
@@ -284,6 +287,7 @@
           return;
         }
         token.value = '';
+        status.textContent='Coffre écrit · ' + Number(result.bootstrapFiles || 0) + ' fichier(s) · historique en file';
         schedule(50,true);
       };
 
@@ -292,6 +296,7 @@
         button.disabled = true;
         const result=await memory.syncNow({force:false});
         if(!result?.ok){setFailure('Synchronisation impossible',result);button.disabled=false;}
+        else if(result.cachedOnly&&result.historyDeferred)status.textContent='Snapshot local écrit · historique différé hors discussion';
         schedule(50);
       };
 
@@ -301,6 +306,7 @@
         button.disabled = true;
         const result=await memory.syncNow({force:true});
         if(!result?.ok){setFailure('Reprise intégrale impossible',result);button.disabled=false;}
+        else if(result.cachedOnly&&result.historyDeferred)status.textContent='Snapshot local réécrit · reprise intégrale différée hors discussion';
         schedule(50);
       };
 
@@ -338,6 +344,7 @@
 
   document.addEventListener('niakgpt:project-memory-state',() => schedule(60));
   document.addEventListener('niakgpt:project-memory-synced',() => schedule(60));
+  document.addEventListener('niakgpt:project-memory-bootstrap-written',() => schedule(60));
   document.addEventListener('niakgpt:control-center-rendered',() => schedule(0));
   document.addEventListener('click',event => {
     if (!(event.target instanceof Element) || !event.target.closest('#ng90-settings-btn')) return;

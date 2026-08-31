@@ -39,6 +39,7 @@
   const cacheTTL = () => 1200;
   const gapFor = (path, method) => method !== 'GET' ? 650 : conversationRx.test(String(path||'')) ? 2500 : 650;
   const cacheKey = (path, method) => `${method}:${path}`;
+  const conversationPage = () => /(?:^|\/)c\/[A-Za-z0-9_-]+(?:$|[/?#])/.test(String(location.pathname || ''));
   const baseNativeBusy = () => {
     const interruption=String(document.documentElement.dataset.ng119Interruption||'').toLowerCase();
     return document.documentElement.dataset.ng8Running === '1' ||
@@ -349,6 +350,17 @@
       document.dispatchEvent(new CustomEvent(RES, {
         detail: { id, ok:false, status:0, error:`blocked_request:${method}:${path}`, transport:'guard' }
       }));
+      return;
+    }
+
+    // Hard field-safety boundary: while the user is on a ChatGPT conversation route, no
+    // background NiakGPT GET may touch ChatGPT's internal backend. This is stronger than
+    // merely aborting after native activity starts: it prevents the extension from being the
+    // traffic that triggers a verification / "Connexion interrompue" incident in the first place.
+    // Explicit foreground reads caused by a user gesture (for example opening a Project drawer)
+    // remain allowed and are still blocked by active generation/verification/network guards.
+    if (method === 'GET' && conversationPage() && d.foreground !== true) {
+      document.dispatchEvent(new CustomEvent(RES,{detail:{id,ok:false,status:0,data:null,error:'native_conversation_quiet',transport:'chat-route-guard'}}));
       return;
     }
 

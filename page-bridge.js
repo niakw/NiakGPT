@@ -359,7 +359,7 @@
     // traffic that triggers a verification / "Connexion interrompue" incident in the first place.
     // Explicit foreground reads caused by a user gesture (for example opening a Project drawer)
     // remain allowed and are still blocked by active generation/verification/network guards.
-    if (method === 'GET' && conversationPage() && d.foreground !== true) {
+    if (method === 'GET' && d.foreground !== true && (conversationPage() || document.documentElement.dataset.ng90PeerChatActive === '1')) {
       document.dispatchEvent(new CustomEvent(RES,{detail:{id,ok:false,status:0,data:null,error:'native_conversation_quiet',transport:'chat-route-guard'}}));
       return;
     }

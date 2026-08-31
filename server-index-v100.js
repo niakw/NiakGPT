@@ -20,7 +20,7 @@
   const nativeBusy=()=>document.documentElement.dataset.ng8Running==='1'||['loading','waiting','thinking','executing'].includes(document.documentElement.dataset.ng86Activity||'')||document.documentElement.dataset.ng105Verification==='1'||['verify','network'].includes(String(document.documentElement.dataset.ng119Interruption||'').toLowerCase());
   const conversationPage=()=>/(?:^|\/)c\/[A-Za-z0-9_-]+(?:$|[/?#])/.test(String(location.pathname||''));
   const quietFor=()=>Date.now()-lastUserOrNativeAt;
-  const projectReady=()=>!conversationPage()&&quietFor()>=BACKGROUND_QUIET_MS&&document.documentElement.dataset.ng100CacheGuard!=='pending'&&!ratePaused()&&!document.hidden&&document.documentElement.dataset.ng90Safe!=='1'&&!document.documentElement.dataset.ng100Recovery&&!nativeBusy();
+  const projectReady=()=>!conversationPage()&&document.documentElement.dataset.ng90PeerChatActive!=='1'&&quietFor()>=BACKGROUND_QUIET_MS&&document.documentElement.dataset.ng100CacheGuard!=='pending'&&!ratePaused()&&!document.hidden&&document.documentElement.dataset.ng90Safe!=='1'&&!document.documentElement.dataset.ng100Recovery&&!nativeBusy();
   const chatReady=()=>projectReady();
 
   function diagnostic(text){window.__NIAKGPT_DIAGNOSTICS__?.set('index-serveur',text);}

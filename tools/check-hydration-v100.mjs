@@ -8,7 +8,7 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 
 const manifest=JSON.parse(read('manifest.json'));
 if(manifest.manifest_version!==3)fail('manifest_version drift');
-if(manifest.version!=='0.9.87')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.88')fail(`unexpected release ${manifest.version}`);
 same(manifest.permissions,['storage','scripting','identity'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*'],'host scope mismatch');
 const staticRuntime=['boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'];
@@ -62,7 +62,7 @@ need(bridge,'const nativeFetch = window.fetch.bind(window);');need(bridge,'conve
 const memoryBackend=read('project-memory-background-v132.js');
 for(const token of ['memory_repository_must_be_private','meta?.private !== true','chrome.storage.session','niakgpt:memory-connect-v132','chrome.identity.launchWebAuthFlow','app-manifests/','request_oauth_on_install','niakgpt:memory-github-connect-repo-v132','github_repository_not_authorized_for_vault','refresh_token','code_challenge','code_verifier','setup_url: clean(flow.installRedirect)','request_oauth_on_install: false'])need(memoryBackend,token,'Project Memory backend invariant incomplete');
 const memoryRuntime=read('project-memory-v132.js');
-for(const token of ['PROJECT_STATE.md','canonicalUpdated','prefsReady','function inject(ed)','memoryBootstrap: memoryBootstrap === true','MEMORY_LOCK','autoOwner','niakgpt:tab-role-changed','primeBootstrapQueue','ensureBootstrapQueued','queuedProjects','changes[QUEUE_KEY]','githubLogin','githubRepositories','githubConnectRepo','githubLogout'])need(memoryRuntime,token,'Project Memory runtime invariant incomplete');
+for(const token of ['PROJECT_STATE.md','canonicalUpdated','prefsReady','function inject(ed)','memoryBootstrap: memoryBootstrap === true','MEMORY_LOCK','CACHE_BOOTSTRAP_LOCK','autoOwner','niakgpt:tab-role-changed','primeBootstrapQueue','ensureBootstrapQueued','writeCachedBootstrap','bootstrapMetadataOnly:true','bootstrapWritten:true','cachedOnly:true,historyDeferred:true','queuedProjects','changes[QUEUE_KEY]','githubLogin','githubRepositories','githubConnectRepo','githubLogout'])need(memoryRuntime,token,'Project Memory runtime invariant incomplete');
 forbid(memoryRuntime,'async function inject(ed)','Project Memory send-time injection must be synchronous');
 
 const gate=read('boot-gate-v100.js');

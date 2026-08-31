@@ -783,7 +783,24 @@
     if (event.detail && event.detail.role !== 'inactive' && !document.hidden) { resume(); schedule(backgroundDelay()); }
     else clearTimeout(autoTimer);
   });
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { lastHumanAt=Date.now(); refreshContext(); resume(); schedule(backgroundDelay()); } });
+  async function repairCachedBootstrapIfVisible() {
+    if(document.hidden)return {ok:true,skipped:'hidden'};
+    let pending=[];
+    try{pending=await ensureBootstrapQueued();}catch{}
+    if(!pending.length)return {ok:true,skipped:'empty'};
+    try{return await writeCachedBootstrap();}
+    catch(error){
+      const message='cached_bootstrap_write_failed:'+String(error?.message||error).slice(0,180);
+      await state({mode:'error',error:message,queuedProjects:pending.length});
+      return {ok:false,error:message};
+    }
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      lastHumanAt=Date.now(); refreshContext();
+      repairCachedBootstrapIfVisible().finally(()=>{resume();schedule(backgroundDelay());});
+    }
+  });
 
   function route() { clearTimeout(routeTimer); lastHumanAt=Date.now(); routeTimer = setTimeout(()=>{refreshContext();resume();schedule(backgroundDelay());},120); }
   window.addEventListener('popstate',route);
@@ -794,9 +811,9 @@
     refreshContext();
     let pending=[],bootstrapFailed=false;
     try{pending=await ensureBootstrapQueued();}catch{}
-    if(pending.length){
-      try{await writeCachedBootstrap();}
-      catch(error){bootstrapFailed=true;await state({mode:'error',error:'cached_bootstrap_write_failed:'+String(error?.message||error).slice(0,180),queuedProjects:pending.length});}
+    if(pending.length&&!document.hidden){
+      const repaired=await repairCachedBootstrapIfVisible();
+      bootstrapFailed=repaired?.ok===false;
     }
     if(!bootstrapFailed){
       if (conversationPage()) await queuedState('conversation');

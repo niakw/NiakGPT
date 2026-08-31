@@ -24,7 +24,8 @@
   const heavy=()=>root().dataset.ng8Heavy==='1';
   const running=()=>root().dataset.ng8Running==='1'||['loading','waiting','thinking','executing'].includes(root().dataset.ng86Activity||'')||root().dataset.ng105Verification==='1';
   const safe=()=>settings.safeMode===true||root().dataset.ng90Safe==='1';
-  const state=()=>({visible:visible(),heavy:heavy(),running:running(),safeMode:safe()});
+  const conversation=()=>/(?:^|\/)c\/[A-Za-z0-9_-]+(?:$|[/?#])/.test(String(location.pathname||''));
+  const state=()=>({visible:visible(),heavy:heavy(),running:running(),conversation:conversation(),safeMode:safe()});
   const invalidated=e=>/extension context invalidated|context invalidated/i.test(String(e?.message||e||''));
   function contextAlive(){if(contextDead)return false;try{return !!chrome?.runtime?.id;}catch{return false;}}
   function clearTimers(){for(const id of [idleWakeTimer,pulseTimer,leaseTimer,heavyTimer,diagTimer,retryTimer])if(id)clearTimeout(id);idleWakeTimer=pulseTimer=leaseTimer=heavyTimer=diagTimer=retryTimer=0;}
@@ -33,7 +34,7 @@
     if(suspended||contextDead)return;
     const m=event.data;if(!m||m.id===tabId)return;
     if(m.type==='heartbeat'){
-      peers.set(m.id,m);
+      peers.set(m.id,m);publishPeerSafety();
       if(role==='WORKER'&&heavy())scheduleHeavyYield();
       if(role!=='WORKER'&&m.role==='WORKER'&&m.heavy&&!safe())broadcast('eligible-peer');
       if(role!=='WORKER'&&m.role!=='WORKER'&&!safe())setTimeout(()=>{if(!suspended&&!contextDead)tryAcquire('peer-no-worker');},80+Math.random()*220);
@@ -69,7 +70,11 @@
       let row=diag.querySelector(':scope > .ng8-tab-diagnostic');if(!row){row=document.createElement('div');row.className='ng8-tab-diagnostic';diag.prepend(row);}row.innerHTML=`<span>onglet</span><b class="${role==='WORKER'?'ok':'wait'}">${text}</b>`;
     },30);
   }
-  function purgePeers(){const now=Date.now();for(const[id,p]of peers)if(now-(p.ts||0)>30000)peers.delete(id);}
+  function publishPeerSafety(){
+    const active=[...peers.values()].some(p=>p?.visible&&(p?.conversation||p?.running));
+    if(active)root().dataset.ng90PeerChatActive='1';else delete root().dataset.ng90PeerChatActive;
+  }
+  function purgePeers(){const now=Date.now();for(const[id,p]of peers)if(now-(p.ts||0)>30000)peers.delete(id);publishPeerSafety();}
 
   function canRunWorkerIdle(){
     return !suspended&&!contextDead&&role==='WORKER'&&!safe()&&!heavy()&&!running()&&performance.now()-startedAt>=2800;
@@ -170,7 +175,7 @@
     if(suspended||contextDead)return;if(records.some(r=>['data-ng8-running','data-ng8-heavy','data-ng90-safe','data-ng86-activity'].includes(r.attributeName)))onRuntimeStateChanged();
   });
   stateObserver.observe(root(),{attributes:true,attributeFilter:['data-ng8-running','data-ng8-heavy','data-ng90-safe','data-ng86-activity']});
-  document.addEventListener('visibilitychange',()=>{if(suspended||contextDead)return;broadcast('visibility');if(!document.hidden){pumpIdle();if(role!=='WORKER'&&!safe())tryAcquire('visible');}});
+  document.addEventListener('visibilitychange',()=>{if(suspended||contextDead)return;broadcast('visibility');publishPeerSafety();if(!document.hidden){pumpIdle();if(role!=='WORKER'&&!safe())tryAcquire('visible');}});
   try{chrome.storage.onChanged.addListener((changes,area)=>{if(suspended||contextDead)return;if(area==='local'&&changes[SETTINGS_KEY])loadPublicSettings();});}catch(error){if(invalidated(error))contextDead=true;}
 
   // Cache-only Quick Open fallback remains available on CLIENT tabs.
@@ -200,6 +205,8 @@
   function deactivate(reason='context-invalidated'){
     if(contextDead)return;contextDead=true;suspended=true;clearTimers();idleTasks.clear();releaseFallback();if(releaseLock){const fn=releaseLock;releaseLock=null;try{fn();}catch{}}closeChannel();stateObserver.disconnect();try{root().dataset.ng8TabRole='inactive';root().dataset.ng8TabReason=reason;}catch{}
   }
+  window.addEventListener('popstate',()=>{broadcast('route');publishPeerSafety();});
+  if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>{broadcast('route');publishPeerSafety();});
   window.addEventListener('pagehide',event=>{suspend();if(!event.persisted)contextDead=true;});
   window.addEventListener('pageshow',event=>{if(event.persisted)resume();});
 

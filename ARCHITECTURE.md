@@ -1,10 +1,10 @@
 # Architecture de NiakGPT
 
-NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.85 privilégie cinq propriétés : **faible coût runtime**, **priorité absolue au flux natif ChatGPT**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
+NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.86 privilégie cinq propriétés : **faible coût runtime**, **priorité absolue au flux natif ChatGPT**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
 
 ## Périmètre
 
-Le manifest 0.9.85 déclare :
+Le manifest 0.9.86 déclare :
 
 ```text
 https://chatgpt.com/*
@@ -28,11 +28,15 @@ Jusqu’au signal final, `composer-continuation-v128.js`, `long-run-watchdog-v12
 Le gate `visual-lab/hydration-barrier-v080.mjs` reproduit maintenant deux remplacements tardifs du shell via `MessageChannel`, après de fausses périodes de calme, et exige que NiakGPT reste inactif jusqu’à la stabilité finale sur Chromium, Firefox et WebKit.
 
 
-## Invariant réseau 0.9.85 — ChatGPT natif gagne toujours
+## Invariant Project Memory 0.9.86 — aucune file persistante sans réveil
+
+`project-memory-v132.js` maintient un heartbeat local indépendant de 15 s lorsque l’auto-sync est activée. Il ne contacte pas ChatGPT lorsqu’une génération, vérification, quarantaine réseau ou activité humaine bloque la synchronisation ; il relit seulement la file locale puis réessaie `resume()` lorsqu’un onglet visible est éligible. Les sorties précoces `busy`, `hidden`, changement de propriétaire et lock indisponible réarment également une tentative. Cela ferme la race où un bootstrap pouvait rester indéfiniment en mode `queued` après avoir perdu son unique timer.
+
+## Invariant réseau 0.9.86 — ChatGPT natif gagne toujours
 
 `page-bridge.js` traite désormais tout envoi, génération, vérification, incident réseau ou reprise de connexion comme une priorité native. Les GET NiakGPT déjà en vol sont annulés, les nouveaux appels internes sont bloqués pendant une fenêtre calme, et une erreur réseau n’est plus rejouée via un second transport XHR. `analysis-bridge-v112.js` ne possède plus de transport ChatGPT direct : analyse, indexation et Project Memory convergent vers ce broker unique. Project Memory est opportuniste : il attend l’inactivité humaine et espace les lectures complètes d’historique. Une lecture de drawer explicitement déclenchée par l’utilisateur peut ignorer uniquement la fenêtre post-réponse une fois ChatGPT réellement `ready`; elle reste interdite pendant génération, vérification ou incident réseau. `interruption-guard-v119.js` ne clique plus automatiquement sur « Réessayer ».
 
-## Invariant Pins 0.9.85 — le launcher Projects suffit
+## Invariant Pins 0.9.86 — le launcher Projects suffit
 
 `sidebar-projects-v121.js` accepte le launcher natif visible `/projects` comme ancre autoritaire même lorsque ChatGPT n’a pas encore hydraté les liens `/g/g-p-*`. Le bloc est explicitement libellé **PINS · PROJECTS** afin d’éviter toute confusion avec la surface native.
 

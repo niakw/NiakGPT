@@ -13,7 +13,8 @@
   const CHUNK = 360000;
   const HISTORY_FETCH_GAP_MS = 8000;
   const HUMAN_QUIET_MS = 45000;
-  let seq = 0, syncing = false, syncAuto = false, autoTimer = 0, routeTimer = 0, lastHistoryFetchAt = 0, lastHumanAt = 0;
+  const WAKE_HEARTBEAT_MS = 15000;
+  let seq = 0, syncing = false, syncAuto = false, autoTimer = 0, wakeTimer = 0, routeTimer = 0, lastHistoryFetchAt = 0, lastHumanAt = 0;
   let contextProject = '', contextText = '';
 
   const clean = v => String(v == null ? '' : v).replace(/\r/g, '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
@@ -358,7 +359,7 @@
     let q={};
     try { q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{}; } catch {}
     const pending=Array.isArray(q.pending)?q.pending:[];
-    return state({mode:'queued',queuedProjects:pending.length,projectTotal:pending.length,error:'',pauseReason:reason});
+    return state({mode:'queued',queuedProjects:pending.length,projectTotal:pending.length,error:'',pauseReason:reason,nextAttemptAt:Date.now()+WAKE_HEARTBEAT_MS});
   }
 
   const autoOwner = () => {
@@ -369,15 +370,29 @@
     return !document.hidden && role !== 'inactive';
   };
 
+  async function wakeHeartbeat() {
+    clearTimeout(wakeTimer);
+    wakeTimer=setTimeout(async()=>{
+      try{
+        const local=await chrome.storage.local.get([QUEUE_KEY,PREFS_KEY]);
+        const q=local[QUEUE_KEY]||{},p=Object.assign({},defaults,local[PREFS_KEY]||{});
+        const pending=Array.isArray(q.pending)?q.pending:[];
+        document.documentElement.dataset.ng132WakeBeat=String(Date.now());
+        if(p.autoSync!==false&&pending.length&&autoOwner()) await resume();
+      }catch{}
+      wakeHeartbeat();
+    },WAKE_HEARTBEAT_MS);
+  }
+
   async function bootstrap(options) {
     const opt = options || {};
     const automatic = opt.auto === true;
     if (document.hidden || (automatic && !autoOwner())) {
-      if (automatic) await queuedState(document.hidden?'hidden':'owner');
+      if (automatic) { await queuedState(document.hidden?'hidden':'owner'); schedule(15000); }
       return { ok:false, paused:true, error:document.hidden?'memory_sync_paused_hidden':'memory_sync_paused_owner_change' };
     }
     if (busy()) {
-      if (automatic) await queuedState('busy');
+      if (automatic) { await queuedState('busy'); schedule(15000); }
       return { ok:false, paused:true, error:'memory_sync_paused_busy' };
     }
     if (navigator.locks && navigator.locks.request && opt.__lockHeld !== true) {
@@ -387,7 +402,7 @@
         acquired=true;
         lockedResult = await bootstrap(Object.assign({},opt,{__lockHeld:true}));
       });
-      if(!acquired&&automatic)return lockedResult;
+      if(!acquired&&automatic){ schedule(15000); return lockedResult; }
       return lockedResult;
     }
     if (syncing) return automatic ? {ok:true,skipped:'sync_already_running'} : { ok:false, error:'sync_already_running' };
@@ -423,7 +438,13 @@
       }
       await state({ mode:'error', error:message.slice(0,260) });
       return { ok:false, error:message };
-    } finally { syncing = false; syncAuto = false; }
+    } finally {
+      syncing = false; syncAuto = false;
+      try{
+        const q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};
+        if(Array.isArray(q.pending)&&q.pending.length) schedule(15000);
+      }catch{}
+    }
   }
 
   async function resume() {
@@ -633,7 +654,7 @@
     if (event.detail && event.detail.role !== 'inactive' && !document.hidden) { resume(); schedule(2500); }
     else clearTimeout(autoTimer);
   });
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { refreshContext(); resume(); } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { refreshContext(); resume(); schedule(2500); } });
 
   function route() { clearTimeout(routeTimer); routeTimer = setTimeout(refreshContext,120); }
   window.addEventListener('popstate',route);
@@ -645,5 +666,6 @@
     try{await ensureBootstrapQueued();}catch{}
     resume();
     schedule(18000);
+    wakeHeartbeat();
   });
 })();

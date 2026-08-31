@@ -17,6 +17,7 @@
   const PRIMARY_LABEL=/^(?:chatgpt|nouveau chat|new chat|rechercher|search|bibliotheque|library|images?|apps?|codex)$/i;
   let cache={projects:[],chats:[],counts:{}},governance={hiddenProjectIds:[],coreProjectIds:[]};
   let observer=null,observedRoot=null,internal=false,timer=0,renderEpoch=0,lastPinFocus=null,lastPinFocusAt=0,bootstrapObserver=null,projectScrollMemory=0;
+  let nativePersistSig='',nativePersisting=false;
   let pendingProjectScroll=null,pendingScrollSeq=0,userScrollIntentAt=0,userScrollEpoch=0,retiredSeq=0;
   const sessionOrder=new Map(),mountParentByBox=new WeakMap(),mountTargetByBox=new WeakMap();let sessionSeq=0;
 
@@ -47,6 +48,69 @@
     return candidates.map(el=>[el,score(el)]).filter(([,n])=>Number.isFinite(n)).sort((a,b)=>b[1]-a[1])[0]?.[0]||null;
   }
   function projectLinks(scope){return [...scope.querySelectorAll?.('a[href*="/g/g-p-"]')||[]].filter(a=>!isOwn(a));}
+  function collectNativeSnapshot(root=navRoot()){
+    const projects=new Map(),chats=new Map(),visibleCounts={};
+    if(!root)return{projects:[],chats:[],counts:{}};
+    for(const a of projectLinks(root)){
+      let pathname='',href=String(a.getAttribute('href')||'');
+      try{pathname=new URL(href,location.origin).pathname;}catch{pathname=href.split(/[?#]/)[0];}
+      const chatMatch=pathname.match(/^\/g\/(g-p-[^/]+)\/c\/([A-Za-z0-9_-]+)/i);
+      if(chatMatch){
+        const pid=normalizePid(chatMatch[1]),id=clean(chatMatch[2]),title=clean(a.getAttribute('aria-label')||a.textContent);
+        if(pid.startsWith('g-p-')&&id){
+          chats.set(id,{id,title:title||'Conversation',projectId:pid,href:new URL(pathname,location.origin).href,updated:0,nativeDom:true});
+          visibleCounts[pid]=(visibleCounts[pid]||0)+1;
+        }
+        continue;
+      }
+      const projectMatch=pathname.match(/^\/g\/(g-p-[^/]+)\/(?:project)?\/?$/i);
+      if(!projectMatch)continue;
+      const id=normalizePid(projectMatch[1]),name=clean(a.getAttribute('aria-label')||a.textContent);
+      if(!id.startsWith('g-p-')||!name||name.length>180||projectLabel(name)||/^(?:afficher|voir) plus$|^show more$/i.test(name))continue;
+      projects.set(id,{id,name,href:managedHref(pathname,id),domOnly:true,nativeDom:true});
+    }
+    return{projects:[...projects.values()],chats:[...chats.values()],counts:visibleCounts};
+  }
+  function mergeNativeSnapshot(raw,snapshot){
+    if(!raw||typeof raw!=='object'||!snapshot)return null;
+    const projectMap=new Map((Array.isArray(raw.projects)?raw.projects:[]).filter(Boolean).map(p=>[normalizePid(p.id),p]));
+    const chatMap=new Map((Array.isArray(raw.chats)?raw.chats:[]).filter(Boolean).map(row=>[String(row.id||''),row]).filter(([id])=>id));
+    let changed=false;
+    for(const p of snapshot.projects||[]){
+      const old=projectMap.get(p.id);
+      if(!old){projectMap.set(p.id,p);changed=true;}
+      else if((!clean(old.name)||old.domOnly===true)&&clean(p.name)&&clean(old.name)!==clean(p.name)){projectMap.set(p.id,{...old,...p});changed=true;}
+    }
+    for(const row of snapshot.chats||[]){
+      const id=String(row.id||''),old=chatMap.get(id);
+      if(!id)continue;
+      if(!old){chatMap.set(id,row);changed=true;}
+      else if(!normalizePid(old.projectId)&&normalizePid(row.projectId)){chatMap.set(id,{...old,...row});changed=true;}
+    }
+    const counts={...(raw.counts||{})};
+    for(const [pid,n] of Object.entries(snapshot.counts||{})){
+      const next=Math.max(Number(counts[pid])||0,Number(n)||0);
+      if(next!==(Number(counts[pid])||0)){counts[pid]=next;changed=true;}
+    }
+    if(!changed)return null;
+    return{...raw,at:Date.now(),projects:[...projectMap.values()],chats:[...chatMap.values()],counts};
+  }
+  function seedFromNative(root=navRoot()){
+    const snapshot=collectNativeSnapshot(root);
+    if(!snapshot.projects.length&&!snapshot.chats.length)return false;
+    const next=mergeNativeSnapshot(cache,snapshot);
+    if(!next)return false;
+    cache=next;
+    const sig=JSON.stringify([snapshot.projects.map(p=>[p.id,p.name]),snapshot.chats.map(row=>[row.id,row.projectId])]);
+    if(sig===nativePersistSig||nativePersisting)return true;
+    nativePersistSig=sig;nativePersisting=true;
+    Promise.resolve().then(async()=>{
+      const bus=window.__NIAKGPT_CACHE_BUS__;
+      if(bus?.update)await bus.update(latest=>mergeNativeSnapshot(latest||{},snapshot)||latest||cache);
+      else await chrome.storage.local.set({[CACHE_KEY]:cache});
+    }).catch(()=>{}).finally(()=>{nativePersisting=false;});
+    return true;
+  }
   function projectHomeHref(raw){
     try{const u=new URL(String(raw||''),location.origin);return u.origin===location.origin&&/^\/projects\/?$/.test(u.pathname);}catch{return /^\/projects\/?(?:[?#].*)?$/.test(String(raw||''));}
   }
@@ -412,7 +476,7 @@
     const rx=/^(?:bonjour|bonsoir|salut|hello|hi)(?:\s+[\p{L}\p{N}._'-]{1,40})?[!,.? ]*$|^(?:par quoi commençons-nous|comment puis-je vous aider|que puis-je faire pour vous|qu[’']est-ce qu[’']on fait|how can i help|what can i help with|what(?:'|’)s on your mind)[?!. ]*$/iu;
     for(const el of main.querySelectorAll('h1,h2,[role="heading"],[data-testid*="welcome" i]')){const text=clean(el.textContent);if(text&&text.length<=140&&rx.test(text))el.classList.add('ng119-native-home-greeting');}
   }
-  function reconcile(){clearTimeout(timer);timer=0;if(internal)return;const box=ensureBox();if(!box){bind();return;}renderCatalog(box);place(box);restorePendingScroll('reconcile');bind();hideWelcome();window.__NIAKGPT_DIAGNOSTICS__?.set('sidebar-ux-119',`OK · Projects ${box.dataset.ng121Placement||'stable'} · autorité v121 unique`);}
+  function reconcile(){clearTimeout(timer);timer=0;if(internal)return;const root=navRoot();if(root)seedFromNative(root);const box=ensureBox();if(!box){bind();return;}renderCatalog(box);place(box);restorePendingScroll('reconcile');bind();hideWelcome();window.__NIAKGPT_DIAGNOSTICS__?.set('sidebar-ux-119',`OK · Projects ${box.dataset.ng121Placement||'stable'} · autorité v121 unique · seed DOM local`);}
   function schedule(delay=0){clearTimeout(timer);timer=setTimeout(reconcile,delay);}
   function placementSignal(node){
     if(!(node instanceof Element))return false;

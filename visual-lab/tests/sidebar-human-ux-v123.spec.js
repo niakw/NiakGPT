@@ -73,19 +73,21 @@ async function launchRuntime(){
   expect(traffic.general).toBe(0);
   expect(Object.values(traffic.projectChats).reduce((sum,n)=>sum+n,0)).toBe(0);
 
-  // Exercise the production policy without waiting two real minutes: move off the conversation,
-  // advance only the synthetic page clock past the quiet threshold, then request the normal
-  // background index. This preserves the full 30-Project UX session coverage without bringing
-  // automatic backend crawling back onto /c/... routes.
-  await goto('/',2);
-  await page.evaluate(()=>{
-    window.__humanIndexRealDateNow=Date.now;
-    window.__humanIndexClockOffset=3*60*1000;
-    Date.now=()=>window.__humanIndexRealDateNow()+window.__humanIndexClockOffset;
-    document.dispatchEvent(new CustomEvent('niakgpt:force-server-index'));
-  });
-  await expect(page.locator('#ng8-pins a[data-ng8-pin="1"]')).toHaveCount(server.projects.length,{timeout:20000});
-  await page.evaluate(()=>{if(window.__humanIndexRealDateNow){Date.now=window.__humanIndexRealDateNow;delete window.__humanIndexRealDateNow;delete window.__humanIndexClockOffset;}});
+  // Continue the full sidebar UX session from a realistic already-indexed local cache. The
+  // cold-start network policy was proven above; this seed is intentionally local-only so the
+  // human UX lab does not require a hidden test bypass for the production 2-minute quiet gate.
+  const fullCache={
+    schema:2,
+    at:Date.now(),
+    projectInventoryAt:Date.now(),
+    serverIndexedAt:Date.now(),
+    projects:server.projects.map(p=>({id:p.id,name:p.name,description:`Description ${p.name}`,instructions:'',href:`/g/${p.id}/project`,domOnly:false})),
+    chats:server.chats.map(c=>({id:c.id,title:c.title,snippet:'',projectId:c.projectId,updated:c.updated,href:''})),
+    counts:Object.fromEntries(server.projects.map(p=>[p.id,server.chats.filter(c=>c.projectId===p.id).length])),
+    indexedProjectIds:server.projects.map(p=>p.id)
+  };
+  await worker.evaluate(async cache=>chrome.storage.local.set({'niakgpt-v08-cache':cache}),fullCache);
+  await goto('/');
 
   // Extend the fixture's native Project Rename command into a real modal. The user-visible
   // NiakGPT menu remains custom; this only lets the exact native Project mutation path be certified.

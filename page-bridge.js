@@ -236,7 +236,6 @@
     // and governance mutations. Native ChatGPT actions do not use this broker and remain intact.
     const requestBusy=()=>conversationQuiet() || (foreground ? baseNativeBusy() : nativeBusy(path));
     if (conversationQuiet()) return conversationQuietResult();
-    if (conversationQuiet()) return conversationQuietResult();
     if (requestBusy()) return nativeBusyResult();
     const token = await getAccessToken(forceToken, foreground, path);
     if (!token) return conversationQuiet() ? conversationQuietResult() : { ok:false, status:401, data:null, error:'auth_session_missing', transport:'auth' };

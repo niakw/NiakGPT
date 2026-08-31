@@ -415,7 +415,7 @@ jobs:
       - name: FIELD 0.9.88 · Pins + absolute chat quarantine + GitHub cache bootstrap
         if: matrix.browser == 'chromium'
         working-directory: visual-lab
-        run: node native-chat-zero-background-v087.mjs
+        run: node native-chat-zero-background-v087.mjs && node field-regressions-v088.mjs
       - name: Full current visual lab
         if: matrix.browser == 'chromium'
         working-directory: visual-lab

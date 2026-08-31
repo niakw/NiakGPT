@@ -11,7 +11,7 @@ NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à
 
 ## Périmètre
 
-Le manifest 0.9.87 déclare :
+Le manifest 0.9.88 déclare :
 
 ```text
 https://chatgpt.com/*

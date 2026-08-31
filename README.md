@@ -6,7 +6,7 @@
   <p>Projects · long-thread performance · continuity · navigation · focused productivity</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.85-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.86-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -22,7 +22,7 @@ NiakGPT is a browser extension that turns the ChatGPT web interface into a more 
 
 It adds a native-first layer for Projects, navigation, long conversations, continuity, diagnostics and local productivity. Core features run locally in the browser: **no NiakGPT account, no NiakGPT analytics and no NiakGPT server are required**.
 
-> **Current version: 0.9.85.** Native ChatGPT traffic has absolute priority: NiakGPT aborts its own internal GETs when a prompt starts, never doubles a failed request with XHR, and resumes Project Memory only after a quiet window. Pins can now mount from the visible native `/projects` launcher even before individual Project links hydrate.
+> **Current version: 0.9.86.** Project Memory now has an independent local wake heartbeat: a persistent bootstrap queue cannot remain stuck after a transient busy state or unavailable lock. The heartbeat performs no ChatGPT network request while the page is busy; it only guarantees a retry once a visible tab becomes eligible.
 
 ## Highlights
 

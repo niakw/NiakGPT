@@ -137,7 +137,7 @@ for(const [engine,launcher] of Object.entries(engines)){
     const beforeCalls=await page.evaluate(()=>window.__networkCalls.length);
     const bridgePause=await page.evaluate(()=>new Promise(resolve=>{const id='verify-rpc';const h=e=>{if(e.detail?.id!==id)return;document.removeEventListener('niakgpt:rpc-response',h);resolve(e.detail);};document.addEventListener('niakgpt:rpc-response',h);document.dispatchEvent(new CustomEvent('niakgpt:rpc-request',{detail:{id,path:'/backend-api/conversations?offset=0&limit=1',method:'GET'}}));}));
     const verifyState=await page.evaluate(()=>({challengeClicks:window.__challengeClicks,calls:window.__networkCalls.length,draft:document.getElementById('prompt-textarea').value}));
-    assert(bridgePause?.error==='native_busy'&&bridgePause?.transport==='bridge-pause',`bridge did not pause during verification: ${JSON.stringify(bridgePause)}`);
+    assert(bridgePause?.error==='native_conversation_quiet'&&bridgePause?.transport==='chat-route-guard',`conversation-route guard did not prevent backend work during verification: ${JSON.stringify(bridgePause)}`);
     assert(verifyState.challengeClicks===0&&verifyState.calls===beforeCalls&&verifyState.draft==='brouillon vérification',`verification was bypassed or draft changed: ${JSON.stringify(verifyState)}`);
     await page.evaluate(()=>document.getElementById('verify-alert')?.remove());
     await page.waitForFunction(()=>document.documentElement.dataset.ng105Verification!=='1'&&!document.getElementById('ng119-interruption'),null,{timeout:3500});

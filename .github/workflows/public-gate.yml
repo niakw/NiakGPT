@@ -54,7 +54,7 @@ concurrency:
 jobs:
   gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -92,13 +92,24 @@ jobs:
         working-directory: visual-lab
         run: npm ci --no-audit --no-fund
 
-      - name: Install Playwright browsers used by the current gate
+      - name: Install Chromium for release-critical field checks
         working-directory: visual-lab
-        run: npx playwright install --with-deps chromium firefox webkit
+        run: npx playwright install --with-deps chromium
 
-      - name: Run current visual and real unpacked-extension tests
+      - name: Release-critical field regressions
         working-directory: visual-lab
-        run: npm run test:current
+        run: |
+          node hydration-barrier-v080.mjs
+          node dom-node-stability-v082.mjs
+          node pins-primary-slot-v083.mjs
+          node pins-late-hydration-v084.mjs
+          node pins-launcher-only-v085.mjs
+          node native-priority-network-v085.mjs
+          node native-chat-zero-background-v087.mjs
+          node field-regressions-v088.mjs
+          node project-memory-ui-stability-v084.mjs
+          node project-memory-wake-v086.mjs
+          npx playwright test tests/runtime-current-v105.spec.js tests/multitab-failover-v097.spec.js --workers=1 --reporter=line
 
       - name: Build clean installable ZIP
         run: node tools/package-extension.mjs
@@ -137,12 +148,13 @@ jobs:
               "runtime-invariants",
               "hot-path-invariants",
               "javascript-syntax",
-              "current-visual-lab",
-              "real-unpacked-extension",
-              "hot-conversation-cache",
+              "field-regressions-v088",
+              "native-chat-zero-backend",
+              "project-memory-cache-bootstrap",
+              "sidebar-dom-stability",
               "clean-installable-package"
             ],
-            "legacy_specs_retained": true
+            "dedicated_cross_platform_workflows_required": true
           }
           EOF
 

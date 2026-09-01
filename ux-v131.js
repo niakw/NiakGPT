@@ -96,14 +96,30 @@
     window.__NIAKGPT_DIAGNOSTICS__?.set('ux-v131','OK · sidebar vérifiée · hitboxes actives · chrome discret');
     return true;
   }
+  let lastMissingRepairAt=0;
   function repairPins(){
     const box=document.getElementById('ng8-pins'),root=findSidebar();
-    if(!box||!root)return false;
+    if(!root)return false;
+    if(!box&&window.__NIAKGPT_SIDEBAR_PROJECTS_121__){
+      const now=performance.now();
+      if(now-lastMissingRepairAt>120){
+        lastMissingRepairAt=now;
+        document.dispatchEvent(new CustomEvent('niakgpt:sidebar-projects-reconcile',{detail:{source:'ux-v131-missing-pins'}}));
+        schedule(140);
+      }
+      window.__NIAKGPT_DIAGNOSTICS__?.set('ux-v131','RÉCUPÉRATION · sidebar active · bloc Pins à recréer');
+      return false;
+    }
+    if(!box)return false;
     // v121 is the one and only production placement owner. v131 validates the host and
     // supplies the sidebar finder/visual guard; it must not race v121 by reparenting the
     // same scroll container on every cache reconciliation.
     if(window.__NIAKGPT_SIDEBAR_PROJECTS_121__){
-      if(!root.contains(box))return false;
+      if(!root.contains(box)){
+        document.dispatchEvent(new CustomEvent('niakgpt:sidebar-projects-reconcile',{detail:{source:'ux-v131-wrong-host'}}));
+        schedule(140);
+        return false;
+      }
       return markVerified(box);
     }
     const section=nativeProjectSection(root);

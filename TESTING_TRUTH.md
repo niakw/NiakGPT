@@ -1,3 +1,9 @@
+## 0.9.91 — remount React tardif réellement reproduit
+
+- Le lab `field-sidebar-cache-recovery-v090.mjs` charge désormais aussi `ux-v131.css/js` dans l’ordre du runtime de production, vérifie que le fallback est réellement visible, remplace ensuite toute la sidebar par un clone sans `#ng8-pins` pour reproduire un remount React tardif, puis exige la recréation automatique des 5 Projects locaux au-dessus de Projects/Chats avec zéro RPC ChatGPT.
+- Le même scénario poursuit jusqu’à l’upgrade canonique et vérifie alors le passage propre à l’autorité NiakGPT.
+- Le diagnostic `projects-authority` distingue maintenant un fallback local volontaire d’un bloc Pins réellement absent.
+
 
 ## 0.9.90 — preuve terrain local-cache + privacy
 

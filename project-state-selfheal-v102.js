@@ -105,6 +105,7 @@
     // Local/dom-only Projects are recovery evidence, not canonical server identity. Keep the
     // native Projects surface visible until canonical g-p-* identities are available.
     unsuppressNative();diag('pins-ui',`RÉCUPÉRATION · ${locals.length} Projects cache local · natif conservé`);diag('project-repair',`RÉCUPÉRATION · ${locals.length} Projects locaux · index serveur demandé`);
+    document.dispatchEvent(new CustomEvent('niakgpt:local-project-recovery-ready',{detail:{count:locals.length}}));
     if(Date.now()-lastForceAt>12000){lastForceAt=Date.now();document.dispatchEvent(new CustomEvent('niakgpt:force-server-index'));}
     return true;
   }
@@ -119,6 +120,7 @@
 
   chrome.storage.onChanged.addListener((changes,area)=>{if(area!=='local')return;if(changes[CACHE_KEY]||changes[GOV_KEY])schedule(80);});
   document.addEventListener('niakgpt:server-projects-ready',()=>schedule(40));
+  document.addEventListener('niakgpt:local-project-recovery-request',()=>schedule(0));
   document.addEventListener('niakgpt:pins-rendered',event=>{if(Number(event.detail?.shown||0)>0){const box=document.getElementById('ng8-pins');if(box)box.removeAttribute('data-ng102-fallback');schedule(80);}});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){bind();schedule(120);}});
   window.addEventListener('popstate',()=>setTimeout(()=>{bind();schedule(120);},80));

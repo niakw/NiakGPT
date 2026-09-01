@@ -6,7 +6,7 @@
   <p>Projects · performance des longs fils · continuité · navigation · productivité ciblée</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.90-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.91-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,8 +21,7 @@
 NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT en **véritable espace de travail pour un usage intensif et organisé par Projects**, sans remplacer ChatGPT.
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
-
- > **Version actuelle : 0.9.90.** Le cas terrain de la capture est désormais traité explicitement : un cache Project uniquement local est une preuve de récupération, pas une autorité canonique. Le bloc Pins reste au-dessus des zones Projects/Chats natives, les Projects natifs restent visibles tant que les identités `g-p-*` canoniques ne sont pas connues, et le fallback local n’est plus effacé par le renderer principal. Un garde privacy parcourt désormais tout l’arbre public avant release et refuse les marqueurs de projets/fixtures privés, les e-mails réels, chemins utilisateur locaux et valeurs ressemblant à des tokens.
+> **Version actuelle : 0.9.91.** Le fallback Project local survit maintenant à un remount tardif de la sidebar ChatGPT : si React supprime le nœud Pins après l’hydratation, v121 le recrée dans la sidebar active, le self-heal repeuple les Projects locaux et v131 le rend de nouveau visible. Les Projects natifs restent affichés jusqu’à disponibilité d’identités `g-p-*` canoniques.
 
 ## Points forts
 

@@ -20,11 +20,11 @@ for(const [engine,launcher] of Object.entries(engines)){
       const orphan='bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
       const store={
         'niakgpt-v08-cache':{schema:2,at:Date.now(),projects:[
-          {id:'g-p-niakvio',name:'NiakVIO',description:'Streaming TV providers devices'},
+          {id:'g-p-medialab',name:'MediaLab',description:'Streaming TV providers devices'},
           {id:'g-p-films',name:'Films',description:'Cinéma séries anime'},
           {id:'g-p-tech',name:'Tech',description:'Code GitHub développement'}
-        ],chats:[{id:orphan,title:'TV job...',projectId:'g-p-does-not-exist',updated:Date.now()}],counts:{'g-p-niakvio':4,'g-p-films':9,'g-p-tech':5}},
-        'niakgpt-governance-v085':{autoResync:true,coreProjectIds:['g-p-niakvio','g-p-films','g-p-tech'],locks:{}},
+        ],chats:[{id:orphan,title:'TV job...',projectId:'g-p-does-not-exist',updated:Date.now()}],counts:{'g-p-medialab':4,'g-p-films':9,'g-p-tech':5}},
+        'niakgpt-governance-v085':{autoResync:true,coreProjectIds:['g-p-medialab','g-p-films','g-p-tech'],locks:{}},
         'niakgpt-reclassify-v101-state':{attempts:{}}
       };
       window.__testStore=store;window.__analysisRequests=0;window.__patches=[];
@@ -40,8 +40,8 @@ for(const [engine,launcher] of Object.entries(engines)){
         window.__analysisRequests++;
         const id=event.detail?.id;
         setTimeout(()=>document.dispatchEvent(new CustomEvent('niakgpt:analysis-response-v112',{detail:{id,ok:true,status:200,data:{messages:[
-          {role:'user',text:'Le job TV NiakVIO plante sur les providers Android TV et les devices de streaming.'},
-          {role:'assistant',text:'Analyse NiakVIO en cours.'},
+          {role:'user',text:'Le job TV MediaLab plante sur les providers Android TV et les devices de streaming.'},
+          {role:'assistant',text:'Analyse MediaLab en cours.'},
           {role:'user',text:'Films cinéma anime Spielberg — ce message ne doit pas être nécessaire au classement.'}
         ]},transport:'lab'}})),20);
       },true);
@@ -59,8 +59,8 @@ for(const [engine,launcher] of Object.entries(engines)){
     });
     assert(result.analysisRequests===1,`expected one deep fetch, got ${result.analysisRequests}`);
     assert(result.patches.length===1,`expected one PATCH, got ${result.patches.length}`);
-    assert(result.patches[0]?.body?.gizmo_id==='g-p-niakvio',`wrong target ${JSON.stringify(result.patches)}`);
-    assert(result.projectId==='g-p-niakvio',`cache not updated: ${result.projectId}`);
+    assert(result.patches[0]?.body?.gizmo_id==='g-p-medialab',`wrong target ${JSON.stringify(result.patches)}`);
+    assert(result.projectId==='g-p-medialab',`cache not updated: ${result.projectId}`);
     const dir=path.join(OUT,engine);await fs.mkdir(dir,{recursive:true});
     await page.screenshot({path:path.join(dir,'deep-classification.png'),fullPage:true});
     await fs.writeFile(path.join(dir,'deep-classification.html'),await page.content());

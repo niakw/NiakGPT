@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.90",
-  "description": "NiakGPT : récupération locale sans masquer Projects natifs, Pins avant Projects/Chats et garde privacy du dépôt public.",
+  "version": "0.9.91",
+  "description": "NiakGPT : Pins locaux persistants après remount de sidebar, Projects natifs conservés jusqu’à autorité canonique et privacy fail-closed.",
   "permissions": [
     "storage",
     "scripting",

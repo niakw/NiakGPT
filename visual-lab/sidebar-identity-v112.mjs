@@ -20,19 +20,19 @@ for(const [engine,launcher] of Object.entries(engines)){
   const page=await context.newPage();
   try{
     await page.addInitScript(()=>{
-      const store={'niakgpt-v08-cache':{projects:[{id:'g-p-niakgpt',name:'NiakGPT'},{id:'g-p-niakvio',name:'NiakVIO'},{id:'g-p-films',name:'Films'}],chats:[]}};
+      const store={'niakgpt-v08-cache':{projects:[{id:'g-p-niakgpt',name:'NiakGPT'},{id:'g-p-medialab',name:'MediaLab'},{id:'g-p-films',name:'Films'}],chats:[]}};
       window.chrome={runtime:{id:'lab',getManifest:()=>({version:'0.9.62'})},storage:{local:{get:async key=>({[key]:store[key]}),set:async obj=>Object.assign(store,obj)},onChanged:{addListener:()=>{}}}};
     });
     const html=`<!doctype html><html><body class="ng8-ready"><nav data-testid="conversation-sidebar" style="width:320px;background:#071019;color:white;padding:8px">
       <section id="native-vnext" class="unknown-native-bucket" style="padding:8px;border:1px solid #596675">
         <div class="label-vnext">Projets</div>
         <div role="button" class="row-vnext">NiakGPT<button id="native-options" aria-label="Plus d’options"></button></div>
-        <div role="button" class="row-vnext">NiakVIO</div>
+        <div role="button" class="row-vnext">MediaLab</div>
         <div role="button" class="row-vnext">Films</div>
       </section>
       <section id="ng8-pins" style="display:block">
         <div class="ng96-pin-entry"><a data-ng8-pin="1" href="/g/g-p-niakgpt/project"><span>NiakGPT</span></a></div>
-        <div class="ng96-pin-entry"><a data-ng8-pin="1" href="/g/g-p-niakvio/project"><span>NiakVIO</span></a></div>
+        <div class="ng96-pin-entry"><a data-ng8-pin="1" href="/g/g-p-medialab/project"><span>MediaLab</span></a></div>
         <div class="ng96-pin-entry"><a data-ng8-pin="1" href="/g/g-p-films/project"><span>Films</span></a></div>
       </section>
       <section id="recents"><a href="/c/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa">Conversation récente</a></section>

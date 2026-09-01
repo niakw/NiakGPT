@@ -7,7 +7,7 @@ Ce guide cible les pannes réellement utiles à diagnostiquer : **quel module at
 1. ouvrir `chrome://extensions` ;
 2. cliquer **Recharger** sur NiakGPT ;
 3. recharger les onglets ChatGPT déjà ouverts ;
-4. vérifier que la version affichée est bien **0.9.89**.
+4. vérifier que la version affichée est bien **0.9.90**.
 
 Éviter de fusionner un ancien dossier avec un nouveau ZIP. Remplacer le dossier complet empêche de conserver des fichiers obsolètes.
 

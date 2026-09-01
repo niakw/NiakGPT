@@ -13,16 +13,16 @@ for(const [engine,launcher] of Object.entries(engines)){
   const browser=await launcher.launch({headless:true}),context=await browser.newContext({viewport:{width:1220,height:800},colorScheme:'dark'}),page=await context.newPage();
   try{
     await page.addInitScript(()=>{
-      const store={'niakgpt-v08-cache':{projects:[{id:'g-p-niakgpt',name:'NiakGPT'},{id:'g-p-niakvio',name:'NiakVIO'},{id:'g-p-films',name:'Films'}],chats:[{id:'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',title:'Chat test',projectId:'g-p-niakgpt',updated:10}]}};
+      const store={'niakgpt-v08-cache':{projects:[{id:'g-p-niakgpt',name:'NiakGPT'},{id:'g-p-medialab',name:'MediaLab'},{id:'g-p-films',name:'Films'}],chats:[{id:'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',title:'Chat test',projectId:'g-p-niakgpt',updated:10}]}};
       window.chrome={runtime:{id:'lab',getManifest:()=>({version:'0.9.63'})},storage:{local:{get:async key=>typeof key==='string'?{[key]:store[key]}:Object.fromEntries((key||[]).map(k=>[k,store[k]])),set:async obj=>Object.assign(store,obj)},onChanged:{addListener:()=>{}}}};
     });
     const html=`<!doctype html><html><body><nav data-testid="conversation-sidebar" style="width:340px;background:#071019;color:white;padding:8px">
       <section id="native-projects" class="unknown-native-bucket"><div>Projets</div>
         <div role="button" class="native-project">NiakGPT<button id="p-options" aria-label="Plus d’options"></button></div>
-        <div role="button" class="native-project">NiakVIO</div><div role="button" class="native-project">Films</div>
+        <div role="button" class="native-project">MediaLab</div><div role="button" class="native-project">Films</div>
       </section>
       <section id="ng8-pins"><div class="ng96-pin-entry" data-pid="g-p-niakgpt"><a data-ng8-pin="1" href="/g/g-p-niakgpt/project"><span>NiakGPT</span></a><button class="ng96-project-open">↗</button></div>
-        <div class="ng96-pin-entry" data-pid="g-p-niakvio"><a data-ng8-pin="1" href="/g/g-p-niakvio/project"><span>NiakVIO</span></a><button class="ng96-project-open">↗</button></div>
+        <div class="ng96-pin-entry" data-pid="g-p-medialab"><a data-ng8-pin="1" href="/g/g-p-medialab/project"><span>MediaLab</span></a><button class="ng96-project-open">↗</button></div>
         <div class="ng96-pin-entry" data-pid="g-p-films"><a data-ng8-pin="1" href="/g/g-p-films/project"><span>Films</span></a><button class="ng96-project-open">↗</button></div>
         <div class="ng96-folder-list"><a data-chat="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" href="/g/g-p-niakgpt/c/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"><span>Chat test</span><time>18/08</time></a></div>
       </section>

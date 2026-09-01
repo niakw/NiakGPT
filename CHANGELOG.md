@@ -1,3 +1,13 @@
+# NiakGPT 0.9.90 — récupération locale Projects + privacy fail-closed
+
+- Le renderer v121 conserve désormais un fallback Pins local/dom-only au lieu de le remplacer par un catalogue vide quand l’identité serveur canonique n’est pas encore connue.
+- Le placement reconnaît les sections Projects modernes même lorsque leurs lignes n’exposent pas encore de liens `/g/g-p-*` : **PINS · PROJECTS** reste avant Projects et donc au-dessus de Chats.
+- L’autorité v112 ne masque plus la surface Projects native pendant un fallback local ; elle ne prend la main qu’après présence de liens canoniques.
+- Le self-heal v102 ne reparent plus un bloc v121 déjà monté et n’invente pas de gouvernance canonique à partir d’entrées locales.
+- Ajout du lab `field-sidebar-cache-recovery-v090.mjs` : 5 Projects locaux, 9 chats, gouvernance vide, lignes natives sans liens canoniques, puis upgrade vers 5 identités `g-p-*`.
+- Les alias de classification propres à des projets privés sont remplacés par des catégories génériques dérivées du contexte Project.
+- Ajout de `check-public-tree-privacy-v134.mjs`, exécuté dans les trois gates release, pour refuser les marqueurs privés connus, e-mails réels, chemins utilisateur locaux et secrets/tokens plausibles dans l’arbre public.
+
 # NiakGPT 0.9.89 — Sidebar field correction
 
 - Corrige la régression terrain visible en 0.9.88 où le catalogue **PINS · PROJECTS** pouvait se monter sous l’en-tête natif **Chats** lorsque le bloc Projects natif n’était pas encore présent : le boundary Chats est désormais une limite de placement explicite et les Pins restent au-dessus.
@@ -375,7 +385,7 @@ Les changements notables de NiakGPT sont regroupés ici. Le projet est encore en
 - restauration des Projects et affectations précédentes par nom, recréation seulement si nécessaire, puis suppression uniquement des Projects explicitement enregistrés comme créés par l’AUTO et vérifiés vides ;
 - conservation des vrais verrous manuels antérieurs et mise en quarantaine des verrous suspects générés après le snapshot, sans suppression silencieuse ;
 - le détecteur de déplacement manuel exige désormais un geste utilisateur fiable dans l’UI Project/menu avant d’enregistrer un verrou ;
-- AUTO REBUILD ne fabrique plus de Projects à partir de mots capitalisés récurrents comme `NiakGPT`, `Miorra` ou `Elias` : les cibles nommées doivent déjà exister côté serveur avec un historique réel ;
+- AUTO REBUILD ne fabrique plus de Projects à partir de mots capitalisés récurrents comme `NiakGPT`, `Boutique Démo` ou `Client Démo` : les cibles nommées doivent déjà exister côté serveur avec un historique réel ;
 - récupération prioritaire : index serveur, gouvernance, reclassement et resynchronisation attendent sa fin avant de modifier l’état ;
 - protection contre la réintroduction de Projects serveur supprimés via des ancres DOM obsolètes après récupération ;
 - fil d’Ariane basé en priorité sur l’affectation serveur/cache du chat courant et nettoyage des libellés `Ouvrir le projet …` ;
@@ -404,7 +414,7 @@ Les changements notables de NiakGPT sont regroupés ici. Le projet est encore en
 
 - Projects NiakGPT montés comme enfants directs de la sidebar afin d'éviter le clipping du bloc de pins dans la zone virtualisée des Récents.
 - Synchronisation des pins natifs passée en best-effort : aucun spam de menus si ChatGPT ne rend pas la zone native correspondante.
-- Reclassement enrichi avec alias de Projects (Niakvio, Films, Analyse, Tech, Business, Juridique, Maison, Auto, Travail, etc.) et seuil post-enrichissement prudent pour réduire les faux « ambigus » ; `chat/chats` reste exclu des signaux Perso pour ne pas confondre ChatGPT avec les animaux.
+- Reclassement enrichi avec alias de Projects (MediaLab, Films, Analyse, Tech, Business, Juridique, Maison, Auto, Travail, etc.) et seuil post-enrichissement prudent pour réduire les faux « ambigus » ; `chat/chats` reste exclu des signaux Perso pour ne pas confondre ChatGPT avec les animaux.
 - Suppression du flattening CSS générique des cartes internes : Activité, Sources, fichiers et citations conservent leur structure native.
 - Panneaux Activité/Sources : NiakGPT ne transforme plus un wrapper arbitraire de titre en header flex.
 - Ajout d'une validation locale dans Chromium 144 réel : layout, gros fil + hydratation massive, pins auto-réparés, dates sans doublons, navigation Project, reclassement 11/54, Activité/Sources, panneau latéral et onboarding 1024×540.

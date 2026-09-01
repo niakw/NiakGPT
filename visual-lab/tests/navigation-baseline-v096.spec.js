@@ -52,8 +52,8 @@ test('current ChatGPT home mounts the complete quiet shell without reserving hos
     await expect(page.locator('#ng8-status')).toBeVisible();
     await expect(page.locator('#ng8-status')).toContainText(manifest.version);
     await expect(page.locator('#ng8-pins')).toBeVisible();
-    await expect(page.locator('#ng8-pins')).toContainText('Miorra');
-    await expect(page.locator('#ng8-pins')).toContainText('Niakvio');
+    await expect(page.locator('#ng8-pins')).toContainText('Commerce Démo');
+    await expect(page.locator('#ng8-pins')).toContainText('MediaLab');
     await expect(page.locator('#recent-project-chat')).toHaveAttribute('data-ng8-chat', '1');
     await expect(page.locator('#ng8-matrix')).toBeVisible();
     await expect(page.locator('.ng8-bot')).toHaveCount(3);

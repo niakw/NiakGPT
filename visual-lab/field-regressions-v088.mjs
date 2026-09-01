@@ -27,7 +27,7 @@ async function pinsFieldRegression(browser){
         'niakgpt-v08-cache':{
           schema:2,at:Date.now(),
           projects:[
-            {id:P1,name:'NiakVIO',href:`/g/${P1}/project`,domOnly:false},
+            {id:P1,name:'MediaLab',href:`/g/${P1}/project`,domOnly:false},
             {id:P2,name:'NiakGPT',href:`/g/${P2}/project`,domOnly:false}
           ],
           chats:[
@@ -44,7 +44,7 @@ async function pinsFieldRegression(browser){
       };
       const clone=v=>v===undefined?undefined:structuredClone(v);
       window.chrome={
-        runtime:{getManifest:()=>({version:'0.9.89'})},
+        runtime:{getManifest:()=>({version:'0.9.90'})},
         storage:{
           local:{
             async get(keys){
@@ -90,7 +90,7 @@ async function pinsFieldRegression(browser){
         <section id="native-projects">
           <h3>Projects</h3>
           <div class="native-row">
-            <a href="/g/${P1}/project">NiakVIO</a>
+            <a href="/g/${P1}/project">MediaLab</a>
             <div class="expanded">
               <a href="/g/${P1}/c/${C1}">Terminer le durcissement sécurité</a>
               <a href="/g/${P1}/c/${C2}">Providers VF</a>
@@ -140,7 +140,7 @@ async function screenshotSidebarRegression(browser){
       const store={
         'niakgpt-v08-cache':{
           schema:2,at:Date.now(),
-          projects:[{id:P1,name:'NiakVIO',href:`/g/${P1}/project`,domOnly:false}],
+          projects:[{id:P1,name:'MediaLab',href:`/g/${P1}/project`,domOnly:false}],
           chats:canonical,
           projectChats:{[P1]:stale},
           counts:{[P1]:2},indexedProjectIds:[P1]
@@ -149,7 +149,7 @@ async function screenshotSidebarRegression(browser){
       };
       const clone=v=>v===undefined?undefined:structuredClone(v);
       window.chrome={
-        runtime:{getManifest:()=>({version:'0.9.89'})},
+        runtime:{getManifest:()=>({version:'0.9.90'})},
         storage:{
           local:{
             async get(keys){
@@ -198,7 +198,7 @@ async function screenshotSidebarRegression(browser){
     await pin.click();
     await page.waitForTimeout(80);
     const rows=await page.locator('#ng8-pins .ng96-chat-entry').count();
-    assert(rows===0,'stale generic chats leaked into NiakVIO drawer: '+rows);
+    assert(rows===0,'stale generic chats leaked into MediaLab drawer: '+rows);
     console.log('field-v089 screenshot: PASS Pins before Chats + stale cross-project rows suppressed');
   }finally{await context.close();}
 }
@@ -212,7 +212,7 @@ async function serverIndexOwnershipRegression(browser){
       const listeners=[];
       const store={'niakgpt-v08-cache':{
         schema:2,at:Date.now()-999999,serverIndexedAt:0,projectInventoryAt:Date.now(),
-        projects:[{id:P1,name:'NiakVIO',href:`/g/${P1}/project`,domOnly:false}],
+        projects:[{id:P1,name:'MediaLab',href:`/g/${P1}/project`,domOnly:false}],
         chats:[{id:C3,title:'Choisir un purificateur',projectId:P1,updated:Date.now()-5000}],
         projectChats:{[P1]:[{id:C3,title:'Choisir un purificateur',projectId:P1,updated:Date.now()-5000}]},
         counts:{[P1]:1},indexedProjectIds:[P1]
@@ -331,7 +331,7 @@ async function memoryFieldRegression(browser){
       window.chrome={
         runtime:{
           lastError:null,
-          getManifest:()=>({version:'0.9.89'}),
+          getManifest:()=>({version:'0.9.90'}),
           sendMessage(message,cb){
             const reply=value=>queueMicrotask(()=>cb(value));
             if(message.type==='niakgpt:memory-status-v132')return reply({ok:true,connected:window.__vaultConnected,configured:window.__vaultConnected,tokenAvailable:window.__vaultConnected,config:window.__vaultConnected?{repo:'synthetic/private',branch:'main',root:'.niakgpt-memory',authMode:'github-app'}:null,github:{authenticated:true,repositories:[{fullName:'synthetic/private',defaultBranch:'main'}]}});

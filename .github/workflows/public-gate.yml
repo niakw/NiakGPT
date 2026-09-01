@@ -74,6 +74,7 @@ jobs:
           node tools/check-hotpath-v096.mjs
           node tools/check-repository-hygiene.mjs
           node tools/check-fixture-privacy-v133.mjs
+          node tools/check-public-tree-privacy-v134.mjs
           node tools/project-memory-v132.mjs
 
       - name: Check JavaScript syntax from manifest
@@ -109,6 +110,7 @@ jobs:
           node native-priority-network-v085.mjs
           node native-chat-zero-background-v087.mjs
           node field-regressions-v088.mjs
+          node field-sidebar-cache-recovery-v090.mjs
           node project-memory-ui-stability-v084.mjs
           node project-memory-wake-v086.mjs
           npx playwright test tests/runtime-current-v105.spec.js tests/multitab-failover-v097.spec.js --workers=1 --reporter=line
@@ -151,6 +153,7 @@ jobs:
               "hot-path-invariants",
               "javascript-syntax",
               "field-regressions-v088",
+              "field-sidebar-cache-recovery-v090",
               "native-chat-zero-backend",
               "project-memory-cache-bootstrap",
               "sidebar-dom-stability",

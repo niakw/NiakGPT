@@ -5,9 +5,11 @@
 - **Conversation visible = zéro trafic backend ChatGPT NiakGPT.** `page-bridge.js` bloque GET/PATCH/POST/DELETE appartenant à NiakGPT avant `/api/auth/session` dès que la route courante ou un pair visible est une conversation. Les actions natives ChatGPT ne passent pas par ce broker.
 - **Pins hors du sous-arbre Projects natif.** `sidebar-projects-v121.js` remonte jusqu’au host Projects complet puis monte `#ng8-pins` comme sibling précédent ; `sidebar-projects-authority-v112.js` masque ensuite ce sibling natif déterministe.
 - **GitHub découplé des lectures ChatGPT.** Project Memory écrit immédiatement `PROJECTS.json` et les checkpoints metadata-only depuis le cache local. Les payloads complets de conversation restent en file et ne sont lus que hors discussion, après au moins une minute de calme, avec 20 s entre lectures complètes.
+- **Cache local ≠ autorité Project canonique.** Des entrées locales/dom-only peuvent alimenter un fallback Pins, mais elles ne suffisent jamais à masquer la surface Projects native ni à inventer des `coreProjectIds`. Le passage à l’autorité NiakGPT n’a lieu qu’après présence d’identités canoniques `g-p-*`.
+- **Privacy fail-closed sur l’arbre public.** La CI parcourt tous les fichiers texte suivis par Git et refuse les marqueurs privés connus, les e-mails non synthétiques, les chemins utilisateur locaux et les secrets/tokens plausibles.
 
 
-NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.89 privilégie cinq propriétés : **faible coût runtime**, **priorité absolue au flux natif ChatGPT**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
+NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.90 privilégie cinq propriétés : **faible coût runtime**, **priorité absolue au flux natif ChatGPT**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
 
 ## Périmètre
 

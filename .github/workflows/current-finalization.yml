@@ -59,11 +59,13 @@ jobs:
         run: node labs/project-memory-isolation-v133.mjs
       - name: Current static validation
         run: python3 labs/static_validate_current.py
+      - name: Public-tree privacy
+        run: node tools/check-public-tree-privacy-v134.mjs
       - name: Clean package contract
         run: node tools/package-extension.mjs
 
   field-chromium:
-    name: FIELD · Chromium · 0.9.88 regressions
+    name: FIELD · Chromium · current field regressions
     needs: static-runtime
     runs-on: ubuntu-latest
     timeout-minutes: 18
@@ -90,6 +92,9 @@ jobs:
       - name: Combined field regressions · Pins + network + GitHub bootstrap
         working-directory: visual-lab
         run: node field-regressions-v088.mjs
+      - name: Screenshot regression · local cache Pins above Projects/Chats
+        working-directory: visual-lab
+        run: node field-sidebar-cache-recovery-v090.mjs
       - name: Project Memory cache bootstrap + deferred history wake
         working-directory: visual-lab
         run: node project-memory-wake-v086.mjs
@@ -105,7 +110,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: niakgpt-field-088-chromium
+          name: niakgpt-field-current-chromium
           path: |
             visual-lab/artifacts
             visual-lab/playwright-report

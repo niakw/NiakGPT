@@ -37,7 +37,7 @@ nav[data-testid="conversation-sidebar"]{{width:310px;min-height:900px;padding:16
   <section class="native-zone" id="native-projects">
     <span id="native-project-label">Projects</span>
     <a id="native-p1" href="/g/{P1}/project">NiakGPT</a>
-    <a id="native-p2" href="/g/{P2}/project">NiakVIO</a>
+    <a id="native-p2" href="/g/{P2}/project">MediaLab</a>
     <a id="native-c1" href="/g/{P1}/c/{C1}">Mise à jour NiakGPT</a>
     <button id="native-more">Afficher plus</button>
   </section>
@@ -45,7 +45,7 @@ nav[data-testid="conversation-sidebar"]{{width:310px;min-height:900px;padding:16
     <div class="ng8-pin-head"><span>PROJECTS</span><b>2</b></div>
     <div class="ng8-pin-list">
       <a data-ng8-pin="1" href="/g/{P1}/project" style="--ng-project:#4fc1ff"><i>▤</i><span>NiakGPT</span><small>17/08 [2]</small></a>
-      <a data-ng8-pin="1" href="/g/{P2}/project" style="--ng-project:#4ec9b0"><i>▤</i><span>NiakVIO</span><small>17/08 [1]</small></a>
+      <a data-ng8-pin="1" href="/g/{P2}/project" style="--ng-project:#4ec9b0"><i>▤</i><span>MediaLab</span><small>17/08 [1]</small></a>
     </div>
   </section>
 </nav>
@@ -61,7 +61,7 @@ window.__NIAKGPT_DIAGNOSTICS__={{set(){{}}}};
 cache={
   'projects':[
     {'id':P1,'name':'NiakGPT','href':f'/g/{P1}/project'},
-    {'id':P2,'name':'NiakVIO','href':f'/g/{P2}/project'},
+    {'id':P2,'name':'MediaLab','href':f'/g/{P2}/project'},
   ],
   'chats':[
     {'id':C1,'title':'Mise à jour NiakGPT','projectId':P1,'updated':1786942800000},

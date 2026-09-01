@@ -88,8 +88,11 @@
     const canonical=(cache.projects||[]).filter(isCanonical);if(canonical.length){const box=document.getElementById('ng8-pins');if(box?.dataset.ng102Fallback==='1'){box.removeAttribute('data-ng102-fallback');box.removeAttribute('data-ng102-signature');}diag('project-repair',`OK · ${canonical.length} Projects canoniques`);return false;}
     const hidden=new Set(governance.hiddenProjectIds||[]),locals=(cache.projects||[]).filter(p=>isLocal(p)&&!hidden.has(p.id));
     if(!locals.length){unsuppressNative();diag('project-repair','ATTENTE · aucun Project exploitable');return false;}
-    const nav=navRoot();if(!nav)return false;let box=document.getElementById('ng8-pins');if(!box){box=document.createElement('section');box.id='ng8-pins';}
-    if(!place(box))return false;
+    const nav=navRoot();if(!nav)return false;let box=document.getElementById('ng8-pins'),created=false;
+    if(!box){box=document.createElement('section');box.id='ng8-pins';created=true;}
+    // v121 owns placement. A recovery renderer may populate its box, but must never reparent
+    // that React-adjacent node. Standalone recovery still places a newly created box itself.
+    if((created||box.dataset.ng121MountPolicy!=='direct-once')&&!place(box))return false;
     const signature=JSON.stringify(locals.map(p=>[p.id,p.name,countFor(p.id),projectDate(p.id)]));
     if(box.dataset.ng102Signature!==signature||box.dataset.ng102Fallback!=='1'){
       internal=true;closeFallbackDrawers(box);
@@ -98,7 +101,10 @@
       box.querySelectorAll('[data-ng102-project]').forEach(a=>a.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();const pid=a.dataset.ng102Project;if(a.getAttribute('aria-expanded')==='true'){closeFallbackDrawers(box);return;}openFallback(pid,a,box);}));
       queueMicrotask(()=>{internal=false;});
     }
-    box.hidden=false;box.removeAttribute('aria-hidden');suppressNative();diag('pins-ui',`RÉCUPÉRATION · ${locals.length} Projects cache local`);diag('project-repair',`RÉCUPÉRATION · ${locals.length} Projects locaux · index serveur demandé`);
+    box.hidden=false;box.removeAttribute('aria-hidden');
+    // Local/dom-only Projects are recovery evidence, not canonical server identity. Keep the
+    // native Projects surface visible until canonical g-p-* identities are available.
+    unsuppressNative();diag('pins-ui',`RÉCUPÉRATION · ${locals.length} Projects cache local · natif conservé`);diag('project-repair',`RÉCUPÉRATION · ${locals.length} Projects locaux · index serveur demandé`);
     if(Date.now()-lastForceAt>12000){lastForceAt=Date.now();document.dispatchEvent(new CustomEvent('niakgpt:force-server-index'));}
     return true;
   }

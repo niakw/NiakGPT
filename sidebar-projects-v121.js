@@ -155,11 +155,12 @@
         (!!seed.querySelector?.('a[href="/projects"],a[href^="/projects?"]')&&!projectLinks(seed).length);
       for(let depth=0;depth<7&&node&&node!==root&&node!==document.body;depth++,node=node.parentElement){
         const links=projectLinks(node),markedNode=node.getAttribute?.('data-ng112-native-projects')==='1';
+        const modernRows=[...node.querySelectorAll?.('[class*="project-unfurl-row"],[data-sidebar-item="true"]')||[]].filter(el=>!isOwn(el));
         if(hasPrimary(node))continue;
-        if(links.length||markedNode)return node;
+        if(links.length||markedNode||(seedIsLabel&&modernRows.length))return node;
         if(seedIsLabel&&!seedIsLauncherOnly&&!labelCandidate&&depth>0&&visiblePlacementNode(node)){
           const r=node.getBoundingClientRect();
-          if(r.width>=120&&r.height>=18&&r.height<=260)labelCandidate=node;
+          if(r.width>=120&&r.height>=18&&r.height<=620)labelCandidate=node;
         }
       }
       if(labelCandidate)return labelCandidate;
@@ -180,6 +181,17 @@
     }
     return host;
   }
+  function nativeSidebarBoundary(scope){
+    if(!(scope instanceof Element))return false;
+    if(scope.querySelector?.('[class*="project-unfurl-row"]'))return true;
+    const rows=[...scope.querySelectorAll?.('[data-sidebar-item="true"],[role="heading"],h1,h2,h3,[aria-label]')||[]];
+    for(const el of rows){
+      if(isOwn(el))continue;
+      const text=norm(el.getAttribute?.('aria-label')||el.textContent);
+      if(/^(?:projets?|projects?|chats?|conversations?|discussions?)$/.test(text))return true;
+    }
+    return false;
+  }
   function primaryTail(root=navRoot()){
     if(!root)return null;let best=null,bestTop=-Infinity;
     for(const a of primaryControls(root)){
@@ -189,7 +201,7 @@
     let node=best;
     while(node.parentElement&&node.parentElement!==root&&node.parentElement.getBoundingClientRect().width<520){
       const parent=node.parentElement;
-      if(projectLinks(parent).length||[...parent.querySelectorAll?.('a[href*="/c/"]')||[]].some(a=>!isOwn(a)))break;
+      if(nativeSidebarBoundary(parent)||projectLinks(parent).length||[...parent.querySelectorAll?.('a[href*="/c/"]')||[]].some(a=>!isOwn(a)))break;
       node=parent;
     }
     return node;
@@ -502,7 +514,19 @@
     const rx=/^(?:bonjour|bonsoir|salut|hello|hi)(?:\s+[\p{L}\p{N}._'-]{1,40})?[!,.? ]*$|^(?:par quoi commençons-nous|comment puis-je vous aider|que puis-je faire pour vous|qu[’']est-ce qu[’']on fait|how can i help|what can i help with|what(?:'|’)s on your mind)[?!. ]*$/iu;
     for(const el of main.querySelectorAll('h1,h2,[role="heading"],[data-testid*="welcome" i]')){const text=clean(el.textContent);if(text&&text.length<=140&&rx.test(text))el.classList.add('ng119-native-home-greeting');}
   }
-  function reconcile(){clearTimeout(timer);timer=0;if(internal)return;const root=navRoot();if(root)seedFromNative(root);const box=ensureBox();if(!box){bind();return;}renderCatalog(box);place(box);restorePendingScroll('reconcile');bind();hideWelcome();window.__NIAKGPT_DIAGNOSTICS__?.set('sidebar-ux-119',`OK · Projects ${box.dataset.ng121Placement||'stable'} · autorité v121 unique · seed DOM local`);}
+  function reconcile(){
+    clearTimeout(timer);timer=0;if(internal)return;
+    const root=navRoot();if(root)seedFromNative(root);
+    const box=ensureBox();if(!box){bind();return;}
+    const localFallback=box.dataset.ng102Fallback==='1'&&!!box.querySelector('[data-ng102-project]');
+    const canonicalCount=canonicalProjects().length;
+    if(localFallback&&canonicalCount===0){
+      const localCount=box.querySelectorAll('[data-ng102-project]').length;
+      window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',`RÉCUPÉRATION · ${localCount} Projects cache local · natif conservé`);
+    }else renderCatalog(box);
+    place(box);restorePendingScroll('reconcile');bind();hideWelcome();
+    window.__NIAKGPT_DIAGNOSTICS__?.set('sidebar-ux-119',`OK · Projects ${box.dataset.ng121Placement||'stable'} · autorité v121 unique · seed DOM local`);
+  }
   function schedule(delay=0){clearTimeout(timer);timer=setTimeout(reconcile,delay);}
   function placementSignal(node){
     if(!(node instanceof Element))return false;

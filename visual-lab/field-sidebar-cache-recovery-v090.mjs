@@ -3,7 +3,7 @@ import path from 'node:path';
 import { chromium, firefox, webkit } from '@playwright/test';
 
 const ROOT=path.resolve('..');
-const files=['sidebar-projects-v121.js','project-state-selfheal-v102.js','sidebar-projects-authority-v112.js','sidebar-projects-authority-v112.css'];
+const files=['sidebar-projects-v121.js','project-state-selfheal-v102.js','sidebar-projects-authority-v112.js','sidebar-projects-authority-v112.css','ux-v131.js','ux-v131.css'];
 const src=Object.fromEntries(await Promise.all(files.map(async file=>[file,await fs.readFile(path.join(ROOT,file),'utf8')])));
 const ALL={chromium,firefox,webkit};
 const requested=String(process.env.NIAKGPT_BROWSER||'chromium').trim();
@@ -126,14 +126,17 @@ for(const [engine,launcher] of Object.entries(engines)){
     await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html',body:html}));
     await page.goto('https://chatgpt.com/g/g-p-active/c/99999999-1111-4111-8111-999999999999',{waitUntil:'domcontentloaded'});
     await page.addStyleTag({content:src['sidebar-projects-authority-v112.css']});
+    await page.addStyleTag({content:src['ux-v131.css']});
+    // Production order: authority first, v121 placement owner, self-heal later, UX guard last.
     await page.addScriptTag({content:src['sidebar-projects-authority-v112.js']});
     await page.addScriptTag({content:src['sidebar-projects-v121.js']});
     await page.addScriptTag({content:src['project-state-selfheal-v102.js']});
-    await page.waitForTimeout(700);
+    await page.addScriptTag({content:src['ux-v131.js']});
+    await page.waitForFunction(()=>document.querySelector('#ng8-pins[data-ng102-fallback="1"][data-ng131-mounted="1"] [data-ng102-project]'),null,{timeout:6000});
 
     const recovery=await page.evaluate(()=>{
       const box=document.getElementById('ng8-pins'),native=document.getElementById('native-projects'),chats=document.getElementById('native-chats');
-      const visible=el=>!!el&&getComputedStyle(el).display!=='none'&&!el.hidden;
+      const visible=el=>{if(!el)return false;const s=getComputedStyle(el),r=el.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&Number(s.opacity||1)>0&&!el.hidden&&r.width>0&&r.height>0;};
       return{
         box:!!box,
         fallback:box?.dataset.ng102Fallback||'',
@@ -149,7 +152,9 @@ for(const [engine,launcher] of Object.entries(engines)){
         rpc:window.__rpcCalls,
         pinsDiag:window.__diag.get('pins-ui')||'',
         authorityDiag:window.__diag.get('projects-authority')||'',
-        governance:(window.__store['niakgpt-governance-v085']?.coreProjectIds||[]).length
+        governance:(window.__store['niakgpt-governance-v085']?.coreProjectIds||[]).length,
+        visible:visible(box),
+        mounted:box?.dataset.ng131Mounted||''
       };
     });
 
@@ -162,28 +167,65 @@ for(const [engine,launcher] of Object.entries(engines)){
     assert(recovery.rpc===0,`local recovery emitted ChatGPT RPC during active conversation: ${recovery.rpc}`);
     assert(/RÉCUPÉRATION.*5 Projects cache local/i.test(recovery.pinsDiag),`wrong recovery diagnostic: ${recovery.pinsDiag}`);
     assert(recovery.governance===0,'local-only recovery invented canonical governance ownership');
+    assert(recovery.visible&&recovery.mounted==='1',`fallback exists but UX guard keeps it invisible: ${JSON.stringify(recovery)}`);
+    assert(/cache local.*Projects natifs conservés/i.test(recovery.authorityDiag),`authority diagnostic does not describe fallback truth: ${recovery.authorityDiag}`);
+
+    // Reproduce the production failure: React remounts the whole sidebar after NiakGPT boot and
+    // drops the injected child. The replacement still has only modern no-href Project rows.
+    await page.evaluate(()=>{
+      const old=document.getElementById('sidebar');
+      const next=old.cloneNode(true);
+      next.id='sidebar-remounted';
+      next.querySelector('#ng8-pins')?.remove();
+      old.replaceWith(next);
+    });
+    await page.waitForFunction(()=>document.querySelector('#sidebar-remounted #ng8-pins[data-ng102-fallback="1"][data-ng131-mounted="1"] [data-ng102-project]'),null,{timeout:6000});
+    const remount=await page.evaluate(()=>{
+      const root=document.getElementById('sidebar-remounted'),box=root?.querySelector('#ng8-pins'),native=root?.querySelector('#native-projects'),chats=root?.querySelector('#native-chats');
+      const s=box?getComputedStyle(box):null,r=box?.getBoundingClientRect();
+      return{
+        box:!!box,
+        localCount:box?.querySelectorAll('[data-ng102-project]').length||0,
+        visible:!!box&&s.display!=='none'&&s.visibility!=='hidden'&&Number(s.opacity||1)>0&&!box.hidden&&r.width>0&&r.height>0,
+        mounted:box?.dataset.ng131Mounted||'',
+        fallback:box?.dataset.ng102Fallback||'',
+        beforeNative:!!(box&&native&&(box.compareDocumentPosition(native)&Node.DOCUMENT_POSITION_FOLLOWING)),
+        nativeBeforeChats:!!(native&&chats&&(native.compareDocumentPosition(chats)&Node.DOCUMENT_POSITION_FOLLOWING)),
+        rpc:window.__rpcCalls,
+        authority:window.__diag.get('projects-authority')||'',
+        ux:window.__diag.get('ux-v131')||''
+      };
+    });
+    assert(remount.box&&remount.localCount===5&&remount.fallback==='1',`fallback was not recreated after sidebar remount: ${JSON.stringify(remount)}`);
+    assert(remount.visible&&remount.mounted==='1',`recreated fallback is still visually hidden: ${JSON.stringify(remount)}`);
+    assert(remount.beforeNative&&remount.nativeBeforeChats,`recreated Pins not above native Projects/Chats: ${JSON.stringify(remount)}`);
+    assert(remount.rpc===0,`sidebar remount recovery emitted ChatGPT RPC during active chat: ${remount.rpc}`);
+    assert(/cache local.*Projects natifs conservés/i.test(remount.authority),`wrong fallback authority after remount: ${JSON.stringify(remount)}`);
 
     await page.evaluate(()=>window.__upgradeCanonical());
     await page.waitForTimeout(850);
 
     const upgraded=await page.evaluate(()=>{
-      const box=document.getElementById('ng8-pins'),native=document.getElementById('native-projects');
+      const root=document.getElementById('sidebar-remounted')||document,box=root.querySelector('#ng8-pins'),native=root.querySelector('#native-projects');
       return{
         fallback:box?.dataset.ng102Fallback||'',
         pins:box?.querySelectorAll('a[data-ng8-pin="1"][href*="/g/g-p-"]').length||0,
         nativeMark:native?.getAttribute('data-ng112-native-projects')||'',
         nativeDisplay:native?getComputedStyle(native).display:'',
         rpc:window.__rpcCalls,
-        diag:window.__diag.get('pins-ui')||''
+        diag:window.__diag.get('pins-ui')||'',
+        mounted:box?.dataset.ng131Mounted||'',
+        visible:!!box&&getComputedStyle(box).visibility!=='hidden'&&getComputedStyle(box).display!=='none'&&!box.hidden
       };
     });
     assert(upgraded.fallback!=='1',`fallback marker survived canonical upgrade: ${JSON.stringify(upgraded)}`);
     assert(upgraded.pins===5,`canonical upgrade did not render 5 Projects: ${JSON.stringify(upgraded)}`);
     assert(upgraded.nativeMark==='1'&&upgraded.nativeDisplay==='none',`native Projects not handed to authority after canonical upgrade: ${JSON.stringify(upgraded)}`);
     assert(upgraded.rpc===0,`canonical cache upgrade emitted ChatGPT RPC during active conversation: ${upgraded.rpc}`);
+    assert(upgraded.visible&&upgraded.mounted==='1',`canonical Pins lost UX visibility after upgrade: ${JSON.stringify(upgraded)}`);
     assert(!errors.length,`page errors: ${errors.join(' | ')}`);
 
-    console.log(`FIELD_SIDEBAR_CACHE_RECOVERY_V090_PASS engine=${engine}`);
+    console.log(`FIELD_SIDEBAR_CACHE_RECOVERY_V091_PASS engine=${engine} initial+react-remount+canonical-upgrade`);
   }finally{
     await context.close();
     await browser.close();

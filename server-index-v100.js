@@ -39,10 +39,21 @@
     if(!id.startsWith('g-p-')||!name)return null;
     return{id,name,description:clean(g?.display?.description||g?.description||''),instructions:clean(g?.instructions||''),href:`/g/${id}/project`,domOnly:false};
   }
-  function directProjectId(raw){const value=raw&&Object.prototype.hasOwnProperty.call(raw,'gizmo_id')?raw.gizmo_id:raw?.conversation_mode?.gizmo_id;return normalizePid(clean(value));}
+  function directProjectEvidence(raw){
+    const top=!!raw&&Object.prototype.hasOwnProperty.call(raw,'gizmo_id');
+    const mode=!!raw?.conversation_mode&&Object.prototype.hasOwnProperty.call(raw.conversation_mode,'gizmo_id');
+    const value=top?raw.gizmo_id:(mode?raw.conversation_mode.gizmo_id:undefined);
+    return{known:top||mode,value:normalizePid(clean(value))};
+  }
+  function directProjectId(raw){return directProjectEvidence(raw).value;}
   function chatFromRaw(raw,projectId=''){
     const id=clean(raw?.id||raw?.conversation_id);if(!id)return null;
-    return{id,title:clean(raw?.title||raw?.conversation_title)||'Conversation',snippet:clean(raw?.snippet||''),projectId:normalizePid(projectId||directProjectId(raw)),updated:parseTime(raw?.update_time||raw?.create_time),href:''};
+    const evidence=directProjectEvidence(raw),forced=normalizePid(projectId);
+    return{id,title:clean(raw?.title||raw?.conversation_title)||'Conversation',snippet:clean(raw?.snippet||''),projectId:forced||evidence.value,projectIdKnown:!!forced||evidence.known,updated:parseTime(raw?.update_time||raw?.create_time),href:''};
+  }
+  function mergedProjectId(oldRow,newRow){
+    if(newRow?.projectIdKnown===true)return normalizePid(newRow.projectId||'');
+    return normalizePid(newRow?.projectId)||normalizePid(oldRow?.projectId)||'';
   }
   async function fetchProjects(){
     const found=new Map(),seen=new Set();let cursor=null;
@@ -129,7 +140,7 @@
         await sleep(35);
       }
       diagnostic('INDEX · conversations générales');
-      try{for(const c of await fetchGeneral()){seenIds.add(c.id);const old=chats.get(c.id)||{},projectId=c.projectId||old.projectId||'';chats.set(c.id,{...old,...c,projectId,updated:Math.max(parseTime(old.updated),c.updated||0),snippet:c.snippet||old.snippet||''});}}catch(error){if(['paused','rate-limited'].includes(String(error?.message)))throw error;failures++;}
+      try{for(const c of await fetchGeneral()){seenIds.add(c.id);const old=chats.get(c.id)||{},projectId=mergedProjectId(old,c);chats.set(c.id,{...old,...c,projectId,updated:Math.max(parseTime(old.updated),c.updated||0),snippet:c.snippet||old.snippet||''});}}catch(error){if(['paused','rate-limited'].includes(String(error?.message)))throw error;failures++;}
       const freshProjectIds=new Set(projects.map(p=>p.id));
       // Never treat one undocumented API inventory as destructive truth. ChatGPT can return
       // a short/partial Project or conversation page under load without an explicit error.
@@ -144,13 +155,22 @@
       const suspiciousDates=beforeDated>=20&&freshDated<Math.floor(beforeDated*.45);
       const partial=failures>0||suspiciousProjectDrop||suspiciousChatDrop||suspiciousDates;
       const finalChats=[...chats.values()];
-      const next={...before,schema:2,projectInventoryAt:Number(before.projectInventoryAt)||Date.now(),serverIndexedAt:partial?(Number(before.serverIndexedAt)||0):Date.now(),projects:[...projectMap.values()],chats:finalChats,counts,indexedProjectIds:[...new Set([...(before.indexedProjectIds||[]),...indexed])].filter(id=>String(id).startsWith('g-p-'))};
+      const canonicalById=new Map(finalChats.filter(c=>c?.id).map(c=>[String(c.id),c]));
+      const projectChats={};
+      for(const [pid,list] of Object.entries(before.projectChats||{})){
+        if(!Array.isArray(list))continue;
+        projectChats[pid]=list.filter(row=>{
+          const canonical=canonicalById.get(String(row?.id||''));
+          return !canonical||canonical.projectIdKnown!==true||normalizePid(canonical.projectId)===normalizePid(pid);
+        });
+      }
+      const next={...before,schema:2,projectInventoryAt:Number(before.projectInventoryAt)||Date.now(),serverIndexedAt:partial?(Number(before.serverIndexedAt)||0):Date.now(),projects:[...projectMap.values()],chats:finalChats,projectChats,counts,indexedProjectIds:[...new Set([...(before.indexedProjectIds||[]),...indexed])].filter(id=>String(id).startsWith('g-p-'))};
       const bus=window.__NIAKGPT_CACHE_BUS__;
       if(bus?.update){
         await bus.update(latest=>{
           latest=latest&&typeof latest==='object'?latest:{};
           const mergedChats=new Map((latest.chats||[]).filter(c=>c?.id).map(c=>[c.id,{...c,updated:parseTime(c.updated||c.update_time||c.create_time)}]));
-          for(const c of next.chats||[]){const old=mergedChats.get(c.id)||{};mergedChats.set(c.id,{...old,...c,projectId:c.projectId||old.projectId||'',updated:Math.max(parseTime(old.updated),parseTime(c.updated)),snippet:c.snippet||old.snippet||''});}
+          for(const c of next.chats||[]){const old=mergedChats.get(c.id)||{};mergedChats.set(c.id,{...old,...c,projectId:mergedProjectId(old,c),updated:Math.max(parseTime(old.updated),parseTime(c.updated)),snippet:c.snippet||old.snippet||''});}
           const mergedProjects=new Map((latest.projects||[]).filter(p=>p?.id).map(p=>[p.id,{...p}]));for(const p of next.projects||[]){if(!p?.id)continue;const old=mergedProjects.get(p.id)||{};mergedProjects.set(p.id,{...old,...p,domOnly:old.domOnly===false?false:p.domOnly});}
           return{...latest,...next,projects:[...mergedProjects.values()],chats:[...mergedChats.values()],counts:{...(latest.counts||{}),...next.counts},indexedProjectIds:[...new Set([...(latest.indexedProjectIds||[]),...(next.indexedProjectIds||[])])],serverIndexedAt:Math.max(Number(latest.serverIndexedAt)||0,Number(next.serverIndexedAt)||0)};
         });

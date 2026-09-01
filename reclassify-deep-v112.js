@@ -20,16 +20,16 @@
   const canonical=p=>p&&String(p.id||'').startsWith('g-p-')&&!p.domOnly&&clean(p.name);
 
   const ALIASES=[
-    [/niakvio|nuvio|stream|provider/,['niakvio','nuvio','tv','stream','streaming','provider','providers','manifest','stremio','scraper','source','vf','vostfr','device','desktop','mobile','android','television']],
+    [/media|vid[eé]o|stream|provider|scrap|stremio/,['media','video','vidéo','tv','stream','streaming','provider','providers','manifest','stremio','scraper','source','vf','vostfr','device','desktop','mobile','android','television']],
     [/film|cin[eé]ma|s[eé]rie|anime|manga/,['film','cinema','cinéma','serie','série','anime','manga','acteur','actrice','episode','épisode','saison','spielberg','imdb']],
     [/tech|d[eé]veloppement|code|informatique/,['code','dev','github','action','workflow','javascript','typescript','python','php','api','chrome','extension','runtime','bug','test','tests','ci','css','html']],
-    [/business|commerce|entreprise|miorra|eitty|elias/,['business','shopify','ecommerce','e-commerce','marque','produit','marketing','seo','client','miorra','eitty','elias']],
+    [/business|commerce|entreprise|boutique|e-?commerce|shop/,['business','shopify','ecommerce','e-commerce','boutique','commerce','marque','produit','marketing','seo','client']],
     [/jurid|admin|droit|prud/,['juridique','administratif','droit','justice','avocat','prudhom','licenciement','france travail','assurance','tribunal','recours']],
     [/maison|logement|habitat/,['maison','logement','appartement','travaux','toiture','devis','syndic','copropriété']],
     [/auto|voiture|automobile/,['voiture','auto','opel','moteur','courroie','garage','pneu','prêt auto']],
     [/perso|vie pratique|sant[eé]|famille/,['perso','famille','relation','santé','fatigue','chat','animal','maison']]
   ];
-  function aliasKeys(project){const n=norm(project?.name);const out=[];for(const[rx,list]of ALIASES)if(rx.test(n))out.push(...list);return out;}
+  function aliasKeys(project){const semantic=norm(`${project?.name||''} ${project?.description||''} ${project?.instructions||''}`);const out=[];for(const[rx,list]of ALIASES)if(rx.test(semantic))out.push(...list);return out;}
   function allChats(raw){const map=new Map();const add=(c,p='')=>{if(!c?.id)return;const old=map.get(c.id)||{};map.set(c.id,{...old,...c,projectId:p||c.projectId||old.projectId||projectHrefPid(c.href)||''});};for(const c of raw?.chats||[])add(c);for(const[p,list]of Object.entries(raw?.projectChats||{}))for(const c of list||[])add(c,p);return[...map.values()];}
   function profiles(projects,chats){
     const out=new Map(projects.map(p=>[p.id,new Map()]));

@@ -1,3 +1,13 @@
+# NiakGPT 0.9.91 — Pins persistants après remount sidebar
+
+- Corrige la disparition terrain du bloc Pins après un remount tardif de la sidebar ChatGPT.
+- v121 ne rend plus un catalogue canonique vide par-dessus un cache local exploitable ; il demande explicitement au self-heal de repeupler le même nœud.
+- La suppression externe de `#ng8-pins` est réparée même si elle arrive pendant un epoch de rendu interne.
+- v131 devient un garde de cycle de vie : sidebar active + Pins manquants => demande de recréation, puis nouvelle vérification visuelle.
+- Le self-heal écoute la demande de récupération locale et repopule les 5 Projects cache sans trafic backend pendant une conversation.
+- Le test terrain charge désormais le garde CSS v131 réel, vérifie la visibilité effective, supprime/remonte toute la sidebar puis exige que les Pins reviennent avant Projects/Chats.
+- Le diagnostic d’autorité distingue `cache local · Projects natifs conservés` de `bloc NiakGPT absent`.
+
 # NiakGPT 0.9.90 — récupération locale Projects + privacy fail-closed
 
 - Le renderer v121 conserve désormais un fallback Pins local/dom-only au lieu de le remplacer par un catalogue vide quand l’identité serveur canonique n’est pas encore connue.

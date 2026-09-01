@@ -6,7 +6,7 @@
   <p>Projects · performance des longs fils · continuité · navigation · productivité ciblée</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.88-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.89-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -22,7 +22,7 @@ NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
 
-> **Version actuelle : 0.9.88.** Les trois régressions terrain sont désormais traitées comme un seul contrat : tant qu’une conversation ChatGPT visible existe dans cet onglet ou un autre, NiakGPT n’émet **aucun trafic vers le backend ChatGPT**, y compris les lectures Project foreground et les mutations appartenant à NiakGPT. Les Pins sont montés comme frère du bloc Projects natif complet, jamais dans le sous-arbre d’un Project déplié. Project Memory écrit immédiatement un vrai snapshot du cache local dans le coffre GitHub privé sélectionné ; l’historique complet est différé jusqu’à une fenêtre de calme hors discussion.
+> **Version actuelle : 0.9.89.** Les trois régressions terrain sont désormais traitées comme un seul contrat : tant qu’une conversation ChatGPT visible existe dans cet onglet ou un autre, NiakGPT n’émet **aucun trafic vers le backend ChatGPT**, y compris les lectures Project foreground et les mutations appartenant à NiakGPT. Les Pins sont montés comme frère du bloc Projects natif complet, jamais dans le sous-arbre d’un Project déplié. Project Memory écrit immédiatement un vrai snapshot du cache local dans le coffre GitHub privé sélectionné ; l’historique complet est différé jusqu’à une fenêtre de calme hors discussion.
 
 ## Points forts
 

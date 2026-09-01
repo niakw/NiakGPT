@@ -1,3 +1,10 @@
+# NiakGPT 0.9.89 — Sidebar field correction
+
+- Corrige la régression terrain visible en 0.9.88 où le catalogue **PINS · PROJECTS** pouvait se monter sous l’en-tête natif **Chats** lorsque le bloc Projects natif n’était pas encore présent : le boundary Chats est désormais une limite de placement explicite et les Pins restent au-dessus.
+- Corrige l’appartenance fantôme de conversations générales à un Project : un `gizmo_id: null` explicite est maintenant une preuve autoritaire de détachement et efface l’ancien `projectId` au lieu de le conserver.
+- Nettoie aussi les résidus `projectChats` contradictoires et le drawer Pins refuse d’afficher une conversation dont l’état canonique prouve qu’elle n’appartient plus au Project.
+- Étend la régression terrain navigateur avec la forme exacte de la capture : en-tête Chats + recents génériques + cache Project périmé.
+
 # NiakGPT 0.9.88 — Field regressions: Pins, chat quarantine, GitHub bootstrap
 
 - Corrige ensemble les trois régressions terrain déjà signalées : mauvais placement/masquage des Pins, interférence réseau possible pendant une discussion, et coffre GitHub connecté sans fichiers Project réellement écrits.

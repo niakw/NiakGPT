@@ -55,11 +55,28 @@
   }
   function chatsFor(pid){
     pid=normalizePid(pid);
+    const canonical=new Map((cache.chats||[]).filter(c=>c?.id).map(c=>[String(c.id),c]));
     let direct=[];
-    for(const [key,list] of Object.entries(cache.projectChats||{}))if(normalizePid(key)===pid&&Array.isArray(list))direct.push(...list);
-    const source=[...(cache.chats||[]).filter(c=>normalizePid(c?.projectId)===pid),...direct];
+    for(const [key,list] of Object.entries(cache.projectChats||{})){
+      if(normalizePid(key)!==pid||!Array.isArray(list))continue;
+      for(const row of list){
+        const current=canonical.get(String(row?.id||''));
+        if(current?.projectIdKnown===true&&normalizePid(current.projectId)!==pid)continue;
+        direct.push(row);
+      }
+    }
+    const source=[
+      ...(cache.chats||[]).filter(c=>normalizePid(c?.projectId)===pid),
+      ...direct
+    ];
     const map=new Map();
-    for(const c of source){if(!c?.id)continue;const old=map.get(c.id)||{},updated=Math.max(parseTime(old.updated||old.update_time),parseTime(c.updated||c.update_time||c.create_time));map.set(c.id,{...old,...c,projectId:pid,updated});}
+    for(const c of source){
+      if(!c?.id)continue;
+      const current=canonical.get(String(c.id));
+      if(current?.projectIdKnown===true&&normalizePid(current.projectId)!==pid)continue;
+      const old=map.get(c.id)||{},updated=Math.max(parseTime(old.updated||old.update_time),parseTime(c.updated||c.update_time||c.create_time));
+      map.set(c.id,{...old,...c,projectId:pid,updated});
+    }
     return [...map.values()].sort((a,b)=>(b.updated||0)-(a.updated||0)||String(a.title||'').localeCompare(String(b.title||''),'fr'));
   }
 

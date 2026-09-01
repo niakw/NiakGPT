@@ -514,15 +514,31 @@
     const rx=/^(?:bonjour|bonsoir|salut|hello|hi)(?:\s+[\p{L}\p{N}._'-]{1,40})?[!,.? ]*$|^(?:par quoi commençons-nous|comment puis-je vous aider|que puis-je faire pour vous|qu[’']est-ce qu[’']on fait|how can i help|what can i help with|what(?:'|’)s on your mind)[?!. ]*$/iu;
     for(const el of main.querySelectorAll('h1,h2,[role="heading"],[data-testid*="welcome" i]')){const text=clean(el.textContent);if(text&&text.length<=140&&rx.test(text))el.classList.add('ng119-native-home-greeting');}
   }
+  function localRecoveryCount(){
+    return (cache.projects||[]).filter(p=>{
+      const id=normalizePid(p?.id),name=clean(p?.name);
+      return !!name&&!QUEUE.has(norm(name))&&(!id.startsWith('g-p-')||p?.domOnly===true);
+    }).length;
+  }
+  function requestLocalRecovery(reason='reconcile'){
+    document.dispatchEvent(new CustomEvent('niakgpt:local-project-recovery-request',{detail:{reason}}));
+  }
   function reconcile(){
     clearTimeout(timer);timer=0;if(internal)return;
     const root=navRoot();if(root)seedFromNative(root);
     const box=ensureBox();if(!box){bind();return;}
     const localFallback=box.dataset.ng102Fallback==='1'&&!!box.querySelector('[data-ng102-project]');
-    const canonicalCount=canonicalProjects().length;
-    if(localFallback&&canonicalCount===0){
-      const localCount=box.querySelectorAll('[data-ng102-project]').length;
-      window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',`RÉCUPÉRATION · ${localCount} Projects cache local · natif conservé`);
+    const canonicalCount=canonicalProjects().length,localCount=localRecoveryCount();
+    if(canonicalCount===0&&localCount>0){
+      if(localFallback){
+        const rendered=box.querySelectorAll('[data-ng102-project]').length;
+        window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',`RÉCUPÉRATION · ${rendered} Projects cache local · natif conservé`);
+      }else{
+        // Never destructively render an empty canonical catalogue over a valid local-only cache.
+        // Ask the dedicated recovery renderer to populate this exact v121-owned node.
+        requestLocalRecovery('v121-local-cache');
+        window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',`RÉCUPÉRATION · ${localCount} Projects cache local · rendu demandé`);
+      }
     }else renderCatalog(box);
     place(box);restorePendingScroll('reconcile');bind();hideWelcome();
     window.__NIAKGPT_DIAGNOSTICS__?.set('sidebar-ux-119',`OK · Projects ${box.dataset.ng121Placement||'stable'} · autorité v121 unique · seed DOM local`);
@@ -539,13 +555,10 @@
   function bind(){
     const root=navRoot();if(!root){armBootstrap();return;}if(root===observedRoot&&observer)return;
     observer?.disconnect();observedRoot=root;observer=new MutationObserver(records=>{
-      if(internal||!relevant(records))return;
-      // Let React/ChatGPT finish the current mutation batch before reconciling. Chromium usually
-      // settles in the same turn, while Firefox/WebKit can expose a transient parent/slot for a
-      // few frames. A bounded verification pass repairs external displacement without polling.
-      // Repair in the MutationObserver microtask, before the next paint, so an externally
-      // displaced catalogue never produces a visible bad frame. Keep the bounded delayed check
-      // as a second chance for React/browser trees that expose a transient slot in this microtask.
+      // Host/React can remove the managed node while our own render epoch is still marked
+      // internal. That is an external lifecycle event and must never be ignored.
+      const managedRemoved=records.some(r=>[...r.removedNodes].some(n=>n instanceof Element&&(n.id==='ng8-pins'||!!n.querySelector?.('#ng8-pins'))));
+      if(!managedRemoved&&(internal||!relevant(records)))return;
       reconcile();
       setTimeout(()=>{
         const liveRoot=navRoot(),box=document.getElementById('ng8-pins');

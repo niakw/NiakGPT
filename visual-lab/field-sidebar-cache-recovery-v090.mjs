@@ -111,8 +111,11 @@ for(const [engine,launcher] of Object.entries(engines)){
           <a href="/">Nouveau chat</a>
           <a href="/search">Rechercher</a>
         </div>
+        <section id="native-recents">
+          <a data-sidebar-item="true" href="/c/11111111-1111-4111-8111-111111111111">Continuer la tâche</a>
+          <a data-sidebar-item="true" href="/c/22222222-1111-4111-8111-222222222222">Reprise sur retry</a>
+        </section>
         <section id="native-projects" class="group/sidebar-expando-section">
-          <div role="heading">Projects</div>
           ${['Studio','Research Lab','Cinema','Commerce Lab','Home Lab'].map((name,i)=>`<div class="group/project-unfurl-row"><div data-sidebar-item="true" data-row="${i+1}">${name}</div></div>`).join('')}
           <button type="button">Afficher plus</button>
         </section>
@@ -154,7 +157,8 @@ for(const [engine,launcher] of Object.entries(engines)){
         authorityDiag:window.__diag.get('projects-authority')||'',
         governance:(window.__store['niakgpt-governance-v085']?.coreProjectIds||[]).length,
         visible:visible(box),
-        mounted:box?.dataset.ng131Mounted||''
+        mounted:box?.dataset.ng131Mounted||'',
+        placement:box?.dataset.ng121Placement||''
       };
     });
 
@@ -163,6 +167,7 @@ for(const [engine,launcher] of Object.entries(engines)){
     assert(recovery.localCount===5,`expected 5 local fallback Projects, got ${recovery.localCount}`);
     assert(recovery.canonicalCount===0,'local fallback was incorrectly converted into canonical Project links');
     assert(recovery.sameParent&&recovery.order.every(Boolean),`Pins not placed before native Projects / above Chats: ${JSON.stringify(recovery)}`);
+    assert(recovery.placement==='native-projects',`cached-name Project identity did not win the exact native slot: ${JSON.stringify(recovery)}`);
     assert(recovery.nativeVisible&&recovery.nativeMark!=='1',`native Projects were hidden before canonical identity existed: ${JSON.stringify(recovery)}`);
     assert(recovery.rpc===0,`local recovery emitted ChatGPT RPC during active conversation: ${recovery.rpc}`);
     assert(/RÉCUPÉRATION.*5 Projects cache local/i.test(recovery.pinsDiag),`wrong recovery diagnostic: ${recovery.pinsDiag}`);
@@ -193,12 +198,14 @@ for(const [engine,launcher] of Object.entries(engines)){
         nativeBeforeChats:!!(native&&chats&&(native.compareDocumentPosition(chats)&Node.DOCUMENT_POSITION_FOLLOWING)),
         rpc:window.__rpcCalls,
         authority:window.__diag.get('projects-authority')||'',
-        ux:window.__diag.get('ux-v131')||''
+        ux:window.__diag.get('ux-v131')||'',
+        placement:box?.dataset.ng121Placement||''
       };
     });
     assert(remount.box&&remount.localCount===5&&remount.fallback==='1',`fallback was not recreated after sidebar remount: ${JSON.stringify(remount)}`);
     assert(remount.visible&&remount.mounted==='1',`recreated fallback is still visually hidden: ${JSON.stringify(remount)}`);
     assert(remount.beforeNative&&remount.nativeBeforeChats,`recreated Pins not above native Projects/Chats: ${JSON.stringify(remount)}`);
+    assert(remount.placement==='native-projects',`remounted Pins fell back to a generic slot: ${JSON.stringify(remount)}`);
     assert(remount.rpc===0,`sidebar remount recovery emitted ChatGPT RPC during active chat: ${remount.rpc}`);
     assert(/cache local.*Projects natifs conservés/i.test(remount.authority),`wrong fallback authority after remount: ${JSON.stringify(remount)}`);
 

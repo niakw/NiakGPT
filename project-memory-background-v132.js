@@ -12,8 +12,27 @@
   const DEFAULT_ROOT = '.niakgpt-memory';
   const MAX_FILES = 32;
   const MAX_BATCH_BYTES = 7 * 1024 * 1024;
+  const WORKER_ERROR_KEY = 'niakgpt-worker-errors-v100';
 
   const clean = value => String(value ?? '').trim();
+  const workerErrorText = value => clean(value?.message || value?.reason?.message || value?.reason || value || 'worker_error')
+    .replace(/github_pat_[A-Za-z0-9_]+/g, '[redacted]')
+    .replace(/gh[pousr]_[A-Za-z0-9]+/g, '[redacted]')
+    .replace(/([?&](?:code|token|access_token|client_secret)=)[^&\s]+/gi, '$1[redacted]')
+    .slice(0, 240);
+  async function rememberWorkerError(kind, value) {
+    try {
+      const raw = (await chrome.storage.local.get(WORKER_ERROR_KEY))[WORKER_ERROR_KEY];
+      const list = Array.isArray(raw) ? raw.filter(item => item && typeof item === 'object') : [];
+      const row = { kind: clean(kind) || 'WORKER', message: workerErrorText(value), at: Date.now(), version: chrome.runtime.getManifest().version };
+      if (!list.some(item => item.kind === row.kind && item.message === row.message)) list.unshift(row);
+      await chrome.storage.local.set({ [WORKER_ERROR_KEY]: list.slice(0, 6) });
+    } catch {}
+  }
+  try {
+    self.addEventListener('error', event => { void rememberWorkerError('JS', event?.error || event?.message); });
+    self.addEventListener('unhandledrejection', event => { void rememberWorkerError('PROMISE', event?.reason); });
+  } catch {}
   const utf8Bytes = value => new TextEncoder().encode(String(value ?? '')).byteLength;
   const base64Utf8 = value => {
     const bytes = new TextEncoder().encode(String(value ?? ''));
@@ -384,6 +403,11 @@
     return chrome.identity.launchWebAuthFlow({ url: parsed.toString(), interactive: true });
   }
 
+  async function closeTabQuietly(tabId) {
+    if (!Number.isInteger(tabId) || !chrome?.tabs?.remove) return;
+    try { await chrome.tabs.remove(tabId); } catch {}
+  }
+
   async function launchManifestRegistrationTab(flow) {
     if (!chrome?.tabs?.create || !chrome?.tabs?.remove || !chrome?.tabs?.onUpdated || !chrome?.tabs?.onRemoved) throw new Error('github_tabs_api_unavailable');
     const expected = new URL(clean(flow?.manifestRedirect));
@@ -399,7 +423,7 @@
         clearTimeout(timeout);
         try { chrome.tabs.onUpdated.removeListener(onUpdated); } catch {}
         try { chrome.tabs.onRemoved.removeListener(onRemoved); } catch {}
-        if (!error) { try { chrome.tabs.remove(tabId); } catch {} }
+        if (!error) void closeTabQuietly(tabId);
         if (error) reject(error); else resolve(value);
       };
       const onUpdated = (id, changeInfo, currentTab) => {

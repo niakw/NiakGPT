@@ -25,7 +25,7 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.91': fail(f"version={version}")
+if version!='0.9.92': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting','identity']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']: fail('host permissions drift')
 
@@ -111,6 +111,9 @@ refs.update((manifest.get('icons') or {}).values())
 refs.update((manifest.get('action',{}).get('default_icon') or {}).values())
 missing=sorted(x for x in refs if x and not (ROOT/x).exists())
 if missing: fail('missing refs: '+', '.join(missing))
+runtime_js='\n'.join(read(x) for x in sorted(refs) if x.endswith('.js') and (ROOT/x).exists())
+if '/backend-api/f/conversation/resume' in runtime_js or 'conversation/resume' in runtime_js: fail('native ChatGPT conversation resume route referenced by NiakGPT runtime')
+if re.search(r'(?:window|globalThis)\.fetch\s*=',runtime_js): fail('global fetch override reintroduced')
 
 for file in sorted(x for x in refs if x.endswith('.js')):
     result=subprocess.run(['node','--check',str(ROOT/file)],capture_output=True,text=True)

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.91",
-  "description": "NiakGPT : Pins locaux persistants après remount de sidebar, Projects natifs conservés jusqu’à autorité canonique et privacy fail-closed.",
+  "version": "0.9.92",
+  "description": "NiakGPT : placement Pins ancré par identité Projects, erreurs worker traçables et priorité stricte au flux natif ChatGPT.",
   "permissions": [
     "storage",
     "scripting",

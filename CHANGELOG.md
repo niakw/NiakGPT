@@ -1,3 +1,12 @@
+# NiakGPT 0.9.92 — slot Projects terrain + erreurs worker
+
+- Corrige le cas terrain où ChatGPT affiche les lignes Projects sans titre « Projects » ni href `g-p-*` : v121 retrouve maintenant le bloc par concordance d’identités avec les noms de Projects du cache et ancre les Pins juste avant ce bloc.
+- Borne le calcul du « primary tail » pour qu’un conteneur géant englobant récents/Projects ne puisse plus être déclaré à tort « after-primary ».
+- Le lab terrain retire volontairement le titre Projects, ajoute des conversations récentes avant les Projects et exige le mode `native-projects` avant/après remount.
+- Project Memory consomme désormais la Promise de `chrome.tabs.remove()` lors de la fermeture de l’onglet d’enregistrement GitHub, supprimant une source réelle de rejet asynchrone non géré.
+- Les erreurs service-worker sont conservées sous forme expurgée et exposées dans le diagnostic `extension-errors`.
+- Le validateur courant refuse toute référence runtime à `/backend-api/f/conversation/resume` et toute réassignation globale de `fetch`.
+
 # NiakGPT 0.9.91 — Pins persistants après remount sidebar
 
 - Corrige la disparition terrain du bloc Pins après un remount tardif de la sidebar ChatGPT.

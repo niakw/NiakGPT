@@ -9,6 +9,7 @@
   const META_KEY='niakgpt-hotmeta-v084';
   const GOV_KEY='niakgpt-governance-v085';
   const SETTINGS_KEY='niakgpt-settings-v090';
+  const WORKER_ERRORS_KEY='niakgpt-worker-errors-v100';
   const values=new Map();
   let metaTimer=0,lastMetaSignature='';
   const api={
@@ -75,11 +76,14 @@
   }
   async function refreshWorkspaceDiagnostics(){
     try{
-      const raw=await chrome.storage.local.get([GOV_KEY,SETTINGS_KEY]);
+      const raw=await chrome.storage.local.get([GOV_KEY,SETTINGS_KEY,WORKER_ERRORS_KEY]);
       publishOrganizer(raw[GOV_KEY]||{});
       publishPins(raw[SETTINGS_KEY]||{});
+      const workerErrors=Array.isArray(raw[WORKER_ERRORS_KEY])?raw[WORKER_ERRORS_KEY]:[];
+      const latest=workerErrors[0];
+      api.set('extension-errors',latest?`ERREUR · ${workerErrors.length} worker · ${latest.kind||'WORKER'}: ${String(latest.message||'').slice(0,120)}`:'OK · worker propre');
     }catch{
-      publishOrganizer({});publishPins({});
+      publishOrganizer({});publishPins({});api.set('extension-errors','ATTENTE · diagnostic worker indisponible');
     }
   }
   function startHotcacheUI(){
@@ -90,7 +94,7 @@
       if(id)document.dispatchEvent(new CustomEvent('niakgpt:hotcache-dirty',{detail:{id}}));
     });
     document.addEventListener('niakgpt:settings-changed',refreshWorkspaceDiagnostics);
-    chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&(changes[GOV_KEY]||changes[SETTINGS_KEY]))refreshWorkspaceDiagnostics();});
+    chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&(changes[GOV_KEY]||changes[SETTINGS_KEY]||changes[WORKER_ERRORS_KEY]))refreshWorkspaceDiagnostics();});
     const observer=new MutationObserver(records=>{if(records.some(r=>r.attributeName==='data-ng8-tab-role'||r.attributeName==='data-ng90-safe'))refreshWorkspaceDiagnostics();});
     observer.observe(document.documentElement,{attributes:true,attributeFilter:['data-ng8-tab-role','data-ng90-safe']});
     window.addEventListener('pagehide',()=>observer.disconnect(),{once:true});

@@ -59,6 +59,8 @@ jobs:
         run: node labs/project-memory-isolation-v133.mjs
       - name: Current static validation
         run: python3 labs/static_validate_current.py
+      - name: Public-tree privacy
+        run: node tools/check-public-tree-privacy-v134.mjs
       - name: Clean package contract
         run: node tools/package-extension.mjs
 

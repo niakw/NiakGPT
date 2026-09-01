@@ -6,7 +6,7 @@ from playwright.sync_api import sync_playwright
 ROOT=Path(os.environ.get('NIAKGPT_ROOT','/mnt/data/niakgpt-0950-work')).resolve()
 CHROMIUM=os.environ.get('NIAKGPT_SYSTEM_CHROMIUM','/usr/bin/chromium')
 CHAT='12345678-1234-1234-1234-123456789abc'
-P1='g-p-niakvio123'
+P1='g-p-medialab123'
 P2='g-p-niakgpt123'
 
 def read(name): return (ROOT/name).read_text(encoding='utf-8')
@@ -45,13 +45,13 @@ def panel_test(browser):
 def sidebar_test(browser):
     page=browser.new_page(viewport={'width':1200,'height':800})
     store={
-      'niakgpt-v08-cache':{'schema':2,'projects':[{'id':P1,'name':'NiakVIO','href':f'/g/{P1}/project','domOnly':False},{'id':P2,'name':'NiakGPT','href':f'/g/{P2}/project','domOnly':False}],'chats':[{'id':CHAT,'title':'Correction bug TV','projectId':P1,'updated':1786818840000}],'counts':{P1:17,P2:6},'indexedProjectIds':[P1,P2],'serverIndexedAt':1786818840000},
+      'niakgpt-v08-cache':{'schema':2,'projects':[{'id':P1,'name':'MediaLab','href':f'/g/{P1}/project','domOnly':False},{'id':P2,'name':'NiakGPT','href':f'/g/{P2}/project','domOnly':False}],'chats':[{'id':CHAT,'title':'Correction bug TV','projectId':P1,'updated':1786818840000}],'counts':{P1:17,P2:6},'indexedProjectIds':[P1,P2],'serverIndexedAt':1786818840000},
       'niakgpt-governance-v085':{'coreProjectIds':[P1,P2],'hiddenProjectIds':[]},
     }
     html=f"""
       <nav data-testid='conversation-sidebar' style='height:760px;overflow:auto;width:300px'>
         <div class='top'>Top</div>
-        <section id='native-projects'><h2>Projets</h2><a href='/g/{P1}/project'><span>NiakVIO</span></a><a href='/g/{P2}/project'><span>NiakGPT</span></a></section>
+        <section id='native-projects'><h2>Projets</h2><a href='/g/{P1}/project'><span>MediaLab</span></a><a href='/g/{P2}/project'><span>NiakGPT</span></a></section>
         <section id='recents'><h2>Récents</h2><a id='chatrow' href='/c/{CHAT}'><span class='truncate'><span>Correction bug TV</span></span><span class='dup'>Correction bug TV</span></a></section>
       </nav><main></main>
     """

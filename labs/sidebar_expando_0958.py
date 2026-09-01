@@ -23,7 +23,7 @@ body{background:#071018;color:white}nav{width:320px}nav a,nav button{display:blo
       <button aria-expanded="true"><h2 class="__menu-label font-medium" data-no-spacing="true">Projets</h2></button>
     </div>
     <ul>
-      <li><div class="group/project-unfurl-row relative"><div role="button" data-sidebar-item="true">NiakVIO</div></div></li>
+      <li><div class="group/project-unfurl-row relative"><div role="button" data-sidebar-item="true">MediaLab</div></div></li>
       <li><div class="group/project-unfurl-row relative"><div role="button" data-sidebar-item="true">NiakGPT</div></div></li>
       <li><div class="group/project-unfurl-row relative"><div role="button" data-sidebar-item="true">Films</div></div></li>
       <li><button id="project-more">Afficher plus</button></li>

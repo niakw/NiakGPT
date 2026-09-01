@@ -11,7 +11,7 @@
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const ownProjects=()=>document.getElementById('ng8-pins');
-  const ownReady=()=>{const box=ownProjects();return !!(box&&box.isConnected&&!box.hidden&&getComputedStyle(box).display!=='none'&&box.querySelector('[data-ng8-pin],a[href*="/g/g-p-"]'));};
+  const ownReady=()=>{const box=ownProjects();return !!(box&&box.isConnected&&!box.hidden&&box.dataset.ng102Fallback!=='1'&&getComputedStyle(box).display!=='none'&&box.querySelector('a[data-ng8-pin][href*="/g/g-p-"],a[href*="/g/g-p-"]'));};
   const outsideOwn=el=>!!el&&!el.closest(OWN);
   const inMain=el=>!!el?.closest?.('main,[role="main"],article');
   const projectLabel=v=>/^(projets?|projects?)$/.test(norm(v));

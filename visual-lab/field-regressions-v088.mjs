@@ -4,12 +4,14 @@ import { chromium } from '@playwright/test';
 
 const ROOT=path.resolve('..');
 const read=name=>fs.readFile(path.join(ROOT,name),'utf8');
-const [bridgeSource,projectsSource,authoritySource,uxSource,memorySource]=await Promise.all([
+const [bridgeSource,projectsSource,authoritySource,uxSource,memorySource,pinFoldersSource,serverIndexSource]=await Promise.all([
   read('page-bridge.js'),
   read('sidebar-projects-v121.js'),
   read('sidebar-projects-authority-v112.js'),
   read('ux-v131.js'),
-  read('project-memory-v132.js')
+  read('project-memory-v132.js'),
+  read('pin-folders-v096.js'),
+  read('server-index-v100.js')
 ]);
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg);};
 const P1='g-p-aaaaaaaaaaaaaaaa',P2='g-p-bbbbbbbbbbbbbbbb';
@@ -119,6 +121,139 @@ async function pinsFieldRegression(browser){
     assert(state.nativeSuppressed==='1','native Projects sibling was not deterministically suppressed: '+JSON.stringify(state));
     assert(state.mounted==='1'&&state.count===2,'managed Pins were not visible/complete: '+JSON.stringify(state));
     console.log('field-v088 Pins: PASS sibling-before-native expanded Project + deterministic suppression');
+  }finally{await context.close();}
+}
+
+
+async function screenshotSidebarRegression(browser){
+  const context=await browser.newContext({viewport:{width:900,height:820},colorScheme:'dark'});
+  const page=await context.newPage();
+  try{
+    const C3='33333333-3333-4333-8333-333333333333',C4='44444444-4444-4444-8444-444444444444';
+    await page.addInitScript(({P1,C3,C4})=>{
+      const listeners=[];
+      const stale=[
+        {id:C3,title:'Choisir un purificateur',projectId:P1,updated:Date.now()-1000},
+        {id:C4,title:'Voyant batterie moteur arrêté',projectId:P1,updated:Date.now()-2000}
+      ];
+      const canonical=stale.map(row=>({...row,projectId:'',projectIdKnown:true}));
+      const store={
+        'niakgpt-v08-cache':{
+          schema:2,at:Date.now(),
+          projects:[{id:P1,name:'NiakVIO',href:`/g/${P1}/project`,domOnly:false}],
+          chats:canonical,
+          projectChats:{[P1]:stale},
+          counts:{[P1]:2},indexedProjectIds:[P1]
+        },
+        'niakgpt-governance-v085':{coreProjectIds:[P1],hiddenProjectIds:[]}
+      };
+      const clone=v=>v===undefined?undefined:structuredClone(v);
+      window.chrome={
+        runtime:{getManifest:()=>({version:'0.9.89'})},
+        storage:{
+          local:{
+            async get(keys){
+              if(typeof keys==='string')return{[keys]:clone(store[keys])};
+              if(Array.isArray(keys))return Object.fromEntries(keys.filter(k=>store[k]!==undefined).map(k=>[k,clone(store[k])]));
+              return clone(store);
+            },
+            async set(obj){const changes={};for(const[k,v]of Object.entries(obj||{})){changes[k]={oldValue:clone(store[k]),newValue:clone(v)};store[k]=clone(v);}for(const fn of listeners)fn(changes,'local');}
+          },
+          onChanged:{addListener(fn){listeners.push(fn);}}
+        }
+      };
+      window.__NIAKGPT_CACHE_BUS__={
+        async get(){return clone(store['niakgpt-v08-cache']);},
+        peek(){return clone(store['niakgpt-v08-cache']);},
+        subscribe(fn){listeners.push((changes,area)=>{if(area==='local'&&changes['niakgpt-v08-cache'])fn(clone(changes['niakgpt-v08-cache'].newValue));});return()=>{};}
+      };
+      window.__NIAKGPT_DIAGNOSTICS__={set(){}};
+    },{P1,C3,C4});
+    const html=`<!doctype html><html><head><style>
+      *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%}
+      body{background:#080d12;color:#dce4ed;font-family:Arial}
+      aside[data-testid="conversation-sidebar"]{position:fixed;left:0;top:0;bottom:0;width:320px;background:#071018;overflow:auto}
+      #shell{min-height:100%;padding:10px}
+      #primary a,#native-chats a{display:block;min-height:38px;padding:8px;color:#dde;text-decoration:none}
+      #native-chats{margin-top:12px}#native-chats h3{margin:8px 12px}
+      main{margin-left:320px}
+    </style></head><body>
+      <aside data-testid="conversation-sidebar"><div id="shell">
+        <div id="primary"><a href="/">ChatGPT</a><a href="/new">Nouveau chat</a><a href="/library">Bibliothèque</a><a href="/apps">Plugins</a></div>
+        <section id="native-chats"><h3>Chats</h3><a href="/c/${C3}">Choisir un purificateur</a><a href="/c/${C4}">Voyant batterie moteur arrêté</a></section>
+      </div></aside><main></main>
+    </body></html>`;
+    await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html; charset=utf-8',body:html}));
+    await page.goto('https://chatgpt.com/',{waitUntil:'domcontentloaded'});
+    await page.addScriptTag({content:projectsSource});
+    await page.addScriptTag({content:pinFoldersSource});
+    await page.waitForFunction(()=>document.getElementById('ng8-pins'),null,{timeout:5000});
+    const placed=await page.evaluate(()=>{const pins=document.getElementById('ng8-pins'),chats=document.getElementById('native-chats');return{
+      beforeChats:pins?.nextElementSibling===chats,
+      placement:pins?.dataset.ng121Placement||'',
+      parent:pins?.parentElement?.id||''
+    };});
+    assert(placed.beforeChats&&placed.placement==='before-native-chats','screenshot shape still mounts Pins under native Chats: '+JSON.stringify(placed));
+    const pin=page.locator('#ng8-pins a[data-ng8-pin="1"]').first();
+    await pin.click();
+    await page.waitForTimeout(80);
+    const rows=await page.locator('#ng8-pins .ng96-chat-entry').count();
+    assert(rows===0,'stale generic chats leaked into NiakVIO drawer: '+rows);
+    console.log('field-v089 screenshot: PASS Pins before Chats + stale cross-project rows suppressed');
+  }finally{await context.close();}
+}
+
+async function serverIndexOwnershipRegression(browser){
+  const context=await browser.newContext({viewport:{width:900,height:700}});
+  const page=await context.newPage();
+  try{
+    const C3='33333333-3333-4333-8333-333333333333';
+    await page.addInitScript(({P1,C3})=>{
+      const listeners=[];
+      const store={'niakgpt-v08-cache':{
+        schema:2,at:Date.now()-999999,serverIndexedAt:0,projectInventoryAt:Date.now(),
+        projects:[{id:P1,name:'NiakVIO',href:`/g/${P1}/project`,domOnly:false}],
+        chats:[{id:C3,title:'Choisir un purificateur',projectId:P1,updated:Date.now()-5000}],
+        projectChats:{[P1]:[{id:C3,title:'Choisir un purificateur',projectId:P1,updated:Date.now()-5000}]},
+        counts:{[P1]:1},indexedProjectIds:[P1]
+      }};
+      const clone=v=>v===undefined?undefined:structuredClone(v);
+      window.__store=store;window.__rpc=[];
+      window.chrome={storage:{
+        local:{
+          async get(key){return typeof key==='string'?{[key]:clone(store[key])}:clone(store);},
+          async set(obj){for(const[k,v]of Object.entries(obj||{}))store[k]=clone(v);}
+        },
+        onChanged:{addListener(fn){listeners.push(fn);}}
+      }};
+      window.__NIAKGPT_CACHE_BUS__={
+        async update(fn){store['niakgpt-v08-cache']=clone(fn(clone(store['niakgpt-v08-cache'])));return clone(store['niakgpt-v08-cache']);},
+        async get(){return clone(store['niakgpt-v08-cache']);}
+      };
+      window.__NIAKGPT_DIAGNOSTICS__={set(){}};
+      document.addEventListener('niakgpt:rpc-request',e=>{
+        const d=e.detail||{};window.__rpc.push(d.path);
+        let data={};
+        if(d.path.includes('/gizmos/'+P1+'/conversations'))data={items:[],cursor:null};
+        else if(d.path.startsWith('/backend-api/conversations'))data={items:[{id:C3,title:'Choisir un purificateur',gizmo_id:null,update_time:Date.now()/1000}],has_more:false,total:1};
+        else if(d.path.includes('/gizmos/snorlax/sidebar'))data={items:[],cursor:null};
+        document.dispatchEvent(new CustomEvent('niakgpt:rpc-response',{detail:{id:d.id,ok:true,status:200,data}}));
+      });
+    },{P1,C3});
+    await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html',body:'<!doctype html><html><body><main></main></body></html>'}));
+    await page.goto('https://chatgpt.com/',{waitUntil:'domcontentloaded'});
+    await page.addScriptTag({content:serverIndexSource});
+    await page.evaluate(()=>document.dispatchEvent(new CustomEvent('niakgpt:force-server-index')));
+    await page.waitForFunction(({C3})=>{
+      const c=window.__store?.['niakgpt-v08-cache']?.chats?.find(x=>x.id===C3);
+      return c?.projectIdKnown===true&&c.projectId==='';
+    },{C3},{timeout:7000});
+    const state=await page.evaluate(({P1,C3})=>{const raw=window.__store['niakgpt-v08-cache'];return{
+      chat:raw.chats.find(x=>x.id===C3),
+      stale:(raw.projectChats?.[P1]||[]).some(x=>x.id===C3)
+    };},{P1,C3});
+    assert(state.chat?.projectId===''&&state.chat?.projectIdKnown===true&&!state.stale,'authoritative gizmo_id:null did not clear stale Project ownership: '+JSON.stringify(state));
+    console.log('field-v089 ownership: PASS gizmo_id:null clears stale Project + projectChats residue');
   }finally{await context.close();}
 }
 
@@ -258,7 +393,9 @@ async function memoryFieldRegression(browser){
 const browser=await chromium.launch({headless:true});
 try{
   await pinsFieldRegression(browser);
+  await screenshotSidebarRegression(browser);
+  await serverIndexOwnershipRegression(browser);
   await networkFieldRegression(browser);
   await memoryFieldRegression(browser);
 }finally{await browser.close();}
-console.log('field-regressions-v088: PASS Pins + network + GitHub bootstrap');
+console.log('field-regressions-v088: PASS Pins + screenshot placement + ownership cleanup + network + GitHub bootstrap');

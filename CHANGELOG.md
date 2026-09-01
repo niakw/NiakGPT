@@ -1,3 +1,13 @@
+# NiakGPT 0.9.90 — récupération locale Projects + privacy fail-closed
+
+- Le renderer v121 conserve désormais un fallback Pins local/dom-only au lieu de le remplacer par un catalogue vide quand l’identité serveur canonique n’est pas encore connue.
+- Le placement reconnaît les sections Projects modernes même lorsque leurs lignes n’exposent pas encore de liens `/g/g-p-*` : **PINS · PROJECTS** reste avant Projects et donc au-dessus de Chats.
+- L’autorité v112 ne masque plus la surface Projects native pendant un fallback local ; elle ne prend la main qu’après présence de liens canoniques.
+- Le self-heal v102 ne reparent plus un bloc v121 déjà monté et n’invente pas de gouvernance canonique à partir d’entrées locales.
+- Ajout du lab `field-sidebar-cache-recovery-v090.mjs` : 5 Projects locaux, 9 chats, gouvernance vide, lignes natives sans liens canoniques, puis upgrade vers 5 identités `g-p-*`.
+- Les alias de classification propres à des projets privés sont remplacés par des catégories génériques dérivées du contexte Project.
+- Ajout de `check-public-tree-privacy-v134.mjs`, exécuté dans les trois gates release, pour refuser les marqueurs privés connus, e-mails réels, chemins utilisateur locaux et secrets/tokens plausibles dans l’arbre public.
+
 # NiakGPT 0.9.89 — Sidebar field correction
 
 - Corrige la régression terrain visible en 0.9.88 où le catalogue **PINS · PROJECTS** pouvait se monter sous l’en-tête natif **Chats** lorsque le bloc Projects natif n’était pas encore présent : le boundary Chats est désormais une limite de placement explicite et les Pins restent au-dessus.

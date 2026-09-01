@@ -1,3 +1,9 @@
+## 0.9.92 — morphologie terrain sans titre Projects
+
+- Le fixture `field-sidebar-cache-recovery-v090.mjs` reproduit maintenant une sidebar où des chats récents précèdent des lignes Project sans titre « Projects » et sans href Project.
+- Le test exige que les Pins soient réellement siblings avant le bloc natif et que `data-ng121-placement` vaille `native-projects`, y compris après remount React.
+- La validation statique courante interdit explicitement à NiakGPT de référencer `/backend-api/f/conversation/resume`; un 410 sur cette route vient donc du flux natif ChatGPT, pas d’un appel NiakGPT.
+
 ## 0.9.91 — remount React tardif réellement reproduit
 
 - Le lab `field-sidebar-cache-recovery-v090.mjs` charge désormais aussi `ux-v131.css/js` dans l’ordre du runtime de production, vérifie que le fallback est réellement visible, remplace ensuite toute la sidebar par un clone sans `#ng8-pins` pour reproduire un remount React tardif, puis exige la recréation automatique des 5 Projects locaux au-dessus de Projects/Chats avec zéro RPC ChatGPT.

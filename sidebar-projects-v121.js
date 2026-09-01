@@ -143,8 +143,47 @@
   }
   function primaryControls(scope){return [...scope.querySelectorAll?.('a[href],button,[role="button"]')||[]].filter(primaryControl);}
   function hasPrimary(scope){return primaryControls(scope).length>0;}
+  function cachedProjectNames(){
+    const names=new Set();
+    for(const p of cache.projects||[]){
+      const name=norm(p?.name);
+      if(name&&!QUEUE.has(name)&&name.length<=180)names.add(name);
+    }
+    return names;
+  }
+  function identityProjectHost(root){
+    const names=cachedProjectNames();if(!root||names.size<2)return null;
+    const seeds=[];
+    for(const el of root.querySelectorAll('a,button,[role="link"],[role="button"],[data-sidebar-item="true"],[class*="project" i],span,div')){
+      if(isOwn(el)||!visiblePlacementNode(el))continue;
+      const label=norm(el.getAttribute?.('aria-label')||el.textContent);
+      if(names.has(label))seeds.push(el);
+    }
+    if(seeds.length<2)return null;
+    const identityCount=scope=>{
+      const seen=new Set();
+      for(const el of scope.querySelectorAll?.('a,button,[role="link"],[role="button"],[data-sidebar-item="true"],[class*="project" i],span,div')||[]){
+        if(isOwn(el))continue;
+        const label=norm(el.getAttribute?.('aria-label')||el.textContent);
+        if(names.has(label))seen.add(label);
+      }
+      return seen.size;
+    };
+    for(const seed of seeds){
+      let node=seed;
+      for(let depth=0;depth<7&&node&&node!==root&&node!==document.body;depth++,node=node.parentElement){
+        if(hasPrimary(node))break;
+        const genericChats=[...node.querySelectorAll?.('a[href*="/c/"]')||[]].filter(a=>!isOwn(a)&&!/\/g\/g-p-/i.test(String(a.getAttribute('href')||'')));
+        if(genericChats.length)break;
+        const count=identityCount(node),r=node.getBoundingClientRect();
+        if(count>=2&&r.width>=120&&r.width<=520&&r.height>=40&&r.height<=680)return node;
+      }
+    }
+    return null;
+  }
   function nativeProjectSection(root=navRoot()){
     if(!root)return null;
+    const identity=identityProjectHost(root);if(identity)return identity;
     const box=document.getElementById('ng8-pins');
     const marked=[...root.querySelectorAll('[data-ng112-native-projects="1"]')].filter(el=>!box||!el.contains(box));
     const labels=[...root.querySelectorAll('h1,h2,h3,[role="heading"],span,div,button,a')].filter(el=>!isOwn(el)&&projectLabel(el.getAttribute?.('aria-label')||el.textContent));
@@ -198,10 +237,13 @@
       const r=a.getBoundingClientRect();if(r.bottom>bestTop){best=a;bestTop=r.bottom;}
     }
     if(!best)return null;
+    const bestRect=best.getBoundingClientRect();
     let node=best;
     while(node.parentElement&&node.parentElement!==root&&node.parentElement.getBoundingClientRect().width<520){
-      const parent=node.parentElement;
+      const parent=node.parentElement,r=parent.getBoundingClientRect();
       if(nativeSidebarBoundary(parent)||projectLinks(parent).length||[...parent.querySelectorAll?.('a[href*="/c/"]')||[]].some(a=>!isOwn(a)))break;
+      const foreign=[...parent.querySelectorAll?.('a[href],button,[role="button"]')||[]].filter(el=>!isOwn(el)&&visiblePlacementNode(el)&&!primaryControl(el));
+      if(r.height>Math.max(180,bestRect.height*4)||r.bottom>bestRect.bottom+140||(foreign.length&&r.height>72))break;
       node=parent;
     }
     return node;

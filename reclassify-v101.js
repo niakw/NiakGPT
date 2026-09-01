@@ -28,11 +28,11 @@
   }
 
   const PROJECT_ALIASES=[
-    [/niakvio|nuvio|stream|provider/,['niakvio','nuvio','provider','providers','stream','streaming','manifest','manifeste','vf','vostfr','scraper','scraping','source','flux','addon','stremio']],
+    [/media|vid[eé]o|stream|provider|scrap|stremio/,['media','video','vidéo','tv','provider','providers','stream','streaming','manifest','manifeste','vf','vostfr','scraper','scraping','source','flux','addon','stremio']],
     [/film|cin[eé]ma|s[eé]rie|anime|manga|comics?|marvel|dc/,['film','films','cinema','cinéma','serie','série','series','séries','anime','manga','acteur','actrice','realisateur','réalisateur','marvel','dc','comics','episode','épisode','saison']],
     [/analys|r[eé]flexion|philo|cogn|science|soci[eé]t[eé]/,['analyse','analyser','réflexion','reflexion','philosophie','psychologie','cognition','cognitif','science','société','societe','histoire','humanité','humanite','maslow','intelligence']],
     [/tech|d[eé]veloppement|code|informatique/,['script','scripts','code','dev','développement','developpement','javascript','typescript','python','php','sql','css','html','github','api','chrome','extension','bug','runtime','provider','plugin','android','ios','mac','windows','bluetooth','ordinateur','pc','web','serveur','hébergement','hebergement']],
-    [/business|projet|commerce|entreprise/,['business','projet','projets','entreprise','ecommerce','e-commerce','shopify','site','marque','produit','vente','marketing','seo','client','miorra','eitty','elias']],
+    [/business|projet|commerce|entreprise|boutique|e-?commerce|shop/,['business','projet','projets','entreprise','ecommerce','e-commerce','shopify','site','boutique','commerce','marque','produit','vente','marketing','seo','client']],
     [/jurid|admin|droit|prud/,['juridique','administratif','droit','justice','avocat','prudhom','prud’homme',"prud'homme",'licenciement','contrat','france travail','chomage','chômage','assurance','banque','impot','impôt','plainte','tribunal','recours']],
     [/cr[eé]ation|contenu|design/,['création','creation','contenu','design','logo','image','visuel','photo','video','vidéo','rédaction','redaction','texte','affiche']],
     [/recherche|r[eé]f[eé]rence|documentation/,['recherche','référence','reference','source','sources','documentation','comparatif','étude','etude','prix','tarif','avis']],
@@ -41,7 +41,7 @@
     [/^(auto|automobile|voiture)(?:\b|\s|&)/,['voiture','auto','automobile','opel','peugeot','citroen','citroën','renault','moteur','courroie','garage','pneu','pneus','entretien','vidange','carburant']],
     [/^(travail|emploi|carri[eè]re)(?:\b|\s|&)/,['travail','emploi','boulot','bureau','collègue','collegue','collègues','collegues','patron','manager','carrière','carriere','cv','recrutement','entretien professionnel','poste','salaire']]
   ];
-  function aliasKeys(project){const pn=norm(project?.name);const out=[];for(const [rx,keys] of PROJECT_ALIASES)if(rx.test(pn))out.push(...keys);return out;}
+  function aliasKeys(project){const semantic=norm(`${project?.name||''} ${project?.description||''} ${project?.instructions||''}`);const out=[];for(const [rx,keys] of PROJECT_ALIASES)if(rx.test(semantic))out.push(...keys);return out;}
   const ratePaused=()=>Number(document.documentElement.dataset.ng100RateLimitedUntil||0)>Date.now();
   const heavy=()=>document.documentElement.dataset.ng8Heavy==='1';const can=()=>!ratePaused()&&!document.hidden&&!document.documentElement.dataset.ng100Recovery&&document.documentElement.dataset.ng8Running!=='1'&&!['loading','waiting','thinking','executing'].includes(document.documentElement.dataset.ng86Activity||'')&&document.documentElement.dataset.ng90Safe!=='1';
   const isQueue=p=>QUEUE_NAMES.has(norm(p?.name));const sleep=ms=>new Promise(r=>setTimeout(r,ms));const hash=v=>{let h=2166136261;for(const c of String(v||'')){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}return(h>>>0).toString(36);};

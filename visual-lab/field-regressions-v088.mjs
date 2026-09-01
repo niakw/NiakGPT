@@ -242,7 +242,9 @@ async function serverIndexOwnershipRegression(browser){
     },{P1,C3});
     await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html',body:'<!doctype html><html><body><main></main></body></html>'}));
     await page.goto('https://chatgpt.com/',{waitUntil:'domcontentloaded'});
-    await page.addScriptTag({content:serverIndexSource});
+    const fastServerIndex=serverIndexSource.replace('const BACKGROUND_QUIET_MS=2*60*1000;','const BACKGROUND_QUIET_MS=50;');
+    await page.addScriptTag({content:fastServerIndex});
+    await page.waitForTimeout(80);
     await page.evaluate(()=>document.dispatchEvent(new CustomEvent('niakgpt:force-server-index')));
     await page.waitForFunction(({C3})=>{
       const c=window.__store?.['niakgpt-v08-cache']?.chats?.find(x=>x.id===C3);

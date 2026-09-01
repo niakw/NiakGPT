@@ -1,3 +1,9 @@
+
+## 0.9.90 — preuve terrain local-cache + privacy
+
+- `visual-lab/field-sidebar-cache-recovery-v090.mjs` reproduit l’état terrain « cache local présent / gouvernance canonique absente / lignes Projects natives sans liens `g-p-*` » et exige : fallback 5 Projects conservé, Pins avant Projects puis Chats, surface native visible, zéro RPC ChatGPT, puis bascule vers l’autorité NiakGPT après upgrade canonique.
+- `tools/check-public-tree-privacy-v134.mjs` scanne tout l’arbre texte suivi par Git et échoue en présence de marqueurs privés connus, d’e-mails réels, de chemins utilisateur locaux ou de secrets plausibles.
+- Ces tests restent synthétiques : ils prouvent le contrat du code NiakGPT, pas la stabilité future du DOM/transport du service ChatGPT sur un compte authentifié réel.
 # NiakGPT testing truth
 
 NiakGPT uses several evidence levels. Their names must describe what they **actually prove**.

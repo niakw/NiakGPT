@@ -6,7 +6,7 @@ from playwright.sync_api import sync_playwright
 ROOT=Path(os.environ.get('NIAKGPT_ROOT','/mnt/data/niakgpt-0952-work')).resolve()
 ART=Path(os.environ.get('NIAKGPT_ARTIFACTS','/mnt/data/niakgpt-0952-visual')).resolve()
 ART.mkdir(parents=True,exist_ok=True)
-CHAT='12345678-1234-1234-1234-123456789abc';P1='g-p-niakvio123';P2='g-p-niakgpt123'
+CHAT='12345678-1234-1234-1234-123456789abc';P1='g-p-medialab123';P2='g-p-niakgpt123'
 
 def read(n): return (ROOT/n).read_text(encoding='utf-8')
 def guard(s): return s.replace("location.hostname !== 'chatgpt.com' ||","false ||").replace("location.hostname!=='chatgpt.com'||","false||")
@@ -23,9 +23,9 @@ def launch(p,browser):
 
 def sidebar_case(browser,name):
  page=browser.new_page(viewport={'width':1360,'height':900})
- store={'niakgpt-v08-cache':{'schema':2,'projects':[{'id':P1,'name':'NiakVIO','href':f'/g/{P1}/project'},{'id':P2,'name':'NiakGPT','href':f'/g/{P2}/project'}],'chats':[{'id':CHAT,'title':'Correction ARCHI 2 GitHub','projectId':P1,'updated':1786818840000}],'counts':{P1:19,P2:6},'indexedProjectIds':[P1,P2],'serverIndexedAt':1786818840000},'niakgpt-governance-v085':{'coreProjectIds':[P1,P2],'hiddenProjectIds':[]}}
+ store={'niakgpt-v08-cache':{'schema':2,'projects':[{'id':P1,'name':'MediaLab','href':f'/g/{P1}/project'},{'id':P2,'name':'NiakGPT','href':f'/g/{P2}/project'}],'chats':[{'id':CHAT,'title':'Correction ARCHI 2 GitHub','projectId':P1,'updated':1786818840000}],'counts':{P1:19,P2:6},'indexedProjectIds':[P1,P2],'serverIndexedAt':1786818840000},'niakgpt-governance-v085':{'coreProjectIds':[P1,P2],'hiddenProjectIds':[]}}
  try:
-  page.set_content(f'''<style>html,body{{margin:0;background:#071019;color:#ddd;font:14px Arial}}nav{{width:308px;height:900px;overflow:auto;border-right:1px solid #234}}nav a,nav button{{display:block;padding:12px;color:#ddd}}main{{position:absolute;left:308px;right:0;top:0;bottom:0;background:#08131d}}</style><nav data-testid="conversation-sidebar"><div style="padding:16px;font-size:20px">ChatGPT Plus</div><section id="native-project-tree"><h2>Projects</h2><a id="native-p1" href="/g/{P1}">NiakVIO</a><div class="children"><a id="native-child" href="/g/{P1}/c/{CHAT}">Correction ARCHI 2 GitHub</a><a href="/g/{P1}/c/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee">Correction problèmes précédents</a><button id="native-more">Afficher plus</button></div><a id="native-p2" href="/g/{P2}">NiakGPT</a></section><section id="recents"><h2>Récents</h2><a id="recent-chat" href="/c/{CHAT}">Correction ARCHI 2 GitHub</a></section></nav><main><h1>Conversation</h1></main>''')
+  page.set_content(f'''<style>html,body{{margin:0;background:#071019;color:#ddd;font:14px Arial}}nav{{width:308px;height:900px;overflow:auto;border-right:1px solid #234}}nav a,nav button{{display:block;padding:12px;color:#ddd}}main{{position:absolute;left:308px;right:0;top:0;bottom:0;background:#08131d}}</style><nav data-testid="conversation-sidebar"><div style="padding:16px;font-size:20px">ChatGPT Plus</div><section id="native-project-tree"><h2>Projects</h2><a id="native-p1" href="/g/{P1}">MediaLab</a><div class="children"><a id="native-child" href="/g/{P1}/c/{CHAT}">Correction ARCHI 2 GitHub</a><a href="/g/{P1}/c/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee">Correction problèmes précédents</a><button id="native-more">Afficher plus</button></div><a id="native-p2" href="/g/{P2}">NiakGPT</a></section><section id="recents"><h2>Récents</h2><a id="recent-chat" href="/c/{CHAT}">Correction ARCHI 2 GitHub</a></section></nav><main><h1>Conversation</h1></main>''')
   page.add_script_tag(content=shim(store));page.evaluate("document.documentElement.dataset.ng86Activity='ready';document.documentElement.dataset.ng8TabRole='client';document.documentElement.dataset.ng90Matrix='off';document.documentElement.dataset.ng90Eggs='off';document.documentElement.dataset.ng100CacheGuard='ready'")
   for css in ('theme-v08.css','core-v090.css','pin-folders-v096.css'): page.add_style_tag(content=read(css))
   page.add_script_tag(content=guard(read('app-v090.js')));page.wait_for_timeout(1000)

@@ -33,12 +33,12 @@ async function basePage(browser,html,{pathname='/'}={}){
   const context=await browser.newContext({viewport:{width:1440,height:900},colorScheme:'dark',reducedMotion:'no-preference'});
   const page=await context.newPage();
   await page.addInitScript(()=>{
-    const chats=Array.from({length:120},(_,i)=>({id:`cache-${String(i).padStart(4,'0')}`,title:`Cached ${i}`,projectId:i%2?'g-p-niakgpt':'g-p-niakvio',updated:Date.now()-i*1000}));
+    const chats=Array.from({length:120},(_,i)=>({id:`cache-${String(i).padStart(4,'0')}`,title:`Cached ${i}`,projectId:i%2?'g-p-niakgpt':'g-p-medialab',updated:Date.now()-i*1000}));
     chats[0]={id:'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',title:'Long thread',projectId:'g-p-niakgpt',updated:Date.now()};
     const store={
       'niakgpt-v08-cache':{
         schema:2,at:Date.now(),projects:[
-          {id:'g-p-niakgpt',name:'NiakGPT'},{id:'g-p-niakvio',name:'NiakVIO'},{id:'g-p-films',name:'Films'}
+          {id:'g-p-niakgpt',name:'NiakGPT'},{id:'g-p-medialab',name:'MediaLab'},{id:'g-p-films',name:'Films'}
         ],chats
       }
     };
@@ -71,12 +71,12 @@ async function sidebarScenario(browser,engine){
     <section id="native-projects" class="group/sidebar-expando-section" style="padding:8px;border:1px solid #555">
       <h2>Projets</h2>
       <div class="group/project-unfurl-row"><a href="/g/g-p-niakgpt/project">NiakGPT</a><button id="native-options" aria-label="Plus d’options">⋯</button></div>
-      <div class="group/project-unfurl-row" role="button">NiakVIO</div>
+      <div class="group/project-unfurl-row" role="button">MediaLab</div>
       <div class="group/project-unfurl-row" role="button">Films</div>
     </section>
     <section id="ng8-pins" style="display:block"><div class="ng8-pin-head">PROJECTS</div><div class="ng8-pin-list">
       <div class="ng96-pin-entry"><a data-ng8-pin="1" href="/g/g-p-niakgpt/project"><span>NiakGPT</span></a></div>
-      <div class="ng96-pin-entry"><a data-ng8-pin="1" href="/g/g-p-niakvio/project"><span>NiakVIO</span></a></div>
+      <div class="ng96-pin-entry"><a data-ng8-pin="1" href="/g/g-p-medialab/project"><span>MediaLab</span></a></div>
       <div class="ng96-pin-entry"><a data-ng8-pin="1" href="/g/g-p-films/project"><span>Films</span></a></div>
     </div></section>
     <section><h2>Récents</h2><a href="/c/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa">Long thread</a></section>

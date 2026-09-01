@@ -7,7 +7,7 @@
 - **GitHub découplé des lectures ChatGPT.** Project Memory écrit immédiatement `PROJECTS.json` et les checkpoints metadata-only depuis le cache local. Les payloads complets de conversation restent en file et ne sont lus que hors discussion, après au moins une minute de calme, avec 20 s entre lectures complètes.
 
 
-NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.88 privilégie cinq propriétés : **faible coût runtime**, **priorité absolue au flux natif ChatGPT**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
+NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.89 privilégie cinq propriétés : **faible coût runtime**, **priorité absolue au flux natif ChatGPT**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
 
 ## Périmètre
 

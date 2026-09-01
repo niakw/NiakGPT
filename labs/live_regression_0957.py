@@ -39,7 +39,7 @@ nav[data-testid="conversation-sidebar"]{{width:310px;min-height:950px;padding:12
 </style></head><body>
 <nav data-testid="conversation-sidebar">
   <section class="native-project-cluster" id="native-projects-a">
-    <a href="/g/opaque-niakvio"><span class="folder">□</span><span>NiakVIO</span></a>
+    <a href="/g/opaque-medialab"><span class="folder">□</span><span>MediaLab</span></a>
     <a href="/g/opaque-niakgpt"><span class="folder">□</span><span>NiakGPT</span></a>
     <button id="native-more-a">Afficher plus</button>
   </section>
@@ -52,7 +52,7 @@ nav[data-testid="conversation-sidebar"]{{width:310px;min-height:950px;padding:12
   <section id="ng8-pins">
     <div class="ng8-pin-head"><span>PROJECTS</span><b>5</b></div>
     <div class="ng8-pin-list">
-      <a data-ng8-pin="1" href="/g/{P1}/project"><i>▤</i><span>NiakVIO</span><small>17/08 [21]</small></a>
+      <a data-ng8-pin="1" href="/g/{P1}/project"><i>▤</i><span>MediaLab</span><small>17/08 [21]</small></a>
       <a data-ng8-pin="1" href="/g/{P2}/project"><i>▤</i><span>NiakGPT</span><small>17/08 [6]</small></a>
       <a data-ng8-pin="1" href="/g/{P3}/project"><i>▶</i><span>Films</span><small>17/08 [12]</small></a>
       <a data-ng8-pin="1" href="/g/{P4}/project"><i>&lt;/&gt;</i><span>Tech &amp; Développement</span><small>17/08 [8]</small></a>
@@ -70,7 +70,7 @@ nav[data-testid="conversation-sidebar"]{{width:310px;min-height:950px;padding:12
 window.__labRaw={json.dumps({
   'schema':2,'at':1,
   'projects':[
-    {'id':P1,'name':'NiakVIO','href':f'/g/{P1}/project','domOnly':False},
+    {'id':P1,'name':'MediaLab','href':f'/g/{P1}/project','domOnly':False},
     {'id':P2,'name':'NiakGPT','href':f'/g/{P2}/project','domOnly':False},
     {'id':BAD,'name':'17/08','href':'/c/'+C1,'domOnly':True}
   ],

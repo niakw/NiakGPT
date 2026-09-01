@@ -118,7 +118,12 @@
     return pruneTargets(found);
   }
   function clearLegacyMarks(){for(const el of document.querySelectorAll('.'+LEGACY)){el.classList.remove(LEGACY);el.removeAttribute('aria-hidden');}}
-  function release(){for(const el of document.querySelectorAll(`[${MARK}="1"]`))el.removeAttribute(MARK);window.__NIAKGPT_DIAGNOSTICS__?.set('projects-authority','FALLBACK · bloc NiakGPT absent');}
+  function release(){
+    for(const el of document.querySelectorAll(`[${MARK}="1"]`))el.removeAttribute(MARK);
+    const box=ownProjects();
+    const status=box?.dataset.ng102Fallback==='1'?'FALLBACK · cache local · Projects natifs conservés':(box?'FALLBACK · bloc NiakGPT non canonique':'FALLBACK · bloc NiakGPT absent');
+    window.__NIAKGPT_DIAGNOSTICS__?.set('projects-authority',status);
+  }
   function apply(){
     timer=0;if(stopped)return false;
     if(!ownReady()){release();bindObservers();return false;}

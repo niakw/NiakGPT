@@ -44,7 +44,7 @@ async function pinsFieldRegression(browser){
       };
       const clone=v=>v===undefined?undefined:structuredClone(v);
       window.chrome={
-        runtime:{getManifest:()=>({version:'0.9.88'})},
+        runtime:{getManifest:()=>({version:'0.9.89'})},
         storage:{
           local:{
             async get(keys){
@@ -329,7 +329,7 @@ async function memoryFieldRegression(browser){
       window.chrome={
         runtime:{
           lastError:null,
-          getManifest:()=>({version:'0.9.88'}),
+          getManifest:()=>({version:'0.9.89'}),
           sendMessage(message,cb){
             const reply=value=>queueMicrotask(()=>cb(value));
             if(message.type==='niakgpt:memory-status-v132')return reply({ok:true,connected:window.__vaultConnected,configured:window.__vaultConnected,tokenAvailable:window.__vaultConnected,config:window.__vaultConnected?{repo:'synthetic/private',branch:'main',root:'.niakgpt-memory',authMode:'github-app'}:null,github:{authenticated:true,repositories:[{fullName:'synthetic/private',defaultBranch:'main'}]}});

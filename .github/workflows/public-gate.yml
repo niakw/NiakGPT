@@ -74,6 +74,7 @@ jobs:
           node tools/check-hotpath-v096.mjs
           node tools/check-repository-hygiene.mjs
           node tools/check-fixture-privacy-v133.mjs
+          node tools/check-public-tree-privacy-v134.mjs
           node tools/project-memory-v132.mjs
 
       - name: Check JavaScript syntax from manifest

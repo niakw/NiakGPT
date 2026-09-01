@@ -6,7 +6,7 @@
   <p>Projects · long-thread performance · continuity · navigation · focused productivity</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.90-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.91-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,8 +21,7 @@
 NiakGPT is a browser extension that turns the ChatGPT web interface into a more capable **workspace for heavy, project-based use** without replacing ChatGPT itself.
 
 It adds a native-first layer for Projects, navigation, long conversations, continuity, diagnostics and local productivity. Core features run locally in the browser: **no NiakGPT account, no NiakGPT analytics and no NiakGPT server are required**.
-
- > **Current version: 0.9.90.** The field sidebar now treats a local-only Project cache as recovery evidence, not canonical ownership: the managed Pins block stays above the native Projects/Chats regions, the native Projects surface remains visible until canonical `g-p-*` identities exist, and the local fallback is no longer wiped by the main renderer. A repository-wide privacy gate now rejects private fixture/project markers, real email addresses, local user paths and token-shaped values before release.
+> **Current version: 0.9.91.** Local Project fallback now survives late ChatGPT sidebar remounts: if React drops the Pins node after hydration, v121 recreates it in the active sidebar, self-heal repopulates local Projects and v131 makes the replacement visible again. Native Projects remain visible until canonical `g-p-*` identities are available.
 
 ## Highlights
 

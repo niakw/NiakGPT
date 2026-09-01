@@ -194,6 +194,27 @@
     }
     return node;
   }
+  function nativeChatsBoundary(root=navRoot()){
+    if(!root)return null;
+    const labels=[...root.querySelectorAll('h1,h2,h3,[role="heading"],span,div')].filter(el=>{
+      if(isOwn(el)||!visiblePlacementNode(el))return false;
+      const text=norm(el.getAttribute?.('aria-label')||el.textContent);
+      return /^(?:chats?|conversations?|discussions?|recent chats?|chats recents?)$/.test(text);
+    });
+    for(const seed of labels){
+      let node=seed,best=seed;
+      for(let depth=0;depth<5&&node?.parentElement&&node.parentElement!==root;depth++,node=node.parentElement){
+        const parent=node.parentElement;
+        if(hasPrimary(parent)||projectLinks(parent).length)break;
+        const generic=[...parent.querySelectorAll?.('a[href*="/c/"]')||[]].filter(a=>!isOwn(a)&&!/\/g\/g-p-/i.test(String(a.getAttribute('href')||'')));
+        const r=parent.getBoundingClientRect();
+        if(generic.length||r.height<=180)best=parent;
+        if(generic.length)break;
+      }
+      return best;
+    }
+    return null;
+  }
   function visiblePlacementNode(node){
     if(!(node instanceof Element)||!node.isConnected||node.closest('[hidden],[inert],[aria-hidden="true"]'))return false;
     const s=getComputedStyle(node),r=node.getBoundingClientRect();
@@ -303,6 +324,10 @@
     if(launcher?.parentElement&&(!tail||nativeSectionAfterPrimary(root,launcher,tail))&&(!box||(!launcher.contains(box)&&!box.contains(launcher.parentElement)))){
       return{parent:launcher.parentElement,before:launcher.nextSibling,mode:'native-projects-launcher',legacy:'projects-launcher-v121'};
     }
+    const chatsBoundary=nativeChatsBoundary(root);
+    if(chatsBoundary?.parentElement&&(!tail||nativeSectionAfterPrimary(root,chatsBoundary,tail))&&(!box||(!chatsBoundary.contains(box)&&!box.contains(chatsBoundary.parentElement)))){
+      return{parent:chatsBoundary.parentElement,before:chatsBoundary,mode:'before-native-chats',legacy:'before-native-chats-v089'};
+    }
     if(tail?.parentElement&&(!box||(!tail.contains(box)&&!box.contains(tail.parentElement)))){
       return{parent:tail.parentElement,before:tail.nextSibling,mode:'after-primary',legacy:'after-primary-v121'};
     }
@@ -321,7 +346,8 @@
     // A genuine late native Projects section is an authority upgrade, not an equivalent
     // reclassification: a catalogue originally mounted after primary controls must remount once
     // before that newly arrived native section.
-    if(original.mode==='after-primary'&&['native-projects','native-projects-launcher'].includes(ideal?.mode)&&ideal.before!==original.before)return false;
+    if(['after-primary','before-native-chats'].includes(original.mode)&&['native-projects','native-projects-launcher'].includes(ideal?.mode)&&ideal.before!==original.before)return false;
+    if(original.mode==='after-primary'&&ideal?.mode==='before-native-chats'&&ideal.before!==original.before)return false;
     const anchorIntact=original.before?original.before.isConnected&&original.before.parentElement===original.parent&&box.nextSibling===original.before:box.nextSibling===null;
     if(!anchorIntact)return false;
     const tail=primaryTail(root);

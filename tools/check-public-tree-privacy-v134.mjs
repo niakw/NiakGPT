@@ -37,6 +37,8 @@ for(const file of tracked){
     if(lower.includes(token))violations.push(`${file}: private marker "${token}"`);
   }
   for(const m of text.matchAll(emailRx)){
+    const address=String(m[0]||'').toLowerCase();
+    if(address==='git@github.com')continue; // SSH remote syntax, not a mailbox fixture.
     if(!syntheticEmailDomain(m[1]))violations.push(`${file}: non-synthetic email address`);
   }
   if(localPathRx.test(text))violations.push(`${file}: personal local user path`);

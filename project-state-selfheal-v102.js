@@ -105,6 +105,7 @@
     // Local/dom-only Projects are recovery evidence, not canonical server identity. Keep the
     // native Projects surface visible until canonical g-p-* identities are available.
     unsuppressNative();diag('pins-ui',`RÉCUPÉRATION · ${locals.length} Projects cache local · natif conservé`);diag('project-repair',`RÉCUPÉRATION · ${locals.length} Projects locaux · index serveur demandé`);
+    document.dispatchEvent(new CustomEvent('niakgpt:local-project-recovery-ready',{detail:{count:locals.length}}));
     if(Date.now()-lastForceAt>12000){lastForceAt=Date.now();document.dispatchEvent(new CustomEvent('niakgpt:force-server-index'));}
     return true;
   }

@@ -31,6 +31,9 @@ jobs:
       - name: Validate repository hygiene
         run: node tools/check-repository-hygiene.mjs
 
+      - name: Validate public-tree privacy
+        run: node tools/check-public-tree-privacy-v134.mjs
+
       - name: Validate private Project Memory v132
         run: node tools/project-memory-v132.mjs
 

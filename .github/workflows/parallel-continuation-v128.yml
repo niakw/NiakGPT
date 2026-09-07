@@ -32,8 +32,8 @@ jobs:
       matrix:
         browser: [chromium, firefox, webkit]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: npm
@@ -48,7 +48,7 @@ jobs:
         run: node parallel-continue-v128.mjs
       - name: Upload parallel continuation evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: parallel-continuation-v128-${{ matrix.browser }}
           path: visual-lab/artifacts/parallel-continue-v128/${{ matrix.browser }}
@@ -67,8 +67,8 @@ jobs:
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
       HOME: /root
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: npm
@@ -81,7 +81,7 @@ jobs:
         run: npx playwright test tests/composer-continuation-runtime-v128.spec.js --workers=1 --reporter=line
       - name: Upload MV3 evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: parallel-continuation-v128-mv3
           path: |

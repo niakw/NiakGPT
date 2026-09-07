@@ -62,10 +62,10 @@ jobs:
             echo 'run=false' >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.select.outputs.run == 'true'
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: steps.select.outputs.run == 'true'
         with:
           python-version: '3.12'
@@ -120,7 +120,7 @@ jobs:
 
       - name: Upload historical visual evidence
         if: always() && steps.select.outputs.run == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: niakgpt-historical-${{ inputs.suite }}-${{ matrix.browser }}
           path: ${{ runner.temp }}/niakgpt-historical/${{ inputs.suite }}/${{ matrix.browser }}
@@ -133,8 +133,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: npm

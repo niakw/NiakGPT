@@ -42,8 +42,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
       - name: Show current release
@@ -77,8 +77,8 @@ jobs:
       HOME: /root
       NIAKGPT_BROWSER: chromium
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: npm
@@ -108,7 +108,7 @@ jobs:
         run: npx playwright test tests/runtime-current-v105.spec.js tests/multitab-failover-v097.spec.js --workers=1 --reporter=line
       - name: Upload field evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: niakgpt-field-current-chromium
           path: |
@@ -134,8 +134,8 @@ jobs:
       matrix:
         browser: [chromium, firefox, webkit]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: npm
@@ -170,7 +170,7 @@ jobs:
         run: node project-memory-ui-stability-v084.mjs
       - name: Upload UX evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: niakgpt-final-ux-${{ matrix.browser }}
           path: |
@@ -190,7 +190,7 @@ jobs:
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
       HOME: /root
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Dedicated exhaustive gates remain present
         run: |
           test -f visual-lab/tests/sidebar-human-ux-v123.spec.js

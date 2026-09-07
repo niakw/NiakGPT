@@ -11,8 +11,8 @@ updates:
       time: "05:00"
       timezone: "Europe/Paris"
 
-    # Dependabot understands full-SHA pinned Actions and updates the SHA/tag
-    # comment together. Keep one grouped maintenance PR instead of PR spam.
+    # Dependabot understands full-SHA pinned Actions and updates immutable refs.
+    # Keep one grouped maintenance PR instead of PR spam.
     open-pull-requests-limit: 1
     rebase-strategy: "disabled"
     groups:
@@ -23,15 +23,16 @@ updates:
     commit-message:
       prefix: "deps(actions)"
 
+  # NiakGPT has no root package.json. The maintained npm project lives here.
   - package-ecosystem: "npm"
-    directory: "/"
+    directory: "/visual-lab"
     schedule:
       interval: "monthly"
       time: "06:00"
       timezone: "Europe/Paris"
 
-    # package.json uses exact runtime versions; update the manifest and lockfile
-    # together, but keep all routine npm updates in one maintenance PR.
+    # visual-lab/package.json pins the Playwright version exactly; update the
+    # manifest and lockfile together and keep routine npm updates grouped.
     versioning-strategy: "increase"
     open-pull-requests-limit: 1
     rebase-strategy: "disabled"

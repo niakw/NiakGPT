@@ -24,6 +24,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: niakgpt-live-stability-v129-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   chromium:
     name: focused stability · chromium
@@ -36,8 +40,10 @@ jobs:
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
       HOME: /root
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: '22'
           cache: npm
@@ -62,7 +68,7 @@ jobs:
         run: npx playwright test tests/long-run-composer-residue-v131.spec.js tests/live-stability-v129.spec.js --workers=1 --reporter=line
       - name: Upload evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: live-stability-v129-chromium
           path: |
@@ -76,8 +82,10 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: '22'
           cache: npm
@@ -116,7 +124,7 @@ jobs:
           exit "$code"
       - name: Upload Brave stable evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: live-stability-v129-brave-macos
           path: |

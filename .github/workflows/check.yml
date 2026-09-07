@@ -17,10 +17,46 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: '22'
+
+      - name: Enforce immutable GitHub Action references
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          sha = re.compile(r'^[0-9a-f]{40}$', re.IGNORECASE)
+          uses = re.compile(r'^\s*(?:-\s*)?uses:\s*([^\s#]+)', re.MULTILINE)
+          errors = []
+
+          workflows = Path('.github/workflows')
+          for path in sorted([*workflows.glob('*.yml'), *workflows.glob('*.yaml')]):
+              text = path.read_text(encoding='utf-8')
+              for match in uses.finditer(text):
+                  value = match.group(1).strip('"\'')
+                  if value.startswith('./'):
+                      continue
+                  if value.startswith('docker://'):
+                      if '@sha256:' not in value:
+                          errors.append(f'{path}: Docker action must be digest-pinned: {value}')
+                      continue
+                  if '@' not in value:
+                      errors.append(f'{path}: action/ref missing immutable pin: {value}')
+                      continue
+                  _action, ref = value.rsplit('@', 1)
+                  if not sha.fullmatch(ref):
+                      errors.append(f'{path}: external action must use full commit SHA: {value}')
+
+          if errors:
+              raise SystemExit('workflow dependency policy failed:\n- ' + '\n- '.join(errors))
+          print('workflow dependency policy passed: all external actions are immutable SHA-pinned')
+          PY
 
       - name: Validate hydration and runtime invariants
         run: node tools/check-runtime.mjs

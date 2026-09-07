@@ -32,8 +32,8 @@ jobs:
       HOME: /root
       NIAKGPT_BROWSER_LABEL: chromium
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: npm
@@ -46,7 +46,7 @@ jobs:
         run: npx playwright test tests/project-switch-user-journey-v130.spec.js --workers=1 --reporter=line
       - name: Upload visual evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: niakgpt-project-switch-user-journey-chromium
           path: visual-lab/artifacts/user-journey-v130/chromium
@@ -63,8 +63,8 @@ jobs:
       NIAKGPT_HEADLESS: '0'
       NIAKGPT_STANDALONE: '1'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: npm
@@ -83,7 +83,7 @@ jobs:
         run: node tests/project-switch-user-journey-v130.spec.js
       - name: Upload visual evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: niakgpt-project-switch-user-journey-brave-macos
           path: visual-lab/artifacts/user-journey-v130/brave-stable-macos

@@ -30,6 +30,16 @@
   function projectDate(id){let at=0;for(const c of cache.chats||[])if(c?.projectId===id)at=Math.max(at,parseTime(c.updated||c.update_time||c.create_time));if(!at)return'—';const d=new Date(at);return`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;}
   function countFor(id){const direct=cache.counts?.[id];if(direct!=null&&Number.isFinite(Number(direct)))return Number(direct);return(cache.chats||[]).filter(c=>c?.projectId===id).length;}
   function projectChats(id){return(cache.chats||[]).filter(c=>c?.projectId===id&&c?.id).sort((a,b)=>parseTime(b.updated)-parseTime(a.updated));}
+  function nativeMirrorCount(locals){
+    const nav=navRoot();if(!nav||!locals?.length)return 0;
+    const names=new Set(locals.map(p=>norm(p?.name)).filter(Boolean)),seen=new Set();
+    for(const el of nav.querySelectorAll('a,button,[role="link"],[role="button"],[data-sidebar-item="true"],[class*="project" i],span')){
+      if(el.closest(OWN))continue;
+      const label=norm(el.getAttribute?.('aria-label')||el.textContent);
+      if(names.has(label))seen.add(label);
+    }
+    return seen.size;
+  }
 
   function nativeProjects(){
     const nav=navRoot();if(!nav)return[];const map=new Map();
@@ -85,7 +95,7 @@
     closeFallbackDrawers(box);const chats=projectChats(pid);anchor.setAttribute('aria-expanded','true');const d=document.createElement('div');d.className='ng96-pin-drawer ng102-fallback-drawer';d.dataset.pid=pid;d.innerHTML=chats.length?chats.slice(0,160).map(c=>`<button type="button" data-chat="${esc(c.id)}"><span>${esc(c.title||'Conversation sans titre')}</span><time>${esc(projectDate(pid))}</time></button>`).join(''):'<div class="ng96-folder-empty">Aucune conversation indexée</div>';anchor.closest('.ng102-fallback-entry')?.insertAdjacentElement('afterend',d);d.querySelectorAll('[data-chat]').forEach(btn=>btn.addEventListener('click',()=>{const c=chats.find(x=>x.id===btn.dataset.chat);if(!c)return;const href=c.href||`/c/${c.id}`;location.assign(href);}));
   }
   function renderFallback(){
-    const canonical=(cache.projects||[]).filter(isCanonical);if(canonical.length){const box=document.getElementById('ng8-pins');if(box){box.removeAttribute('data-ng102-native-preferred');if(box.dataset.ng102Fallback==='1'){box.removeAttribute('data-ng102-fallback');box.removeAttribute('data-ng102-signature');}}diag('project-repair',`OK · ${canonical.length} Projects canoniques`);return false;}
+    const canonical=(cache.projects||[]).filter(isCanonical);if(canonical.length){const box=document.getElementById('ng8-pins');if(box){box.removeAttribute('data-ng102-native-preferred');box.style.removeProperty('display');if(box.dataset.ng102Fallback==='1'){box.removeAttribute('data-ng102-fallback');box.removeAttribute('data-ng102-signature');}}diag('project-repair',`OK · ${canonical.length} Projects canoniques`);return false;}
     const hidden=new Set(governance.hiddenProjectIds||[]),locals=(cache.projects||[]).filter(p=>isLocal(p)&&!hidden.has(p.id));
     if(!locals.length){unsuppressNative();diag('project-repair','ATTENTE · aucun Project exploitable');return false;}
     const nav=navRoot();if(!nav)return false;let box=document.getElementById('ng8-pins'),created=false;
@@ -101,11 +111,19 @@
       box.querySelectorAll('[data-ng102-project]').forEach(a=>a.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();const pid=a.dataset.ng102Project;if(a.getAttribute('aria-expanded')==='true'){closeFallbackDrawers(box);return;}openFallback(pid,a,box);}));
       queueMicrotask(()=>{internal=false;});
     }
-    box.hidden=false;box.removeAttribute('aria-hidden');
-    // Local/dom-only Projects are recovery evidence, not canonical server identity. Keep the
-    // native Projects surface visible until canonical g-p-* identities are available.
-    unsuppressNative();diag('pins-ui',`RÉCUPÉRATION · ${locals.length} Projects cache local · natif conservé`);diag('project-repair',`RÉCUPÉRATION · ${locals.length} Projects locaux · index serveur demandé`);
-    document.dispatchEvent(new CustomEvent('niakgpt:local-project-recovery-ready',{detail:{count:locals.length}}));
+    const mirrored=nativeMirrorCount(locals),preferNative=mirrored>=Math.min(2,locals.length);
+    if(preferNative){
+      box.dataset.ng102NativePreferred='1';box.hidden=true;box.setAttribute('aria-hidden','true');box.style.setProperty('display','none','important');
+      unsuppressNative();
+      diag('pins-ui',`NATIF · ${mirrored}/${locals.length} Projects visibles · fallback local en veille`);
+      diag('project-repair',`RÉCUPÉRATION · ${locals.length} Projects locaux · UI native prioritaire · index serveur demandé`);
+    }else{
+      box.removeAttribute('data-ng102-native-preferred');box.style.removeProperty('display');box.hidden=false;box.removeAttribute('aria-hidden');
+      unsuppressNative();
+      diag('pins-ui',`RÉCUPÉRATION · ${locals.length} Projects cache local · natif absent/incomplet`);
+      diag('project-repair',`RÉCUPÉRATION · ${locals.length} Projects locaux · fallback visible · index serveur demandé`);
+    }
+    document.dispatchEvent(new CustomEvent('niakgpt:local-project-recovery-ready',{detail:{count:locals.length,nativePreferred:preferNative,mirrored}}));
     if(Date.now()-lastForceAt>12000){lastForceAt=Date.now();document.dispatchEvent(new CustomEvent('niakgpt:force-server-index'));}
     return true;
   }

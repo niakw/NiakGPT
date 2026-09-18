@@ -182,6 +182,11 @@ jobs:
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node user-reported-v133.mjs
+      - name: Chat-state authority + extension-context invalidation
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node state-ux-v113.mjs
       - name: Upload UX evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

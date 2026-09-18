@@ -22,9 +22,9 @@ async function duplicateRecovery(){
       const raw={
         schema:2,
         projects:[
-          {id:'dom-p-niakgpt',name:'NiakGPT',domOnly:true},
-          {id:'dom-p-films',name:'Films',domOnly:true},
-          {id:'dom-p-eitty',name:'Eitty',domOnly:true}
+          {id:'dom-p-studio',name:'Studio',domOnly:true},
+          {id:'dom-p-cinema',name:'Cinema',domOnly:true},
+          {id:'dom-p-commerce',name:'Commerce Lab',domOnly:true}
         ],
         chats:[],
         counts:{},
@@ -48,9 +48,9 @@ async function duplicateRecovery(){
       <aside data-testid="conversation-sidebar" style="width:310px;height:800px">
         <a href="/">ChatGPT</a><a href="/search">Search</a>
         <section id="native-projects">
-          <div data-sidebar-item="true"><button>NiakGPT</button></div>
-          <div data-sidebar-item="true"><button>Films</button></div>
-          <div data-sidebar-item="true"><button>Eitty</button></div>
+          <div data-sidebar-item="true"><button>Studio</button></div>
+          <div data-sidebar-item="true"><button>Cinema</button></div>
+          <div data-sidebar-item="true"><button>Commerce Lab</button></div>
           <button>Afficher plus</button>
         </section>
         <section><a href="/c/${C}">Recent chat</a></section>

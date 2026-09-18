@@ -562,6 +562,17 @@
       return !!name&&!QUEUE.has(norm(name))&&(!id.startsWith('g-p-')||p?.domOnly===true);
     }).length;
   }
+  function nativeMirrorCount(root=navRoot()){
+    if(!root)return 0;
+    const names=cachedProjectNames(),seen=new Set();
+    if(!names.size)return 0;
+    for(const el of root.querySelectorAll('a,button,[role="link"],[role="button"],[data-sidebar-item="true"],[class*="project" i],span')){
+      if(isOwn(el)||!visiblePlacementNode(el))continue;
+      const label=norm(el.getAttribute?.('aria-label')||el.textContent);
+      if(names.has(label))seen.add(label);
+    }
+    return seen.size;
+  }
   function requestLocalRecovery(reason='reconcile'){
     document.dispatchEvent(new CustomEvent('niakgpt:local-project-recovery-request',{detail:{reason}}));
   }
@@ -570,19 +581,27 @@
     const root=navRoot();if(root)seedFromNative(root);
     const box=ensureBox();if(!box){bind();return;}
     const localFallback=box.dataset.ng102Fallback==='1'&&!!box.querySelector('[data-ng102-project]');
-    const canonicalCount=canonicalProjects().length,localCount=localRecoveryCount();
-    if(canonicalCount===0&&localCount>0){
+    const canonicalCount=canonicalProjects().length,localCount=localRecoveryCount(),mirrored=nativeMirrorCount(root);
+    const nativePreferred=canonicalCount===0&&localCount>0&&mirrored>=Math.min(2,localCount);
+    if(nativePreferred){
+      box.dataset.ng102NativePreferred='1';
+      if(!localFallback)requestLocalRecovery('v121-native-mirror');
+      window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',`NATIF · ${mirrored}/${localCount} Projects visibles · fallback local en veille`);
+    }else if(canonicalCount===0&&localCount>0){
+      box.removeAttribute('data-ng102-native-preferred');
       if(localFallback){
         const rendered=box.querySelectorAll('[data-ng102-project]').length;
-        window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',`RÉCUPÉRATION · ${rendered} Projects cache local · natif conservé`);
+        window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',`RÉCUPÉRATION · ${rendered} Projects cache local · natif absent/incomplet`);
       }else{
         // Never destructively render an empty canonical catalogue over a valid local-only cache.
         // Ask the dedicated recovery renderer to populate this exact v121-owned node.
         requestLocalRecovery('v121-local-cache');
         window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',`RÉCUPÉRATION · ${localCount} Projects cache local · rendu demandé`);
       }
-    }else renderCatalog(box);
-    const nativePreferred=box.dataset.ng102NativePreferred==='1'&&canonicalCount===0;
+    }else{
+      box.removeAttribute('data-ng102-native-preferred');
+      renderCatalog(box);
+    }
     if(nativePreferred){
       box.hidden=true;box.setAttribute('aria-hidden','true');box.dataset.ng121PlacementReady='0';
     }else place(box);

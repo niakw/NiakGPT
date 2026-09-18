@@ -7,7 +7,7 @@ Ce guide cible les pannes réellement utiles à diagnostiquer : **quel module at
 1. ouvrir `chrome://extensions` ;
 2. cliquer **Recharger** sur NiakGPT ;
 3. recharger les onglets ChatGPT déjà ouverts ;
-4. vérifier que la version affichée est bien **0.9.93**.
+4. vérifier que la version affichée est bien **0.9.94**.
 
 Éviter de fusionner un ancien dossier avec un nouveau ZIP. Remplacer le dossier complet empêche de conserver des fichiers obsolètes.
 
@@ -212,3 +212,10 @@ Ce message n’indique pas un dossier GitHub manquant. Il signifie que la tête 
 ### Diagnostic `0 Projects · N chats · 0 dates` après réinstallation
 
 Dans un fil de conversation actif, NiakGPT ne lance volontairement pas l’index serveur ChatGPT. Le cache DOM peut donc contenir les noms de Projects et les chats visibles sans identités canoniques ni dates. En 0.9.93, ce mode n’affiche plus deux blocs Projects : la surface native est prioritaire tant qu’elle correspond au cache local. Dès qu’une fenêtre hors conversation est disponible, un cache froid relance l’index canonique après environ 12 secondes de calme (contre 2 minutes en entretien normal), puis le reclassement rattrape aussi les anciens chats non assignés.
+
+
+## Audit 0.9.94 — scroll de génération et faux miroir Projects
+
+Le suivi automatique du bas du fil ne doit réagir qu’au **vrai conteneur scrollable de la conversation**. Une molette utilisée dans la sidebar, une touche de navigation dans le composer ou un conteneur DOM non scrollable ne doivent pas modifier cet état. Sur tactile, un geste vers le haut/bas est interprété à partir du déplacement réel du doigt. `Shift+Espace` est traité comme une remontée volontaire hors champ éditable.
+
+En recovery local, des conversations récentes dont le titre est identique au nom d’un Project ne constituent pas une preuve de surface Projects native. Les lignes de chat `/c/...` sont exclues de la détection de miroir avant de décider de cacher le fallback local.

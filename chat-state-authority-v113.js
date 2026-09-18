@@ -4,7 +4,7 @@
   window.__NIAKGPT_CHAT_STATE_113__=true;
 
   const CACHE_KEY='niakgpt-v08-cache',STATE_KEY='niakgpt-chat-state-v113';
-  let state={schema:1,chats:{}},cache=null,writing=false,persistTimer=0,routeTimer=0;
+  let state={schema:1,chats:{}},cache=null,writing=false,persistTimer=0,routeTimer=0,contextDead=false;
   const clean=v=>String(v??'').replace(/\s+/g,' ').trim();
   const parseTime=v=>{if(typeof v==='number'&&Number.isFinite(v))return v>1e12?v:v*1000;if(typeof v==='string'){const n=Number(v);if(Number.isFinite(n))return n>1e12?n:n*1000;const d=Date.parse(v);return Number.isFinite(d)?d:0;}return 0;};
   const cid=v=>String(v||'').match(/\/c\/([A-Za-z0-9_-]+)/)?.[1]||'';
@@ -12,6 +12,13 @@
   const currentCid=()=>cid(location.pathname),routePid=()=>pid(location.pathname);
   const genericTitle=v=>!clean(v)||/^(conversation(?: sans titre)?|new chat|nouveau chat|chatgpt)$/i.test(clean(v));
   const validPid=v=>/^g-p-/i.test(clean(v));
+  const invalidated=e=>/extension context invalidated|context invalidated/i.test(String(e?.message||e||''));
+  const contextAlive=()=>{if(contextDead)return false;try{return !!chrome?.runtime?.id;}catch{return false;}};
+  function markDead(){
+    if(contextDead)return;contextDead=true;clearTimeout(persistTimer);clearTimeout(routeTimer);persistTimer=routeTimer=0;
+    try{document.documentElement.dataset.ng113Context='inactive';}catch{}
+    try{window.__NIAKGPT_DIAGNOSTICS__?.set('chat-state','INACTIF · contexte extension invalidé');}catch{}
+  }
 
   function titleFromDocument(){
     let t=clean(document.title).replace(/\s*[|·]\s*(?:ChatGPT|NiakGPT)\s*$/i,'');
@@ -25,11 +32,20 @@
     if(iu===pu)return{title:genericTitle(prev.title)&&!genericTitle(it)?it:prev.title,projectId:prev.projectId||ip||'',updated:pu};
     return{title:prev.title,projectId:prev.projectId,updated:pu};
   }
-  function schedulePersist(){clearTimeout(persistTimer);persistTimer=setTimeout(()=>{chrome.storage.local.set({[STATE_KEY]:state}).catch(()=>{});},220);}
+  function schedulePersist(){
+    if(contextDead)return;clearTimeout(persistTimer);
+    persistTimer=setTimeout(()=>{
+      persistTimer=0;if(contextDead||!contextAlive()){markDead();return;}
+      try{
+        const pending=chrome.storage.local.set({[STATE_KEY]:state});
+        Promise.resolve(pending).catch(error=>{if(invalidated(error)||!contextAlive())markDead();});
+      }catch(error){if(invalidated(error)||!contextAlive())markDead();}
+    },220);
+  }
   function canonicalFor(id){return state.chats?.[id]||null;}
 
   async function reconcile(raw){
-    if(!raw||typeof raw!=='object'||writing)return;cache=raw;let stateChanged=false,cacheChanged=false;
+    if(contextDead||!raw||typeof raw!=='object'||writing)return;cache=raw;let stateChanged=false,cacheChanged=false;
     const rows=Array.isArray(raw.chats)?raw.chats:[];
     for(const c of rows){
       if(!c?.id)continue;const before=state.chats[c.id],next=choose(before,c);
@@ -51,18 +67,21 @@
     try{
       const patch=latest=>{latest=latest&&typeof latest==='object'?latest:{};return{...latest,at:Date.now(),chats:(latest.chats||[]).map(c=>{const s=canonicalFor(c?.id);return s?{...c,title:s.title,projectId:s.projectId,updated:Math.max(parseTime(c.updated),s.updated)}:c;})};};
       if(bus?.update)await bus.update(patch);else await chrome.storage.local.set({[CACHE_KEY]:patch(raw)});
-    }catch{}finally{writing=false;}
+    }catch(error){if(invalidated(error)||!contextAlive())markDead();}finally{writing=false;}
   }
-  function scheduleRoute(delay=180){clearTimeout(routeTimer);routeTimer=setTimeout(()=>{const bus=window.__NIAKGPT_CACHE_BUS__;const raw=bus?.peek?.()||cache;if(raw)reconcile(raw);},delay);}
+  function scheduleRoute(delay=180){
+    if(contextDead)return;clearTimeout(routeTimer);routeTimer=setTimeout(()=>{routeTimer=0;if(contextDead)return;const bus=window.__NIAKGPT_CACHE_BUS__;const raw=bus?.peek?.()||cache;if(raw)reconcile(raw);},delay);
+  }
 
   async function start(){
-    try{const got=await chrome.storage.local.get([STATE_KEY,CACHE_KEY]);state=got[STATE_KEY]&&typeof got[STATE_KEY]==='object'?got[STATE_KEY]:state;state.chats=state.chats||{};cache=got[CACHE_KEY]||null;}catch{}
+    if(!contextAlive()){markDead();return;}
+    try{const got=await chrome.storage.local.get([STATE_KEY,CACHE_KEY]);state=got[STATE_KEY]&&typeof got[STATE_KEY]==='object'?got[STATE_KEY]:state;state.chats=state.chats||{};cache=got[CACHE_KEY]||null;}catch(error){if(invalidated(error)||!contextAlive()){markDead();return;}}
     const bus=window.__NIAKGPT_CACHE_BUS__;
     if(bus){bus.subscribe(raw=>reconcile(raw));try{const raw=await bus.get();if(raw)await reconcile(raw);}catch{}}
     else if(cache)await reconcile(cache);
     window.__NIAKGPT_CHAT_STATE_113__={get:id=>canonicalFor(id),all:()=>state.chats};
   }
-  try{chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes[CACHE_KEY]&&!writing)reconcile(changes[CACHE_KEY].newValue);});}catch{}
+  try{chrome.storage.onChanged.addListener((changes,area)=>{if(contextDead)return;if(area==='local'&&changes[CACHE_KEY]&&!writing)reconcile(changes[CACHE_KEY].newValue);});}catch(error){if(invalidated(error)||!contextAlive())markDead();}
   window.addEventListener('popstate',()=>scheduleRoute(80));if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>scheduleRoute(80));
   document.addEventListener('niakgpt:activity-changed',()=>{if((document.documentElement.dataset.ng86Activity||'ready')==='ready')scheduleRoute(120);});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)scheduleRoute(80);});

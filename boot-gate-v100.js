@@ -12,7 +12,11 @@
   const shellRefs=new Map();
   let safeToMutate=false,shellObserver=null,shuttingDown=false;
   const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-  const message=value=>String(value?.message||value?.reason?.message||value?.reason||value||'Erreur inconnue').replace(/\s+/g,' ').slice(0,260);
+  const message=value=>String(value?.message||value?.reason?.message||value?.reason||value||'Erreur inconnue')
+    .replace(/github_pat_[A-Za-z0-9_]+/g,'[redacted]')
+    .replace(/gh[pousr]_[A-Za-z0-9]+/g,'[redacted]')
+    .replace(/([?&](?:code|token|access_token|client_secret)=)[^&\s]+/gi,'$1[redacted]')
+    .replace(/\s+/g,' ').slice(0,260);
   const clean=v=>String(v??'').replace(/\r/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
 
   function remember(kind,value){
@@ -20,6 +24,7 @@
     if(!captured.includes(line))captured.unshift(line);
     captured.splice(10);
     try{sessionStorage.setItem('niakgpt-last-boot-errors-v100',JSON.stringify(captured));}catch{}
+    try{document.dispatchEvent(new CustomEvent('niakgpt:boot-error-v100',{detail:{line}}));}catch{}
   }
   window.addEventListener('error',event=>remember('JS',event.error||event.message),true);
   window.addEventListener('unhandledrejection',event=>remember('PROMISE',event.reason),true);

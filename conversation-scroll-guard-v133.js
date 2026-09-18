@@ -8,19 +8,35 @@
   // No upward gesture exists at boot. Using 0 here accidentally creates a synthetic
   // 180 ms "user scrolled up" grace period from navigation time and can miss the first
   // streamed growth entirely. Only a real upward input should arm that grace period.
-  let root=null,observer=null,resizeObserver=null,raf=0,sticky=false,userUpAt=-Infinity,lastBottom=Infinity,lastPath=location.pathname;
+  let root=null,observer=null,resizeObserver=null,raf=0,sticky=false,userUpAt=-Infinity,lastBottom=Infinity,lastPath=location.pathname,touchY=null;
 
   const diag=text=>window.__NIAKGPT_DIAGNOSTICS__?.set('scroll-chat',text);
   const isChat=()=>CHAT_RX.test(String(location.pathname||''));
   const active=()=>isChat()&&(document.documentElement.dataset.ng8Running==='1'||ACTIVE.has(document.documentElement.dataset.ng86Activity||'')||!!document.querySelector('[data-testid="stop-button"],[data-testid*="stop-generating" i],button[aria-label*="Stop" i],button[aria-label*="Arrêter" i]'));
-  const visible=el=>el instanceof HTMLElement&&el.isConnected&&getComputedStyle(el).display!=='none'&&getComputedStyle(el).visibility!=='hidden';
+  const editable=el=>el instanceof Element&&!!el.closest('input,textarea,select,[contenteditable="true"],[role="textbox"]');
+  const touchPoint=event=>{const p=event.touches?.[0]||event.changedTouches?.[0];const y=Number(p?.clientY);return Number.isFinite(y)?y:null;};
+  function scrollableNode(node){
+    if(!(node instanceof HTMLElement)&&node!==document.scrollingElement)return false;
+    const range=Math.max(0,node.scrollHeight-node.clientHeight);if(range<2)return false;
+    const style=getComputedStyle(node),overflow=String(style.overflowY||style.overflow||'').toLowerCase();
+    if(node===document.scrollingElement)return !/hidden|clip/.test(overflow);
+    return /^(auto|scroll|overlay)$/.test(overflow);
+  }
+  function targetsConversationScroller(target){
+    if(!(target instanceof Node)||!root)return false;
+    if(root===document.scrollingElement){
+      const main=document.querySelector('main,[role="main"]');
+      return !!main&&(target===main||main.contains(target));
+    }
+    return target===root||root.contains(target);
+  }
   function scrollRoot(){
     const main=document.querySelector('main,[role="main"]');
     const candidates=[document.scrollingElement,...(main?[main,...main.querySelectorAll('[class*="overflow-y-auto"],[class*="overflow-auto"],[data-scroll-root],section,div')]:[])].filter(Boolean);
     let best=null,bestScore=-Infinity;
     for(const el of candidates){
       if(!(el instanceof HTMLElement)&&el!==document.scrollingElement)continue;
-      const node=el,range=Math.max(0,node.scrollHeight-node.clientHeight);if(range<120)continue;
+      const node=el,range=Math.max(0,node.scrollHeight-node.clientHeight);if(range<120||!scrollableNode(node))continue;
       let score=Math.min(400,range/5);
       if(node===document.scrollingElement)score+=30;
       if(main&&(node===main||main.contains(node)))score+=80;
@@ -69,12 +85,29 @@
     const d=distanceBottom(root);lastBottom=d;
     if(d<=140&&performance.now()-userUpAt>180)setSticky(true,reason);
   }
+  function touchStart(event){
+    if(!isChat())return;bind();
+    if(!targetsConversationScroller(event.target))return;
+    touchY=touchPoint(event);
+  }
+  function touchEnd(){touchY=null;}
   function userIntent(event){
     if(!isChat())return;bind();
+    if(event.type==='keydown'){
+      if(editable(event.target))return;
+      const target=event.target;
+      if(root!==document.scrollingElement&&target instanceof Node&&target!==document.body&&target!==document.documentElement&&!targetsConversationScroller(target))return;
+    }else if(!targetsConversationScroller(event.target))return;
     let dir=0;
     if(event.type==='wheel')dir=Math.sign(Number(event.deltaY)||0);
-    else if(event.type==='touchmove')dir=0;
-    else if(event.type==='keydown')dir=/^(ArrowUp|PageUp|Home)$/.test(event.key)?-1:/^(ArrowDown|PageDown|End| )$/.test(event.key)?1:0;
+    else if(event.type==='touchmove'){
+      const next=touchPoint(event);
+      if(next!=null&&touchY!=null)dir=Math.sign(touchY-next);
+      touchY=next;
+    }else if(event.type==='keydown'){
+      if(/^(ArrowUp|PageUp|Home)$/.test(event.key)||(event.key===' '&&event.shiftKey))dir=-1;
+      else if(/^(ArrowDown|PageDown|End)$/.test(event.key)||event.key===' ')dir=1;
+    }
     if(dir<0){userUpAt=performance.now();setSticky(false,'remontée volontaire');return;}
     requestAnimationFrame(()=>{
       if(dir>0&&root&&active()&&distanceBottom(root)<=80){
@@ -102,7 +135,11 @@
     if(lastPath===location.pathname)return;lastPath=location.pathname;sticky=false;userUpAt=-Infinity;lastBottom=Infinity;bind();activity();
   }
 
-  for(const type of ['wheel','touchmove'])document.addEventListener(type,userIntent,{capture:true,passive:true});
+  document.addEventListener('wheel',userIntent,{capture:true,passive:true});
+  document.addEventListener('touchstart',touchStart,{capture:true,passive:true});
+  document.addEventListener('touchmove',userIntent,{capture:true,passive:true});
+  document.addEventListener('touchend',touchEnd,{capture:true,passive:true});
+  document.addEventListener('touchcancel',touchEnd,{capture:true,passive:true});
   document.addEventListener('keydown',userIntent,true);
   document.addEventListener('scroll',onScroll,true);
   document.addEventListener('niakgpt:activity-changed',activity);

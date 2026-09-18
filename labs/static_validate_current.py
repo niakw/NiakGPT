@@ -25,7 +25,7 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.93': fail(f"version={version}")
+if version!='0.9.94': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting','identity']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']: fail('host permissions drift')
 
@@ -77,7 +77,7 @@ required={
     'sidebar-metadata-v118.js','sidebar-projects-authority-v112.js','sidebar-projects-v121.js','sidebar-ux-v119.js','pin-folders-v096.js','app-v090.js','sidebar-actions-v123.js',
     'home-layout-v112.js','analysis-bridge-v112.js','reclassify-deep-v112.js','matrix-guardian-v112.js','performance-guard-v112.js','turn-headers-v112.js','continuity-v112.js',
     'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','interruption-guard-v119.js',
-    'ux-v131.js'
+    'conversation-scroll-guard-v133.js','ux-v131.js'
 }
 missing_runtime=sorted(required-set(isolated))
 if missing_runtime: fail('current runtime missing: '+', '.join(missing_runtime))
@@ -131,11 +131,29 @@ for token in ('ng123-action-menu','ng123-rename-dialog','dataset.ng123Action','d
     if token not in actions: fail('single-owner sidebar actions incomplete '+token)
 
 catalog=read('sidebar-projects-v121.js')
-for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','userScrollEpoch','user-priority-armed','placeIntentEpoch=userScrollEpoch','niakgpt:sidebar-projects-reconcile','ng102NativePreferred','nativeMirrorCount'):
+for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','userScrollEpoch','user-priority-armed','placeIntentEpoch=userScrollEpoch','niakgpt:sidebar-projects-reconcile','ng102NativePreferred','nativeMirrorCount','genericChatRow'):
     if token not in catalog: fail('session-stable Projects catalog incomplete '+token)
+if not re.search(r"function\s+nativeMirrorCount\(root=navRoot\(\)\)\s*\{[\s\S]{0,900}?genericChatRow\(el\)",catalog):
+    fail('v121 native mirror count must explicitly exclude generic chat rows')
 selfheal=read('project-state-selfheal-v102.js')
-for token in ('nativeMirrorCount','ng102NativePreferred','fallback local en veille',"style.setProperty('display','none','important')"):
+for token in ('nativeMirrorCount','genericChatRow','ng102NativePreferred','fallback local en veille',"style.setProperty('display','none','important')"):
     if token not in selfheal: fail('native-mirror recovery self-heal incomplete '+token)
+scroll_guard=read('conversation-scroll-guard-v133.js')
+for token in ('scrollableNode','targetsConversationScroller','touchstart','touchPoint','event.shiftKey','editable(event.target)','ng133ScrollSticky','remontée volontaire'):
+    if token not in scroll_guard: fail('conversation scroll audit contract incomplete '+token)
+if 'setInterval(' in scroll_guard: fail('conversation scroll guard must remain event-driven')
+chat_state=read('chat-state-authority-v113.js')
+for token in ('contextAlive','markDead','ng113Context','Promise.resolve(pending).catch','invalidated=e=>'):
+    if token not in chat_state: fail('chat-state context invalidation guard incomplete '+token)
+if "chrome.storage.local.set({[STATE_KEY]:state}).catch" in chat_state: fail('chat-state direct persist path can still throw synchronously after extension reload')
+chat_attention=read('chat-attention-v113.js')
+for token in ('contextAlive','markDead','ng113AttentionContext','Promise.resolve(pending).catch','invalidated=e=>'):
+    if token not in chat_attention: fail('chat-attention context invalidation guard incomplete '+token)
+if "setTimeout(()=>chrome.storage.local.set" in chat_attention: fail('chat-attention direct delayed storage path can still throw synchronously')
+profiles=read('profiles-v100.js')
+for token in ('persistProfile','contextAlive','Promise.resolve(pending).catch','invalidated=e=>'):
+    if token not in profiles: fail('profiles context invalidation guard incomplete '+token)
+if "chrome.storage.local.set({[KEY]:profile}).catch" in profiles: fail('profile persistence still calls stale extension API without a synchronous guard')
 if re.search(r"recentUser[^\n]*return\s+null|user-priority:[^\n]*return\s+null",catalog): fail('recent user Project scroll must arm a restore snapshot, not return null')
 if 'userIntentAt:userScrollIntentAt' not in catalog: fail('pending Project scroll snapshot lost user intent epoch binding')
 continuity=read('continuity-v100.js')
@@ -207,8 +225,17 @@ menu=read('project-menu-augment-v129.js')
 for token in ('Personnaliser le Project','Nouveau chat dans ce Project','ng129-project-context','openProjectSettings'):
     if token not in menu: fail('Project menu augmentation incomplete '+token)
 app=read('app-v090.js')
-for token in ('panelSelectionActive','diagnosticSelectionHeld','syncDiagnosticSelectionLock','releaseDiagnosticSelection','selectionchange','diagSelectionGesture','sticky read/copy mode','S.diagTimer=setTimeout(retry,280)'):
-    if token not in app: fail('diagnostic selection stability incomplete '+token)
+for token in ('panelSelectionActive','diagnosticSelectionHeld','syncDiagnosticSelectionLock','releaseDiagnosticSelection','selectionchange','diagSelectionGesture','sticky read/copy mode','S.diagTimer=setTimeout(retry,280)',"role()==='worker'","getManifest().version || '?'"):
+    if token not in app: fail('app/client ownership or diagnostic stability incomplete '+token)
+boot=read('boot-gate-v100.js')
+for token in ('niakgpt:boot-error-v100','github_pat_','access_token','[redacted]'):
+    if token not in boot: fail('boot error redaction/diagnostic bridge incomplete '+token)
+diagnostics=read('diagnostic-bus-v096.js')
+for token in ('BOOT_ERRORS_KEY','niakgpt:boot-error-v100','worker + runtime propres'):
+    if token not in diagnostics: fail('extension runtime error diagnostic incomplete '+token)
+multitab=read('multitab-v090.js')
+for token in ('window.__NIAKGPT_APP_090__','role===\'WORKER\'','openClientQuick'):
+    if token not in multitab: fail('Quick Open fallback ownership incomplete '+token)
 
 handoff=read('continuity-native-handoff-v129.js')
 for token in ('nativeLimitControl','CONTINUITÉ NIAKGPT','markCurrentOut','writePending','finishProjectLock','sendButton'):
@@ -221,7 +248,7 @@ for gate in (
 ):
     if not (ROOT/gate).exists(): fail('current browser-fixture UX gate missing '+gate)
 workflow=read('.github/workflows/current-finalization.yml')
-for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','pins-primary-slot-v083.mjs','Reported Pins placement — native controls stay above Projects','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble','project-memory-isolation-v133.mjs'):
+for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','pins-primary-slot-v083.mjs','state-ux-v113.mjs','Chat-state authority + extension-context invalidation','Reported Pins placement — native controls stay above Projects','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble','project-memory-isolation-v133.mjs'):
     if token not in workflow: fail('Current Finalization missing '+token)
 if re.search(r'^\s*npx playwright install --with-deps\b',workflow,re.M): fail('Linux Finalization reintroduced apt --with-deps')
 parallel_workflow=read('.github/workflows/parallel-continuation-v128.yml')

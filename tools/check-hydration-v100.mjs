@@ -8,7 +8,7 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 
 const manifest=JSON.parse(read('manifest.json'));
 if(manifest.manifest_version!==3)fail('manifest_version drift');
-if(manifest.version!=='0.9.93')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.94')fail(`unexpected release ${manifest.version}`);
 same(manifest.permissions,['storage','scripting','identity'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*'],'host scope mismatch');
 const staticRuntime=['boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'];
@@ -104,7 +104,13 @@ for(const token of ['nativeLimitControl','CONTINUITÉ NIAKGPT','markCurrentOut',
 for(const token of ['setInterval(','location.reload('])forbid(nativeHandoff,token,'native continuity handoff must stay bounded');
 
 const app=read('app-v090.js');
-for(const token of ['panelSelectionActive','diagnosticSelectionHeld','syncDiagnosticSelectionLock','releaseDiagnosticSelection','selectionchange','diagSelectionGesture','sticky read/copy mode','S.diagTimer=setTimeout(retry,280)'])need(app,token,'diagnostic selection stability incomplete');
+for(const token of ['panelSelectionActive','diagnosticSelectionHeld','syncDiagnosticSelectionLock','releaseDiagnosticSelection','selectionchange','diagSelectionGesture','sticky read/copy mode','S.diagTimer=setTimeout(retry,280)',"role()==='worker'","getManifest().version || '?'"])need(app,token,'app/client ownership or diagnostic stability incomplete');
+const bootErrors=read('boot-gate-v100.js');
+for(const token of ['niakgpt:boot-error-v100','github_pat_','access_token','[redacted]'])need(bootErrors,token,'boot error redaction/diagnostic bridge incomplete');
+const diagnostics=read('diagnostic-bus-v096.js');
+for(const token of ['BOOT_ERRORS_KEY','niakgpt:boot-error-v100','worker + runtime propres'])need(diagnostics,token,'extension runtime error diagnostic incomplete');
+const multitab=read('multitab-v090.js');
+for(const token of ['window.__NIAKGPT_APP_090__',"role==='WORKER'",'openClientQuick'])need(multitab,token,'Quick Open fallback ownership incomplete');
 for(const token of ['MutationObserver(queueMainNodes)','function renderPins()','window.__NIAKGPT_SIDEBAR_PROJECTS_121__','niakgpt:sidebar-projects-reconcile'])need(app,token,'app/v121 cooperative ownership incomplete');
 need(app,"label.textContent=String(turn.innerText||turn.textContent||'')",'TOC DOM text must stay textContent');
 forbid(app,'function routeTick()');
@@ -125,9 +131,22 @@ const activity=read('activity-v086.js');
 for(const token of ['nativeBusy=hasThinking()||hasStop()','id===currentChat()&&ACTIVE.has(localState)','remember(id,localState,cur.projectId,localAt)'])need(activity,token,'long-running native activity retention incomplete');
 
 const catalog=read('sidebar-projects-v121.js');
-for(const token of ['canonicalProjects','renderCatalog','ng121PinsReady','ng121PlacementReady','sessionOrder','armBootstrap','projectScroll','drawerScroll','projectScrollMemory','niakgpt:sidebar-projects-reconcile','ng102NativePreferred','nativeMirrorCount'])need(catalog,token,'stable Projects catalog/session ownership incomplete');
+for(const token of ['canonicalProjects','renderCatalog','ng121PinsReady','ng121PlacementReady','sessionOrder','armBootstrap','projectScroll','drawerScroll','projectScrollMemory','niakgpt:sidebar-projects-reconcile','ng102NativePreferred','nativeMirrorCount','genericChatRow'])need(catalog,token,'stable Projects catalog/session ownership incomplete');
+if(!/function\s+nativeMirrorCount\(root=navRoot\(\)\)\s*\{[\s\S]{0,900}?genericChatRow\(el\)/.test(catalog))fail('v121 native mirror count must explicitly exclude generic chat rows');
 const projectSelfheal=read('project-state-selfheal-v102.js');
-for(const token of ['nativeMirrorCount','ng102NativePreferred','fallback local en veille',"style.setProperty('display','none','important')"])need(projectSelfheal,token,'native-mirror recovery self-heal incomplete');
+for(const token of ['nativeMirrorCount','genericChatRow','ng102NativePreferred','fallback local en veille',"style.setProperty('display','none','important')"])need(projectSelfheal,token,'native-mirror recovery self-heal incomplete');
+const chatScroll=read('conversation-scroll-guard-v133.js');
+for(const token of ['scrollableNode','targetsConversationScroller','touchstart','touchPoint','event.shiftKey','editable(event.target)','ng133ScrollSticky','remontée volontaire'])need(chatScroll,token,'conversation scroll audit contract incomplete');
+forbid(chatScroll,'setInterval(','conversation scroll guard must remain event-driven');
+const chatState=read('chat-state-authority-v113.js');
+for(const token of ['contextAlive','markDead','ng113Context','Promise.resolve(pending).catch','invalidated=e=>'])need(chatState,token,'chat-state context invalidation guard incomplete');
+forbid(chatState,"chrome.storage.local.set({[STATE_KEY]:state}).catch",'chat-state direct persist path can still throw synchronously after extension reload');
+const chatAttention=read('chat-attention-v113.js');
+for(const token of ['contextAlive','markDead','ng113AttentionContext','Promise.resolve(pending).catch','invalidated=e=>'])need(chatAttention,token,'chat-attention context invalidation guard incomplete');
+forbid(chatAttention,'setTimeout(()=>chrome.storage.local.set','chat-attention direct delayed storage path can still throw synchronously');
+const profiles=read('profiles-v100.js');
+for(const token of ['persistProfile','contextAlive','Promise.resolve(pending).catch','invalidated=e=>'])need(profiles,token,'profiles context invalidation guard incomplete');
+forbid(profiles,"chrome.storage.local.set({[KEY]:profile}).catch",'profile persistence still calls stale extension API without a synchronous guard');
 for(const token of ['slice(0,8)','setInterval('])forbid(catalog,token,'Projects catalog must not truncate or poll');
 
 const folders=read('pin-folders-v096.js');
@@ -176,7 +195,7 @@ const packageJson=read('visual-lab/package.json');
 const packageVersion=JSON.parse(packageJson).devDependencies?.['@playwright/test'];if(packageVersion!=='1.62.1')fail(`Playwright package/image version drift: ${packageVersion}`);
 const currentScript=JSON.parse(packageJson).scripts?.['test:current']||'';need(currentScript,'dom-node-stability-v082.mjs','current visual gate missing DOM node stability regression');need(currentScript,'pins-primary-slot-v083.mjs','current visual gate missing Pins slot regression');need(currentScript,'diagnostic-selection-v083.mjs','current visual gate missing diagnostic selection regression');
 const workflow=read('.github/workflows/current-finalization.yml');
-for(const token of ['chromium, firefox, webkit','user-reported-v133.mjs','sidebar-session-ux-v123.mjs','CURRENT LEFT SIDEBAR complete session contract','dom-node-stability-v082.mjs','Reported DOM node stability — direct chat and late shell remount','pins-primary-slot-v083.mjs','Reported Pins placement — native controls stay above Projects','sidebar-human-ux-v123.spec.js','PRIMARY real Brave — FULL human sidebar','experience-linux:','extension-runtime-linux:','mcr.microsoft.com/playwright:v1.62.1-noble','PLAYWRIGHT_BROWSERS_PATH: /ms-playwright','HOME: /root'])need(workflow,token,'current full-session/cross-platform workflow incomplete');
+for(const token of ['chromium, firefox, webkit','user-reported-v133.mjs','state-ux-v113.mjs','Chat-state authority + extension-context invalidation','sidebar-session-ux-v123.mjs','CURRENT LEFT SIDEBAR complete session contract','dom-node-stability-v082.mjs','Reported DOM node stability — direct chat and late shell remount','pins-primary-slot-v083.mjs','Reported Pins placement — native controls stay above Projects','sidebar-human-ux-v123.spec.js','PRIMARY real Brave — FULL human sidebar','experience-linux:','extension-runtime-linux:','mcr.microsoft.com/playwright:v1.62.1-noble','PLAYWRIGHT_BROWSERS_PATH: /ms-playwright','HOME: /root'])need(workflow,token,'current full-session/cross-platform workflow incomplete');
 const imageLines=workflow.split(/\r?\n/).filter(line=>/^\s+image:\s+mcr\.microsoft\.com\/playwright:v1\.62\.1-noble\s*$/.test(line));if(imageLines.length!==3)fail(`expected 3 pinned Linux Playwright image jobs, got ${imageLines.length}`);
 if(/^\s*npx playwright install --with-deps\b/m.test(workflow))fail('Linux Finalization reintroduced apt --with-deps');
 const parallelWorkflow=read('.github/workflows/parallel-continuation-v128.yml');

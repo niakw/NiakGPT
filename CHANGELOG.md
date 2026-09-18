@@ -1,3 +1,14 @@
+# NiakGPT 0.9.94 — audit scroll multi-input + faux miroir Projects
+
+- Le garde de scroll choisit désormais uniquement un conteneur réellement scrollable ; un wrapper DOM avec `overflow: visible/hidden` ne peut plus voler l’autorité au fil.
+- Les gestes utilisateur sont bornés au fil actif : faire défiler la sidebar n’interrompt plus le suivi de la réponse.
+- Support tactile déterministe : swipe pour remonter = lecture libre, retour tactile en bas = réarmement du suivi.
+- `Shift+Espace` est reconnu comme navigation vers le haut ; les flèches/Espace dans `textarea`, `input`, `contenteditable` ou `role=textbox` restent du texte et ne changent pas l’état de scroll.
+- Le recovery Projects exclut explicitement les lignes de conversation `/c/...` de la détection de miroir natif, évitant qu’un chat portant le même titre qu’un Project masque le fallback.
+- Le gate terrain couvre maintenant faux miroir par titres de chats, faux scroll-root non scrollable, sidebar wheel, clavier dans le composer, tactile et `Shift+Espace`.
+- `chat-state-authority-v113` détecte désormais un contexte d’extension invalidé avant le persist différé et absorbe aussi bien l’exception synchrone que le rejet Promise. Le scénario exact d’un reload d’extension pendant le timer de persistance est couvert sans `pageerror`.
+- Le même durcissement couvre `chat-attention-v113` et la persistance des profils : aucun timer/UI stale ne doit lancer une exception Chrome API après le rechargement de l’extension.
+
 # NiakGPT 0.9.93 — Project Memory GitHub race hardening
 
 - Le recovery local ne double plus la section Projects : si au moins deux noms du cache correspondent exactement à la surface native visible, la UI native reste seule affichée jusqu’à récupération d’identités canoniques.

@@ -7,13 +7,22 @@
   const SETTINGS_KEY='niakgpt-settings-v090';
   const ALLOWED=new Set(['power','code','research','focus','analyst','contrast']);
   const LABELS={power:'Power',code:'Code / IDE',research:'Research',focus:'Focus / Writing',analyst:'Analyst',contrast:'High Contrast'};
-  let profile='power',decorateTimer=0;
+  let profile='power',decorateTimer=0,contextDead=false;
+  const invalidated=e=>/extension context invalidated|context invalidated/i.test(String(e?.message||e||''));
+  const contextAlive=()=>{if(contextDead)return false;try{return !!chrome?.runtime?.id;}catch{return false;}};
+  function persistProfile(){
+    if(contextDead||!contextAlive()){contextDead=true;return;}
+    try{
+      const pending=chrome.storage.local.set({[KEY]:profile});
+      Promise.resolve(pending).catch(error=>{if(invalidated(error)||!contextAlive())contextDead=true;});
+    }catch(error){if(invalidated(error)||!contextAlive())contextDead=true;}
+  }
 
   function apply(next,{persist=false}={}){
     profile=ALLOWED.has(next)?next:'power';
     document.documentElement.dataset.ng100Profile=profile;
     try{localStorage.setItem(KEY,profile);}catch{}
-    if(persist)chrome.storage.local.set({[KEY]:profile}).catch?.(()=>{});
+    if(persist)persistProfile();
     document.dispatchEvent(new CustomEvent('niakgpt:profile-changed',{detail:{profile,label:LABELS[profile]}}));
     decorateControl();
   }
@@ -42,11 +51,11 @@
   document.addEventListener('niakgpt:settings-changed',()=>scheduleDecorate(0));
   document.addEventListener('click',event=>{const target=event.target instanceof Element?event.target:null;if(target?.closest('#ng90-settings-btn,#ng90-control'))scheduleDecorate(0);},true);
   document.addEventListener('keydown',event=>{if(event.altKey&&event.key===',')scheduleDecorate(0);},true);
-  chrome.storage.onChanged.addListener((changes,area)=>{
-    if(area!=='local')return;
+  try{chrome.storage.onChanged.addListener((changes,area)=>{
+    if(contextDead||area!=='local')return;
     if(changes[KEY]&&ALLOWED.has(changes[KEY].newValue))apply(changes[KEY].newValue);
     if(changes[SETTINGS_KEY])scheduleDecorate(0);
-  });
+  });}catch(error){if(invalidated(error)||!contextAlive())contextDead=true;}
 
   load();
 })();

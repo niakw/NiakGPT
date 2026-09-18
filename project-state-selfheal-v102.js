@@ -30,11 +30,18 @@
   function projectDate(id){let at=0;for(const c of cache.chats||[])if(c?.projectId===id)at=Math.max(at,parseTime(c.updated||c.update_time||c.create_time));if(!at)return'—';const d=new Date(at);return`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;}
   function countFor(id){const direct=cache.counts?.[id];if(direct!=null&&Number.isFinite(Number(direct)))return Number(direct);return(cache.chats||[]).filter(c=>c?.projectId===id).length;}
   function projectChats(id){return(cache.chats||[]).filter(c=>c?.projectId===id&&c?.id).sort((a,b)=>parseTime(b.updated)-parseTime(a.updated));}
+  const genericChatLink=el=>{const href=String(el?.getAttribute?.('href')||'');return /\/c\//i.test(href)&&!/\/g\/g-p-/i.test(href);};
+  function genericChatRow(el){
+    const own=el?.matches?.('a[href*="/c/"]')?el:el?.closest?.('a[href*="/c/"]');
+    if(own&&genericChatLink(own))return true;
+    const row=el?.closest?.('[data-sidebar-item="true"]');
+    return !!row&&[...row.querySelectorAll('a[href*="/c/"]')].some(genericChatLink);
+  }
   function nativeMirrorCount(locals){
     const nav=navRoot();if(!nav||!locals?.length)return 0;
     const names=new Set(locals.map(p=>norm(p?.name)).filter(Boolean)),seen=new Set();
     for(const el of nav.querySelectorAll('a,button,[role="link"],[role="button"],[data-sidebar-item="true"],[class*="project" i],span')){
-      if(el.closest(OWN))continue;
+      if(el.closest(OWN)||genericChatRow(el))continue;
       const label=norm(el.getAttribute?.('aria-label')||el.textContent);
       if(names.has(label))seen.add(label);
     }

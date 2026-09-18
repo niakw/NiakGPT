@@ -56,6 +56,11 @@ for(const file of [...main,...isolated,...optional,'background-v100.js','project
 for(const token of ["const OPTIONAL_RUNTIME=[","sendResponse({ok:!coreFailed","PROJECT_MEMORY_BACKEND_READY"])need(background,token,'Project Memory optional boot isolation incomplete');
 forbid(background,"item.includes(':project-memory-v132.js:')",'Project Memory must not be a critical coreFailed owner');
 
+const serverIndex=read('server-index-v100.js');
+  for(const token of ['COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement','coldBootstrap','conversationPage()'])need(serverIndex,token,'cold canonical index recovery incomplete');
+  const serverBootstrap=read('server-index-bootstrap-v124.js');
+  for(const token of ['COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement(raw)','conversationPage()'])need(serverBootstrap,token,'cold canonical bootstrap recovery incomplete');
+
 const bridge=read('page-bridge.js');
 need(bridge,'const nativeFetch = window.fetch.bind(window);');need(bridge,'conversation_detail_get_disabled');need(bridge,'d.memoryBootstrap !== true');need(bridge,'project_move_requires_governance');forbid(bridge,'window.fetch =');forbid(bridge,'globalThis.fetch =');
 

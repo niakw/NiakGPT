@@ -161,6 +161,13 @@ bridge=read('page-bridge.js')
 if "interruption === 'network'" not in bridge or "interruption === 'verify'" not in bridge: fail('RPC interruption pause missing')
 if 'native_conversation_quiet' not in bridge or 'chat-route-guard' not in bridge or 'ng90PeerChatActive' not in bridge or 'conversationQuiet()' not in bridge: fail('absolute current/peer conversation network quarantine missing')
 
+server_index=read('server-index-v100.js')
+for token in ('COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement','coldBootstrap','conversationPage()'):
+    if token not in server_index: fail('cold canonical index recovery incomplete '+token)
+server_bootstrap=read('server-index-bootstrap-v124.js')
+for token in ('COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement(raw)','conversationPage()'):
+    if token not in server_bootstrap: fail('cold canonical bootstrap recovery incomplete '+token)
+
 memory=read('project-memory-v132.js')
 for token in ('memoryBootstrap: memoryBootstrap === true','PROJECT_STATE.md','conversations/','sync_already_running','injectOnNewChat','NIAKGPT PROJECT MEMORY — CHECKPOINT RÉCUPÉRÉ','canonicalUpdated','MEMORY_LOCK','CACHE_BOOTSTRAP_LOCK','autoOwner','niakgpt:tab-role-changed','primeBootstrapQueue','ensureBootstrapQueued','writeCachedBootstrap','bootstrapMetadataOnly:true','bootstrapWritten:true','cachedOnly:true,historyDeferred:true','queuedProjects','changes[QUEUE_KEY]','githubLogin','chrome.runtime.connect','setTimeout(heartbeat,20_000)','githubRepositories','githubConnectRepo','githubLogout'):
     if token not in memory: fail('Project Memory runtime incomplete '+token)

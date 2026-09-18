@@ -15,3 +15,5 @@ The `.niakgpt-memory` directory is still managed by NiakGPT and does not need to
 - Once a complete canonical Project/chat index exists, classification catches up all unassigned cached conversations, including older history rather than only the recent window.
 - Classification stays fully paused on active conversation routes to preserve NiakGPT's zero-background-ChatGPT-network invariant.
 - During active generation, `conversation-scroll-guard-v133.js` follows the bottom only when the user is already there. Deliberate upward scrolling disables the pin immediately; returning to the bottom re-arms it.
+
+- Cold/reinstalled caches now request their first canonical Project index after a short ~12 s off-conversation quiet window instead of waiting the normal two-minute background cadence; active conversation routes remain fully quarantined.

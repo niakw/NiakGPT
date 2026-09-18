@@ -2,6 +2,7 @@
 
 - Le recovery local ne double plus la section Projects : si au moins deux noms du cache correspondent exactement à la surface native visible, la UI native reste seule affichée jusqu’à récupération d’identités canoniques.
 - Le reclassement effectue désormais un rattrapage de tout l’historique non assigné après obtention d’un index serveur complet, au lieu de se limiter aux chats récents.
+- Après réinstallation/cache froid, l’index canonique démarre hors conversation après ~12 s de calme au lieu d’exiger 2 minutes ; la quarantaine réseau reste absolue dans un chat actif.
 - Le reclassement respecte la quarantaine réseau absolue des conversations : aucun PATCH de classement n’est tenté dans un fil actif.
 - Nouveau garde `conversation-scroll-guard-v133.js` : quand l’utilisateur est au bas d’une réponse en cours, les mutations/resize du stream ne le repoussent plus vers le haut ; une remontée volontaire désactive immédiatement le suivi.
 - Ajout d’un gate cross-engine reproduisant les trois régressions terrain : double Projects, chat vieux de 30 jours non classé, scroll de génération.

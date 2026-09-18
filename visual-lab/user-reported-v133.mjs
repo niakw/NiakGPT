@@ -136,6 +136,7 @@ async function falseMirrorRecovery(){
     await page.addScriptTag({content:projects});
     await page.addScriptTag({content:selfheal});
     await page.waitForTimeout(500);
+    await page.screenshot({path:path.join(ARTIFACTS,`${engineName}-01b-false-native-mirror.png`),fullPage:true});
     const got=await page.evaluate(()=>({
       hidden:document.getElementById('ng8-pins')?.hidden,
       preferred:document.getElementById('ng8-pins')?.dataset.ng102NativePreferred||'',
@@ -147,7 +148,7 @@ async function falseMirrorRecovery(){
     assert.equal(got.preferred,'');
     assert.equal(got.fallback,'1');
     assert.equal(got.localCount,3);
-    assert.match(got.pinsDiag,/RÉCUPÉRATION.*natif absent\/incomplet/);
+    assert.match(got.pinsDiag,/RÉCUPÉRATION.*surface NiakGPT unique/);
   }finally{await page.close();}
 }
 

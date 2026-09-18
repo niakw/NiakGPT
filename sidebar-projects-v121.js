@@ -274,11 +274,19 @@
     const s=getComputedStyle(node),r=node.getBoundingClientRect();
     return s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0;
   }
+  function placementAnchorNode(node){
+    if(visiblePlacementNode(node))return true;
+    // v112 hides the native Projects host with display:none after NiakGPT acquires it.
+    // Keep that exact host as a stable DOM anchor across React remounts; DOM order, not a
+    // zero-sized hidden rect, decides whether it is safely below primary navigation.
+    return !!(node instanceof Element&&node.isConnected&&node.getAttribute('data-ng112-native-projects')==='1'&&!node.closest('[hidden],[inert],[aria-hidden="true"]'));
+  }
   function nativeSectionAfterPrimary(root,section,tail){
-    if(!section?.parentElement||!visiblePlacementNode(section))return false;
+    if(!section?.parentElement||!placementAnchorNode(section))return false;
     if(!tail||!visiblePlacementNode(tail))return true;
     const order=tail.compareDocumentPosition(section);
     if(!(order&Node.DOCUMENT_POSITION_FOLLOWING))return false;
+    if(!visiblePlacementNode(section)&&section.getAttribute('data-ng112-native-projects')==='1')return true;
     const sr=section.getBoundingClientRect(),tr=tail.getBoundingClientRect();
     return sr.top>=tr.bottom-4;
   }

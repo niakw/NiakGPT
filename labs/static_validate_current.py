@@ -131,6 +131,8 @@ for token in ('ng123-action-menu','ng123-rename-dialog','dataset.ng123Action','d
     if token not in actions: fail('single-owner sidebar actions incomplete '+token)
 
 catalog=read('sidebar-projects-v121.js')
+if 'placementAnchorNode' not in catalog or "data-ng112-native-projects" not in catalog:
+    fail('v121 must preserve the hidden v112 native Projects host as a placement anchor')
 for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','userScrollEpoch','user-priority-armed','placeIntentEpoch=userScrollEpoch','niakgpt:sidebar-projects-reconcile','surface NiakGPT unique','autorité v121 unique · natif masqué'):
     if token not in catalog: fail('single-authority Projects catalog incomplete '+token)
 selfheal=read('project-state-selfheal-v102.js')

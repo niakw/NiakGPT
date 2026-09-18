@@ -25,7 +25,7 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.94': fail(f"version={version}")
+if version!='0.9.95': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting','identity']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']: fail('host permissions drift')
 
@@ -131,15 +131,18 @@ for token in ('ng123-action-menu','ng123-rename-dialog','dataset.ng123Action','d
     if token not in actions: fail('single-owner sidebar actions incomplete '+token)
 
 catalog=read('sidebar-projects-v121.js')
-for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','userScrollEpoch','user-priority-armed','placeIntentEpoch=userScrollEpoch','niakgpt:sidebar-projects-reconcile','ng102NativePreferred','nativeMirrorCount','genericChatRow'):
-    if token not in catalog: fail('session-stable Projects catalog incomplete '+token)
-if not re.search(r"function\s+nativeMirrorCount\(root=navRoot\(\)\)\s*\{[\s\S]{0,900}?genericChatRow\(el\)",catalog):
-    fail('v121 native mirror count must explicitly exclude generic chat rows')
+if 'placementAnchorNode' not in catalog or "data-ng112-native-projects" not in catalog:
+    fail('v121 must preserve the hidden v112 native Projects host as a placement anchor')
+for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','userScrollEpoch','user-priority-armed','placeIntentEpoch=userScrollEpoch','niakgpt:sidebar-projects-reconcile','surface NiakGPT unique','autorité v121 unique · natif masqué'):
+    if token not in catalog: fail('single-authority Projects catalog incomplete '+token)
 selfheal=read('project-state-selfheal-v102.js')
-for token in ('nativeMirrorCount','genericChatRow','ng102NativePreferred','fallback local en veille',"style.setProperty('display','none','important')"):
-    if token not in selfheal: fail('native-mirror recovery self-heal incomplete '+token)
+for token in ('surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false'):
+    if token not in selfheal: fail('single-authority local recovery incomplete '+token)
+authority=read('sidebar-projects-authority-v112.js')
+for token in ('[data-ng102-project]',"querySelectorAll('[data-ng8-pin],[data-ng102-project]", "niakgpt:local-project-recovery-ready',()=>apply()"):
+    if token not in authority: fail('single-authority native suppression incomplete '+token)
 scroll_guard=read('conversation-scroll-guard-v133.js')
-for token in ('scrollableNode','targetsConversationScroller','touchstart','touchPoint','event.shiftKey','editable(event.target)','ng133ScrollSticky','remontée volontaire'):
+for token in ('conversationTail','ancestorScroller','scrollableNode','targetsConversationScroller','noteSendIntent','SEND_LATCH_MS','touchstart','touchPoint','event.shiftKey','editable(event.target)','ng133ScrollSticky','ng133ScrollRoot','remontée volontaire','generation-start','send-intent'):
     if token not in scroll_guard: fail('conversation scroll audit contract incomplete '+token)
 if 'setInterval(' in scroll_guard: fail('conversation scroll guard must remain event-driven')
 chat_state=read('chat-state-authority-v113.js')
@@ -173,8 +176,9 @@ for token in ('↳ Suite en parallèle','LEGACY_HEADER','waiting','thinking','ex
 if 'setInterval(' in parallel: fail('parallel continuation must remain event-driven')
 
 memory_bg=read('project-memory-background-v132.js')
-for token in ('memory_repository_must_be_private','verifiedPrivateAt','chrome.storage.session','niakgpt:memory-connect-v132','niakgpt:memory-commit-v132','git/refs/heads','initializeEmptyRepo',"method: 'PUT'",'github_initial_content_commit_failed','chrome.identity.launchWebAuthFlow','launchManifestRegistrationTab','chrome.tabs.create','github_auth_url_invalid_scheme','chrome.runtime.onConnect.addListener','app-manifests/','request_oauth_on_install','niakgpt:memory-github-connect-repo-v132','github_repository_not_authorized_for_vault','refresh_token','code_challenge','code_verifier','setup_url: clean(flow.installRedirect)','request_oauth_on_install: false','MAX_REF_RETRIES','queueCommit','refRace'):
+for token in ('memory_repository_must_be_private','verifiedPrivateAt','chrome.storage.session','niakgpt:memory-connect-v132','niakgpt:memory-commit-v132','git/refs/heads','initializeEmptyRepo',"method: 'PUT'",'github_initial_content_commit_failed','chrome.identity.launchWebAuthFlow','launchManifestRegistrationTab','chrome.tabs.create','github_auth_url_invalid_scheme','chrome.runtime.onConnect.addListener','app-manifests/','request_oauth_on_install','niakgpt:memory-github-connect-repo-v132','github_repository_not_authorized_for_vault','refresh_token','code_challenge','code_verifier','setup_url: clean(flow.installRedirect)','request_oauth_on_install: false','MAX_REF_RETRIES = 8','MAX_REF_BACKOFF_MS',"cache: init.cache || 'no-store'",'const beforeUpdate = await getRef','queueCommit','refRace'):
     if token not in memory_bg: fail('Project Memory backend incomplete '+token)
+if 'force: true' in memory_bg[memory_bg.find('git/refs/heads'):memory_bg.find('git/refs/heads')+5000]: fail('Project Memory must never force-push the vault branch')
 interruption=read('interruption-guard-v119.js')
 for token in ('nos\\s+systèmes\\s+effectuent\\s+quelques\\s+vérifications','connexion\\s+(?:perdue|interrompue)','assistantTail','settleRecovery','recoveryEpoch=0'):
     if token not in interruption: fail('interruption recovery contract incomplete '+token)
@@ -231,7 +235,7 @@ boot=read('boot-gate-v100.js')
 for token in ('niakgpt:boot-error-v100','github_pat_','access_token','[redacted]'):
     if token not in boot: fail('boot error redaction/diagnostic bridge incomplete '+token)
 diagnostics=read('diagnostic-bus-v096.js')
-for token in ('BOOT_ERRORS_KEY','niakgpt:boot-error-v100','worker + runtime propres'):
+for token in ('BOOT_ERRORS_KEY','niakgpt:boot-error-v100','worker + runtime propres','benignRuntimeNoise','ResizeObserver loop','completed with undelivered notifications'):
     if token not in diagnostics: fail('extension runtime error diagnostic incomplete '+token)
 multitab=read('multitab-v090.js')
 for token in ('window.__NIAKGPT_APP_090__','role===\'WORKER\'','openClientQuick'):
@@ -250,6 +254,9 @@ for gate in (
 workflow=read('.github/workflows/current-finalization.yml')
 for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','pins-primary-slot-v083.mjs','state-ux-v113.mjs','Chat-state authority + extension-context invalidation','Reported Pins placement — native controls stay above Projects','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble','project-memory-isolation-v133.mjs'):
     if token not in workflow: fail('Current Finalization missing '+token)
+live_stability=read('.github/workflows/live-stability-v129.yml')
+for token in ('conversation-scroll-guard-v133.js','project-state-selfheal-v102.js','user-reported-v133.mjs','User-reported scroll + single Projects authority in Brave stable','/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'):
+    if token not in live_stability: fail('Brave macOS field gate missing '+token)
 if re.search(r'^\s*npx playwright install --with-deps\b',workflow,re.M): fail('Linux Finalization reintroduced apt --with-deps')
 parallel_workflow=read('.github/workflows/parallel-continuation-v128.yml')
 for token in ('parallel-continue-v128.mjs','composer-continuation-runtime-v128.spec.js','chromium, firefox, webkit','parallel-continuation-v128'):

@@ -10,9 +10,15 @@ if(!launcher)throw new Error('unknown browser '+engineName);
 const read=name=>fs.readFileSync(path.join(ROOT,name),'utf8');
 const selfheal=read('project-state-selfheal-v102.js');
 const projects=read('sidebar-projects-v121.js');
+const authority=read('sidebar-projects-authority-v112.js');
+const authorityCss=read('sidebar-projects-authority-v112.css');
 const reclass=read('reclassify-v101.js');
 const scrollGuard=read('conversation-scroll-guard-v133.js');
-const browser=await launcher.launch({headless:true});
+const launchOptions={headless:process.env.NIAKGPT_HEADLESS==='0'?false:true};
+if(process.env.NIAKGPT_EXECUTABLE_PATH&&engineName==='chromium')launchOptions.executablePath=process.env.NIAKGPT_EXECUTABLE_PATH;
+const browser=await launcher.launch(launchOptions);
+const ARTIFACTS=path.join(process.cwd(),'artifacts','user-reported-v095');
+fs.mkdirSync(ARTIFACTS,{recursive:true});
 const C='11111111-1111-4111-8111-111111111111';
 
 async function duplicateRecovery(){
@@ -58,23 +64,34 @@ async function duplicateRecovery(){
       <main><article data-testid="conversation-turn-1"><div data-message-author-role="assistant">ready</div></article></main>
     </body></html>`}));
     await page.goto('https://chatgpt.com/c/'+C,{waitUntil:'domcontentloaded'});
+    await page.addStyleTag({content:authorityCss});
+    await page.addScriptTag({content:authority});
     await page.addScriptTag({content:projects});
     await page.addScriptTag({content:selfheal});
     await page.waitForTimeout(500);
-    const got=await page.evaluate(()=>({
-      pins:!!document.getElementById('ng8-pins'),
-      hidden:document.getElementById('ng8-pins')?.hidden,
-      preferred:document.getElementById('ng8-pins')?.dataset.ng102NativePreferred||'',
-      nativeVisible:[...document.querySelectorAll('#native-projects [data-sidebar-item]')].every(x=>getComputedStyle(x).display!=='none'),
-      pinsDiag:window.__diag['pins-ui']||'',
-      uxDiag:window.__diag['sidebar-ux-119']||''
-    }));
+    await page.screenshot({path:path.join(ARTIFACTS,`${engineName}-01-project-recovery.png`),fullPage:true});
+    const got=await page.evaluate(()=>{
+      const visible=el=>{if(!el)return false;const s=getComputedStyle(el),r=el.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&!el.hidden&&r.width>0&&r.height>0;};
+      const native=document.getElementById('native-projects');
+      return{
+        pins:!!document.getElementById('ng8-pins'),
+        hidden:document.getElementById('ng8-pins')?.hidden,
+        preferred:document.getElementById('ng8-pins')?.dataset.ng102NativePreferred||'',
+        nativeVisible:visible(native),
+        nativeMark:native?.getAttribute('data-ng112-native-projects')||'',
+        pinsDiag:window.__diag['pins-ui']||'',
+        authorityDiag:window.__diag['projects-authority']||'',
+        uxDiag:window.__diag['sidebar-ux-119']||''
+      };
+    });
     assert.equal(got.pins,true);
-    assert.equal(got.hidden,true,'local fallback duplicated the visible native Projects block');
-    assert.equal(got.preferred,'1');
-    assert.equal(got.nativeVisible,true);
-    assert.match(got.pinsDiag,/^NATIF · 3\/3 Projects visibles/);
-    assert.match(got.uxDiag,/Projects natifs seuls/);
+    assert.equal(got.hidden,false,'NiakGPT recovery surface was hidden instead of becoming the single Projects authority');
+    assert.equal(got.preferred,'');
+    assert.equal(got.nativeVisible,false,'native Projects remained visually visible beside the NiakGPT recovery surface');
+    assert.equal(got.nativeMark,'1','v112 did not acquire the native Projects host');
+    assert.match(got.authorityDiag,/surface\(s\) Projects native\(s\) masquée\(s\)/);
+    assert.match(got.pinsDiag,/^RÉCUPÉRATION · 3 Projects cache local · surface NiakGPT unique/);
+    assert.match(got.uxDiag,/autorité v121 unique · natif masqué/);
   }finally{await page.close();}
 }
 
@@ -119,6 +136,7 @@ async function falseMirrorRecovery(){
     await page.addScriptTag({content:projects});
     await page.addScriptTag({content:selfheal});
     await page.waitForTimeout(500);
+    await page.screenshot({path:path.join(ARTIFACTS,`${engineName}-01b-false-native-mirror.png`),fullPage:true});
     const got=await page.evaluate(()=>({
       hidden:document.getElementById('ng8-pins')?.hidden,
       preferred:document.getElementById('ng8-pins')?.dataset.ng102NativePreferred||'',
@@ -130,7 +148,7 @@ async function falseMirrorRecovery(){
     assert.equal(got.preferred,'');
     assert.equal(got.fallback,'1');
     assert.equal(got.localCount,3);
-    assert.match(got.pinsDiag,/RÉCUPÉRATION.*natif absent\/incomplet/);
+    assert.match(got.pinsDiag,/RÉCUPÉRATION.*surface NiakGPT unique/);
   }finally{await page.close();}
 }
 
@@ -186,115 +204,114 @@ async function historicalCatchup(){
 }
 
 async function generationScroll(){
-  const page=await browser.newPage({viewport:{width:1000,height:700}});
+  const page=await browser.newPage({viewport:{width:1100,height:760}});
   try{
-    await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html',body:`<!doctype html><html data-ng86-activity="executing"><head><style>
-      html,body{margin:0;height:100%;overflow:hidden}main{height:100%;display:flex;justify-content:center;position:relative}
-      #thread{height:420px;width:700px;overflow-y:auto;border:1px solid #444}
-      #side-scroll{position:fixed;left:0;top:0;width:120px;height:100px;overflow-y:auto}
+    await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html',body:`<!doctype html><html data-ng86-activity="ready"><head><style>
+      html,body{margin:0;height:100%;overflow:hidden}
+      body{display:grid;grid-template-columns:180px 1fr}
+      #side-scroll{height:100vh;overflow-y:auto;border-right:1px solid #444}
+      #shell{height:100vh;overflow-y:auto;position:relative}
+      main{min-height:100%;display:block;padding:20px 40px 120px}
       #decoy{position:absolute;left:-9999px;top:0;width:80px;height:70px;overflow:visible}
-      .chunk{height:180px}.assistant{min-height:180px}
+      .chunk{height:260px}.assistant{min-height:180px}
+      #composer-wrap{position:fixed;left:260px;right:40px;bottom:20px;background:#222;padding:8px}
     </style></head><body>
-      <aside id="side-scroll"><div style="height:900px">sidebar</div></aside>
-      <main>
-        <div id="decoy"><div style="height:2200px"><div data-message-author-role="assistant">decoy</div></div></div>
-        <div id="thread">
+      <aside id="side-scroll"><div style="height:1600px">sidebar</div></aside>
+      <div id="shell">
+        <main>
+          <div id="decoy"><div style="height:2600px"><div data-message-author-role="assistant">decoy</div></div></div>
           <div class="chunk"></div><div class="chunk"></div><div class="chunk"></div>
-          <article data-testid="conversation-turn-9" class="assistant"><div data-message-author-role="assistant" id="assistant">streaming</div></article>
-        </div>
-        <textarea id="composer"></textarea>
-        <button data-testid="stop-generating">Stop</button>
-      </main>
+          <article data-testid="conversation-turn-8"><div data-message-author-role="user">previous</div></article>
+          <article data-testid="conversation-turn-9" class="assistant"><div data-message-author-role="assistant" id="assistant">ready</div></article>
+          <div id="composer-wrap"><textarea id="composer" data-testid="prompt-textarea"></textarea><button id="send" data-testid="send-button" aria-label="Envoyer">Send</button></div>
+        </main>
+      </div>
+      <script>
+        const shell=document.getElementById('shell'),send=document.getElementById('send'),assistant=document.getElementById('assistant');
+        window.__nativeSabotage=0;
+        send.addEventListener('pointerdown',()=>{
+          requestAnimationFrame(()=>{shell.scrollTop=0;window.__nativeSabotage++;});
+          setTimeout(()=>{
+            document.documentElement.dataset.ng86Activity='executing';
+            document.dispatchEvent(new CustomEvent('niakgpt:activity-changed'));
+            const stop=document.createElement('button');stop.id='stop';stop.dataset.testid='stop-generating';stop.setAttribute('aria-label','Stop generating');document.body.appendChild(stop);
+          },25);
+          [70,130,210].forEach((ms,i)=>setTimeout(()=>{
+            const x=document.createElement('div');x.style.height=(220+i*40)+'px';x.textContent='stream-'+i;assistant.appendChild(x);
+            // Simulate a late native ChatGPT scrollIntoView/layout correction fighting our guard.
+            requestAnimationFrame(()=>{if(i<2)shell.scrollTop=Math.max(0,shell.scrollTop-500);});
+          },ms));
+        });
+      <\/script>
     </body></html>`}));
     await page.goto('https://chatgpt.com/c/'+C,{waitUntil:'domcontentloaded'});
-    await page.evaluate(()=>{const el=document.getElementById('thread');el.scrollTop=el.scrollHeight;});
+    await page.evaluate(()=>{const e=document.getElementById('shell');e.scrollTop=e.scrollHeight;});
     await page.addScriptTag({content:scrollGuard});
-    await page.waitForTimeout(120);
-    await page.evaluate(()=>{
-      const a=document.getElementById('assistant'),x=document.createElement('div');x.style.height='260px';x.textContent='more';a.appendChild(x);
-    });
-    await page.waitForTimeout(120);
-    let got=await page.evaluate(()=>{const e=document.getElementById('thread');return{d:e.scrollHeight-e.clientHeight-e.scrollTop,sticky:document.documentElement.dataset.ng133ScrollSticky};});
-    assert.ok(got.d<5,'active generation pushed the user away from the bottom');
+    await page.waitForTimeout(80);
+
+    // Exact field failure: user sends from the bottom, native ChatGPT immediately yanks the
+    // scroll container upward, then the assistant grows over several later frames.
+    await page.locator('#send').dispatchEvent('pointerdown');
+    await page.waitForTimeout(380);
+    let got=await page.evaluate(()=>{const e=document.getElementById('shell');return{
+      d:e.scrollHeight-e.clientHeight-e.scrollTop,
+      top:e.scrollTop,
+      sticky:document.documentElement.dataset.ng133ScrollSticky,
+      root:document.documentElement.dataset.ng133ScrollRoot,
+      restore:document.documentElement.dataset.ng133ScrollRestore,
+      sabotage:window.__nativeSabotage
+    };});
+    assert.equal(got.sabotage,1,'native scroll sabotage did not run');
+    assert.ok(got.d<8,`send/generation path still ended above the bottom: ${JSON.stringify(got)}`);
     assert.equal(got.sticky,'1');
+    assert.equal(got.root,'shell','guard did not bind to the ancestor conversation scroller');
+    await page.screenshot({path:path.join(ARTIFACTS,`${engineName}-02-post-send-live-scroll.png`),fullPage:true});
 
     await page.evaluate(()=>{
-      const e=document.getElementById('thread');e.dispatchEvent(new WheelEvent('wheel',{deltaY:-180,bubbles:true}));e.scrollTop=Math.max(0,e.scrollTop-260);e.dispatchEvent(new Event('scroll',{bubbles:false}));
-      const a=document.getElementById('assistant'),x=document.createElement('div');x.style.height='220px';x.textContent='more2';a.appendChild(x);
+      const e=document.getElementById('shell');e.dispatchEvent(new WheelEvent('wheel',{deltaY:-220,bubbles:true}));e.scrollTop=Math.max(0,e.scrollTop-360);e.dispatchEvent(new Event('scroll',{bubbles:false}));
+      const a=document.getElementById('assistant'),x=document.createElement('div');x.style.height='240px';x.textContent='read-up';a.appendChild(x);
     });
-    await page.waitForTimeout(120);
-    got=await page.evaluate(()=>{const e=document.getElementById('thread');return{d:e.scrollHeight-e.clientHeight-e.scrollTop,sticky:document.documentElement.dataset.ng133ScrollSticky};});
-    assert.ok(got.d>150,'intentional upward reading was overridden by the scroll guard');
+    await page.waitForTimeout(140);
+    got=await page.evaluate(()=>{const e=document.getElementById('shell');return{d:e.scrollHeight-e.clientHeight-e.scrollTop,sticky:document.documentElement.dataset.ng133ScrollSticky};});
+    assert.ok(got.d>180,'intentional upward reading was overridden by the scroll guard');
     assert.equal(got.sticky,'0');
 
     await page.evaluate(()=>{
-      const e=document.getElementById('thread');e.scrollTop=e.scrollHeight;e.dispatchEvent(new WheelEvent('wheel',{deltaY:180,bubbles:true}));e.dispatchEvent(new Event('scroll',{bubbles:false}));
+      const e=document.getElementById('shell');e.scrollTop=e.scrollHeight;e.dispatchEvent(new WheelEvent('wheel',{deltaY:220,bubbles:true}));e.dispatchEvent(new Event('scroll',{bubbles:false}));
     });
-    await page.waitForTimeout(60);
-    await page.evaluate(()=>{
-      const a=document.getElementById('assistant'),x=document.createElement('div');x.style.height='240px';x.textContent='more3';a.appendChild(x);
-    });
-    await page.waitForTimeout(120);
-    got=await page.evaluate(()=>{const e=document.getElementById('thread');return{d:e.scrollHeight-e.clientHeight-e.scrollTop,sticky:document.documentElement.dataset.ng133ScrollSticky};});
-    assert.ok(got.d<5,'returning to bottom did not re-arm sticky generation following');
+    await page.waitForTimeout(70);
+    await page.evaluate(()=>{const a=document.getElementById('assistant'),x=document.createElement('div');x.style.height='260px';x.textContent='bottom-again';a.appendChild(x);});
+    await page.waitForTimeout(140);
+    got=await page.evaluate(()=>{const e=document.getElementById('shell');return{d:e.scrollHeight-e.clientHeight-e.scrollTop,sticky:document.documentElement.dataset.ng133ScrollSticky};});
+    assert.ok(got.d<8,'returning to bottom did not re-arm live following');
     assert.equal(got.sticky,'1');
 
-    // Scrolling a different surface must never disable following in the conversation thread.
     await page.evaluate(()=>{
       const side=document.getElementById('side-scroll');side.dispatchEvent(new WheelEvent('wheel',{deltaY:-180,bubbles:true}));
       const a=document.getElementById('assistant'),x=document.createElement('div');x.style.height='180px';x.textContent='sidebar-wheel';a.appendChild(x);
     });
     await page.waitForTimeout(120);
-    got=await page.evaluate(()=>{const e=document.getElementById('thread');return{d:e.scrollHeight-e.clientHeight-e.scrollTop,sticky:document.documentElement.dataset.ng133ScrollSticky};});
-    assert.ok(got.d<5,'sidebar scrolling disabled live answer following');
-    assert.equal(got.sticky,'1');
+    got=await page.evaluate(()=>{const e=document.getElementById('shell');return{d:e.scrollHeight-e.clientHeight-e.scrollTop,sticky:document.documentElement.dataset.ng133ScrollSticky};});
+    assert.ok(got.d<8,'sidebar scrolling disabled live answer following');
 
-    // Editing the composer with navigation keys is text editing, not chat scrolling.
     await page.evaluate(()=>{
       const composer=document.getElementById('composer');composer.focus();composer.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowUp',bubbles:true}));
       const a=document.getElementById('assistant'),x=document.createElement('div');x.style.height='180px';x.textContent='composer-key';a.appendChild(x);
     });
     await page.waitForTimeout(120);
-    got=await page.evaluate(()=>{const e=document.getElementById('thread');return{d:e.scrollHeight-e.clientHeight-e.scrollTop,sticky:document.documentElement.dataset.ng133ScrollSticky};});
-    assert.ok(got.d<5,'composer ArrowUp was mistaken for conversation scrolling');
-    assert.equal(got.sticky,'1');
+    got=await page.evaluate(()=>{const e=document.getElementById('shell');return{d:e.scrollHeight-e.clientHeight-e.scrollTop,sticky:document.documentElement.dataset.ng133ScrollSticky};});
+    assert.ok(got.d<8,'composer ArrowUp was mistaken for conversation scrolling');
 
-    // Touch swipe down means the user wants to read upward: stop following immediately.
     await page.evaluate(()=>{
-      const e=document.getElementById('thread');
+      const e=document.getElementById('shell');
       const start=new Event('touchstart',{bubbles:true});Object.defineProperty(start,'touches',{value:[{clientY:180}]});e.dispatchEvent(start);
-      const move=new Event('touchmove',{bubbles:true});Object.defineProperty(move,'touches',{value:[{clientY:320}]});e.dispatchEvent(move);
-      e.scrollTop=Math.max(0,e.scrollTop-260);e.dispatchEvent(new Event('scroll',{bubbles:false}));
-      const a=document.getElementById('assistant'),x=document.createElement('div');x.style.height='200px';x.textContent='touch-up-read';a.appendChild(x);
+      const move=new Event('touchmove',{bubbles:true});Object.defineProperty(move,'touches',{value:[{clientY:330}]});e.dispatchEvent(move);
+      e.scrollTop=Math.max(0,e.scrollTop-300);e.dispatchEvent(new Event('scroll',{bubbles:false}));
+      const a=document.getElementById('assistant'),x=document.createElement('div');x.style.height='200px';x.textContent='touch-read';a.appendChild(x);
     });
     await page.waitForTimeout(120);
-    got=await page.evaluate(()=>{const e=document.getElementById('thread');return{d:e.scrollHeight-e.clientHeight-e.scrollTop,sticky:document.documentElement.dataset.ng133ScrollSticky};});
-    assert.ok(got.d>150,'touch upward-reading intent was overridden');
-    assert.equal(got.sticky,'0');
-
-    // Touch swipe up after reaching bottom must re-arm following.
-    await page.evaluate(()=>{
-      const e=document.getElementById('thread');e.scrollTop=e.scrollHeight;
-      const start=new Event('touchstart',{bubbles:true});Object.defineProperty(start,'touches',{value:[{clientY:320}]});e.dispatchEvent(start);
-      const move=new Event('touchmove',{bubbles:true});Object.defineProperty(move,'touches',{value:[{clientY:140}]});e.dispatchEvent(move);
-      e.dispatchEvent(new Event('scroll',{bubbles:false}));
-    });
-    await page.waitForTimeout(80);
-    await page.evaluate(()=>{const a=document.getElementById('assistant'),x=document.createElement('div');x.style.height='190px';x.textContent='touch-bottom';a.appendChild(x);});
-    await page.waitForTimeout(120);
-    got=await page.evaluate(()=>{const e=document.getElementById('thread');return{d:e.scrollHeight-e.clientHeight-e.scrollTop,sticky:document.documentElement.dataset.ng133ScrollSticky};});
-    assert.ok(got.d<5,'touch return to bottom did not re-arm following');
-    assert.equal(got.sticky,'1');
-
-    // Shift+Space scrolls upward outside editable controls and must release sticky follow.
-    await page.evaluate(()=>{
-      const e=document.getElementById('thread');e.focus?.();e.dispatchEvent(new KeyboardEvent('keydown',{key:' ',shiftKey:true,bubbles:true}));
-      e.scrollTop=Math.max(0,e.scrollTop-260);e.dispatchEvent(new Event('scroll',{bubbles:false}));
-      const a=document.getElementById('assistant'),x=document.createElement('div');x.style.height='200px';x.textContent='shift-space';a.appendChild(x);
-    });
-    await page.waitForTimeout(120);
-    got=await page.evaluate(()=>{const e=document.getElementById('thread');return{d:e.scrollHeight-e.clientHeight-e.scrollTop,sticky:document.documentElement.dataset.ng133ScrollSticky};});
-    assert.ok(got.d>150,'Shift+Space upward reading was overridden');
+    got=await page.evaluate(()=>{const e=document.getElementById('shell');return{d:e.scrollHeight-e.clientHeight-e.scrollTop,sticky:document.documentElement.dataset.ng133ScrollSticky};});
+    assert.ok(got.d>180,'touch upward-reading intent was overridden');
     assert.equal(got.sticky,'0');
   }finally{await page.close();}
 }

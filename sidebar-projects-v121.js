@@ -274,11 +274,19 @@
     const s=getComputedStyle(node),r=node.getBoundingClientRect();
     return s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0;
   }
+  function placementAnchorNode(node){
+    if(visiblePlacementNode(node))return true;
+    // v112 hides the native Projects host with display:none after NiakGPT acquires it.
+    // Keep that exact host as a stable DOM anchor across React remounts; DOM order, not a
+    // zero-sized hidden rect, decides whether it is safely below primary navigation.
+    return !!(node instanceof Element&&node.isConnected&&node.getAttribute('data-ng112-native-projects')==='1'&&!node.closest('[hidden],[inert],[aria-hidden="true"]'));
+  }
   function nativeSectionAfterPrimary(root,section,tail){
-    if(!section?.parentElement||!visiblePlacementNode(section))return false;
+    if(!section?.parentElement||!placementAnchorNode(section))return false;
     if(!tail||!visiblePlacementNode(tail))return true;
     const order=tail.compareDocumentPosition(section);
     if(!(order&Node.DOCUMENT_POSITION_FOLLOWING))return false;
+    if(!visiblePlacementNode(section)&&section.getAttribute('data-ng112-native-projects')==='1')return true;
     const sr=section.getBoundingClientRect(),tr=tail.getBoundingClientRect();
     return sr.top>=tr.bottom-4;
   }
@@ -426,10 +434,9 @@
   }
   function place(box){
     const root=navRoot();if(!root||!box||!box.isConnected||!root.contains(box))return false;
-    if(box.dataset.ng102NativePreferred==='1'){
-      box.hidden=true;box.setAttribute('aria-hidden','true');box.style.setProperty('display','none','important');box.dataset.ng121PlacementReady='0';
-      return true;
-    }
+    // 0.9.95: one sidebar authority. A stale recovery flag from an older runtime must
+    // never hide the NiakGPT Projects block and hand the UI back to a second native tree.
+    box.removeAttribute('data-ng102-native-preferred');
     box.style.removeProperty('display');
     const target=placementTarget(root,box);
     if(target&&box.parentElement===target.parent&&box.nextSibling===target.before){
@@ -593,32 +600,22 @@
     const root=navRoot();if(root)seedFromNative(root);
     const box=ensureBox();if(!box){bind();return;}
     const localFallback=box.dataset.ng102Fallback==='1'&&!!box.querySelector('[data-ng102-project]');
-    const canonicalCount=canonicalProjects().length,localCount=localRecoveryCount(),mirrored=nativeMirrorCount(root);
-    const nativePreferred=canonicalCount===0&&localCount>0&&mirrored>=Math.min(2,localCount);
-    if(nativePreferred){
-      box.dataset.ng102NativePreferred='1';
-      if(!localFallback)requestLocalRecovery('v121-native-mirror');
-      window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',`NATIF · ${mirrored}/${localCount} Projects visibles · fallback local en veille`);
-    }else if(canonicalCount===0&&localCount>0){
-      box.removeAttribute('data-ng102-native-preferred');
+    const canonicalCount=canonicalProjects().length,localCount=localRecoveryCount();
+    box.removeAttribute('data-ng102-native-preferred');
+    if(canonicalCount===0&&localCount>0){
       if(localFallback){
         const rendered=box.querySelectorAll('[data-ng102-project]').length;
-        window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',`RÉCUPÉRATION · ${rendered} Projects cache local · natif absent/incomplet`);
+        window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',`RÉCUPÉRATION · ${rendered} Projects cache local · surface NiakGPT unique`);
       }else{
-        // Never destructively render an empty canonical catalogue over a valid local-only cache.
-        // Ask the dedicated recovery renderer to populate this exact v121-owned node.
+        // Recovery and canonical mode share the same single visual authority. The dedicated
+        // self-heal renderer populates this exact node; ChatGPT's native tree stays hidden.
         requestLocalRecovery('v121-local-cache');
-        window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',`RÉCUPÉRATION · ${localCount} Projects cache local · rendu demandé`);
+        window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',`RÉCUPÉRATION · ${localCount} Projects cache local · rendu NiakGPT demandé`);
       }
-    }else{
-      box.removeAttribute('data-ng102-native-preferred');
-      renderCatalog(box);
-    }
-    if(nativePreferred){
-      box.hidden=true;box.setAttribute('aria-hidden','true');box.dataset.ng121PlacementReady='0';
-    }else place(box);
+    }else renderCatalog(box);
+    place(box);
     restorePendingScroll('reconcile');bind();hideWelcome();
-    window.__NIAKGPT_DIAGNOSTICS__?.set('sidebar-ux-119',nativePreferred?`OK · Projects natifs seuls · fallback v121 en veille · seed DOM local`:`OK · Projects ${box.dataset.ng121Placement||'stable'} · autorité v121 unique · seed DOM local`);
+    window.__NIAKGPT_DIAGNOSTICS__?.set('sidebar-ux-119',`OK · Projects ${box.dataset.ng121Placement||'stable'} · autorité v121 unique · natif masqué`);
   }
   function schedule(delay=0){clearTimeout(timer);timer=setTimeout(reconcile,delay);}
   function placementSignal(node){

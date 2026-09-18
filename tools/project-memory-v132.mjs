@@ -83,7 +83,7 @@ assert.equal(tabUpdatedListeners.size,0);
 assert.equal(tabRemovedListeners.size,0);
 assert.equal(memory.MAX_FILES, 32);
 assert.ok(memory.MAX_BATCH_BYTES >= 5 * 1024 * 1024);
-assert.equal(memory.MAX_REF_RETRIES,5);
+assert.equal(memory.MAX_REF_RETRIES,8);
 assert.equal(memory.refRace(Object.assign(new Error('github_http_422:Update is not a fast forward'),{status:422,data:{message:'Update is not a fast forward'}})),true);
 assert.equal(memory.refRace(Object.assign(new Error('github_http_422:Repository rule violations found'),{status:422,data:{message:'Repository rule violations found'}})),false);
 
@@ -148,7 +148,7 @@ globalThis.fetch = async (url, init = {}) => {
   const body=init.body?JSON.parse(init.body):null;
   const reply=(status,data)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json'}});
   if(method==='GET'&&path==='/repos/niakw/race-memory')return reply(200,{private:true,archived:false,size:1,default_branch:'main'});
-  if(method==='GET'&&path==='/repos/niakw/race-memory/git/ref/heads/main')return reply(200,{object:{sha:raceHead}});
+  if(method==='GET'&&path==='/repos/niakw/race-memory/git/ref/heads/main'){assert.equal(init.cache,'no-store','mutable Git ref read must bypass browser HTTP cache');return reply(200,{object:{sha:raceHead}});}
   if(method==='GET'&&path.startsWith('/repos/niakw/race-memory/git/commits/'))return reply(200,{tree:{sha:'tree-'+raceHead}});
   if(method==='POST'&&path==='/repos/niakw/race-memory/git/blobs')return reply(201,{sha:'blob-'+Math.random().toString(36).slice(2)});
   if(method==='POST'&&path==='/repos/niakw/race-memory/git/trees')return reply(201,{sha:'tree-new-'+Math.random().toString(36).slice(2)});
@@ -167,8 +167,37 @@ const raceResult=await memory.commitFilesWith('synthetic-race-token',{repo:'niak
 assert.equal(racePatchAttempts,3,'non-fast-forward race was not retried until a fresh head succeeded');
 assert.equal(raceResult.sha,raceHead);
 
+// Second race window: the branch advances after commit creation but before PATCH.
+// NiakGPT must re-read the authoritative ref and rebuild before attempting update-ref.
+let preHead='pre-parent-0',preCommitSeq=0,prePatchAttempts=0;
+const preParents=new Map();
+globalThis.fetch=async(url,init={})=>{
+  const u=new URL(String(url)),path=u.pathname,method=String(init.method||'GET').toUpperCase();
+  const body=init.body?JSON.parse(init.body):null;
+  const reply=(status,data)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json'}});
+  if(method==='GET'&&path==='/repos/niakw/preflight-memory')return reply(200,{private:true,archived:false,size:1,default_branch:'main'});
+  if(method==='GET'&&path==='/repos/niakw/preflight-memory/git/ref/heads/main'){assert.equal(init.cache,'no-store','preflight ref read must bypass browser cache');return reply(200,{object:{sha:preHead}});}
+  if(method==='GET'&&path.startsWith('/repos/niakw/preflight-memory/git/commits/'))return reply(200,{tree:{sha:'tree-'+preHead}});
+  if(method==='POST'&&path==='/repos/niakw/preflight-memory/git/blobs')return reply(201,{sha:'blob-pre'});
+  if(method==='POST'&&path==='/repos/niakw/preflight-memory/git/trees')return reply(201,{sha:'tree-pre-'+preCommitSeq});
+  if(method==='POST'&&path==='/repos/niakw/preflight-memory/git/commits'){
+    const sha='pre-commit-'+(++preCommitSeq);preParents.set(sha,body.parents?.[0]||'');
+    if(preCommitSeq<=2)preHead='pre-external-'+preCommitSeq;
+    return reply(201,{sha});
+  }
+  if(method==='PATCH'&&path==='/repos/niakw/preflight-memory/git/refs/heads/main'){
+    prePatchAttempts++;assert.equal(preParents.get(body.sha),preHead,'preflight retry did not rebuild on current branch head');
+    preHead=body.sha;return reply(200,{object:{sha:preHead}});
+  }
+  return reply(500,{message:'unexpected preflight mock '+method+' '+path});
+};
+const preResult=await memory.commitFilesWith('synthetic-preflight-token',{repo:'niakw/preflight-memory',branch:'main',root:'.niakgpt-memory'},[{path:'PROJECTS.json',content:'{}\n'}],'preflight race test');
+assert.equal(preCommitSeq,3,'preflight race did not rebuild until the branch head stabilized');
+assert.equal(prePatchAttempts,1,'preflight race still emitted doomed update-ref requests');
+assert.equal(preResult.sha,preHead);
+
 const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
-assert.equal(manifest.version, '0.9.94');
+assert.equal(manifest.version, '0.9.95');
 assert.deepEqual(manifest.permissions, ['storage','scripting','identity']);
 assert.deepEqual(manifest.host_permissions, ['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']);
 

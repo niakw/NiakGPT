@@ -6,7 +6,7 @@
   <p>Projects · long-thread performance · continuity · navigation · focused productivity</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.94-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.95-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,7 +21,7 @@
 NiakGPT is a browser extension that turns the ChatGPT web interface into a more capable **workspace for heavy, project-based use** without replacing ChatGPT itself.
 
 It adds a native-first layer for Projects, navigation, long conversations, continuity, diagnostics and local productivity. Core features run locally in the browser: **no NiakGPT account, no NiakGPT analytics and no NiakGPT server are required**.
-> **Current version: 0.9.94.** The post-0.9.93 audit hardens the live-generation scroll path across wheel, touch, keyboard and editable-composer input, rejects non-scrollable DOM decoys when choosing the conversation scroller, and prevents recent chat titles from being mistaken for a native Projects mirror during cold recovery.
+> **Current version: 0.9.95.** Project Memory now uses authoritative GitHub ref reads and a pre-update head check; the left sidebar keeps one NiakGPT-owned Projects surface even during local-only recovery; and live-answer scrolling is anchored to the real conversation scroller from send intent through generation. The user-reported path is exercised in Brave stable on macOS in addition to the cross-engine matrix.
 
 ## Highlights
 

@@ -8,7 +8,7 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 
 const manifest=JSON.parse(read('manifest.json'));
 if(manifest.manifest_version!==3)fail('manifest_version drift');
-if(manifest.version!=='0.9.94')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.95')fail(`unexpected release ${manifest.version}`);
 same(manifest.permissions,['storage','scripting','identity'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*'],'host scope mismatch');
 const staticRuntime=['boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'];
@@ -65,7 +65,8 @@ const bridge=read('page-bridge.js');
 need(bridge,'const nativeFetch = window.fetch.bind(window);');need(bridge,'conversation_detail_get_disabled');need(bridge,'d.memoryBootstrap !== true');need(bridge,'project_move_requires_governance');forbid(bridge,'window.fetch =');forbid(bridge,'globalThis.fetch =');
 
 const memoryBackend=read('project-memory-background-v132.js');
-for(const token of ['memory_repository_must_be_private','meta?.private !== true','chrome.storage.session','niakgpt:memory-connect-v132','chrome.identity.launchWebAuthFlow','app-manifests/','request_oauth_on_install','niakgpt:memory-github-connect-repo-v132','github_repository_not_authorized_for_vault','refresh_token','code_challenge','code_verifier','setup_url: clean(flow.installRedirect)','request_oauth_on_install: false'])need(memoryBackend,token,'Project Memory backend invariant incomplete');
+for(const token of ['memory_repository_must_be_private','meta?.private !== true','chrome.storage.session','niakgpt:memory-connect-v132','chrome.identity.launchWebAuthFlow','app-manifests/','request_oauth_on_install','niakgpt:memory-github-connect-repo-v132','github_repository_not_authorized_for_vault','refresh_token','code_challenge','code_verifier','setup_url: clean(flow.installRedirect)','request_oauth_on_install: false',"cache: init.cache || 'no-store'",'const beforeUpdate = await getRef','MAX_REF_RETRIES = 8','MAX_REF_BACKOFF_MS'])need(memoryBackend,token,'Project Memory backend invariant incomplete');
+if(/force:\s*true/.test(memoryBackend.slice(memoryBackend.indexOf('git/refs/heads'),memoryBackend.indexOf('git/refs/heads')+5000)))fail('Project Memory must never force-push the vault branch');
 const memoryRuntime=read('project-memory-v132.js');
 for(const token of ['PROJECT_STATE.md','canonicalUpdated','prefsReady','function inject(ed)','memoryBootstrap: memoryBootstrap === true','MEMORY_LOCK','CACHE_BOOTSTRAP_LOCK','autoOwner','niakgpt:tab-role-changed','primeBootstrapQueue','ensureBootstrapQueued','writeCachedBootstrap','bootstrapMetadataOnly:true','bootstrapWritten:true','cachedOnly:true,historyDeferred:true','queuedProjects','changes[QUEUE_KEY]','githubLogin','githubRepositories','githubConnectRepo','githubLogout'])need(memoryRuntime,token,'Project Memory runtime invariant incomplete');
 forbid(memoryRuntime,'async function inject(ed)','Project Memory send-time injection must be synchronous');
@@ -108,7 +109,7 @@ for(const token of ['panelSelectionActive','diagnosticSelectionHeld','syncDiagno
 const bootErrors=read('boot-gate-v100.js');
 for(const token of ['niakgpt:boot-error-v100','github_pat_','access_token','[redacted]'])need(bootErrors,token,'boot error redaction/diagnostic bridge incomplete');
 const diagnostics=read('diagnostic-bus-v096.js');
-for(const token of ['BOOT_ERRORS_KEY','niakgpt:boot-error-v100','worker + runtime propres'])need(diagnostics,token,'extension runtime error diagnostic incomplete');
+for(const token of ['BOOT_ERRORS_KEY','niakgpt:boot-error-v100','worker + runtime propres','benignRuntimeNoise','ResizeObserver loop','completed with undelivered notifications'])need(diagnostics,token,'extension runtime error diagnostic incomplete');
 const multitab=read('multitab-v090.js');
 for(const token of ['window.__NIAKGPT_APP_090__',"role==='WORKER'",'openClientQuick'])need(multitab,token,'Quick Open fallback ownership incomplete');
 for(const token of ['MutationObserver(queueMainNodes)','function renderPins()','window.__NIAKGPT_SIDEBAR_PROJECTS_121__','niakgpt:sidebar-projects-reconcile'])need(app,token,'app/v121 cooperative ownership incomplete');
@@ -131,12 +132,14 @@ const activity=read('activity-v086.js');
 for(const token of ['nativeBusy=hasThinking()||hasStop()','id===currentChat()&&ACTIVE.has(localState)','remember(id,localState,cur.projectId,localAt)'])need(activity,token,'long-running native activity retention incomplete');
 
 const catalog=read('sidebar-projects-v121.js');
-for(const token of ['canonicalProjects','renderCatalog','ng121PinsReady','ng121PlacementReady','sessionOrder','armBootstrap','projectScroll','drawerScroll','projectScrollMemory','niakgpt:sidebar-projects-reconcile','ng102NativePreferred','nativeMirrorCount','genericChatRow'])need(catalog,token,'stable Projects catalog/session ownership incomplete');
-if(!/function\s+nativeMirrorCount\(root=navRoot\(\)\)\s*\{[\s\S]{0,900}?genericChatRow\(el\)/.test(catalog))fail('v121 native mirror count must explicitly exclude generic chat rows');
+need(catalog,'placementAnchorNode','v121 must preserve hidden v112 native Projects host as a stable placement anchor');
+for(const token of ['canonicalProjects','renderCatalog','ng121PinsReady','ng121PlacementReady','sessionOrder','armBootstrap','projectScroll','drawerScroll','projectScrollMemory','niakgpt:sidebar-projects-reconcile','surface NiakGPT unique','autorité v121 unique · natif masqué'])need(catalog,token,'single-authority Projects catalog/session ownership incomplete');
 const projectSelfheal=read('project-state-selfheal-v102.js');
-for(const token of ['nativeMirrorCount','genericChatRow','ng102NativePreferred','fallback local en veille',"style.setProperty('display','none','important')"])need(projectSelfheal,token,'native-mirror recovery self-heal incomplete');
+for(const token of ['surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false'])need(projectSelfheal,token,'single-authority local recovery incomplete');
+const projectAuthority=read('sidebar-projects-authority-v112.js');
+for(const token of ['[data-ng102-project]',"querySelectorAll('[data-ng8-pin],[data-ng102-project]","niakgpt:local-project-recovery-ready',()=>apply()"])need(projectAuthority,token,'single-authority native suppression incomplete');
 const chatScroll=read('conversation-scroll-guard-v133.js');
-for(const token of ['scrollableNode','targetsConversationScroller','touchstart','touchPoint','event.shiftKey','editable(event.target)','ng133ScrollSticky','remontée volontaire'])need(chatScroll,token,'conversation scroll audit contract incomplete');
+for(const token of ['conversationTail','ancestorScroller','scrollableNode','targetsConversationScroller','noteSendIntent','SEND_LATCH_MS','touchstart','touchPoint','event.shiftKey','editable(event.target)','ng133ScrollSticky','ng133ScrollRoot','remontée volontaire','generation-start','send-intent'])need(chatScroll,token,'conversation scroll audit contract incomplete');
 forbid(chatScroll,'setInterval(','conversation scroll guard must remain event-driven');
 const chatState=read('chat-state-authority-v113.js');
 for(const token of ['contextAlive','markDead','ng113Context','Promise.resolve(pending).catch','invalidated=e=>'])need(chatState,token,'chat-state context invalidation guard incomplete');

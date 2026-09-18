@@ -7,7 +7,7 @@ Ce guide cible les pannes réellement utiles à diagnostiquer : **quel module at
 1. ouvrir `chrome://extensions` ;
 2. cliquer **Recharger** sur NiakGPT ;
 3. recharger les onglets ChatGPT déjà ouverts ;
-4. vérifier que la version affichée est bien **0.9.94**.
+4. vérifier que la version affichée est bien **0.9.95**.
 
 Éviter de fusionner un ancien dossier avec un nouveau ZIP. Remplacer le dossier complet empêche de conserver des fichiers obsolètes.
 
@@ -219,3 +219,25 @@ Dans un fil de conversation actif, NiakGPT ne lance volontairement pas l’index
 Le suivi automatique du bas du fil ne doit réagir qu’au **vrai conteneur scrollable de la conversation**. Une molette utilisée dans la sidebar, une touche de navigation dans le composer ou un conteneur DOM non scrollable ne doivent pas modifier cet état. Sur tactile, un geste vers le haut/bas est interprété à partir du déplacement réel du doigt. `Shift+Espace` est traité comme une remontée volontaire hors champ éditable.
 
 En recovery local, des conversations récentes dont le titre est identique au nom d’un Project ne constituent pas une preuve de surface Projects native. Les lignes de chat `/c/...` sont exclues de la détection de miroir avant de décider de cacher le fallback local.
+
+
+## 0.9.95 — `Update is not a fast forward` malgré les retries
+
+Le premier correctif 0.9.93 retentait correctement les réponses GitHub 409/422, mais une seconde cause terrain restait possible : la lecture HTTP de `refs/heads/<branche>` pouvait être satisfaite depuis un cache navigateur et renvoyer encore l’ancienne tête. Chaque retry reconstruisait alors un commit sur le même parent obsolète et GitHub refusait logiquement l’update-ref.
+
+Depuis 0.9.95, toutes les requêtes GitHub Project Memory utilisent `cache: 'no-store'`. En plus, NiakGPT relit la tête de branche **après la création du commit et juste avant PATCH**. Si elle a déjà bougé, le commit est reconstruit sur la nouvelle tête sans tenter un PATCH voué à échouer. Les conflits résiduels entre cette vérification et PATCH restent retentés avec backoff borné. Aucun `force: true` n’est utilisé.
+
+Le message navigateur `ResizeObserver loop completed with undelivered notifications.` est une notification standard de livraison ResizeObserver. Il n’est plus remonté comme `extension-errors: ERREUR` ; les vraies erreurs runtime restent visibles.
+
+
+## 0.9.95 — le fil remonte pendant une réponse
+
+Le garde ne choisit plus un scroller par simple score de descendants. Il part du **dernier turn de conversation** et remonte jusqu’à son premier ancêtre réellement scrollable ; le fallback inspecte aussi les ancêtres de `main`, pas seulement ses enfants.
+
+L’envoi utilisateur arme le suivi avant le passage `ready → waiting/thinking/executing`. Cela couvre le cas où ChatGPT remonte le viewport dans la première frame suivant l’envoi, avant même que le bouton Stop ou le dataset d’activité soient visibles.
+
+Une remontée volontaire de l’utilisateur coupe toujours immédiatement ce suivi.
+
+## 0.9.95 — mélange Projects ChatGPT / NiakGPT
+
+Le comportement attendu n’est plus « natif prioritaire pendant le recovery ». Dès qu’un cache local exploitable existe, **`#ng8-pins` reste l’unique surface Projects visible** et la surface Projects native est masquée par l’autorité v112. Quand les IDs canoniques arrivent, le contenu de ce même bloc est remplacé sans changer d’autorité visuelle.

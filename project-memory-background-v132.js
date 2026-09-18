@@ -12,7 +12,8 @@
   const DEFAULT_ROOT = '.niakgpt-memory';
   const MAX_FILES = 32;
   const MAX_BATCH_BYTES = 7 * 1024 * 1024;
-  const MAX_REF_RETRIES = 5;
+  const MAX_REF_RETRIES = 8;
+  const MAX_REF_BACKOFF_MS = 3000;
   const WORKER_ERROR_KEY = 'niakgpt-worker-errors-v100';
   let commitTail = Promise.resolve();
 
@@ -100,6 +101,10 @@
     if (!token) throw new Error('github_token_missing');
     const response = await fetch(`${API}${path}`, {
       ...init,
+      // Mutable Git refs must never be satisfied from the browser HTTP cache. A stale
+      // refs/heads response makes every rebuilt commit use the same obsolete parent and
+      // GitHub correctly answers 422 "Update is not a fast forward" forever.
+      cache: init.cache || 'no-store',
       headers: authHeaders(token, init.headers || {})
     });
     const text = await response.text();
@@ -714,6 +719,24 @@
       })
     });
 
+    // Close the widest race window before PATCH: re-read the branch head after the commit
+    // is built. If another writer advanced it, rebuild on that parent without even issuing
+    // a doomed update-ref request. A final race between this read and PATCH is still caught
+    // by the bounded 409/422 retry below.
+    const beforeUpdate = await getRef(token, config.repo, config.branch);
+    const currentHead = clean(beforeUpdate?.object?.sha);
+    if (currentHead && currentHead !== parent) {
+      if (currentHead === clean(nextCommit?.sha)) return { sha: nextCommit.sha, files: normalized.length, bytes: total };
+      if (retry < MAX_REF_RETRIES) {
+        await delay(Math.min(MAX_REF_BACKOFF_MS, 80 * (2 ** retry)));
+        return commitFilesWith(token, config, files, message, retry + 1);
+      }
+      const moved = new Error('github_ref_changed_before_update');
+      moved.status = 409;
+      moved.data = { message: 'Reference changed before update' };
+      throw moved;
+    }
+
     try {
       await github(token, `/repos/${config.repo}/git/refs/heads/${encodeURIComponent(config.branch)}`, {
         method: 'PATCH',
@@ -722,7 +745,7 @@
       });
     } catch (error) {
       if (retry < MAX_REF_RETRIES && refRace(error)) {
-        await delay(Math.min(800, 40 * (2 ** retry)));
+        await delay(Math.min(MAX_REF_BACKOFF_MS, 80 * (2 ** retry)));
         return commitFilesWith(token, config, files, message, retry + 1);
       }
       throw error;

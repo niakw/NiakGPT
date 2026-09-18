@@ -75,13 +75,14 @@
     if(/^CORE ·/.test(current))return;
     api.set('pins',role()==='client'?'DÉLÉGUÉ · WORKER':'PRÊT · synchro native');
   }
+  const benignRuntimeNoise=value=>/^(?:JS:\s*)?ResizeObserver loop (?:limit exceeded|completed with undelivered notifications)\.?$/i.test(String(value||'').trim());
   async function refreshWorkspaceDiagnostics(){
     try{
       const raw=await chrome.storage.local.get([GOV_KEY,SETTINGS_KEY,WORKER_ERRORS_KEY]);
       publishOrganizer(raw[GOV_KEY]||{});
       publishPins(raw[SETTINGS_KEY]||{});
       const workerErrors=Array.isArray(raw[WORKER_ERRORS_KEY])?raw[WORKER_ERRORS_KEY]:[];
-      let bootErrors=[];try{const parsed=JSON.parse(sessionStorage.getItem(BOOT_ERRORS_KEY)||'[]');bootErrors=Array.isArray(parsed)?parsed.filter(Boolean):[];}catch{}
+      let bootErrors=[];try{const parsed=JSON.parse(sessionStorage.getItem(BOOT_ERRORS_KEY)||'[]');bootErrors=Array.isArray(parsed)?parsed.filter(Boolean).filter(row=>!benignRuntimeNoise(typeof row==='string'?row:row?.message||row)):[];}catch{}
       const latestWorker=workerErrors[0],latestBoot=bootErrors[0];
       if(latestWorker)api.set('extension-errors',`ERREUR · ${workerErrors.length} worker · ${latestWorker.kind||'WORKER'}: ${String(latestWorker.message||'').slice(0,120)}`);
       else if(latestBoot)api.set('extension-errors',`ERREUR · ${bootErrors.length} runtime · ${String(typeof latestBoot==='string'?latestBoot:latestBoot?.message||latestBoot).slice(0,140)}`);

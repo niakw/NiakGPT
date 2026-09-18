@@ -10,6 +10,8 @@ if(!launcher)throw new Error('unknown browser '+engineName);
 const read=name=>fs.readFileSync(path.join(ROOT,name),'utf8');
 const selfheal=read('project-state-selfheal-v102.js');
 const projects=read('sidebar-projects-v121.js');
+const authority=read('sidebar-projects-authority-v112.js');
+const authorityCss=read('sidebar-projects-authority-v112.css');
 const reclass=read('reclassify-v101.js');
 const scrollGuard=read('conversation-scroll-guard-v133.js');
 const launchOptions={headless:process.env.NIAKGPT_HEADLESS==='0'?false:true};
@@ -62,6 +64,8 @@ async function duplicateRecovery(){
       <main><article data-testid="conversation-turn-1"><div data-message-author-role="assistant">ready</div></article></main>
     </body></html>`}));
     await page.goto('https://chatgpt.com/c/'+C,{waitUntil:'domcontentloaded'});
+    await page.addStyleTag({content:authorityCss});
+    await page.addScriptTag({content:authority});
     await page.addScriptTag({content:projects});
     await page.addScriptTag({content:selfheal});
     await page.waitForTimeout(500);
@@ -75,11 +79,11 @@ async function duplicateRecovery(){
       uxDiag:window.__diag['sidebar-ux-119']||''
     }));
     assert.equal(got.pins,true);
-    assert.equal(got.hidden,true,'local fallback duplicated the visible native Projects block');
-    assert.equal(got.preferred,'1');
-    assert.equal(got.nativeVisible,true);
-    assert.match(got.pinsDiag,/^NATIF · 3\/3 Projects visibles/);
-    assert.match(got.uxDiag,/Projects natifs seuls/);
+    assert.equal(got.hidden,false,'NiakGPT recovery surface was hidden instead of becoming the single Projects authority');
+    assert.equal(got.preferred,'');
+    assert.equal(got.nativeVisible,false,'native Projects remained visible beside the NiakGPT recovery surface');
+    assert.match(got.pinsDiag,/^RÉCUPÉRATION · 3 Projects cache local · surface NiakGPT unique/);
+    assert.match(got.uxDiag,/autorité v121 unique · natif masqué/);
   }finally{await page.close();}
 }
 

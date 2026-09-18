@@ -118,19 +118,14 @@
       box.querySelectorAll('[data-ng102-project]').forEach(a=>a.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();const pid=a.dataset.ng102Project;if(a.getAttribute('aria-expanded')==='true'){closeFallbackDrawers(box);return;}openFallback(pid,a,box);}));
       queueMicrotask(()=>{internal=false;});
     }
-    const mirrored=nativeMirrorCount(locals),preferNative=mirrored>=Math.min(2,locals.length);
-    if(preferNative){
-      box.dataset.ng102NativePreferred='1';box.hidden=true;box.setAttribute('aria-hidden','true');box.style.setProperty('display','none','important');
-      unsuppressNative();
-      diag('pins-ui',`NATIF · ${mirrored}/${locals.length} Projects visibles · fallback local en veille`);
-      diag('project-repair',`RÉCUPÉRATION · ${locals.length} Projects locaux · UI native prioritaire · index serveur demandé`);
-    }else{
-      box.removeAttribute('data-ng102-native-preferred');box.style.removeProperty('display');box.hidden=false;box.removeAttribute('aria-hidden');
-      unsuppressNative();
-      diag('pins-ui',`RÉCUPÉRATION · ${locals.length} Projects cache local · natif absent/incomplet`);
-      diag('project-repair',`RÉCUPÉRATION · ${locals.length} Projects locaux · fallback visible · index serveur demandé`);
-    }
-    document.dispatchEvent(new CustomEvent('niakgpt:local-project-recovery-ready',{detail:{count:locals.length,nativePreferred:preferNative,mirrored}}));
+    const mirrored=nativeMirrorCount(locals);
+    box.removeAttribute('data-ng102-native-preferred');box.style.removeProperty('display');box.hidden=false;box.removeAttribute('aria-hidden');
+    // The local fallback is not a second product surface anymore: it is the temporary data
+    // source for the same NiakGPT Projects node. Native Projects are immediately delegated to
+    // v112 suppression in the same task, avoiding the mixed/native-first recovery state.
+    diag('pins-ui',`RÉCUPÉRATION · ${locals.length} Projects cache local · surface NiakGPT unique`);
+    diag('project-repair',`RÉCUPÉRATION · ${locals.length} Projects locaux · NiakGPT autoritaire · index serveur demandé`);
+    document.dispatchEvent(new CustomEvent('niakgpt:local-project-recovery-ready',{detail:{count:locals.length,nativePreferred:false,mirrored}}));
     if(Date.now()-lastForceAt>12000){lastForceAt=Date.now();document.dispatchEvent(new CustomEvent('niakgpt:force-server-index'));}
     return true;
   }

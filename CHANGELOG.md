@@ -1,5 +1,12 @@
 # NiakGPT 0.9.95 — GitHub ref autoritative + diagnostic runtime
 
+- **Correction terrain supplémentaire** : le recovery Projects n’abandonne plus l’UI à la liste native ChatGPT. Le cache local et l’inventaire canonique utilisent désormais la même surface visuelle `#ng8-pins`; la surface native est masquée dès que cette autorité est exploitable.
+- `sidebar-projects-authority-v112` accepte explicitement le fallback local comme autorité temporaire et applique sa suppression native de façon synchrone au signal de recovery, ce qui élimine le mélange des deux menus.
+- Le scroll de génération est réécrit autour du dernier turn réel et de son **ancêtre réellement scrollable**, y compris lorsque le scroller entoure `<main>`.
+- L’intention d’envoi (bouton Envoyer ou Entrée dans le composer) arme le suivi **avant** que ChatGPT puisse remonter le viewport ; un latch borné couvre le délai avant apparition de l’état de génération.
+- Le lab reproduit maintenant le défaut réel : ChatGPT remonte volontairement le scroller juste après l’envoi puis répète des corrections de scroll pendant plusieurs frames. NiakGPT doit finir et rester en bas.
+- Ce même lab terrain est exécuté avec **Brave stable sur macOS** ; les anciens tests Brave ne couvraient pas ce chemin exact de DOM/hydratation.
+
 - Corrige le cas terrain où `cached_bootstrap_write_failed:github_http_422:Update is not a fast forward` persistait malgré les retries.
 - Les appels GitHub Project Memory passent maintenant en `cache: 'no-store'` afin qu’une lecture de `refs/heads/*` ne puisse pas recycler une tête obsolète.
 - Après avoir construit un commit, NiakGPT relit la ref juste avant PATCH ; si un autre writer a avancé la branche, il reconstruit d’abord sur le nouveau parent.

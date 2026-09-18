@@ -169,12 +169,12 @@ for(const [engine,launcher] of Object.entries(engines)){
     assert(recovery.canonicalCount===0,'local fallback was incorrectly converted into canonical Project links');
     assert(recovery.sameParent&&recovery.order.every(Boolean),`Pins not placed before native Projects / above Chats: ${JSON.stringify(recovery)}`);
     assert(recovery.placement==='native-projects',`cached-name Project identity did not win the exact native slot: ${JSON.stringify(recovery)}`);
-    assert(recovery.nativeVisible&&recovery.nativeMark!=='1',`native Projects were hidden before canonical identity existed: ${JSON.stringify(recovery)}`);
+    assert(!recovery.nativeVisible&&recovery.nativeMark==='1',`native Projects stayed visible beside the NiakGPT recovery surface: ${JSON.stringify(recovery)}`);
     assert(recovery.rpc===0,`local recovery emitted ChatGPT RPC during active conversation: ${recovery.rpc}`);
-    assert(/NATIF.*5\/5 Projects visibles.*fallback local en veille/i.test(recovery.pinsDiag),`wrong recovery diagnostic: ${recovery.pinsDiag}`);
+    assert(/RÉCUPÉRATION.*5 Projects cache local.*surface NiakGPT unique/i.test(recovery.pinsDiag),`wrong recovery diagnostic: ${recovery.pinsDiag}`);
     assert(recovery.governance===0,'local-only recovery invented canonical governance ownership');
-    assert(recovery.preferred==='1'&&!recovery.visible,`native-mirror recovery rendered a duplicate visible fallback: ${JSON.stringify(recovery)}`);
-    assert(/cache local.*Projects natifs conservés/i.test(recovery.authorityDiag),`authority diagnostic does not describe fallback truth: ${recovery.authorityDiag}`);
+    assert(recovery.preferred===''&&recovery.visible,`local recovery did not keep the single NiakGPT Projects surface visible: ${JSON.stringify(recovery)}`);
+    assert(/surface\(s\) Projects native\(s\) masquée\(s\)/i.test(recovery.authorityDiag),`authority diagnostic does not describe single-surface truth: ${recovery.authorityDiag}`);
 
     // Reproduce the production failure: React remounts the whole sidebar after NiakGPT boot and
     // drops the injected child. The replacement still has only modern no-href Project rows.
@@ -205,11 +205,11 @@ for(const [engine,launcher] of Object.entries(engines)){
       };
     });
     assert(remount.box&&remount.localCount===5&&remount.fallback==='1',`fallback was not recreated after sidebar remount: ${JSON.stringify(remount)}`);
-    assert(remount.preferred==='1'&&!remount.visible,`sidebar remount exposed a duplicate local Projects surface: ${JSON.stringify(remount)}`);
+    assert(remount.preferred===''&&remount.visible,`sidebar remount did not restore the single visible NiakGPT Projects surface: ${JSON.stringify(remount)}`);
     assert(remount.beforeNative&&remount.nativeBeforeChats,`recreated Pins not above native Projects/Chats: ${JSON.stringify(remount)}`);
     assert(remount.placement==='native-projects',`remounted Pins fell back to a generic slot: ${JSON.stringify(remount)}`);
     assert(remount.rpc===0,`sidebar remount recovery emitted ChatGPT RPC during active chat: ${remount.rpc}`);
-    assert(/cache local.*Projects natifs conservés/i.test(remount.authority),`wrong fallback authority after remount: ${JSON.stringify(remount)}`);
+    assert(/surface\(s\) Projects native\(s\) masquée\(s\)/i.test(remount.authority),`wrong single-surface authority after remount: ${JSON.stringify(remount)}`);
 
     await page.evaluate(()=>window.__upgradeCanonical());
     await page.waitForTimeout(850);
@@ -234,7 +234,7 @@ for(const [engine,launcher] of Object.entries(engines)){
     assert(upgraded.visible&&upgraded.mounted==='1',`canonical Pins lost UX visibility after upgrade: ${JSON.stringify(upgraded)}`);
     assert(!errors.length,`page errors: ${errors.join(' | ')}`);
 
-    console.log(`FIELD_SIDEBAR_CACHE_RECOVERY_V092_PASS engine=${engine} native-only-recovery+react-remount+canonical-upgrade`);
+    console.log(`FIELD_SIDEBAR_CACHE_RECOVERY_V095_PASS engine=${engine} niakgpt-only-recovery+react-remount+canonical-upgrade`);
   }finally{
     await context.close();
     await browser.close();

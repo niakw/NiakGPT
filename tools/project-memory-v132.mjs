@@ -148,7 +148,7 @@ globalThis.fetch = async (url, init = {}) => {
   const body=init.body?JSON.parse(init.body):null;
   const reply=(status,data)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json'}});
   if(method==='GET'&&path==='/repos/niakw/race-memory')return reply(200,{private:true,archived:false,size:1,default_branch:'main'});
-  if(method==='GET'&&path==='/repos/niakw/race-memory/git/ref/heads/main'){assert.equal(init.cache,'no-store','mutable Git ref read must bypass browser HTTP cache');return reply(200,{object:{sha:raceHead}});
+  if(method==='GET'&&path==='/repos/niakw/race-memory/git/ref/heads/main'){assert.equal(init.cache,'no-store','mutable Git ref read must bypass browser HTTP cache');return reply(200,{object:{sha:raceHead}});}
   if(method==='GET'&&path.startsWith('/repos/niakw/race-memory/git/commits/'))return reply(200,{tree:{sha:'tree-'+raceHead}});
   if(method==='POST'&&path==='/repos/niakw/race-memory/git/blobs')return reply(201,{sha:'blob-'+Math.random().toString(36).slice(2)});
   if(method==='POST'&&path==='/repos/niakw/race-memory/git/trees')return reply(201,{sha:'tree-new-'+Math.random().toString(36).slice(2)});

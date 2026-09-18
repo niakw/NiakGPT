@@ -11,7 +11,7 @@
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const ownProjects=()=>document.getElementById('ng8-pins');
-  const ownReady=()=>{const box=ownProjects();return !!(box&&box.isConnected&&!box.hidden&&box.dataset.ng102Fallback!=='1'&&getComputedStyle(box).display!=='none'&&box.querySelector('a[data-ng8-pin][href*="/g/g-p-"],a[href*="/g/g-p-"]'));};
+  const ownReady=()=>{const box=ownProjects();return !!(box&&box.isConnected&&!box.hidden&&getComputedStyle(box).display!=='none'&&box.querySelector('a[data-ng8-pin][href*="/g/g-p-"],a[href*="/g/g-p-"],[data-ng102-project]'));};
   const outsideOwn=el=>!!el&&!el.closest(OWN);
   const inMain=el=>!!el?.closest?.('main,[role="main"],article');
   const projectLabel=v=>/^(projets?|projects?)$/.test(norm(v));
@@ -121,7 +121,7 @@
   function release(){
     for(const el of document.querySelectorAll(`[${MARK}="1"]`))el.removeAttribute(MARK);
     const box=ownProjects();
-    const status=box?.dataset.ng102Fallback==='1'?'FALLBACK · cache local · Projects natifs conservés':(box?'FALLBACK · bloc NiakGPT non canonique':'FALLBACK · bloc NiakGPT absent');
+    const status=box?.dataset.ng102Fallback==='1'?'ATTENTE · fallback NiakGPT pas encore exploitable':(box?'FALLBACK · bloc NiakGPT non canonique':'FALLBACK · bloc NiakGPT absent');
     window.__NIAKGPT_DIAGNOSTICS__?.set('projects-authority',status);
   }
   function apply(){
@@ -163,7 +163,7 @@
   function start(){stopped=false;clearLegacyMarks();bindObservers();apply();}
   function stop(){stopped=true;clearTimeout(timer);timer=0;observer?.disconnect();observer=null;observedRoots=[];}
   document.addEventListener('niakgpt:pins-rendered',()=>apply());
-  document.addEventListener('niakgpt:local-project-recovery-ready',()=>schedule(0));
+  document.addEventListener('niakgpt:local-project-recovery-ready',()=>apply());
   document.addEventListener('niakgpt:recovery-complete',()=>schedule(12));
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){bindObservers();apply();}});
   window.addEventListener('popstate',()=>{bindObservers();apply();});

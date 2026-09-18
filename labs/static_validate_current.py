@@ -131,15 +131,16 @@ for token in ('ng123-action-menu','ng123-rename-dialog','dataset.ng123Action','d
     if token not in actions: fail('single-owner sidebar actions incomplete '+token)
 
 catalog=read('sidebar-projects-v121.js')
-for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','userScrollEpoch','user-priority-armed','placeIntentEpoch=userScrollEpoch','niakgpt:sidebar-projects-reconcile','ng102NativePreferred','nativeMirrorCount','genericChatRow'):
-    if token not in catalog: fail('session-stable Projects catalog incomplete '+token)
-if not re.search(r"function\s+nativeMirrorCount\(root=navRoot\(\)\)\s*\{[\s\S]{0,900}?genericChatRow\(el\)",catalog):
-    fail('v121 native mirror count must explicitly exclude generic chat rows')
+for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','userScrollEpoch','user-priority-armed','placeIntentEpoch=userScrollEpoch','niakgpt:sidebar-projects-reconcile','surface NiakGPT unique','autorité v121 unique · natif masqué'):
+    if token not in catalog: fail('single-authority Projects catalog incomplete '+token)
 selfheal=read('project-state-selfheal-v102.js')
-for token in ('nativeMirrorCount','genericChatRow','ng102NativePreferred','fallback local en veille',"style.setProperty('display','none','important')"):
-    if token not in selfheal: fail('native-mirror recovery self-heal incomplete '+token)
+for token in ('surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false'):
+    if token not in selfheal: fail('single-authority local recovery incomplete '+token)
+authority=read('sidebar-projects-authority-v112.js')
+for token in ('[data-ng102-project]',"niakgpt:local-project-recovery-ready',()=>apply()"):
+    if token not in authority: fail('single-authority native suppression incomplete '+token)
 scroll_guard=read('conversation-scroll-guard-v133.js')
-for token in ('scrollableNode','targetsConversationScroller','touchstart','touchPoint','event.shiftKey','editable(event.target)','ng133ScrollSticky','remontée volontaire'):
+for token in ('conversationTail','ancestorScroller','scrollableNode','targetsConversationScroller','noteSendIntent','SEND_LATCH_MS','touchstart','touchPoint','event.shiftKey','editable(event.target)','ng133ScrollSticky','ng133ScrollRoot','remontée volontaire','generation-start','send-intent'):
     if token not in scroll_guard: fail('conversation scroll audit contract incomplete '+token)
 if 'setInterval(' in scroll_guard: fail('conversation scroll guard must remain event-driven')
 chat_state=read('chat-state-authority-v113.js')
@@ -251,6 +252,9 @@ for gate in (
 workflow=read('.github/workflows/current-finalization.yml')
 for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','pins-primary-slot-v083.mjs','state-ux-v113.mjs','Chat-state authority + extension-context invalidation','Reported Pins placement — native controls stay above Projects','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble','project-memory-isolation-v133.mjs'):
     if token not in workflow: fail('Current Finalization missing '+token)
+live_stability=read('.github/workflows/live-stability-v129.yml')
+for token in ('conversation-scroll-guard-v133.js','project-state-selfheal-v102.js','user-reported-v133.mjs','User-reported scroll + single Projects authority in Brave stable','/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'):
+    if token not in live_stability: fail('Brave macOS field gate missing '+token)
 if re.search(r'^\s*npx playwright install --with-deps\b',workflow,re.M): fail('Linux Finalization reintroduced apt --with-deps')
 parallel_workflow=read('.github/workflows/parallel-continuation-v128.yml')
 for token in ('parallel-continue-v128.mjs','composer-continuation-runtime-v128.spec.js','chromium, firefox, webkit','parallel-continuation-v128'):

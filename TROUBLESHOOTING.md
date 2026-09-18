@@ -228,3 +228,16 @@ Le premier correctif 0.9.93 retentait correctement les réponses GitHub 409/422,
 Depuis 0.9.95, toutes les requêtes GitHub Project Memory utilisent `cache: 'no-store'`. En plus, NiakGPT relit la tête de branche **après la création du commit et juste avant PATCH**. Si elle a déjà bougé, le commit est reconstruit sur la nouvelle tête sans tenter un PATCH voué à échouer. Les conflits résiduels entre cette vérification et PATCH restent retentés avec backoff borné. Aucun `force: true` n’est utilisé.
 
 Le message navigateur `ResizeObserver loop completed with undelivered notifications.` est une notification standard de livraison ResizeObserver. Il n’est plus remonté comme `extension-errors: ERREUR` ; les vraies erreurs runtime restent visibles.
+
+
+## 0.9.95 — le fil remonte pendant une réponse
+
+Le garde ne choisit plus un scroller par simple score de descendants. Il part du **dernier turn de conversation** et remonte jusqu’à son premier ancêtre réellement scrollable ; le fallback inspecte aussi les ancêtres de `main`, pas seulement ses enfants.
+
+L’envoi utilisateur arme le suivi avant le passage `ready → waiting/thinking/executing`. Cela couvre le cas où ChatGPT remonte le viewport dans la première frame suivant l’envoi, avant même que le bouton Stop ou le dataset d’activité soient visibles.
+
+Une remontée volontaire de l’utilisateur coupe toujours immédiatement ce suivi.
+
+## 0.9.95 — mélange Projects ChatGPT / NiakGPT
+
+Le comportement attendu n’est plus « natif prioritaire pendant le recovery ». Dès qu’un cache local exploitable existe, **`#ng8-pins` reste l’unique surface Projects visible** et la surface Projects native est masquée par l’autorité v112. Quand les IDs canoniques arrivent, le contenu de ce même bloc est remplacé sans changer d’autorité visuelle.

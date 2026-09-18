@@ -132,12 +132,13 @@ const activity=read('activity-v086.js');
 for(const token of ['nativeBusy=hasThinking()||hasStop()','id===currentChat()&&ACTIVE.has(localState)','remember(id,localState,cur.projectId,localAt)'])need(activity,token,'long-running native activity retention incomplete');
 
 const catalog=read('sidebar-projects-v121.js');
-for(const token of ['canonicalProjects','renderCatalog','ng121PinsReady','ng121PlacementReady','sessionOrder','armBootstrap','projectScroll','drawerScroll','projectScrollMemory','niakgpt:sidebar-projects-reconcile','ng102NativePreferred','nativeMirrorCount','genericChatRow'])need(catalog,token,'stable Projects catalog/session ownership incomplete');
-if(!/function\s+nativeMirrorCount\(root=navRoot\(\)\)\s*\{[\s\S]{0,900}?genericChatRow\(el\)/.test(catalog))fail('v121 native mirror count must explicitly exclude generic chat rows');
+for(const token of ['canonicalProjects','renderCatalog','ng121PinsReady','ng121PlacementReady','sessionOrder','armBootstrap','projectScroll','drawerScroll','projectScrollMemory','niakgpt:sidebar-projects-reconcile','surface NiakGPT unique','autorité v121 unique · natif masqué'])need(catalog,token,'single-authority Projects catalog/session ownership incomplete');
 const projectSelfheal=read('project-state-selfheal-v102.js');
-for(const token of ['nativeMirrorCount','genericChatRow','ng102NativePreferred','fallback local en veille',"style.setProperty('display','none','important')"])need(projectSelfheal,token,'native-mirror recovery self-heal incomplete');
+for(const token of ['surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false'])need(projectSelfheal,token,'single-authority local recovery incomplete');
+const projectAuthority=read('sidebar-projects-authority-v112.js');
+for(const token of ['[data-ng102-project]',"niakgpt:local-project-recovery-ready',()=>apply()"])need(projectAuthority,token,'single-authority native suppression incomplete');
 const chatScroll=read('conversation-scroll-guard-v133.js');
-for(const token of ['scrollableNode','targetsConversationScroller','touchstart','touchPoint','event.shiftKey','editable(event.target)','ng133ScrollSticky','remontée volontaire'])need(chatScroll,token,'conversation scroll audit contract incomplete');
+for(const token of ['conversationTail','ancestorScroller','scrollableNode','targetsConversationScroller','noteSendIntent','SEND_LATCH_MS','touchstart','touchPoint','event.shiftKey','editable(event.target)','ng133ScrollSticky','ng133ScrollRoot','remontée volontaire','generation-start','send-intent'])need(chatScroll,token,'conversation scroll audit contract incomplete');
 forbid(chatScroll,'setInterval(','conversation scroll guard must remain event-driven');
 const chatState=read('chat-state-authority-v113.js');
 for(const token of ['contextAlive','markDead','ng113Context','Promise.resolve(pending).catch','invalidated=e=>'])need(chatState,token,'chat-state context invalidation guard incomplete');

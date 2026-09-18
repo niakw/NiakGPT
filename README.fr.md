@@ -21,7 +21,7 @@
 NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT en **véritable espace de travail pour un usage intensif et organisé par Projects**, sans remplacer ChatGPT.
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
-> **Version actuelle : 0.9.95.** Project Memory contourne désormais le cache HTTP pour les refs GitHub mutables, revalide la tête de branche juste avant l’update-ref et retente de façon bornée sans force-push. Le diagnostic runtime ne classe plus l’avertissement standard ResizeObserver du navigateur comme une panne de l’extension.
+> **Version actuelle : 0.9.95.** Project Memory utilise désormais des refs GitHub autoritatives avec revalidation juste avant l’update-ref ; la sidebar conserve une seule surface Projects possédée par NiakGPT même pendant le recovery local ; et le suivi d’une réponse part de l’intention d’envoi puis s’ancre sur le vrai conteneur scrollable du fil. Le scénario terrain est exécuté dans Brave stable sur macOS en plus de la matrice cross-engine.
 
 ## Points forts
 

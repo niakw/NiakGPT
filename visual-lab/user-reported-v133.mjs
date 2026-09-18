@@ -70,18 +70,26 @@ async function duplicateRecovery(){
     await page.addScriptTag({content:selfheal});
     await page.waitForTimeout(500);
     await page.screenshot({path:path.join(ARTIFACTS,`${engineName}-01-project-recovery.png`),fullPage:true});
-    const got=await page.evaluate(()=>({
-      pins:!!document.getElementById('ng8-pins'),
-      hidden:document.getElementById('ng8-pins')?.hidden,
-      preferred:document.getElementById('ng8-pins')?.dataset.ng102NativePreferred||'',
-      nativeVisible:[...document.querySelectorAll('#native-projects [data-sidebar-item]')].every(x=>getComputedStyle(x).display!=='none'),
-      pinsDiag:window.__diag['pins-ui']||'',
-      uxDiag:window.__diag['sidebar-ux-119']||''
-    }));
+    const got=await page.evaluate(()=>{
+      const visible=el=>{if(!el)return false;const s=getComputedStyle(el),r=el.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&!el.hidden&&r.width>0&&r.height>0;};
+      const native=document.getElementById('native-projects');
+      return{
+        pins:!!document.getElementById('ng8-pins'),
+        hidden:document.getElementById('ng8-pins')?.hidden,
+        preferred:document.getElementById('ng8-pins')?.dataset.ng102NativePreferred||'',
+        nativeVisible:visible(native),
+        nativeMark:native?.getAttribute('data-ng112-native-projects')||'',
+        pinsDiag:window.__diag['pins-ui']||'',
+        authorityDiag:window.__diag['projects-authority']||'',
+        uxDiag:window.__diag['sidebar-ux-119']||''
+      };
+    });
     assert.equal(got.pins,true);
     assert.equal(got.hidden,false,'NiakGPT recovery surface was hidden instead of becoming the single Projects authority');
     assert.equal(got.preferred,'');
-    assert.equal(got.nativeVisible,false,'native Projects remained visible beside the NiakGPT recovery surface');
+    assert.equal(got.nativeVisible,false,'native Projects remained visually visible beside the NiakGPT recovery surface');
+    assert.equal(got.nativeMark,'1','v112 did not acquire the native Projects host');
+    assert.match(got.authorityDiag,/surface\(s\) Projects native\(s\) masquée\(s\)/);
     assert.match(got.pinsDiag,/^RÉCUPÉRATION · 3 Projects cache local · surface NiakGPT unique/);
     assert.match(got.uxDiag,/autorité v121 unique · natif masqué/);
   }finally{await page.close();}

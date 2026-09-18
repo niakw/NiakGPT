@@ -5,7 +5,10 @@
 
   const CHAT_RX=/(?:^|\/)c\/[A-Za-z0-9_-]+(?:$|[/?#])/;
   const ACTIVE=new Set(['loading','waiting','thinking','executing']);
-  let root=null,observer=null,resizeObserver=null,raf=0,sticky=false,userUpAt=0,lastBottom=Infinity,lastPath=location.pathname;
+  // No upward gesture exists at boot. Using 0 here accidentally creates a synthetic
+  // 180 ms "user scrolled up" grace period from navigation time and can miss the first
+  // streamed growth entirely. Only a real upward input should arm that grace period.
+  let root=null,observer=null,resizeObserver=null,raf=0,sticky=false,userUpAt=-Infinity,lastBottom=Infinity,lastPath=location.pathname;
 
   const diag=text=>window.__NIAKGPT_DIAGNOSTICS__?.set('scroll-chat',text);
   const isChat=()=>CHAT_RX.test(String(location.pathname||''));
@@ -88,7 +91,7 @@
     pinBottom('activity');
   }
   function route(){
-    if(lastPath===location.pathname)return;lastPath=location.pathname;sticky=false;userUpAt=0;lastBottom=Infinity;bind();activity();
+    if(lastPath===location.pathname)return;lastPath=location.pathname;sticky=false;userUpAt=-Infinity;lastBottom=Infinity;bind();activity();
   }
 
   for(const type of ['wheel','touchmove'])document.addEventListener(type,userIntent,{capture:true,passive:true});

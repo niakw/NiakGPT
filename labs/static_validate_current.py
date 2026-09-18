@@ -131,8 +131,10 @@ for token in ('ng123-action-menu','ng123-rename-dialog','dataset.ng123Action','d
     if token not in actions: fail('single-owner sidebar actions incomplete '+token)
 
 catalog=read('sidebar-projects-v121.js')
-for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','userScrollEpoch','user-priority-armed','placeIntentEpoch=userScrollEpoch','niakgpt:sidebar-projects-reconcile','ng102NativePreferred','nativeMirrorCount','genericChatRow','!visiblePlacementNode(el)||genericChatRow(el)'):
+for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','userScrollEpoch','user-priority-armed','placeIntentEpoch=userScrollEpoch','niakgpt:sidebar-projects-reconcile','ng102NativePreferred','nativeMirrorCount','genericChatRow'):
     if token not in catalog: fail('session-stable Projects catalog incomplete '+token)
+if not re.search(r"function\s+nativeMirrorCount\(root=navRoot\(\)\)\s*\{[\s\S]{0,900}?genericChatRow\(el\)",catalog):
+    fail('v121 native mirror count must explicitly exclude generic chat rows')
 selfheal=read('project-state-selfheal-v102.js')
 for token in ('nativeMirrorCount','genericChatRow','ng102NativePreferred','fallback local en veille',"style.setProperty('display','none','important')"):
     if token not in selfheal: fail('native-mirror recovery self-heal incomplete '+token)

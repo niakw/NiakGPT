@@ -37,12 +37,18 @@
   function pinBottom(reason='growth'){
     if(!sticky||!active())return;
     const el=root&&root.isConnected?root:scrollRoot();if(!el)return;root=el;
-    cancelRaf();raf=requestAnimationFrame(()=>{
-      raf=0;if(!sticky||!active()||!el.isConnected)return;
+    const restore=phase=>{
+      if(!sticky||!active()||!el.isConnected)return;
       const max=Math.max(0,el.scrollHeight-el.clientHeight);
       if(Math.abs(el.scrollTop-max)>2)el.scrollTop=max;
-      lastBottom=distanceBottom(el);document.documentElement.dataset.ng133ScrollRestore=reason;
-    });
+      lastBottom=distanceBottom(el);document.documentElement.dataset.ng133ScrollRestore=`${reason}:${phase}`;
+    };
+    // MutationObserver already runs after the streamed DOM mutation. Reading scrollHeight here
+    // forces the current layout and lets us restore the bottom before paint; the rAF pass then
+    // catches async font/layout expansion without relying on arbitrary timers.
+    restore('sync');
+    queueMicrotask(()=>restore('microtask'));
+    cancelRaf();raf=requestAnimationFrame(()=>{raf=0;restore('raf');});
   }
   function bind(){
     const next=scrollRoot();if(!next||next===root&&observer)return;

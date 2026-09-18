@@ -143,6 +143,7 @@ for(const [engine,launcher] of Object.entries(engines)){
       return{
         box:!!box,
         fallback:box?.dataset.ng102Fallback||'',
+        preferred:box?.dataset.ng102NativePreferred||'',
         localCount:box?.querySelectorAll('[data-ng102-project]').length||0,
         canonicalCount:box?.querySelectorAll('a[data-ng8-pin][href*="/g/g-p-"]').length||0,
         order:box&&native&&chats?[
@@ -170,9 +171,9 @@ for(const [engine,launcher] of Object.entries(engines)){
     assert(recovery.placement==='native-projects',`cached-name Project identity did not win the exact native slot: ${JSON.stringify(recovery)}`);
     assert(recovery.nativeVisible&&recovery.nativeMark!=='1',`native Projects were hidden before canonical identity existed: ${JSON.stringify(recovery)}`);
     assert(recovery.rpc===0,`local recovery emitted ChatGPT RPC during active conversation: ${recovery.rpc}`);
-    assert(/RÉCUPÉRATION.*5 Projects cache local/i.test(recovery.pinsDiag),`wrong recovery diagnostic: ${recovery.pinsDiag}`);
+    assert(/NATIF.*5\/5 Projects visibles.*fallback local en veille/i.test(recovery.pinsDiag),`wrong recovery diagnostic: ${recovery.pinsDiag}`);
     assert(recovery.governance===0,'local-only recovery invented canonical governance ownership');
-    assert(recovery.visible&&recovery.mounted==='1',`fallback exists but UX guard keeps it invisible: ${JSON.stringify(recovery)}`);
+    assert(recovery.preferred==='1'&&!recovery.visible,`native-mirror recovery rendered a duplicate visible fallback: ${JSON.stringify(recovery)}`);
     assert(/cache local.*Projects natifs conservés/i.test(recovery.authorityDiag),`authority diagnostic does not describe fallback truth: ${recovery.authorityDiag}`);
 
     // Reproduce the production failure: React remounts the whole sidebar after NiakGPT boot and
@@ -194,6 +195,7 @@ for(const [engine,launcher] of Object.entries(engines)){
         visible:!!box&&s.display!=='none'&&s.visibility!=='hidden'&&Number(s.opacity||1)>0&&!box.hidden&&r.width>0&&r.height>0,
         mounted:box?.dataset.ng131Mounted||'',
         fallback:box?.dataset.ng102Fallback||'',
+        preferred:box?.dataset.ng102NativePreferred||'',
         beforeNative:!!(box&&native&&(box.compareDocumentPosition(native)&Node.DOCUMENT_POSITION_FOLLOWING)),
         nativeBeforeChats:!!(native&&chats&&(native.compareDocumentPosition(chats)&Node.DOCUMENT_POSITION_FOLLOWING)),
         rpc:window.__rpcCalls,
@@ -203,7 +205,7 @@ for(const [engine,launcher] of Object.entries(engines)){
       };
     });
     assert(remount.box&&remount.localCount===5&&remount.fallback==='1',`fallback was not recreated after sidebar remount: ${JSON.stringify(remount)}`);
-    assert(remount.visible&&remount.mounted==='1',`recreated fallback is still visually hidden: ${JSON.stringify(remount)}`);
+    assert(remount.preferred==='1'&&!remount.visible,`sidebar remount exposed a duplicate local Projects surface: ${JSON.stringify(remount)}`);
     assert(remount.beforeNative&&remount.nativeBeforeChats,`recreated Pins not above native Projects/Chats: ${JSON.stringify(remount)}`);
     assert(remount.placement==='native-projects',`remounted Pins fell back to a generic slot: ${JSON.stringify(remount)}`);
     assert(remount.rpc===0,`sidebar remount recovery emitted ChatGPT RPC during active chat: ${remount.rpc}`);
@@ -232,7 +234,7 @@ for(const [engine,launcher] of Object.entries(engines)){
     assert(upgraded.visible&&upgraded.mounted==='1',`canonical Pins lost UX visibility after upgrade: ${JSON.stringify(upgraded)}`);
     assert(!errors.length,`page errors: ${errors.join(' | ')}`);
 
-    console.log(`FIELD_SIDEBAR_CACHE_RECOVERY_V091_PASS engine=${engine} initial+react-remount+canonical-upgrade`);
+    console.log(`FIELD_SIDEBAR_CACHE_RECOVERY_V092_PASS engine=${engine} native-only-recovery+react-remount+canonical-upgrade`);
   }finally{
     await context.close();
     await browser.close();

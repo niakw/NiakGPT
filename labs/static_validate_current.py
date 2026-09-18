@@ -211,8 +211,14 @@ menu=read('project-menu-augment-v129.js')
 for token in ('Personnaliser le Project','Nouveau chat dans ce Project','ng129-project-context','openProjectSettings'):
     if token not in menu: fail('Project menu augmentation incomplete '+token)
 app=read('app-v090.js')
-for token in ('panelSelectionActive','diagnosticSelectionHeld','syncDiagnosticSelectionLock','releaseDiagnosticSelection','selectionchange','diagSelectionGesture','sticky read/copy mode','S.diagTimer=setTimeout(retry,280)'):
-    if token not in app: fail('diagnostic selection stability incomplete '+token)
+for token in ('panelSelectionActive','diagnosticSelectionHeld','syncDiagnosticSelectionLock','releaseDiagnosticSelection','selectionchange','diagSelectionGesture','sticky read/copy mode','S.diagTimer=setTimeout(retry,280)',"role()==='worker'","getManifest().version || '?'"):
+    if token not in app: fail('app/client ownership or diagnostic stability incomplete '+token)
+boot=read('boot-gate-v100.js')
+for token in ('niakgpt:boot-error-v100','github_pat_','access_token','[redacted]'):
+    if token not in boot: fail('boot error redaction/diagnostic bridge incomplete '+token)
+diagnostics=read('diagnostic-bus-v096.js')
+for token in ('BOOT_ERRORS_KEY','niakgpt:boot-error-v100','worker + runtime propres'):
+    if token not in diagnostics: fail('extension runtime error diagnostic incomplete '+token)
 
 handoff=read('continuity-native-handoff-v129.js')
 for token in ('nativeLimitControl','CONTINUITÉ NIAKGPT','markCurrentOut','writePending','finishProjectLock','sendButton'):

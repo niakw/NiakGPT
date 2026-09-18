@@ -3,7 +3,7 @@
   if (location.hostname !== 'chatgpt.com' || window.__NIAKGPT_APP_090__) return;
   window.__NIAKGPT_APP_090__ = true;
 
-  const VERSION = (() => { try { return chrome.runtime.getManifest().version || '0.9.6'; } catch { return '0.9.6'; } })();
+  const VERSION = (() => { try { return chrome.runtime.getManifest().version || '?'; } catch { return '?'; } })();
   const CACHE_KEY = 'niakgpt-v08-cache';
   const GOV_KEY = 'niakgpt-governance-v085';
   const CHAT_SEL = 'a[href*="/c/"]';
@@ -641,7 +641,7 @@
   }
 
   function bindEvents(){
-    document.addEventListener('keydown',e=>{if(e.altKey&&!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&String(e.key).toLowerCase()==='k'){e.preventDefault();openQuick();}},true);
+    document.addEventListener('keydown',e=>{if(role()==='worker')return;if(e.altKey&&!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&String(e.key).toLowerCase()==='k'){e.preventDefault();openQuick();}},true);
     document.addEventListener('niakgpt:settings-changed',()=>{ensureMatrix();ensureBots();renderPins();});
     document.addEventListener('niakgpt:diagnostic-changed',()=>renderPanelIfDiag());
     document.addEventListener('niakgpt:turn-timeline',event=>{const d=event.detail||{};if(d.conversationId&&currentChatId()&&d.conversationId!==currentChatId())return;const turns=Array.isArray(d.turns)?d.turns.filter(x=>x&&(x.role==='user'||x.role==='assistant')&&parseTime(x.at)):[];S.turnTimeline=turns.map(x=>({...x,at:parseTime(x.at)}));S.turnTimeById=new Map(S.turnTimeline.filter(x=>x.id).map(x=>[String(x.id),x.at]));applyTurnTimeline();});

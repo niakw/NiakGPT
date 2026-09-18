@@ -53,3 +53,17 @@ test('a heavy WORKER hands background work to a light visible CLIENT',async()=>{
     await expect.poll(async()=>({worker:await worker.locator('html').getAttribute('data-ng8-tab-role'),client:await client.locator('html').getAttribute('data-ng8-tab-role')}),{timeout:12000}).toEqual({worker:'client',client:'worker'});
   }finally{await close(rt);}
 });
+
+
+test('Alt+K stays client-owned and never opens duplicate Quick UI on the WORKER',async()=>{
+  const rt=await launch();
+  try{
+    const [r1]=await roles(rt.p1,rt.p2),worker=r1==='worker'?rt.p1:rt.p2,client=worker===rt.p1?rt.p2:rt.p1;
+    await worker.keyboard.press('Alt+K');
+    await worker.waitForTimeout(120);
+    await expect(worker.locator('#ng8-quick')).toHaveCount(0);
+    await client.keyboard.press('Alt+K');
+    await expect(client.locator('#ng8-quick')).toBeVisible({timeout:2500});
+    await expect(client.locator('#ng8-quick')).toHaveCount(1);
+  }finally{await close(rt);}
+});

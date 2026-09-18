@@ -10,6 +10,7 @@
   const GOV_KEY='niakgpt-governance-v085';
   const SETTINGS_KEY='niakgpt-settings-v090';
   const WORKER_ERRORS_KEY='niakgpt-worker-errors-v100';
+  const BOOT_ERRORS_KEY='niakgpt-last-boot-errors-v100';
   const values=new Map();
   let metaTimer=0,lastMetaSignature='';
   const api={
@@ -80,8 +81,11 @@
       publishOrganizer(raw[GOV_KEY]||{});
       publishPins(raw[SETTINGS_KEY]||{});
       const workerErrors=Array.isArray(raw[WORKER_ERRORS_KEY])?raw[WORKER_ERRORS_KEY]:[];
-      const latest=workerErrors[0];
-      api.set('extension-errors',latest?`ERREUR · ${workerErrors.length} worker · ${latest.kind||'WORKER'}: ${String(latest.message||'').slice(0,120)}`:'OK · worker propre');
+      let bootErrors=[];try{const parsed=JSON.parse(sessionStorage.getItem(BOOT_ERRORS_KEY)||'[]');bootErrors=Array.isArray(parsed)?parsed.filter(Boolean):[];}catch{}
+      const latestWorker=workerErrors[0],latestBoot=bootErrors[0];
+      if(latestWorker)api.set('extension-errors',`ERREUR · ${workerErrors.length} worker · ${latestWorker.kind||'WORKER'}: ${String(latestWorker.message||'').slice(0,120)}`);
+      else if(latestBoot)api.set('extension-errors',`ERREUR · ${bootErrors.length} runtime · ${String(typeof latestBoot==='string'?latestBoot:latestBoot?.message||latestBoot).slice(0,140)}`);
+      else api.set('extension-errors','OK · worker + runtime propres');
     }catch{
       publishOrganizer({});publishPins({});api.set('extension-errors','ATTENTE · diagnostic worker indisponible');
     }
@@ -94,6 +98,7 @@
       if(id)document.dispatchEvent(new CustomEvent('niakgpt:hotcache-dirty',{detail:{id}}));
     });
     document.addEventListener('niakgpt:settings-changed',refreshWorkspaceDiagnostics);
+    document.addEventListener('niakgpt:boot-error-v100',refreshWorkspaceDiagnostics);
     chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&(changes[GOV_KEY]||changes[SETTINGS_KEY]||changes[WORKER_ERRORS_KEY]))refreshWorkspaceDiagnostics();});
     const observer=new MutationObserver(records=>{if(records.some(r=>r.attributeName==='data-ng8-tab-role'||r.attributeName==='data-ng90-safe'))refreshWorkspaceDiagnostics();});
     observer.observe(document.documentElement,{attributes:true,attributeFilter:['data-ng8-tab-role','data-ng90-safe']});

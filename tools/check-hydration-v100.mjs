@@ -104,7 +104,11 @@ for(const token of ['nativeLimitControl','CONTINUITÉ NIAKGPT','markCurrentOut',
 for(const token of ['setInterval(','location.reload('])forbid(nativeHandoff,token,'native continuity handoff must stay bounded');
 
 const app=read('app-v090.js');
-for(const token of ['panelSelectionActive','diagnosticSelectionHeld','syncDiagnosticSelectionLock','releaseDiagnosticSelection','selectionchange','diagSelectionGesture','sticky read/copy mode','S.diagTimer=setTimeout(retry,280)'])need(app,token,'diagnostic selection stability incomplete');
+for(const token of ['panelSelectionActive','diagnosticSelectionHeld','syncDiagnosticSelectionLock','releaseDiagnosticSelection','selectionchange','diagSelectionGesture','sticky read/copy mode','S.diagTimer=setTimeout(retry,280)',"role()==='worker'","getManifest().version || '?'"])need(app,token,'app/client ownership or diagnostic stability incomplete');
+const bootErrors=read('boot-gate-v100.js');
+for(const token of ['niakgpt:boot-error-v100','github_pat_','access_token','[redacted]'])need(bootErrors,token,'boot error redaction/diagnostic bridge incomplete');
+const diagnostics=read('diagnostic-bus-v096.js');
+for(const token of ['BOOT_ERRORS_KEY','niakgpt:boot-error-v100','worker + runtime propres'])need(diagnostics,token,'extension runtime error diagnostic incomplete');
 for(const token of ['MutationObserver(queueMainNodes)','function renderPins()','window.__NIAKGPT_SIDEBAR_PROJECTS_121__','niakgpt:sidebar-projects-reconcile'])need(app,token,'app/v121 cooperative ownership incomplete');
 need(app,"label.textContent=String(turn.innerText||turn.textContent||'')",'TOC DOM text must stay textContent');
 forbid(app,'function routeTick()');

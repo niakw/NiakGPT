@@ -15,6 +15,8 @@ const scrollGuard=read('conversation-scroll-guard-v133.js');
 const launchOptions={headless:process.env.NIAKGPT_HEADLESS==='0'?false:true};
 if(process.env.NIAKGPT_EXECUTABLE_PATH&&engineName==='chromium')launchOptions.executablePath=process.env.NIAKGPT_EXECUTABLE_PATH;
 const browser=await launcher.launch(launchOptions);
+const ARTIFACTS=path.join(process.cwd(),'artifacts','user-reported-v095');
+fs.mkdirSync(ARTIFACTS,{recursive:true});
 const C='11111111-1111-4111-8111-111111111111';
 
 async function duplicateRecovery(){
@@ -63,6 +65,7 @@ async function duplicateRecovery(){
     await page.addScriptTag({content:projects});
     await page.addScriptTag({content:selfheal});
     await page.waitForTimeout(500);
+    await page.screenshot({path:path.join(ARTIFACTS,`${engineName}-01-project-recovery.png`),fullPage:true});
     const got=await page.evaluate(()=>({
       pins:!!document.getElementById('ng8-pins'),
       hidden:document.getElementById('ng8-pins')?.hidden,
@@ -249,6 +252,7 @@ async function generationScroll(){
     assert.ok(got.d<8,`send/generation path still ended above the bottom: ${JSON.stringify(got)}`);
     assert.equal(got.sticky,'1');
     assert.equal(got.root,'shell','guard did not bind to the ancestor conversation scroller');
+    await page.screenshot({path:path.join(ARTIFACTS,`${engineName}-02-post-send-live-scroll.png`),fullPage:true});
 
     await page.evaluate(()=>{
       const e=document.getElementById('shell');e.dispatchEvent(new WheelEvent('wheel',{deltaY:-220,bubbles:true}));e.scrollTop=Math.max(0,e.scrollTop-360);e.dispatchEvent(new Event('scroll',{bubbles:false}));

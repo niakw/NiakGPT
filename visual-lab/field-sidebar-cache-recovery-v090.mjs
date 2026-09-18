@@ -10,6 +10,8 @@ const requested=String(process.env.NIAKGPT_BROWSER||'chromium').trim();
 const engines=requested?{[requested]:ALL[requested]}:ALL;
 if(!engines[requested])throw new Error(`Unsupported NIAKGPT_BROWSER=${requested}`);
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg);};
+const ARTIFACTS=path.join(process.cwd(),'artifacts','field-sidebar-cache-recovery-v095');
+await fs.mkdir(ARTIFACTS,{recursive:true});
 
 const localProjects=Array.from({length:5},(_,i)=>({
   id:`dom-p-${i+1}`,
@@ -137,6 +139,7 @@ for(const [engine,launcher] of Object.entries(engines)){
     await page.addScriptTag({content:src['ux-v131.js']});
     await page.waitForFunction(()=>document.querySelector('#ng8-pins[data-ng102-fallback="1"][data-ng131-mounted="1"] [data-ng102-project]'),null,{timeout:6000});
 
+    await page.screenshot({path:path.join(ARTIFACTS,`${engine}-01-recovery-single-authority.png`),fullPage:true});
     const recovery=await page.evaluate(()=>{
       const box=document.getElementById('ng8-pins'),native=document.getElementById('native-projects'),chats=document.getElementById('native-chats');
       const visible=el=>{if(!el)return false;const s=getComputedStyle(el),r=el.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&Number(s.opacity||1)>0&&!el.hidden&&r.width>0&&r.height>0;};
@@ -186,6 +189,7 @@ for(const [engine,launcher] of Object.entries(engines)){
       old.replaceWith(next);
     });
     await page.waitForFunction(()=>document.querySelector('#sidebar-remounted #ng8-pins[data-ng102-fallback="1"][data-ng131-mounted="1"] [data-ng102-project]'),null,{timeout:6000});
+    await page.screenshot({path:path.join(ARTIFACTS,`${engine}-02-react-remount-single-authority.png`),fullPage:true});
     const remount=await page.evaluate(()=>{
       const root=document.getElementById('sidebar-remounted'),box=root?.querySelector('#ng8-pins'),native=root?.querySelector('#native-projects'),chats=root?.querySelector('#native-chats');
       const s=box?getComputedStyle(box):null,r=box?.getBoundingClientRect();
@@ -214,6 +218,7 @@ for(const [engine,launcher] of Object.entries(engines)){
     await page.evaluate(()=>window.__upgradeCanonical());
     await page.waitForTimeout(850);
 
+    await page.screenshot({path:path.join(ARTIFACTS,`${engine}-03-canonical-upgrade.png`),fullPage:true});
     const upgraded=await page.evaluate(()=>{
       const root=document.getElementById('sidebar-remounted')||document,box=root.querySelector('#ng8-pins'),native=root.querySelector('#native-projects');
       return{

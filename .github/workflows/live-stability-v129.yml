@@ -83,6 +83,7 @@ jobs:
           path: |
             visual-lab/playwright-report
             visual-lab/test-results
+            visual-lab/artifacts
           if-no-files-found: warn
           retention-days: 14
 
@@ -146,6 +147,7 @@ jobs:
           path: |
             visual-lab/playwright-report
             visual-lab/test-results
+            visual-lab/artifacts
             visual-lab/brave-focused.log
           if-no-files-found: warn
           retention-days: 14

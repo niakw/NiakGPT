@@ -43,10 +43,18 @@ for(const [engine,launcher] of Object.entries(engines)){
     // Reproduce the user-reported extension reload race: a delayed state persist fires after
     // Chrome has invalidated the old content-script context. It must deactivate quietly instead
     // of surfacing "Uncaught Error: Extension context invalidated."
-    await page.evaluate(()=>{
+    await page.evaluate(async()=>{
       const raw=structuredClone(window.__labStore['niakgpt-v08-cache']);
-      raw.chats=raw.chats.map(c=>c.id.startsWith('aaaaaaaa')?{...c,title:'Context invalidation trigger',updated:(c.updated||0)+1}:c);
+      raw.chats=raw.chats.map(c=>c.id.startsWith('aaaaaaaa')?{
+        ...c,
+        title:'Context invalidation trigger',
+        updated:(c.updated||0)+1,
+        attentionAt:Math.max(Number(c.attentionAt||0),Number(c.updated||0))+10000
+      }:c);
       window.__labNotify('niakgpt-v08-cache',raw);
+      // Let chat-attention observe the newer attentionAt and arm its delayed persist first.
+      // Then invalidate the Chrome extension context before either delayed write fires.
+      await new Promise(resolve=>setTimeout(resolve,45));
       window.__invalidateExtension();
       document.dispatchEvent(new CustomEvent('niakgpt:set-profile',{detail:{profile:'focus'}}));
     });

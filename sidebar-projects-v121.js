@@ -426,6 +426,11 @@
   }
   function place(box){
     const root=navRoot();if(!root||!box||!box.isConnected||!root.contains(box))return false;
+    if(box.dataset.ng102NativePreferred==='1'){
+      box.hidden=true;box.setAttribute('aria-hidden','true');box.style.setProperty('display','none','important');box.dataset.ng121PlacementReady='0';
+      return true;
+    }
+    box.style.removeProperty('display');
     const target=placementTarget(root,box);
     if(target&&box.parentElement===target.parent&&box.nextSibling===target.before){
       box.dataset.ng121Placement=target.mode;box.dataset.ng119Placement=target.legacy;

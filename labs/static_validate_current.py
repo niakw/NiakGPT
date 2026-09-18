@@ -139,7 +139,7 @@ selfheal=read('project-state-selfheal-v102.js')
 for token in ('surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false'):
     if token not in selfheal: fail('single-authority local recovery incomplete '+token)
 authority=read('sidebar-projects-authority-v112.js')
-for token in ('[data-ng102-project]',"niakgpt:local-project-recovery-ready',()=>apply()"):
+for token in ('[data-ng102-project]',"querySelectorAll('[data-ng8-pin],[data-ng102-project]", "niakgpt:local-project-recovery-ready',()=>apply()"):
     if token not in authority: fail('single-authority native suppression incomplete '+token)
 scroll_guard=read('conversation-scroll-guard-v133.js')
 for token in ('conversationTail','ancestorScroller','scrollableNode','targetsConversationScroller','noteSendIntent','SEND_LATCH_MS','touchstart','touchPoint','event.shiftKey','editable(event.target)','ng133ScrollSticky','ng133ScrollRoot','remontée volontaire','generation-start','send-intent'):

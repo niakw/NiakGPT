@@ -45,7 +45,7 @@
   }
   function managedNames(){
     const box=ownProjects(),names=new Set();if(!box)return names;
-    for(const row of box.querySelectorAll('[data-ng8-pin],.ng96-pin-entry>a[href*="/g/g-p-"],a[href*="/g/g-p-"]')){
+    for(const row of box.querySelectorAll('[data-ng8-pin],[data-ng102-project],.ng96-pin-entry>a[href*="/g/g-p-"],a[href*="/g/g-p-"]')){
       const label=clean(row.querySelector?.(':scope>span')?.textContent||row.getAttribute?.('aria-label')||row.textContent);
       if(label)names.add(norm(label.replace(/\s+\d{1,2}\/\d{1,2}.*$/,'')));
     }

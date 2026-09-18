@@ -137,7 +137,7 @@ for(const token of ['canonicalProjects','renderCatalog','ng121PinsReady','ng121P
 const projectSelfheal=read('project-state-selfheal-v102.js');
 for(const token of ['surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false'])need(projectSelfheal,token,'single-authority local recovery incomplete');
 const projectAuthority=read('sidebar-projects-authority-v112.js');
-for(const token of ['[data-ng102-project]',"niakgpt:local-project-recovery-ready',()=>apply()"])need(projectAuthority,token,'single-authority native suppression incomplete');
+for(const token of ['[data-ng102-project]',"querySelectorAll('[data-ng8-pin],[data-ng102-project]","niakgpt:local-project-recovery-ready',()=>apply()"])need(projectAuthority,token,'single-authority native suppression incomplete');
 const chatScroll=read('conversation-scroll-guard-v133.js');
 for(const token of ['conversationTail','ancestorScroller','scrollableNode','targetsConversationScroller','noteSendIntent','SEND_LATCH_MS','touchstart','touchPoint','event.shiftKey','editable(event.target)','ng133ScrollSticky','ng133ScrollRoot','remontée volontaire','generation-start','send-intent'])need(chatScroll,token,'conversation scroll audit contract incomplete');
 forbid(chatScroll,'setInterval(','conversation scroll guard must remain event-driven');

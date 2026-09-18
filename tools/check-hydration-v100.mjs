@@ -125,7 +125,9 @@ const activity=read('activity-v086.js');
 for(const token of ['nativeBusy=hasThinking()||hasStop()','id===currentChat()&&ACTIVE.has(localState)','remember(id,localState,cur.projectId,localAt)'])need(activity,token,'long-running native activity retention incomplete');
 
 const catalog=read('sidebar-projects-v121.js');
-for(const token of ['canonicalProjects','renderCatalog','ng121PinsReady','ng121PlacementReady','sessionOrder','armBootstrap','projectScroll','drawerScroll','projectScrollMemory','niakgpt:sidebar-projects-reconcile'])need(catalog,token,'stable Projects catalog/session ownership incomplete');
+for(const token of ['canonicalProjects','renderCatalog','ng121PinsReady','ng121PlacementReady','sessionOrder','armBootstrap','projectScroll','drawerScroll','projectScrollMemory','niakgpt:sidebar-projects-reconcile','ng102NativePreferred','nativeMirrorCount'])need(catalog,token,'stable Projects catalog/session ownership incomplete');
+const projectSelfheal=read('project-state-selfheal-v102.js');
+for(const token of ['nativeMirrorCount','ng102NativePreferred','fallback local en veille',"style.setProperty('display','none','important')"])need(projectSelfheal,token,'native-mirror recovery self-heal incomplete');
 for(const token of ['slice(0,8)','setInterval('])forbid(catalog,token,'Projects catalog must not truncate or poll');
 
 const folders=read('pin-folders-v096.js');

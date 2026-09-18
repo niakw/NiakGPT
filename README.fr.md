@@ -6,7 +6,7 @@
   <p>Projects · performance des longs fils · continuité · navigation · productivité ciblée</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.92-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.93-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,7 +21,7 @@
 NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT en **véritable espace de travail pour un usage intensif et organisé par Projects**, sans remplacer ChatGPT.
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
-> **Version actuelle : 0.9.92.** Les Pins reconnaissent maintenant le vrai bloc Projects natif à partir des noms de Projects déjà en cache quand ChatGPT n’expose ni titre Projects ni liens Project, ce qui empêche le bloc de tomber près du pied de sidebar/compte. Project Memory absorbe aussi la course asynchrone de fermeture d’onglet et remonte les erreurs service-worker expurgées dans le diagnostic NiakGPT. NiakGPT n’appelle toujours jamais la route native ChatGPT `/backend-api/f/conversation/resume`.
+> **Version actuelle : 0.9.93.** Project Memory sérialise les écritures GitHub et reprend les conflits `non-fast-forward`. En récupération après réinstallation, NiakGPT n’affiche plus un second bloc Projects local quand la liste native est déjà exploitable ; le reclassement rattrape aussi l’historique complet une fois l’index canonique obtenu. Un garde de scroll conserve enfin le bas du fil pendant une génération, sans empêcher une remontée volontaire.
 
 ## Points forts
 

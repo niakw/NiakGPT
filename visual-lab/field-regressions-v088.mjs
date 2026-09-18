@@ -44,7 +44,7 @@ async function pinsFieldRegression(browser){
       };
       const clone=v=>v===undefined?undefined:structuredClone(v);
       window.chrome={
-        runtime:{getManifest:()=>({version:'0.9.92'})},
+        runtime:{getManifest:()=>({version:'0.9.93'})},
         storage:{
           local:{
             async get(keys){
@@ -149,7 +149,7 @@ async function screenshotSidebarRegression(browser){
       };
       const clone=v=>v===undefined?undefined:structuredClone(v);
       window.chrome={
-        runtime:{getManifest:()=>({version:'0.9.92'})},
+        runtime:{getManifest:()=>({version:'0.9.93'})},
         storage:{
           local:{
             async get(keys){
@@ -242,7 +242,9 @@ async function serverIndexOwnershipRegression(browser){
     },{P1,C3});
     await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html',body:'<!doctype html><html><body><main></main></body></html>'}));
     await page.goto('https://chatgpt.com/',{waitUntil:'domcontentloaded'});
-    const fastServerIndex=serverIndexSource.replace('const BACKGROUND_QUIET_MS=2*60*1000;','const BACKGROUND_QUIET_MS=50;');
+    const fastServerIndex=serverIndexSource
+      .replace('const BACKGROUND_QUIET_MS=2*60*1000;','const BACKGROUND_QUIET_MS=50;')
+      .replace('const COLD_BOOTSTRAP_QUIET_MS=12*1000;','const COLD_BOOTSTRAP_QUIET_MS=50;');
     await page.addScriptTag({content:fastServerIndex});
     await page.waitForTimeout(80);
     await page.evaluate(()=>document.dispatchEvent(new CustomEvent('niakgpt:force-server-index')));
@@ -331,7 +333,7 @@ async function memoryFieldRegression(browser){
       window.chrome={
         runtime:{
           lastError:null,
-          getManifest:()=>({version:'0.9.92'}),
+          getManifest:()=>({version:'0.9.93'}),
           sendMessage(message,cb){
             const reply=value=>queueMicrotask(()=>cb(value));
             if(message.type==='niakgpt:memory-status-v132')return reply({ok:true,connected:window.__vaultConnected,configured:window.__vaultConnected,tokenAvailable:window.__vaultConnected,config:window.__vaultConnected?{repo:'synthetic/private',branch:'main',root:'.niakgpt-memory',authMode:'github-app'}:null,github:{authenticated:true,repositories:[{fullName:'synthetic/private',defaultBranch:'main'}]}});

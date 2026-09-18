@@ -114,6 +114,7 @@ jobs:
           node field-sidebar-cache-recovery-v090.mjs
           node project-memory-ui-stability-v084.mjs
           node project-memory-wake-v086.mjs
+          node user-reported-v133.mjs
           npx playwright test tests/runtime-current-v105.spec.js tests/multitab-failover-v097.spec.js --workers=1 --reporter=line
 
       - name: Build clean installable ZIP
@@ -157,6 +158,7 @@ jobs:
               "field-sidebar-cache-recovery-v090",
               "native-chat-zero-backend",
               "project-memory-cache-bootstrap",
+              "user-reported-project-recovery-historical-catchup-scroll",
               "sidebar-dom-stability",
               "clean-installable-package"
             ],

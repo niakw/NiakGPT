@@ -12,7 +12,20 @@
   const DEFAULT_ROOT = '.niakgpt-memory';
   const MAX_FILES = 32;
   const MAX_BATCH_BYTES = 7 * 1024 * 1024;
+  const MAX_REF_RETRIES = 5;
   const WORKER_ERROR_KEY = 'niakgpt-worker-errors-v100';
+  let commitTail = Promise.resolve();
+
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+  function queueCommit(work) {
+    const run = commitTail.catch(() => {}).then(work);
+    commitTail = run.catch(() => {});
+    return run;
+  }
+  function refRace(error) {
+    const detail = clean(error?.data?.message || error?.message || '');
+    return error?.status === 409 || (error?.status === 422 && /(?:fast[- ]?forward|reference update|update is not a fast forward)/i.test(detail));
+  }
 
   const clean = value => String(value ?? '').trim();
   const workerErrorText = value => clean(value?.message || value?.reason?.message || value?.reason || value || 'worker_error')
@@ -708,7 +721,8 @@
         body: JSON.stringify({ sha: nextCommit.sha, force: false })
       });
     } catch (error) {
-      if (retry < 1 && (error?.status === 409 || error?.status === 422)) {
+      if (retry < MAX_REF_RETRIES && refRace(error)) {
+        await delay(Math.min(800, 40 * (2 ** retry)));
         return commitFilesWith(token, config, files, message, retry + 1);
       }
       throw error;
@@ -719,7 +733,7 @@
   async function commitFiles(config, files, message) {
     const token = await tokenForConfig(config);
     if (!token) throw new Error('github_token_missing');
-    return commitFilesWith(token, config, files, message);
+    return queueCommit(() => commitFilesWith(token, config, files, message));
   }
 
   async function initializeConnection(detail, token, authMode, rememberToken = false) {
@@ -761,10 +775,10 @@
       const initialized = await initializeEmptyRepo(token, config, markerContent);
       initializedEmptyRepo = initialized.initialized === true;
     } else {
-      await commitFilesWith(token, config, [{
+      await queueCommit(() => commitFilesWith(token, config, [{
         path: 'niakgpt-memory.json',
         content: markerContent
-      }], 'NiakGPT: initialize private Project Memory');
+      }], 'NiakGPT: initialize private Project Memory'));
     }
 
     await writeConfig(config);
@@ -904,6 +918,9 @@
       safeError,
       MAX_FILES,
       MAX_BATCH_BYTES,
+      MAX_REF_RETRIES,
+      refRace,
+      commitFilesWith,
       initializeEmptyRepo,
       tryGetRef,
       connect,

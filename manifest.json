@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.92",
-  "description": "NiakGPT : placement Pins ancré par identité Projects, erreurs worker traçables et priorité stricte au flux natif ChatGPT.",
+  "version": "0.9.93",
+  "description": "NiakGPT : Project Memory résilient, Projects sans doublon au recovery, rattrapage historique et scroll de génération stabilisé.",
   "permissions": [
     "storage",
     "scripting",

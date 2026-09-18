@@ -83,6 +83,9 @@ assert.equal(tabUpdatedListeners.size,0);
 assert.equal(tabRemovedListeners.size,0);
 assert.equal(memory.MAX_FILES, 32);
 assert.ok(memory.MAX_BATCH_BYTES >= 5 * 1024 * 1024);
+assert.equal(memory.MAX_REF_RETRIES,5);
+assert.equal(memory.refRace(Object.assign(new Error('github_http_422:Update is not a fast forward'),{status:422,data:{message:'Update is not a fast forward'}})),true);
+assert.equal(memory.refRace(Object.assign(new Error('github_http_422:Repository rule violations found'),{status:422,data:{message:'Repository rule violations found'}})),false);
 
 
 const fetchCalls = [];
@@ -137,8 +140,35 @@ await assert.rejects(
 assert.equal(localStore['niakgpt-project-memory-config-v132'],undefined,'failed connect persisted config');
 assert.equal(sessionStore['niakgpt-project-memory-session-token-v132'],undefined,'failed connect persisted token');
 
+
+let raceHead='race-parent-0', racePatchAttempts=0, raceCommitSeq=0;
+const raceParents=new Map();
+globalThis.fetch = async (url, init = {}) => {
+  const u=new URL(String(url)),path=u.pathname,method=String(init.method||'GET').toUpperCase();
+  const body=init.body?JSON.parse(init.body):null;
+  const reply=(status,data)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json'}});
+  if(method==='GET'&&path==='/repos/niakw/race-memory')return reply(200,{private:true,archived:false,size:1,default_branch:'main'});
+  if(method==='GET'&&path==='/repos/niakw/race-memory/git/ref/heads/main')return reply(200,{object:{sha:raceHead}});
+  if(method==='GET'&&path.startsWith('/repos/niakw/race-memory/git/commits/'))return reply(200,{tree:{sha:'tree-'+raceHead}});
+  if(method==='POST'&&path==='/repos/niakw/race-memory/git/blobs')return reply(201,{sha:'blob-'+Math.random().toString(36).slice(2)});
+  if(method==='POST'&&path==='/repos/niakw/race-memory/git/trees')return reply(201,{sha:'tree-new-'+Math.random().toString(36).slice(2)});
+  if(method==='POST'&&path==='/repos/niakw/race-memory/git/commits'){
+    const sha='race-commit-'+(++raceCommitSeq); raceParents.set(sha,body.parents?.[0]||''); return reply(201,{sha});
+  }
+  if(method==='PATCH'&&path==='/repos/niakw/race-memory/git/refs/heads/main'){
+    racePatchAttempts++;
+    if(racePatchAttempts<=2){raceHead='external-'+racePatchAttempts;return reply(422,{message:'Update is not a fast forward'});}
+    assert.equal(raceParents.get(body.sha),raceHead,'retry commit did not rebase on latest branch head');
+    raceHead=body.sha;return reply(200,{object:{sha:raceHead}});
+  }
+  return reply(500,{message:'unexpected race mock '+method+' '+path});
+};
+const raceResult=await memory.commitFilesWith('synthetic-race-token',{repo:'niakw/race-memory',branch:'main',root:'.niakgpt-memory'},[{path:'PROJECTS.json',content:'{}\n'}],'race test');
+assert.equal(racePatchAttempts,3,'non-fast-forward race was not retried until a fresh head succeeded');
+assert.equal(raceResult.sha,raceHead);
+
 const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
-assert.equal(manifest.version, '0.9.92');
+assert.equal(manifest.version, '0.9.93');
 assert.deepEqual(manifest.permissions, ['storage','scripting','identity']);
 assert.deepEqual(manifest.host_permissions, ['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']);
 

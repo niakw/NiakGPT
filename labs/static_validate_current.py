@@ -25,7 +25,7 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.92': fail(f"version={version}")
+if version!='0.9.93': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting','identity']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']: fail('host permissions drift')
 
@@ -131,8 +131,11 @@ for token in ('ng123-action-menu','ng123-rename-dialog','dataset.ng123Action','d
     if token not in actions: fail('single-owner sidebar actions incomplete '+token)
 
 catalog=read('sidebar-projects-v121.js')
-for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','userScrollEpoch','user-priority-armed','placeIntentEpoch=userScrollEpoch','niakgpt:sidebar-projects-reconcile'):
+for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','userScrollEpoch','user-priority-armed','placeIntentEpoch=userScrollEpoch','niakgpt:sidebar-projects-reconcile','ng102NativePreferred','nativeMirrorCount'):
     if token not in catalog: fail('session-stable Projects catalog incomplete '+token)
+selfheal=read('project-state-selfheal-v102.js')
+for token in ('nativeMirrorCount','ng102NativePreferred','fallback local en veille',"style.setProperty('display','none','important')"):
+    if token not in selfheal: fail('native-mirror recovery self-heal incomplete '+token)
 if re.search(r"recentUser[^\n]*return\s+null|user-priority:[^\n]*return\s+null",catalog): fail('recent user Project scroll must arm a restore snapshot, not return null')
 if 'userIntentAt:userScrollIntentAt' not in catalog: fail('pending Project scroll snapshot lost user intent epoch binding')
 continuity=read('continuity-v100.js')
@@ -152,7 +155,7 @@ for token in ('↳ Suite en parallèle','LEGACY_HEADER','waiting','thinking','ex
 if 'setInterval(' in parallel: fail('parallel continuation must remain event-driven')
 
 memory_bg=read('project-memory-background-v132.js')
-for token in ('memory_repository_must_be_private','verifiedPrivateAt','chrome.storage.session','niakgpt:memory-connect-v132','niakgpt:memory-commit-v132','git/refs/heads','initializeEmptyRepo',"method: 'PUT'",'github_initial_content_commit_failed','chrome.identity.launchWebAuthFlow','launchManifestRegistrationTab','chrome.tabs.create','github_auth_url_invalid_scheme','chrome.runtime.onConnect.addListener','app-manifests/','request_oauth_on_install','niakgpt:memory-github-connect-repo-v132','github_repository_not_authorized_for_vault','refresh_token','code_challenge','code_verifier','setup_url: clean(flow.installRedirect)','request_oauth_on_install: false'):
+for token in ('memory_repository_must_be_private','verifiedPrivateAt','chrome.storage.session','niakgpt:memory-connect-v132','niakgpt:memory-commit-v132','git/refs/heads','initializeEmptyRepo',"method: 'PUT'",'github_initial_content_commit_failed','chrome.identity.launchWebAuthFlow','launchManifestRegistrationTab','chrome.tabs.create','github_auth_url_invalid_scheme','chrome.runtime.onConnect.addListener','app-manifests/','request_oauth_on_install','niakgpt:memory-github-connect-repo-v132','github_repository_not_authorized_for_vault','refresh_token','code_challenge','code_verifier','setup_url: clean(flow.installRedirect)','request_oauth_on_install: false','MAX_REF_RETRIES','queueCommit','refRace'):
     if token not in memory_bg: fail('Project Memory backend incomplete '+token)
 interruption=read('interruption-guard-v119.js')
 for token in ('nos\\s+systèmes\\s+effectuent\\s+quelques\\s+vérifications','connexion\\s+(?:perdue|interrompue)','assistantTail','settleRecovery','recoveryEpoch=0'):
@@ -160,6 +163,13 @@ for token in ('nos\\s+systèmes\\s+effectuent\\s+quelques\\s+vérifications','co
 bridge=read('page-bridge.js')
 if "interruption === 'network'" not in bridge or "interruption === 'verify'" not in bridge: fail('RPC interruption pause missing')
 if 'native_conversation_quiet' not in bridge or 'chat-route-guard' not in bridge or 'ng90PeerChatActive' not in bridge or 'conversationQuiet()' not in bridge: fail('absolute current/peer conversation network quarantine missing')
+
+server_index=read('server-index-v100.js')
+for token in ('COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement','coldBootstrap','conversationPage()'):
+    if token not in server_index: fail('cold canonical index recovery incomplete '+token)
+server_bootstrap=read('server-index-bootstrap-v124.js')
+for token in ('COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement(raw)','conversationPage()'):
+    if token not in server_bootstrap: fail('cold canonical bootstrap recovery incomplete '+token)
 
 memory=read('project-memory-v132.js')
 for token in ('memoryBootstrap: memoryBootstrap === true','PROJECT_STATE.md','conversations/','sync_already_running','injectOnNewChat','NIAKGPT PROJECT MEMORY — CHECKPOINT RÉCUPÉRÉ','canonicalUpdated','MEMORY_LOCK','CACHE_BOOTSTRAP_LOCK','autoOwner','niakgpt:tab-role-changed','primeBootstrapQueue','ensureBootstrapQueued','writeCachedBootstrap','bootstrapMetadataOnly:true','bootstrapWritten:true','cachedOnly:true,historyDeferred:true','queuedProjects','changes[QUEUE_KEY]','githubLogin','chrome.runtime.connect','setTimeout(heartbeat,20_000)','githubRepositories','githubConnectRepo','githubLogout'):
@@ -170,6 +180,7 @@ if 'project-memory-v132.css' not in css_runtime: fail('Project Memory UI CSS mis
 if not (ROOT/'visual-lab/project-memory-v132.mjs').exists(): fail('Project Memory browser UX gate missing')
 if not (ROOT/'visual-lab/native-chat-zero-background-v087.mjs').exists(): fail('native chat zero-background regression gate missing')
 if not (ROOT/'visual-lab/field-regressions-v088.mjs').exists(): fail('0.9.88 combined field regression gate missing')
+if not (ROOT/'visual-lab/user-reported-v133.mjs').exists(): fail('0.9.93 user-reported regression gate missing')
 if not (ROOT/'github-vault-start.html').exists() or not (ROOT/'github-vault-start.js').exists(): fail('GitHub auth launcher missing')
 if not (ROOT/'labs/project-memory-isolation-v133.mjs').exists(): fail('Project Memory isolation failure gate missing')
 if not (ROOT/'.github/workflows/project-memory-v132.yml').exists(): fail('Project Memory workflow missing')

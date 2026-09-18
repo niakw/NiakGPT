@@ -8,7 +8,8 @@
   const FRESH_MS=30*60*1000;
   const PROJECT_FRESH_MS=10*60*1000;
   const BACKGROUND_QUIET_MS=2*60*1000;
-  let busy=false,timer=0,rpcSeq=0,partialRetries=0,pendingDeep=false,lastUserOrNativeAt=Date.now();
+  const COLD_BOOTSTRAP_QUIET_MS=12*1000;
+  let busy=false,timer=0,rpcSeq=0,partialRetries=0,pendingDeep=false,lastUserOrNativeAt=Date.now(),coldBootstrap=true;
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const parseTime=v=>{if(typeof v==='number'&&Number.isFinite(v))return v>1e12?v:v*1000;if(typeof v==='string'){const n=Number(v);if(Number.isFinite(n))return n>1e12?n:n*1000;const d=Date.parse(v);return Number.isFinite(d)?d:0;}return 0;};
@@ -20,7 +21,8 @@
   const nativeBusy=()=>document.documentElement.dataset.ng8Running==='1'||['loading','waiting','thinking','executing'].includes(document.documentElement.dataset.ng86Activity||'')||document.documentElement.dataset.ng105Verification==='1'||['verify','network'].includes(String(document.documentElement.dataset.ng119Interruption||'').toLowerCase());
   const conversationPage=()=>/(?:^|\/)c\/[A-Za-z0-9_-]+(?:$|[/?#])/.test(String(location.pathname||''));
   const quietFor=()=>Date.now()-lastUserOrNativeAt;
-  const projectReady=()=>!conversationPage()&&document.documentElement.dataset.ng90PeerChatActive!=='1'&&quietFor()>=BACKGROUND_QUIET_MS&&document.documentElement.dataset.ng100CacheGuard!=='pending'&&!ratePaused()&&!document.hidden&&document.documentElement.dataset.ng90Safe!=='1'&&!document.documentElement.dataset.ng100Recovery&&!nativeBusy();
+  const quietRequirement=()=>coldBootstrap?COLD_BOOTSTRAP_QUIET_MS:BACKGROUND_QUIET_MS;
+  const projectReady=()=>!conversationPage()&&document.documentElement.dataset.ng90PeerChatActive!=='1'&&quietFor()>=quietRequirement()&&document.documentElement.dataset.ng100CacheGuard!=='pending'&&!ratePaused()&&!document.hidden&&document.documentElement.dataset.ng90Safe!=='1'&&!document.documentElement.dataset.ng100Recovery&&!nativeBusy();
   const chatReady=()=>projectReady();
 
   function diagnostic(text){window.__NIAKGPT_DIAGNOSTICS__?.set('index-serveur',text);}
@@ -109,7 +111,10 @@
   async function indexNow(force=false){
     if(busy||!projectReady())return;busy=true;
     try{
-      let before=await readCache();if(!needsIndex(before,force)){diagnostic(`OK · index serveur récent · ${(before.projects||[]).filter(p=>String(p?.id||'').startsWith('g-p-')&&!p.domOnly).length} Projects`);return;}
+      let before=await readCache();
+      const knownServer=(before.projects||[]).filter(p=>String(p?.id||'').startsWith('g-p-')&&!p.domOnly).length;
+      coldBootstrap=knownServer===0||Number(before.serverIndexedAt||0)<=0;
+      if(!needsIndex(before,force)){coldBootstrap=false;diagnostic(`OK · index serveur récent · ${knownServer} Projects`);return;}
       const cachedProjects=(before.projects||[]).filter(p=>String(p?.id||'').startsWith('g-p-')&&!p.domOnly);
       const inventoryFresh=Number(before.projectInventoryAt||0)>0&&Date.now()-Number(before.projectInventoryAt)<PROJECT_FRESH_MS&&cachedProjects.length>0;
       let projects=cachedProjects;
@@ -181,7 +186,7 @@
         document.dispatchEvent(new CustomEvent('niakgpt:server-index-partial',{detail:{projects:projects.length,seen:seenIds.size,cachedProjects:projectMap.size,cachedChats:chats.size,failures}}));
         if(partialRetries<2){partialRetries++;if(chatReady())schedule(30000,true);else pendingDeep=true;}
       }else{
-        partialRetries=0;diagnostic(`OK · ${projects.length} Projects · ${chats.size} chats · ${dated} datés`);
+        partialRetries=0;coldBootstrap=false;diagnostic(`OK · ${projects.length} Projects · ${chats.size} chats · ${dated} datés`);
         document.dispatchEvent(new CustomEvent('niakgpt:server-indexed',{detail:{projects:projects.length,chats:chats.size,dated,failures:0}}));
       }
     }catch(error){if(String(error?.message)==='paused'){pendingDeep=true;diagnostic('PAUSE · reprise événementielle à la prochaine fenêtre disponible');}else if(String(error?.message)==='rate-limited'){diagnostic('PAUSE · limite API ChatGPT · reprise automatique');}else diagnostic(`ERREUR · ${String(error?.message||error).slice(0,100)}`);}finally{busy=false;}
@@ -196,22 +201,26 @@
     }
     return indexNow(force);
   }
-  function remainingQuiet(extra=150){return Math.max(extra,BACKGROUND_QUIET_MS-quietFor()+extra);}
+  function remainingQuiet(extra=150){return Math.max(extra,quietRequirement()-quietFor()+extra);}
   function schedule(delay=900,force=false){clearTimeout(timer);timer=setTimeout(()=>locked(force),delay);}
-  function noteHuman(){lastUserOrNativeAt=Date.now();schedule(BACKGROUND_QUIET_MS+250,false);}
+  function noteHuman(){lastUserOrNativeAt=Date.now();schedule(quietRequirement()+250,false);}
   for(const type of ['pointerdown','keydown','touchstart','wheel'])document.addEventListener(type,noteHuman,{capture:true,passive:type==='touchstart'||type==='wheel'});
   document.addEventListener('niakgpt:cache-guard-ready',()=>schedule(remainingQuiet(),true));
   document.addEventListener('niakgpt:force-server-index',()=>schedule(remainingQuiet(),true));
-  document.addEventListener('niakgpt:recovery-complete',()=>{lastUserOrNativeAt=Date.now();schedule(BACKGROUND_QUIET_MS+250,true);});
+  document.addEventListener('niakgpt:recovery-complete',()=>{lastUserOrNativeAt=Date.now();coldBootstrap=true;schedule(quietRequirement()+250,true);});
   document.addEventListener('niakgpt:tab-role-changed',()=>schedule(remainingQuiet(500),false));
   document.addEventListener('niakgpt:activity-changed',event=>{
-    if(event.detail?.active===true||nativeBusy()){lastUserOrNativeAt=Date.now();schedule(BACKGROUND_QUIET_MS+250,pendingDeep);return;}
+    if(event.detail?.active===true||nativeBusy()){lastUserOrNativeAt=Date.now();schedule(quietRequirement()+250,pendingDeep);return;}
     const force=pendingDeep;pendingDeep=false;schedule(remainingQuiet(250),force);
   });
   document.addEventListener('niakgpt:rate-limit-cleared',()=>schedule(remainingQuiet(450),true));
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden){lastUserOrNativeAt=Date.now();schedule(BACKGROUND_QUIET_MS+250,pendingDeep);}});
-  window.addEventListener('popstate',()=>{lastUserOrNativeAt=Date.now();schedule(BACKGROUND_QUIET_MS+250,false);});
-  // Never fire an undocumented ChatGPT inventory request immediately after extension startup.
-  // Background indexing begins only off conversation routes after two quiet minutes.
-  schedule(BACKGROUND_QUIET_MS+500,false);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden){lastUserOrNativeAt=Date.now();schedule(quietRequirement()+250,pendingDeep);}});
+  window.addEventListener('popstate',()=>{lastUserOrNativeAt=Date.now();schedule(quietRequirement()+250,false);});
+  // A cold/reinstalled cache needs canonical Project identities before classification can work.
+  // Keep the absolute conversation quarantine, but off-chat recover the first canonical index
+  // after a short calm window instead of requiring two full idle minutes.
+  readCache().then(raw=>{
+    const known=(raw.projects||[]).filter(p=>String(p?.id||'').startsWith('g-p-')&&!p.domOnly).length;
+    coldBootstrap=known===0||Number(raw.serverIndexedAt||0)<=0;
+  }).catch(()=>{}).finally(()=>schedule(quietRequirement()+500,false));
 })();

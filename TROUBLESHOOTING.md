@@ -7,7 +7,7 @@ Ce guide cible les pannes réellement utiles à diagnostiquer : **quel module at
 1. ouvrir `chrome://extensions` ;
 2. cliquer **Recharger** sur NiakGPT ;
 3. recharger les onglets ChatGPT déjà ouverts ;
-4. vérifier que la version affichée est bien **0.9.92**.
+4. vérifier que la version affichée est bien **0.9.93**.
 
 Éviter de fusionner un ancien dossier avec un nouveau ZIP. Remplacer le dossier complet empêche de conserver des fichiers obsolètes.
 
@@ -202,3 +202,13 @@ Voir aussi [TESTING_TRUTH.md](TESTING_TRUTH.md), [SECURITY.md](SECURITY.md) et [
 En 0.9.88, ce n’est plus un état normal : la sélection d’un dépôt privé doit écrire immédiatement un snapshot local (`PROJECTS.json` et fichiers metadata Project) sans appeler le backend ChatGPT. Si l’écriture échoue, l’UI doit afficher une erreur explicite `cached_bootstrap_write_failed` au lieu de rester indéfiniment sur « bootstrap en attente ».
 
 L’historique complet peut rester en file pendant une discussion : cela est volontaire et n’empêche plus le coffre de contenir immédiatement le snapshot local.
+
+
+### Erreur `Update is not a fast forward`
+
+Ce message n’indique pas un dossier GitHub manquant. Il signifie que la tête de la branche a changé entre la lecture et la mise à jour de la référence Git. En 0.9.93, les écritures Project Memory sont sérialisées dans le service worker et les courses `409/422 non-fast-forward` sont relues/rebasées puis retentées jusqu’à 5 fois. Le dossier `.niakgpt-memory` peut être absent avant la première synchronisation.
+
+
+### Diagnostic `0 Projects · N chats · 0 dates` après réinstallation
+
+Dans un fil de conversation actif, NiakGPT ne lance volontairement pas l’index serveur ChatGPT. Le cache DOM peut donc contenir les noms de Projects et les chats visibles sans identités canoniques ni dates. En 0.9.93, ce mode n’affiche plus deux blocs Projects : la surface native est prioritaire tant qu’elle correspond au cache local. Dès qu’une fenêtre hors conversation est disponible, un cache froid relance l’index canonique après environ 12 secondes de calme (contre 2 minutes en entretien normal), puis le reclassement rattrape aussi les anciens chats non assignés.

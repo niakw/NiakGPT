@@ -105,6 +105,9 @@ jobs:
       - name: Cold-chat Pins remain local/cache-only
         working-directory: visual-lab
         run: node pins-launcher-only-v085.mjs
+      - name: User-reported recovery / historical catch-up / generation scroll
+        working-directory: visual-lab
+        run: node user-reported-v133.mjs
       - name: Runtime / multi-tab diagnostics
         working-directory: visual-lab
         env:
@@ -174,6 +177,11 @@ jobs:
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node project-memory-ui-stability-v084.mjs
+      - name: User-reported Projects + chat scroll
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node user-reported-v133.mjs
       - name: Upload UX evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

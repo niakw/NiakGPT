@@ -7,6 +7,7 @@
   const MAX_ATTEMPTS=12;
   const RETRY_MS=10000;
   const BACKGROUND_QUIET_MS=2*60*1000;
+  const COLD_BOOTSTRAP_QUIET_MS=12*1000;
   let attempts=0,timer=0,stopped=false,writingInventory=false,lastUserOrNativeAt=Date.now();
 
   const serverProjects=raw=>(raw?.projects||[]).filter(p=>String(p?.id||'').startsWith('g-p-')&&!p?.domOnly);
@@ -17,7 +18,8 @@
   };
   const conversationPage=()=>/(?:^|\/)c\/[A-Za-z0-9_-]+(?:$|[/?#])/.test(String(location.pathname||''));
   const quietFor=()=>Date.now()-lastUserOrNativeAt;
-  const remainingQuiet=()=>Math.max(RETRY_MS,BACKGROUND_QUIET_MS-quietFor()+1000);
+  const quietRequirement=raw=>serverProjects(raw).length===0||Number(raw?.serverIndexedAt||0)<=0?COLD_BOOTSTRAP_QUIET_MS:BACKGROUND_QUIET_MS;
+  const remainingQuiet=raw=>Math.max(RETRY_MS,quietRequirement(raw)-quietFor()+1000);
   const stop=()=>{stopped=true;clearTimeout(timer);};
   const schedule=(delay=RETRY_MS)=>{if(stopped||attempts>=MAX_ATTEMPTS)return;clearTimeout(timer);timer=setTimeout(tick,delay);};
 
@@ -39,10 +41,10 @@
 
   async function tick(){
     if(stopped||attempts>=MAX_ATTEMPTS)return;
-    if(conversationPage()||quietFor()<BACKGROUND_QUIET_MS){schedule(remainingQuiet());return;}
+    let raw=await read();
+    if(conversationPage()||quietFor()<quietRequirement(raw)){schedule(remainingQuiet(raw));return;}
     if(writingInventory){schedule(RETRY_MS);return;}
     attempts++;
-    let raw=await read();
     if(inventoryReady(raw)){stop();return;}
     raw=await invalidateUntrustedInventory(raw);
     document.dispatchEvent(new CustomEvent('niakgpt:force-server-index',{detail:{source:'bootstrap-v124',attempt:attempts,expected:expectedCount(raw),actual:serverProjects(raw).length}}));
@@ -67,11 +69,11 @@
   // to be visible during hydration.
   document.addEventListener('niakgpt:server-projects-ready',rememberInventory);
   document.addEventListener('niakgpt:server-indexed',verifyIndexed);
-  const noteHuman=()=>{lastUserOrNativeAt=Date.now();if(!stopped)schedule(BACKGROUND_QUIET_MS+1000);};
+  const noteHuman=()=>{lastUserOrNativeAt=Date.now();if(!stopped)read().then(raw=>schedule(quietRequirement(raw)+1000)).catch(()=>schedule(BACKGROUND_QUIET_MS+1000));};
   for(const type of ['pointerdown','keydown','touchstart','wheel'])document.addEventListener(type,noteHuman,{capture:true,passive:type==='touchstart'||type==='wheel'});
-  document.addEventListener('niakgpt:activity-changed',event=>{if(event.detail?.active===true){lastUserOrNativeAt=Date.now();if(!stopped)schedule(BACKGROUND_QUIET_MS+1000);}});
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!stopped){lastUserOrNativeAt=Date.now();schedule(BACKGROUND_QUIET_MS+1000);}});
-  window.addEventListener('popstate',()=>{lastUserOrNativeAt=Date.now();if(!stopped)schedule(BACKGROUND_QUIET_MS+1000);});
+  document.addEventListener('niakgpt:activity-changed',event=>{if(event.detail?.active===true){lastUserOrNativeAt=Date.now();if(!stopped)read().then(raw=>schedule(quietRequirement(raw)+1000)).catch(()=>schedule(BACKGROUND_QUIET_MS+1000));}});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!stopped){lastUserOrNativeAt=Date.now();read().then(raw=>schedule(quietRequirement(raw)+1000)).catch(()=>schedule(BACKGROUND_QUIET_MS+1000));}});
+  window.addEventListener('popstate',()=>{lastUserOrNativeAt=Date.now();if(!stopped)read().then(raw=>schedule(quietRequirement(raw)+1000)).catch(()=>schedule(BACKGROUND_QUIET_MS+1000));});
   window.addEventListener('pagehide',stop,{once:true});
-  schedule(BACKGROUND_QUIET_MS+1000);
+  read().then(raw=>schedule(quietRequirement(raw)+1000)).catch(()=>schedule(BACKGROUND_QUIET_MS+1000));
 })();

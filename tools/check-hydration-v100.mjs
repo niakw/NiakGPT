@@ -8,7 +8,7 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 
 const manifest=JSON.parse(read('manifest.json'));
 if(manifest.manifest_version!==3)fail('manifest_version drift');
-if(manifest.version!=='0.9.92')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.93')fail(`unexpected release ${manifest.version}`);
 same(manifest.permissions,['storage','scripting','identity'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*'],'host scope mismatch');
 const staticRuntime=['boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'];
@@ -55,6 +55,11 @@ for(const file of [...main,...isolated,...optional,'background-v100.js','project
 
 for(const token of ["const OPTIONAL_RUNTIME=[","sendResponse({ok:!coreFailed","PROJECT_MEMORY_BACKEND_READY"])need(background,token,'Project Memory optional boot isolation incomplete');
 forbid(background,"item.includes(':project-memory-v132.js:')",'Project Memory must not be a critical coreFailed owner');
+
+const serverIndex=read('server-index-v100.js');
+  for(const token of ['COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement','coldBootstrap','conversationPage()'])need(serverIndex,token,'cold canonical index recovery incomplete');
+  const serverBootstrap=read('server-index-bootstrap-v124.js');
+  for(const token of ['COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement(raw)','conversationPage()'])need(serverBootstrap,token,'cold canonical bootstrap recovery incomplete');
 
 const bridge=read('page-bridge.js');
 need(bridge,'const nativeFetch = window.fetch.bind(window);');need(bridge,'conversation_detail_get_disabled');need(bridge,'d.memoryBootstrap !== true');need(bridge,'project_move_requires_governance');forbid(bridge,'window.fetch =');forbid(bridge,'globalThis.fetch =');
@@ -120,7 +125,9 @@ const activity=read('activity-v086.js');
 for(const token of ['nativeBusy=hasThinking()||hasStop()','id===currentChat()&&ACTIVE.has(localState)','remember(id,localState,cur.projectId,localAt)'])need(activity,token,'long-running native activity retention incomplete');
 
 const catalog=read('sidebar-projects-v121.js');
-for(const token of ['canonicalProjects','renderCatalog','ng121PinsReady','ng121PlacementReady','sessionOrder','armBootstrap','projectScroll','drawerScroll','projectScrollMemory','niakgpt:sidebar-projects-reconcile'])need(catalog,token,'stable Projects catalog/session ownership incomplete');
+for(const token of ['canonicalProjects','renderCatalog','ng121PinsReady','ng121PlacementReady','sessionOrder','armBootstrap','projectScroll','drawerScroll','projectScrollMemory','niakgpt:sidebar-projects-reconcile','ng102NativePreferred','nativeMirrorCount'])need(catalog,token,'stable Projects catalog/session ownership incomplete');
+const projectSelfheal=read('project-state-selfheal-v102.js');
+for(const token of ['nativeMirrorCount','ng102NativePreferred','fallback local en veille',"style.setProperty('display','none','important')"])need(projectSelfheal,token,'native-mirror recovery self-heal incomplete');
 for(const token of ['slice(0,8)','setInterval('])forbid(catalog,token,'Projects catalog must not truncate or poll');
 
 const folders=read('pin-folders-v096.js');
@@ -139,7 +146,7 @@ const manifestText=JSON.stringify(manifest.content_scripts);
 for(const css of ['sidebar-metadata-v118.css','sidebar-projects-authority-v112.css','sidebar-ux-v119.css','native-actions-v113.css','sidebar-actions-v123.css','interruption-guard-v119.css','chat-attention-v113.css','performance-guard-v112.css','sidebar-icons-v114.css','live-stability-v129.css','project-memory-v132.css'])need(manifestText,css,`${css} missing from manifest`);
 for(const css of ['native-rename-v112.css','sidebar-authority-v107.css','sidebar-expando-guard-v108.css','sidebar-projects-authority-v109.css','sidebar-projects-authority-v110.css','sidebar-projects-authority-v111.css','native-ux-v125.css','native-ux-v126.css','sidebar-truth-v127.css'])forbid(manifestText,css,`${css} still wired`);
 
-for(const file of ['visual-lab/sidebar-session-ux-v123.mjs','visual-lab/tests/sidebar-human-ux-v123.spec.js','visual-lab/tests/activity-long-running-v124.spec.js','visual-lab/experience-gate-v116.mjs','visual-lab/false-positive-signals-v121.mjs','visual-lab/live-sidebar-state-v122.mjs','visual-lab/user-reported-regressions-v120.mjs','visual-lab/parallel-continue-v128.mjs','visual-lab/tests/composer-continuation-runtime-v128.spec.js','visual-lab/tests/live-stability-v129.spec.js'])if(!fs.existsSync(file))fail(`required current regression gate missing ${file}`);
+for(const file of ['visual-lab/sidebar-session-ux-v123.mjs','visual-lab/tests/sidebar-human-ux-v123.spec.js','visual-lab/tests/activity-long-running-v124.spec.js','visual-lab/experience-gate-v116.mjs','visual-lab/false-positive-signals-v121.mjs','visual-lab/live-sidebar-state-v122.mjs','visual-lab/user-reported-regressions-v120.mjs','visual-lab/user-reported-v133.mjs','visual-lab/parallel-continue-v128.mjs','visual-lab/tests/composer-continuation-runtime-v128.spec.js','visual-lab/tests/live-stability-v129.spec.js'])if(!fs.existsSync(file))fail(`required current regression gate missing ${file}`);
 const sessionGate=read('visual-lab/sidebar-session-ux-v123.mjs');
 for(const token of ['length:28','length:58','scroll snapped','Projects block drifted above native primary/logo area','Project menu is clipped/inside sidebar/not hit-testable','Chat menu is clipped/inside sidebar/not hit-testable','WCAG 2.5.8','sidebar remount did not recover','sidebar-session-ux-v123'])need(sessionGate,token,'cross-engine full-session sidebar gate incomplete');
 const liveSidebar=read('visual-lab/live-sidebar-state-v122.mjs');for(const token of ['__corruptedPins','oldRetired','retired in place','external displacement'])need(liveSidebar,token,'live sidebar displacement recovery gate incomplete');
@@ -169,7 +176,7 @@ const packageJson=read('visual-lab/package.json');
 const packageVersion=JSON.parse(packageJson).devDependencies?.['@playwright/test'];if(packageVersion!=='1.62.1')fail(`Playwright package/image version drift: ${packageVersion}`);
 const currentScript=JSON.parse(packageJson).scripts?.['test:current']||'';need(currentScript,'dom-node-stability-v082.mjs','current visual gate missing DOM node stability regression');need(currentScript,'pins-primary-slot-v083.mjs','current visual gate missing Pins slot regression');need(currentScript,'diagnostic-selection-v083.mjs','current visual gate missing diagnostic selection regression');
 const workflow=read('.github/workflows/current-finalization.yml');
-for(const token of ['chromium, firefox, webkit','sidebar-session-ux-v123.mjs','CURRENT LEFT SIDEBAR complete session contract','dom-node-stability-v082.mjs','Reported DOM node stability — direct chat and late shell remount','pins-primary-slot-v083.mjs','Reported Pins placement — native controls stay above Projects','sidebar-human-ux-v123.spec.js','PRIMARY real Brave — FULL human sidebar','experience-linux:','extension-runtime-linux:','mcr.microsoft.com/playwright:v1.62.1-noble','PLAYWRIGHT_BROWSERS_PATH: /ms-playwright','HOME: /root'])need(workflow,token,'current full-session/cross-platform workflow incomplete');
+for(const token of ['chromium, firefox, webkit','user-reported-v133.mjs','sidebar-session-ux-v123.mjs','CURRENT LEFT SIDEBAR complete session contract','dom-node-stability-v082.mjs','Reported DOM node stability — direct chat and late shell remount','pins-primary-slot-v083.mjs','Reported Pins placement — native controls stay above Projects','sidebar-human-ux-v123.spec.js','PRIMARY real Brave — FULL human sidebar','experience-linux:','extension-runtime-linux:','mcr.microsoft.com/playwright:v1.62.1-noble','PLAYWRIGHT_BROWSERS_PATH: /ms-playwright','HOME: /root'])need(workflow,token,'current full-session/cross-platform workflow incomplete');
 const imageLines=workflow.split(/\r?\n/).filter(line=>/^\s+image:\s+mcr\.microsoft\.com\/playwright:v1\.62\.1-noble\s*$/.test(line));if(imageLines.length!==3)fail(`expected 3 pinned Linux Playwright image jobs, got ${imageLines.length}`);
 if(/^\s*npx playwright install --with-deps\b/m.test(workflow))fail('Linux Finalization reintroduced apt --with-deps');
 const parallelWorkflow=read('.github/workflows/parallel-continuation-v128.yml');

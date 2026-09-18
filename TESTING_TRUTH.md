@@ -1,3 +1,9 @@
+## 0.9.93 — conflit GitHub non-fast-forward reproduit
+
+- Le contrat Project Memory force deux réponses GitHub 422 `Update is not a fast forward` successives.
+- Chaque nouvelle tentative doit relire la tête de `main` et créer son commit avec ce nouveau parent avant de déplacer la ref.
+- Un 422 sans sémantique non-fast-forward reste une erreur et n’est pas absorbé.
+
 ## 0.9.92 — morphologie terrain sans titre Projects
 
 - Le fixture `field-sidebar-cache-recovery-v090.mjs` reproduit maintenant une sidebar où des chats récents précèdent des lignes Project sans titre « Projects » et sans href Project.

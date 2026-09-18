@@ -1,3 +1,12 @@
+# NiakGPT 0.9.93 — Project Memory GitHub race hardening
+
+- Corrige l’erreur terrain `cached_bootstrap_write_failed: github_http_422: Update is not a fast forward`.
+- Sérialise toutes les écritures GitHub Project Memory au niveau du service worker, y compris le commit d’initialisation du coffre.
+- Un conflit de tête de branche relit maintenant `refs/heads/<branch>`, reconstruit le commit sur le nouveau parent et réessaie jusqu’à 5 fois avec backoff borné.
+- Les 422 de règles/protection GitHub ne sont pas masqués : seuls les vrais conflits non-fast-forward sont retentés.
+- Ajoute un test backend qui force deux déplacements externes successifs de la branche avant de vérifier la réussite sur la tête fraîche.
+- Aucun dossier `.niakgpt-memory` n’est à créer manuellement.
+
 # NiakGPT 0.9.92 — slot Projects terrain + erreurs worker
 
 - Corrige le cas terrain où ChatGPT affiche les lignes Projects sans titre « Projects » ni href `g-p-*` : v121 retrouve maintenant le bloc par concordance d’identités avec les noms de Projects du cache et ancre les Pins juste avant ce bloc.

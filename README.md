@@ -6,7 +6,7 @@
   <p>Projects · long-thread performance · continuity · navigation · focused productivity</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.92-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.93-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,7 +21,7 @@
 NiakGPT is a browser extension that turns the ChatGPT web interface into a more capable **workspace for heavy, project-based use** without replacing ChatGPT itself.
 
 It adds a native-first layer for Projects, navigation, long conversations, continuity, diagnostics and local productivity. Core features run locally in the browser: **no NiakGPT account, no NiakGPT analytics and no NiakGPT server are required**.
-> **Current version: 0.9.92.** Pins now identify the real native Projects block from cached Project names when ChatGPT exposes no Projects heading or Project hrefs, preventing the block from falling near the account/Chats footer. Project Memory also consumes tab-close promise races and records redacted service-worker errors in the NiakGPT diagnostic. NiakGPT still never calls ChatGPT's native `/backend-api/f/conversation/resume` route.
+> **Current version: 0.9.93.** Project Memory now serializes GitHub writes in the extension service worker and rebases/retries non-fast-forward reference races against the latest branch head. The `.niakgpt-memory` folder still requires no manual setup: NiakGPT creates and updates it automatically.
 
 ## Highlights
 

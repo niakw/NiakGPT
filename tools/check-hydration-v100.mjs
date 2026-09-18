@@ -109,6 +109,8 @@ const bootErrors=read('boot-gate-v100.js');
 for(const token of ['niakgpt:boot-error-v100','github_pat_','access_token','[redacted]'])need(bootErrors,token,'boot error redaction/diagnostic bridge incomplete');
 const diagnostics=read('diagnostic-bus-v096.js');
 for(const token of ['BOOT_ERRORS_KEY','niakgpt:boot-error-v100','worker + runtime propres'])need(diagnostics,token,'extension runtime error diagnostic incomplete');
+const multitab=read('multitab-v090.js');
+for(const token of ['window.__NIAKGPT_APP_090__',"role==='WORKER'",'openClientQuick'])need(multitab,token,'Quick Open fallback ownership incomplete');
 for(const token of ['MutationObserver(queueMainNodes)','function renderPins()','window.__NIAKGPT_SIDEBAR_PROJECTS_121__','niakgpt:sidebar-projects-reconcile'])need(app,token,'app/v121 cooperative ownership incomplete');
 need(app,"label.textContent=String(turn.innerText||turn.textContent||'')",'TOC DOM text must stay textContent');
 forbid(app,'function routeTick()');

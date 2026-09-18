@@ -194,7 +194,12 @@
     const paint=()=>{const q=norm(input.value);items=(raw.chats||[]).filter(c=>!q||norm(`${c.title||''} ${c.snippet||''} ${projectNames.get(c.projectId)||''}`).includes(q)).sort((a,b)=>(b.updated||0)-(a.updated||0)).slice(0,100).map(c=>({title:c.title||'Conversation',sub:projectNames.get(c.projectId)||'Hors projet',href:c.href||(c.projectId?`/g/${c.projectId}/c/${c.id}`:`/c/${c.id}`)}));sel=Math.min(sel,Math.max(0,items.length-1));list.innerHTML=items.map((x,i)=>`<button class="${i===sel?'sel':''}" data-i="${i}"><span>${x.title.replace(/[&<>]/g,'')}</span><small>${x.sub.replace(/[&<>]/g,'')}</small><em>CHAT</em></button>`).join('');list.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>routeTo(items[Number(b.dataset.i)].href)));};
     input.addEventListener('input',()=>{sel=0;paint();});input.addEventListener('keydown',e=>{if(e.key==='ArrowDown'){e.preventDefault();sel=Math.min(sel+1,items.length-1);paint();}else if(e.key==='ArrowUp'){e.preventDefault();sel=Math.max(0,sel-1);paint();}else if(e.key==='Enter'&&items[sel]){e.preventDefault();routeTo(items[sel].href);}else if(e.key==='Escape')modal.remove();});modal.addEventListener('mousedown',e=>{if(e.target===modal)modal.remove();});paint();setTimeout(()=>input.focus(),0);return true;
   }
-  document.addEventListener('keydown',event=>{if(contextDead)return;if(event.altKey&&!event.ctrlKey&&!event.metaKey&&!event.shiftKey&&String(event.key).toLowerCase()==='k'&&role!=='WORKER'){event.preventDefault();event.stopImmediatePropagation();openClientQuick();}},true);
+  document.addEventListener('keydown',event=>{
+    if(contextDead||role==='WORKER'||window.__NIAKGPT_APP_090__)return;
+    if(event.altKey&&!event.ctrlKey&&!event.metaKey&&!event.shiftKey&&String(event.key).toLowerCase()==='k'){
+      event.preventDefault();event.stopImmediatePropagation();openClientQuick();
+    }
+  },true);
 
   function suspend(){
     if(suspended)return;suspended=true;clearTimers();idleTasks.clear();releaseFallback();if(releaseLock){const fn=releaseLock;releaseLock=null;try{fn();}catch{}}closeChannel();

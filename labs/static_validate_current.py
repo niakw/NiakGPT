@@ -219,6 +219,9 @@ for token in ('niakgpt:boot-error-v100','github_pat_','access_token','[redacted]
 diagnostics=read('diagnostic-bus-v096.js')
 for token in ('BOOT_ERRORS_KEY','niakgpt:boot-error-v100','worker + runtime propres'):
     if token not in diagnostics: fail('extension runtime error diagnostic incomplete '+token)
+multitab=read('multitab-v090.js')
+for token in ('window.__NIAKGPT_APP_090__','role===\'WORKER\'','openClientQuick'):
+    if token not in multitab: fail('Quick Open fallback ownership incomplete '+token)
 
 handoff=read('continuity-native-handoff-v129.js')
 for token in ('nativeLimitControl','CONTINUITÉ NIAKGPT','markCurrentOut','writePending','finishProjectLock','sendButton'):

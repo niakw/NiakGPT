@@ -65,5 +65,6 @@ test('Alt+K stays client-owned and never opens duplicate Quick UI on the WORKER'
     await client.keyboard.press('Alt+K');
     await expect(client.locator('#ng8-quick')).toBeVisible({timeout:2500});
     await expect(client.locator('#ng8-quick')).toHaveCount(1);
+    await expect(client.locator('#ng8-quick')).not.toContainText('CLIENT · cache local');
   }finally{await close(rt);}
 });

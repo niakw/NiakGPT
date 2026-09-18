@@ -140,6 +140,12 @@ forbid(chatScroll,'setInterval(','conversation scroll guard must remain event-dr
 const chatState=read('chat-state-authority-v113.js');
 for(const token of ['contextAlive','markDead','ng113Context','Promise.resolve(pending).catch','invalidated=e=>'])need(chatState,token,'chat-state context invalidation guard incomplete');
 forbid(chatState,"chrome.storage.local.set({[STATE_KEY]:state}).catch",'chat-state direct persist path can still throw synchronously after extension reload');
+const chatAttention=read('chat-attention-v113.js');
+for(const token of ['contextAlive','markDead','ng113AttentionContext','Promise.resolve(pending).catch','invalidated=e=>'])need(chatAttention,token,'chat-attention context invalidation guard incomplete');
+forbid(chatAttention,'setTimeout(()=>chrome.storage.local.set','chat-attention direct delayed storage path can still throw synchronously');
+const profiles=read('profiles-v100.js');
+for(const token of ['persistProfile','contextAlive','Promise.resolve(pending).catch','invalidated=e=>'])need(profiles,token,'profiles context invalidation guard incomplete');
+forbid(profiles,"chrome.storage.local.set({[KEY]:profile}).catch",'profile persistence still calls stale extension API without a synchronous guard');
 for(const token of ['slice(0,8)','setInterval('])forbid(catalog,token,'Projects catalog must not truncate or poll');
 
 const folders=read('pin-folders-v096.js');

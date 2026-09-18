@@ -2,8 +2,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { chromium, firefox, webkit } from '@playwright/test';
 const ROOT=path.resolve('..'),OUT=path.resolve('artifacts/finalization-v113');
-const files=await Promise.all(['chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','chat-attention-v113.css','conversation-load-guard-v113.js'].map(f=>fs.readFile(path.join(ROOT,f),'utf8')));
-const [stateJs,breadcrumbJs,attentionJs,attentionCss,loadGuardJs]=files;
+const files=await Promise.all(['chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','chat-attention-v113.css','conversation-load-guard-v113.js','profiles-v100.js'].map(f=>fs.readFile(path.join(ROOT,f),'utf8')));
+const [stateJs,breadcrumbJs,attentionJs,attentionCss,loadGuardJs,profilesJs]=files;
 const ALL={chromium,firefox,webkit},requested=String(process.env.NIAKGPT_BROWSER||'').trim(),engines=requested?{[requested]:ALL[requested]}:ALL;if(requested&&!ALL[requested])throw new Error(`Unsupported NIAKGPT_BROWSER=${requested}`);
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg);};
 for(const [engine,launcher] of Object.entries(engines)){
@@ -21,7 +21,7 @@ for(const [engine,launcher] of Object.entries(engines)){
     });
     const html=`<!doctype html><html data-ng86-activity="ready"><head><title>Correct Server Title, chat dans le projet NiakGPT | ChatGPT</title></head><body><nav data-testid="conversation-sidebar"><section id="ng8-pins"><div class="ng96-pin-entry" data-pid="g-p-niakgpt"><a data-ng8-pin="1" href="/g/g-p-niakgpt/project"><span>NiakGPT</span></a></div><div class="ng96-folder-list"><a data-chat="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" href="/g/g-p-niakgpt/c/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"><span>Correct Server Title</span><time>18/08</time></a><a data-chat="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb" href="/g/g-p-niakgpt/c/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"><span>Background Chat</span><time>18/08</time></a></div></section></nav><main><article data-testid="conversation-turn-1"><div data-message-author-role="assistant">Visible content</div></article></main></body></html>`;
     await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html',body:html}));await page.goto('https://chatgpt.com/g/g-p-niakgpt/c/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',{waitUntil:'domcontentloaded'});
-    await page.addStyleTag({content:attentionCss});for(const js of [stateJs,breadcrumbJs,attentionJs,loadGuardJs])await page.addScriptTag({content:js});await page.waitForTimeout(650);
+    await page.addStyleTag({content:attentionCss});for(const js of [stateJs,breadcrumbJs,attentionJs,loadGuardJs,profilesJs])await page.addScriptTag({content:js});await page.waitForTimeout(650);
     const crumb=await page.evaluate(()=>[...document.querySelectorAll('#ng100-breadcrumb a')].map(a=>({text:a.textContent.trim(),href:a.getAttribute('href')})));
     assert(crumb.length===3,'breadcrumb must contain exactly 3 links for a Project chat');assert(crumb[0].text==='Accueil'&&crumb[1].text==='NiakGPT'&&crumb[2].text==='Correct Server Title','breadcrumb labels drifted');
     await page.evaluate(()=>{document.title='Wrong Browser Tab Title | ChatGPT';document.dispatchEvent(new CustomEvent('niakgpt:activity-changed',{detail:{state:'ready',active:false}}));});await page.waitForTimeout(260);
@@ -48,10 +48,17 @@ for(const [engine,launcher] of Object.entries(engines)){
       raw.chats=raw.chats.map(c=>c.id.startsWith('aaaaaaaa')?{...c,title:'Context invalidation trigger',updated:(c.updated||0)+1}:c);
       window.__labNotify('niakgpt-v08-cache',raw);
       window.__invalidateExtension();
+      document.dispatchEvent(new CustomEvent('niakgpt:set-profile',{detail:{profile:'focus'}}));
     });
     await page.waitForTimeout(420);
-    const invalidation=await page.evaluate(()=>({context:document.documentElement.dataset.ng113Context||''}));
+    const invalidation=await page.evaluate(()=>({
+      context:document.documentElement.dataset.ng113Context||'',
+      attention:document.documentElement.dataset.ng113AttentionContext||'',
+      profile:document.documentElement.dataset.ng100Profile||''
+    }));
     assert(invalidation.context==='inactive','chat-state authority did not deactivate after extension context invalidation');
+    assert(invalidation.attention==='inactive','chat-attention authority did not deactivate after extension context invalidation');
+    assert(invalidation.profile==='focus','profile UI stopped responding before the stale persistence path was safely absorbed');
     assert(pageErrors.length===0,'extension context invalidation leaked as page error: '+JSON.stringify(pageErrors));
     const dir=path.join(OUT,engine);await fs.mkdir(dir,{recursive:true});await page.screenshot({path:path.join(dir,'state-ux.png'),fullPage:true});await fs.writeFile(path.join(dir,'state-ux.html'),await page.content());await fs.writeFile(path.join(dir,'state-ux.json'),JSON.stringify({crumb,tabAuthority,canonical,serverBefore,liveSignal,attention,guard,invalidation,pageErrors},null,2));
   }finally{await context.close();await browser.close();}

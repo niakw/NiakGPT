@@ -144,6 +144,14 @@ chat_state=read('chat-state-authority-v113.js')
 for token in ('contextAlive','markDead','ng113Context','Promise.resolve(pending).catch','invalidated=e=>'):
     if token not in chat_state: fail('chat-state context invalidation guard incomplete '+token)
 if "chrome.storage.local.set({[STATE_KEY]:state}).catch" in chat_state: fail('chat-state direct persist path can still throw synchronously after extension reload')
+chat_attention=read('chat-attention-v113.js')
+for token in ('contextAlive','markDead','ng113AttentionContext','Promise.resolve(pending).catch','invalidated=e=>'):
+    if token not in chat_attention: fail('chat-attention context invalidation guard incomplete '+token)
+if "setTimeout(()=>chrome.storage.local.set" in chat_attention: fail('chat-attention direct delayed storage path can still throw synchronously')
+profiles=read('profiles-v100.js')
+for token in ('persistProfile','contextAlive','Promise.resolve(pending).catch','invalidated=e=>'):
+    if token not in profiles: fail('profiles context invalidation guard incomplete '+token)
+if "chrome.storage.local.set({[KEY]:profile}).catch" in profiles: fail('profile persistence still calls stale extension API without a synchronous guard')
 if re.search(r"recentUser[^\n]*return\s+null|user-priority:[^\n]*return\s+null",catalog): fail('recent user Project scroll must arm a restore snapshot, not return null')
 if 'userIntentAt:userScrollIntentAt' not in catalog: fail('pending Project scroll snapshot lost user intent epoch binding')
 continuity=read('continuity-v100.js')

@@ -140,6 +140,10 @@ scroll_guard=read('conversation-scroll-guard-v133.js')
 for token in ('scrollableNode','targetsConversationScroller','touchstart','touchPoint','event.shiftKey','editable(event.target)','ng133ScrollSticky','remontée volontaire'):
     if token not in scroll_guard: fail('conversation scroll audit contract incomplete '+token)
 if 'setInterval(' in scroll_guard: fail('conversation scroll guard must remain event-driven')
+chat_state=read('chat-state-authority-v113.js')
+for token in ('contextAlive','markDead','ng113Context','Promise.resolve(pending).catch','invalidated=e=>'):
+    if token not in chat_state: fail('chat-state context invalidation guard incomplete '+token)
+if "chrome.storage.local.set({[STATE_KEY]:state}).catch" in chat_state: fail('chat-state direct persist path can still throw synchronously after extension reload')
 if re.search(r"recentUser[^\n]*return\s+null|user-priority:[^\n]*return\s+null",catalog): fail('recent user Project scroll must arm a restore snapshot, not return null')
 if 'userIntentAt:userScrollIntentAt' not in catalog: fail('pending Project scroll snapshot lost user intent epoch binding')
 continuity=read('continuity-v100.js')

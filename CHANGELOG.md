@@ -6,6 +6,7 @@
 - `Shift+Espace` est reconnu comme navigation vers le haut ; les flèches/Espace dans `textarea`, `input`, `contenteditable` ou `role=textbox` restent du texte et ne changent pas l’état de scroll.
 - Le recovery Projects exclut explicitement les lignes de conversation `/c/...` de la détection de miroir natif, évitant qu’un chat portant le même titre qu’un Project masque le fallback.
 - Le gate terrain couvre maintenant faux miroir par titres de chats, faux scroll-root non scrollable, sidebar wheel, clavier dans le composer, tactile et `Shift+Espace`.
+- `chat-state-authority-v113` détecte désormais un contexte d’extension invalidé avant le persist différé et absorbe aussi bien l’exception synchrone que le rejet Promise. Le scénario exact d’un reload d’extension pendant le timer de persistance est couvert sans `pageerror`.
 
 # NiakGPT 0.9.93 — Project Memory GitHub race hardening
 

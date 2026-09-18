@@ -4,6 +4,7 @@
 - Le scénario de génération ajoute un grand conteneur non scrollable contenant un faux turn assistant ; il ne doit jamais devenir l’autorité de scroll.
 - Le même scénario vérifie que la molette de sidebar n’altère pas le suivi, qu’ArrowUp dans le composer reste une édition, que le tactile libère/réarme correctement le suivi et que `Shift+Espace` libère la lecture vers le haut.
 - Ces cas sont exécutés dans la matrice Chromium / Firefox / WebKit de Current Finalization.
+- `state-ux-v113.mjs` invalide maintenant volontairement `chrome.runtime.id` après avoir armé le persist différé du chat-state et fait jeter `Extension context invalidated.` par `chrome.storage.local.set`. Le module doit passer en `data-ng113-context=inactive` et zéro `pageerror` doit être observé.
 
 ## 0.9.93 — régressions terrain Projects / classement / scroll génération
 

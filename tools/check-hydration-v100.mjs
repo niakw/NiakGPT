@@ -137,6 +137,9 @@ for(const token of ['nativeMirrorCount','genericChatRow','ng102NativePreferred',
 const chatScroll=read('conversation-scroll-guard-v133.js');
 for(const token of ['scrollableNode','targetsConversationScroller','touchstart','touchPoint','event.shiftKey','editable(event.target)','ng133ScrollSticky','remontée volontaire'])need(chatScroll,token,'conversation scroll audit contract incomplete');
 forbid(chatScroll,'setInterval(','conversation scroll guard must remain event-driven');
+const chatState=read('chat-state-authority-v113.js');
+for(const token of ['contextAlive','markDead','ng113Context','Promise.resolve(pending).catch','invalidated=e=>'])need(chatState,token,'chat-state context invalidation guard incomplete');
+forbid(chatState,"chrome.storage.local.set({[STATE_KEY]:state}).catch",'chat-state direct persist path can still throw synchronously after extension reload');
 for(const token of ['slice(0,8)','setInterval('])forbid(catalog,token,'Projects catalog must not truncate or poll');
 
 const folders=read('pin-folders-v096.js');

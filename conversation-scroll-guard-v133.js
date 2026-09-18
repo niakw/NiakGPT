@@ -76,7 +76,15 @@
     else if(event.type==='touchmove')dir=0;
     else if(event.type==='keydown')dir=/^(ArrowUp|PageUp|Home)$/.test(event.key)?-1:/^(ArrowDown|PageDown|End| )$/.test(event.key)?1:0;
     if(dir<0){userUpAt=performance.now();setSticky(false,'remontée volontaire');return;}
-    requestAnimationFrame(()=>armFromPosition(dir>0?'retour utilisateur vers le bas':'position utilisateur'));
+    requestAnimationFrame(()=>{
+      if(dir>0&&root&&active()&&distanceBottom(root)<=80){
+        // An explicit downward gesture that actually reaches the bottom is stronger evidence
+        // than the short anti-snap grace period left by the previous upward gesture.
+        userUpAt=-Infinity;lastBottom=distanceBottom(root);setSticky(true,'retour utilisateur vers le bas');pinBottom('user-bottom');
+        return;
+      }
+      armFromPosition(dir>0?'retour utilisateur vers le bas':'position utilisateur');
+    });
   }
   function onScroll(event){
     if(!root||event.target!==root&&!(root===document.scrollingElement&&(event.target===document||event.target===document.documentElement)))return;

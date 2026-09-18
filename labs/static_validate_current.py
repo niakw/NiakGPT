@@ -25,7 +25,7 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.94': fail(f"version={version}")
+if version!='0.9.95': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting','identity']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']: fail('host permissions drift')
 
@@ -173,8 +173,9 @@ for token in ('↳ Suite en parallèle','LEGACY_HEADER','waiting','thinking','ex
 if 'setInterval(' in parallel: fail('parallel continuation must remain event-driven')
 
 memory_bg=read('project-memory-background-v132.js')
-for token in ('memory_repository_must_be_private','verifiedPrivateAt','chrome.storage.session','niakgpt:memory-connect-v132','niakgpt:memory-commit-v132','git/refs/heads','initializeEmptyRepo',"method: 'PUT'",'github_initial_content_commit_failed','chrome.identity.launchWebAuthFlow','launchManifestRegistrationTab','chrome.tabs.create','github_auth_url_invalid_scheme','chrome.runtime.onConnect.addListener','app-manifests/','request_oauth_on_install','niakgpt:memory-github-connect-repo-v132','github_repository_not_authorized_for_vault','refresh_token','code_challenge','code_verifier','setup_url: clean(flow.installRedirect)','request_oauth_on_install: false','MAX_REF_RETRIES','queueCommit','refRace'):
+for token in ('memory_repository_must_be_private','verifiedPrivateAt','chrome.storage.session','niakgpt:memory-connect-v132','niakgpt:memory-commit-v132','git/refs/heads','initializeEmptyRepo',"method: 'PUT'",'github_initial_content_commit_failed','chrome.identity.launchWebAuthFlow','launchManifestRegistrationTab','chrome.tabs.create','github_auth_url_invalid_scheme','chrome.runtime.onConnect.addListener','app-manifests/','request_oauth_on_install','niakgpt:memory-github-connect-repo-v132','github_repository_not_authorized_for_vault','refresh_token','code_challenge','code_verifier','setup_url: clean(flow.installRedirect)','request_oauth_on_install: false','MAX_REF_RETRIES = 8','MAX_REF_BACKOFF_MS',"cache: init.cache || 'no-store'",'const beforeUpdate = await getRef','queueCommit','refRace'):
     if token not in memory_bg: fail('Project Memory backend incomplete '+token)
+if 'force: true' in memory_bg[memory_bg.find('git/refs/heads'):memory_bg.find('git/refs/heads')+5000]: fail('Project Memory must never force-push the vault branch')
 interruption=read('interruption-guard-v119.js')
 for token in ('nos\\s+systèmes\\s+effectuent\\s+quelques\\s+vérifications','connexion\\s+(?:perdue|interrompue)','assistantTail','settleRecovery','recoveryEpoch=0'):
     if token not in interruption: fail('interruption recovery contract incomplete '+token)
@@ -231,7 +232,7 @@ boot=read('boot-gate-v100.js')
 for token in ('niakgpt:boot-error-v100','github_pat_','access_token','[redacted]'):
     if token not in boot: fail('boot error redaction/diagnostic bridge incomplete '+token)
 diagnostics=read('diagnostic-bus-v096.js')
-for token in ('BOOT_ERRORS_KEY','niakgpt:boot-error-v100','worker + runtime propres'):
+for token in ('BOOT_ERRORS_KEY','niakgpt:boot-error-v100','worker + runtime propres','benignRuntimeNoise','ResizeObserver loop','completed with undelivered notifications'):
     if token not in diagnostics: fail('extension runtime error diagnostic incomplete '+token)
 multitab=read('multitab-v090.js')
 for token in ('window.__NIAKGPT_APP_090__','role===\'WORKER\'','openClientQuick'):

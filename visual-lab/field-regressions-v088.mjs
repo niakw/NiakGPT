@@ -4,14 +4,15 @@ import { chromium } from '@playwright/test';
 
 const ROOT=path.resolve('..');
 const read=name=>fs.readFile(path.join(ROOT,name),'utf8');
-const [bridgeSource,projectsSource,authoritySource,uxSource,memorySource,pinFoldersSource,serverIndexSource]=await Promise.all([
+const [bridgeSource,projectsSource,authoritySource,uxSource,memorySource,pinFoldersSource,serverIndexSource,diagnosticSource]=await Promise.all([
   read('page-bridge.js'),
   read('sidebar-projects-v121.js'),
   read('sidebar-projects-authority-v112.js'),
   read('ux-v131.js'),
   read('project-memory-v132.js'),
   read('pin-folders-v096.js'),
-  read('server-index-v100.js')
+  read('server-index-v100.js'),
+  read('diagnostic-bus-v096.js')
 ]);
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg);};
 const P1='g-p-aaaaaaaaaaaaaaaa',P2='g-p-bbbbbbbbbbbbbbbb';
@@ -44,7 +45,7 @@ async function pinsFieldRegression(browser){
       };
       const clone=v=>v===undefined?undefined:structuredClone(v);
       window.chrome={
-        runtime:{getManifest:()=>({version:'0.9.94'})},
+        runtime:{getManifest:()=>({version:'0.9.95'})},
         storage:{
           local:{
             async get(keys){
@@ -149,7 +150,7 @@ async function screenshotSidebarRegression(browser){
       };
       const clone=v=>v===undefined?undefined:structuredClone(v);
       window.chrome={
-        runtime:{getManifest:()=>({version:'0.9.94'})},
+        runtime:{getManifest:()=>({version:'0.9.95'})},
         storage:{
           local:{
             async get(keys){
@@ -333,7 +334,7 @@ async function memoryFieldRegression(browser){
       window.chrome={
         runtime:{
           lastError:null,
-          getManifest:()=>({version:'0.9.94'}),
+          getManifest:()=>({version:'0.9.95'}),
           sendMessage(message,cb){
             const reply=value=>queueMicrotask(()=>cb(value));
             if(message.type==='niakgpt:memory-status-v132')return reply({ok:true,connected:window.__vaultConnected,configured:window.__vaultConnected,tokenAvailable:window.__vaultConnected,config:window.__vaultConnected?{repo:'synthetic/private',branch:'main',root:'.niakgpt-memory',authMode:'github-app'}:null,github:{authenticated:true,repositories:[{fullName:'synthetic/private',defaultBranch:'main'}]}});
@@ -394,6 +395,35 @@ async function memoryFieldRegression(browser){
   }finally{await context.close();}
 }
 
+async function diagnosticNoiseRegression(browser){
+  const context=await browser.newContext({viewport:{width:900,height:650}});
+  const page=await context.newPage();
+  try{
+    await page.addInitScript(()=>{
+      const store={};const listeners=[];
+      window.chrome={storage:{local:{
+        async get(){return structuredClone(store);},
+        async set(obj){Object.assign(store,structuredClone(obj));}
+      },onChanged:{addListener(fn){listeners.push(fn);}}}};
+    });
+    await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html',body:'<!doctype html><html><body><main></main></body></html>'}));
+    await page.goto('https://chatgpt.com/',{waitUntil:'domcontentloaded'});
+    await page.evaluate(()=>sessionStorage.setItem('niakgpt-last-boot-errors-v100',JSON.stringify(['JS: ResizeObserver loop completed with undelivered notifications.'])));
+    await page.addScriptTag({content:diagnosticSource});
+    await page.waitForFunction(()=>window.__NIAKGPT_DIAGNOSTICS__?.snapshot?.()['extension-errors'],null,{timeout:3000});
+    let status=await page.evaluate(()=>window.__NIAKGPT_DIAGNOSTICS__.snapshot()['extension-errors']);
+    assert(status==='OK · worker + runtime propres','benign ResizeObserver delivery warning polluted extension-errors: '+status);
+    await page.evaluate(()=>{
+      sessionStorage.setItem('niakgpt-last-boot-errors-v100',JSON.stringify(['JS: synthetic runtime failure']));
+      document.dispatchEvent(new CustomEvent('niakgpt:boot-error-v100'));
+    });
+    await page.waitForTimeout(40);
+    status=await page.evaluate(()=>window.__NIAKGPT_DIAGNOSTICS__.snapshot()['extension-errors']);
+    assert(/ERREUR .*synthetic runtime failure/.test(status),'real runtime error was incorrectly hidden: '+status);
+    console.log('field-v095 diagnostics: PASS benign ResizeObserver warning filtered + real runtime errors preserved');
+  }finally{await context.close();}
+}
+
 const browser=await chromium.launch({headless:true});
 try{
   await pinsFieldRegression(browser);
@@ -401,5 +431,6 @@ try{
   await serverIndexOwnershipRegression(browser);
   await networkFieldRegression(browser);
   await memoryFieldRegression(browser);
+  await diagnosticNoiseRegression(browser);
 }finally{await browser.close();}
-console.log('field-regressions-v088: PASS Pins + screenshot placement + ownership cleanup + network + GitHub bootstrap');
+console.log('field-regressions-v088: PASS Pins + screenshot placement + ownership cleanup + network + GitHub bootstrap + runtime diagnostics');

@@ -1,3 +1,13 @@
+# NiakGPT 0.9.95 — GitHub ref autoritative + diagnostic runtime
+
+- Corrige le cas terrain où `cached_bootstrap_write_failed:github_http_422:Update is not a fast forward` persistait malgré les retries.
+- Les appels GitHub Project Memory passent maintenant en `cache: 'no-store'` afin qu’une lecture de `refs/heads/*` ne puisse pas recycler une tête obsolète.
+- Après avoir construit un commit, NiakGPT relit la ref juste avant PATCH ; si un autre writer a avancé la branche, il reconstruit d’abord sur le nouveau parent.
+- Les retries de ref passent de 5 à 8 avec backoff borné à 3 s ; aucun force-push n’est autorisé.
+- Le contrat de test reproduit à la fois le 422 au PATCH et le déplacement de branche entre création du commit et update-ref.
+- Le diagnostic `extension-errors` ignore uniquement les deux messages standards de livraison ResizeObserver ; une erreur runtime réelle reste affichée.
+- Le gate terrain vérifie explicitement ce filtrage sans masquer une erreur synthétique réelle.
+
 # NiakGPT 0.9.94 — audit scroll multi-input + faux miroir Projects
 
 - Le garde de scroll choisit désormais uniquement un conteneur réellement scrollable ; un wrapper DOM avec `overflow: visible/hidden` ne peut plus voler l’autorité au fil.

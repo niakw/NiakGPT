@@ -1,3 +1,11 @@
+## 0.9.95 — ref GitHub fraîche + préflight update-ref
+
+- Le contrat Project Memory exige `cache: 'no-store'` sur les lectures GitHub de ref.
+- Le scénario non-fast-forward continue à forcer deux 422 successifs puis vérifie que chaque nouveau commit a le parent GitHub réellement courant.
+- Un second scénario fait avancer la branche **après** la création du commit mais **avant** PATCH : les deux premiers commits doivent être abandonnés/rebâtis et un seul PATCH final doit être émis.
+- Le validateur interdit tout `force: true` sur le chemin update-ref.
+- Le gate Chromium des régressions terrain injecte `ResizeObserver loop completed with undelivered notifications.` dans le journal runtime : le diagnostic doit rester propre. Il injecte ensuite une vraie erreur synthétique, qui doit rester visible.
+
 ## 0.9.94 — audit ciblé après validation 0.9.93
 
 - `visual-lab/user-reported-v133.mjs` reproduit maintenant un faux positif volontaire : trois chats récents portent exactement les noms de trois Projects locaux, sans aucune vraie surface Projects native. Le fallback doit rester visible.

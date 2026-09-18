@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.94",
-  "description": "NiakGPT : Projects recovery durci, scroll de génération multi-input fiable et Project Memory résilient.",
+  "version": "0.9.95",
+  "description": "NiakGPT : Project Memory GitHub autoritatif, diagnostics runtime propres et UX native-first stabilisée.",
   "permissions": [
     "storage",
     "scripting",

@@ -72,6 +72,7 @@ const ISOLATED_RUNTIME=[
   'project-links-v106.js',
   'activity-ui-v097.js',
   'retro-loader-v097.js',
+  'conversation-scroll-guard-v133.js',
   'ux-v131.js'
 ];
 
@@ -134,7 +135,7 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
         if(file===HARD_ISOLATED_BARRIER){bootBlocked=true;break;}
       }
     }
-    const coreFailed=bootBlocked||errors.some(item=>item.includes(':app-v090.js:')||item.includes(':pin-folders-v096.js:')||item.includes(':folder-scroll-anchor-v124.js:')||item.includes(':project-native-name-sync-v124.js:')||item.includes(':project-state-selfheal-v102.js:')||item.includes(':project-assignment-selfheal-v103.js:')||item.includes(':sidebar-projects-authority-v112.js:')||item.includes(':sidebar-projects-v121.js:')||item.includes(':sidebar-metadata-v118.js:')||item.includes(':server-index-v100.js:')||item.includes(':server-index-bootstrap-v124.js:')||item.includes(':chat-state-authority-v113.js:')||item.includes(':sidebar-ux-v119.js:')||item.includes(':sidebar-actions-v123.js:')||item.includes(':continuity-consumer-v124.js:')||item.includes(':interruption-guard-v119.js:')||item.includes(':ux-v131.js:'));
+    const coreFailed=bootBlocked||errors.some(item=>item.includes(':app-v090.js:')||item.includes(':pin-folders-v096.js:')||item.includes(':folder-scroll-anchor-v124.js:')||item.includes(':project-native-name-sync-v124.js:')||item.includes(':project-state-selfheal-v102.js:')||item.includes(':project-assignment-selfheal-v103.js:')||item.includes(':sidebar-projects-authority-v112.js:')||item.includes(':sidebar-projects-v121.js:')||item.includes(':sidebar-metadata-v118.js:')||item.includes(':server-index-v100.js:')||item.includes(':server-index-bootstrap-v124.js:')||item.includes(':chat-state-authority-v113.js:')||item.includes(':sidebar-ux-v119.js:')||item.includes(':sidebar-actions-v123.js:')||item.includes(':continuity-consumer-v124.js:')||item.includes(':interruption-guard-v119.js:')||item.includes(':conversation-scroll-guard-v133.js:')||item.includes(':ux-v131.js:'));
     sendResponse({ok:!coreFailed,errors,projectMemoryBackendReady:PROJECT_MEMORY_BACKEND_READY});
     if(!coreFailed&&PROJECT_MEMORY_BACKEND_READY){
       (async()=>{

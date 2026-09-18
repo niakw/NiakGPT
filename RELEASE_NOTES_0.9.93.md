@@ -7,3 +7,11 @@ Project Memory now serializes all repository writes through the extension servic
 Only actual reference races are retried. Repository-rule or branch-protection 422 responses remain visible.
 
 The `.niakgpt-memory` directory is still managed by NiakGPT and does not need to exist beforehand.
+
+
+## User-reported recovery and conversation UX
+
+- Local-only Project recovery no longer duplicates ChatGPT's native Projects surface when the visible native names match the local cache. The local block remains available as a hidden recovery fallback until canonical IDs are known.
+- Once a complete canonical Project/chat index exists, classification catches up all unassigned cached conversations, including older history rather than only the recent window.
+- Classification stays fully paused on active conversation routes to preserve NiakGPT's zero-background-ChatGPT-network invariant.
+- During active generation, `conversation-scroll-guard-v133.js` follows the bottom only when the user is already there. Deliberate upward scrolling disables the pin immediately; returning to the bottom re-arms it.

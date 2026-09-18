@@ -170,6 +170,7 @@ if 'project-memory-v132.css' not in css_runtime: fail('Project Memory UI CSS mis
 if not (ROOT/'visual-lab/project-memory-v132.mjs').exists(): fail('Project Memory browser UX gate missing')
 if not (ROOT/'visual-lab/native-chat-zero-background-v087.mjs').exists(): fail('native chat zero-background regression gate missing')
 if not (ROOT/'visual-lab/field-regressions-v088.mjs').exists(): fail('0.9.88 combined field regression gate missing')
+if not (ROOT/'visual-lab/user-reported-v133.mjs').exists(): fail('0.9.93 user-reported regression gate missing')
 if not (ROOT/'github-vault-start.html').exists() or not (ROOT/'github-vault-start.js').exists(): fail('GitHub auth launcher missing')
 if not (ROOT/'labs/project-memory-isolation-v133.mjs').exists(): fail('Project Memory isolation failure gate missing')
 if not (ROOT/'.github/workflows/project-memory-v132.yml').exists(): fail('Project Memory workflow missing')

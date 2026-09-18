@@ -31,7 +31,7 @@ for(const required of [
   'analysis-bridge-v112.js','reclassify-deep-v112.js','performance-guard-v112.js','performance-guard-v112.css','home-layout-v112.js','home-layout-v112.css',
   'matrix-guardian-v112.js','matrix-guardian-v112.css','turn-headers-v112.js','continuity-v112.js','native-da-v112.css','sidebar-icons-v114.js','sidebar-icons-v114.css','cache-bus-v096.js',
   'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','chat-attention-v113.css','native-actions-v113.css','conversation-load-guard-v113.js',
-  'activity-ui-v097.js','side-panels-v096.js','live-fixes-v104.js','live-fixes-v106.js','project-links-v106.js','live-fixes-v104.css','continuity-v100.js',
+  'activity-ui-v097.js','side-panels-v096.js','live-fixes-v104.js','live-fixes-v106.js','project-links-v106.js','live-fixes-v104.css','continuity-v100.js','conversation-scroll-guard-v133.js',
   'project-memory-background-v132.js','project-memory-v132.js','project-memory-ui-v132.js','project-memory-v132.css','github-vault-start.html','github-vault-start.js'
 ])if(!fs.existsSync(path.join(build,required)))throw new Error(`Runtime omitted from ZIP: ${required}`);
 for(const requiredDoc of ['README.md','README.fr.md','LICENSE','PRIVACY.md','SECURITY.md','CHANGELOG.md'])if(!fs.existsSync(path.join(build,requiredDoc)))throw new Error(`Required release document omitted from ZIP: ${requiredDoc}`);

@@ -85,7 +85,7 @@
     closeFallbackDrawers(box);const chats=projectChats(pid);anchor.setAttribute('aria-expanded','true');const d=document.createElement('div');d.className='ng96-pin-drawer ng102-fallback-drawer';d.dataset.pid=pid;d.innerHTML=chats.length?chats.slice(0,160).map(c=>`<button type="button" data-chat="${esc(c.id)}"><span>${esc(c.title||'Conversation sans titre')}</span><time>${esc(projectDate(pid))}</time></button>`).join(''):'<div class="ng96-folder-empty">Aucune conversation indexée</div>';anchor.closest('.ng102-fallback-entry')?.insertAdjacentElement('afterend',d);d.querySelectorAll('[data-chat]').forEach(btn=>btn.addEventListener('click',()=>{const c=chats.find(x=>x.id===btn.dataset.chat);if(!c)return;const href=c.href||`/c/${c.id}`;location.assign(href);}));
   }
   function renderFallback(){
-    const canonical=(cache.projects||[]).filter(isCanonical);if(canonical.length){const box=document.getElementById('ng8-pins');if(box?.dataset.ng102Fallback==='1'){box.removeAttribute('data-ng102-fallback');box.removeAttribute('data-ng102-signature');}diag('project-repair',`OK · ${canonical.length} Projects canoniques`);return false;}
+    const canonical=(cache.projects||[]).filter(isCanonical);if(canonical.length){const box=document.getElementById('ng8-pins');if(box){box.removeAttribute('data-ng102-native-preferred');if(box.dataset.ng102Fallback==='1'){box.removeAttribute('data-ng102-fallback');box.removeAttribute('data-ng102-signature');}}diag('project-repair',`OK · ${canonical.length} Projects canoniques`);return false;}
     const hidden=new Set(governance.hiddenProjectIds||[]),locals=(cache.projects||[]).filter(p=>isLocal(p)&&!hidden.has(p.id));
     if(!locals.length){unsuppressNative();diag('project-repair','ATTENTE · aucun Project exploitable');return false;}
     const nav=navRoot();if(!nav)return false;let box=document.getElementById('ng8-pins'),created=false;
@@ -121,7 +121,7 @@
   chrome.storage.onChanged.addListener((changes,area)=>{if(area!=='local')return;if(changes[CACHE_KEY]||changes[GOV_KEY])schedule(80);});
   document.addEventListener('niakgpt:server-projects-ready',()=>schedule(40));
   document.addEventListener('niakgpt:local-project-recovery-request',()=>schedule(0));
-  document.addEventListener('niakgpt:pins-rendered',event=>{if(Number(event.detail?.shown||0)>0){const box=document.getElementById('ng8-pins');if(box)box.removeAttribute('data-ng102-fallback');schedule(80);}});
+  document.addEventListener('niakgpt:pins-rendered',event=>{if(Number(event.detail?.shown||0)>0){const box=document.getElementById('ng8-pins');if(box){box.removeAttribute('data-ng102-fallback');box.removeAttribute('data-ng102-native-preferred');}schedule(80);}});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){bind();schedule(120);}});
   window.addEventListener('popstate',()=>setTimeout(()=>{bind();schedule(120);},80));
 

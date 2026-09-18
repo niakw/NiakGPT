@@ -582,8 +582,12 @@
         window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',`RÉCUPÉRATION · ${localCount} Projects cache local · rendu demandé`);
       }
     }else renderCatalog(box);
-    place(box);restorePendingScroll('reconcile');bind();hideWelcome();
-    window.__NIAKGPT_DIAGNOSTICS__?.set('sidebar-ux-119',`OK · Projects ${box.dataset.ng121Placement||'stable'} · autorité v121 unique · seed DOM local`);
+    const nativePreferred=box.dataset.ng102NativePreferred==='1'&&canonicalCount===0;
+    if(nativePreferred){
+      box.hidden=true;box.setAttribute('aria-hidden','true');box.dataset.ng121PlacementReady='0';
+    }else place(box);
+    restorePendingScroll('reconcile');bind();hideWelcome();
+    window.__NIAKGPT_DIAGNOSTICS__?.set('sidebar-ux-119',nativePreferred?`OK · Projects natifs seuls · fallback v121 en veille · seed DOM local`:`OK · Projects ${box.dataset.ng121Placement||'stable'} · autorité v121 unique · seed DOM local`);
   }
   function schedule(delay=0){clearTimeout(timer);timer=setTimeout(reconcile,delay);}
   function placementSignal(node){

@@ -1,3 +1,10 @@
+## 0.9.93 — régressions terrain Projects / classement / scroll génération
+
+- `visual-lab/user-reported-v133.mjs` vérifie Chromium, Firefox et WebKit.
+- Le scénario recovery part de Projects `dom-p-*` sans identités serveur, avec une liste native portant les mêmes noms : le bloc local doit rester monté mais caché, et une seule surface Projects reste visible.
+- Le scénario classement utilise un chat non assigné vieux de 30 jours et un index canonique complet : un PATCH unique doit l’affecter au bon Project, avec diagnostic `historique complet`.
+- Le scénario scroll simule une réponse qui grandit pendant `executing` : le bas reste suivi, une molette vers le haut libère le scroll, puis le retour en bas réarme le suivi.
+
 ## 0.9.93 — conflit GitHub non-fast-forward reproduit
 
 - Le contrat Project Memory force deux réponses GitHub 422 `Update is not a fast forward` successives.

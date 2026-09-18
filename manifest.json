@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.93",
-  "description": "NiakGPT : Project Memory résilient, Projects sans doublon au recovery, rattrapage historique et scroll de génération stabilisé.",
+  "version": "0.9.94",
+  "description": "NiakGPT : Projects recovery durci, scroll de génération multi-input fiable et Project Memory résilient.",
   "permissions": [
     "storage",
     "scripting",

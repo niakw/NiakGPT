@@ -8,7 +8,7 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 
 const manifest=JSON.parse(read('manifest.json'));
 if(manifest.manifest_version!==3)fail('manifest_version drift');
-if(manifest.version!=='0.9.93')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.94')fail(`unexpected release ${manifest.version}`);
 same(manifest.permissions,['storage','scripting','identity'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*'],'host scope mismatch');
 const staticRuntime=['boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'];
@@ -125,9 +125,12 @@ const activity=read('activity-v086.js');
 for(const token of ['nativeBusy=hasThinking()||hasStop()','id===currentChat()&&ACTIVE.has(localState)','remember(id,localState,cur.projectId,localAt)'])need(activity,token,'long-running native activity retention incomplete');
 
 const catalog=read('sidebar-projects-v121.js');
-for(const token of ['canonicalProjects','renderCatalog','ng121PinsReady','ng121PlacementReady','sessionOrder','armBootstrap','projectScroll','drawerScroll','projectScrollMemory','niakgpt:sidebar-projects-reconcile','ng102NativePreferred','nativeMirrorCount'])need(catalog,token,'stable Projects catalog/session ownership incomplete');
+for(const token of ['canonicalProjects','renderCatalog','ng121PinsReady','ng121PlacementReady','sessionOrder','armBootstrap','projectScroll','drawerScroll','projectScrollMemory','niakgpt:sidebar-projects-reconcile','ng102NativePreferred','nativeMirrorCount','genericChatRow'])need(catalog,token,'stable Projects catalog/session ownership incomplete');
 const projectSelfheal=read('project-state-selfheal-v102.js');
-for(const token of ['nativeMirrorCount','ng102NativePreferred','fallback local en veille',"style.setProperty('display','none','important')"])need(projectSelfheal,token,'native-mirror recovery self-heal incomplete');
+for(const token of ['nativeMirrorCount','genericChatRow','ng102NativePreferred','fallback local en veille',"style.setProperty('display','none','important')"])need(projectSelfheal,token,'native-mirror recovery self-heal incomplete');
+const chatScroll=read('conversation-scroll-guard-v133.js');
+for(const token of ['scrollableNode','targetsConversationScroller','touchstart','touchPoint','event.shiftKey','editable(event.target)','ng133ScrollSticky','remontée volontaire'])need(chatScroll,token,'conversation scroll audit contract incomplete');
+forbid(chatScroll,'setInterval(','conversation scroll guard must remain event-driven');
 for(const token of ['slice(0,8)','setInterval('])forbid(catalog,token,'Projects catalog must not truncate or poll');
 
 const folders=read('pin-folders-v096.js');

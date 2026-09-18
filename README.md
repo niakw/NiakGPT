@@ -6,7 +6,7 @@
   <p>Projects · long-thread performance · continuity · navigation · focused productivity</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.93-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.94-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,7 +21,7 @@
 NiakGPT is a browser extension that turns the ChatGPT web interface into a more capable **workspace for heavy, project-based use** without replacing ChatGPT itself.
 
 It adds a native-first layer for Projects, navigation, long conversations, continuity, diagnostics and local productivity. Core features run locally in the browser: **no NiakGPT account, no NiakGPT analytics and no NiakGPT server are required**.
-> **Current version: 0.9.93.** Project Memory serializes GitHub writes and recovers from non-fast-forward races. During post-install recovery, NiakGPT no longer renders a second local Projects block when the native list is already usable; classification also catches up the full unassigned history once the canonical index is ready. A generation scroll guard keeps the live answer at the bottom while still respecting deliberate upward reading.
+> **Current version: 0.9.94.** The post-0.9.93 audit hardens the live-generation scroll path across wheel, touch, keyboard and editable-composer input, rejects non-scrollable DOM decoys when choosing the conversation scroller, and prevents recent chat titles from being mistaken for a native Projects mirror during cold recovery.
 
 ## Highlights
 
@@ -82,7 +82,7 @@ User text always wins: modified drafts are never erased merely because they stil
 
 ### Private Project Memory (optional)
 
-NiakGPT 0.9.83 can attach a **user-selected private GitHub repository** to Project continuity from the Control Center, with a normal **Sign in with GitHub** flow and repository picker.
+Since 0.9.83, NiakGPT can attach a **user-selected private GitHub repository** to Project continuity from the Control Center, with a normal **Sign in with GitHub** flow and repository picker.
 
 - connection is explicit and disabled by default;
 - the GitHub App manifest starter opens in a normal extension tab and returns through the exact HTTPS `chromiumapp.org` callback; `launchWebAuthFlow` is used only with HTTP(S) GitHub URLs;

@@ -43,7 +43,7 @@ Règles obligatoires :
 15. le sélecteur refuse tout dépôt qui n’est pas présent dans la liste des dépôts autorisés de l’installation GitHub App ;
 16. la clé privée PEM de la GitHub App créée via manifest flow n’est jamais persistée ni utilisée.
 
-Le dépôt privé protège l’accès par GitHub ; **NiakGPT 0.9.83 n’ajoute pas de chiffrement applicatif E2E des fichiers mémoire**. Toute personne ou application disposant d’un accès suffisant au dépôt peut lire son contenu.
+Le dépôt privé protège l’accès par GitHub ; **Depuis 0.9.83, NiakGPT n’ajoute pas de chiffrement applicatif E2E des fichiers mémoire**. Toute personne ou application disposant d’un accès suffisant au dépôt peut lire son contenu.
 
 ## Intégrité du DOM pendant l’hydratation
 

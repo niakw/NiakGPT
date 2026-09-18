@@ -168,7 +168,7 @@ assert.equal(racePatchAttempts,3,'non-fast-forward race was not retried until a 
 assert.equal(raceResult.sha,raceHead);
 
 const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
-assert.equal(manifest.version, '0.9.93');
+assert.equal(manifest.version, '0.9.94');
 assert.deepEqual(manifest.permissions, ['storage','scripting','identity']);
 assert.deepEqual(manifest.host_permissions, ['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']);
 

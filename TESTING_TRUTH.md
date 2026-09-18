@@ -1,3 +1,10 @@
+## 0.9.94 — audit ciblé après validation 0.9.93
+
+- `visual-lab/user-reported-v133.mjs` reproduit maintenant un faux positif volontaire : trois chats récents portent exactement les noms de trois Projects locaux, sans aucune vraie surface Projects native. Le fallback doit rester visible.
+- Le scénario de génération ajoute un grand conteneur non scrollable contenant un faux turn assistant ; il ne doit jamais devenir l’autorité de scroll.
+- Le même scénario vérifie que la molette de sidebar n’altère pas le suivi, qu’ArrowUp dans le composer reste une édition, que le tactile libère/réarme correctement le suivi et que `Shift+Espace` libère la lecture vers le haut.
+- Ces cas sont exécutés dans la matrice Chromium / Firefox / WebKit de Current Finalization.
+
 ## 0.9.93 — régressions terrain Projects / classement / scroll génération
 
 - `visual-lab/user-reported-v133.mjs` vérifie Chromium, Firefox et WebKit.

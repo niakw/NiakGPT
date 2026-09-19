@@ -25,7 +25,7 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.96': fail(f"version={version}")
+if version!='0.9.97': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting','identity']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']: fail('host permissions drift')
 
@@ -136,11 +136,16 @@ if 'placementAnchorNode' not in catalog or "data-ng112-native-projects" not in c
 for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','userScrollEpoch','user-priority-armed','placeIntentEpoch=userScrollEpoch','niakgpt:sidebar-projects-reconcile','surface NiakGPT unique','autorité v121 unique · natif masqué'):
     if token not in catalog: fail('single-authority Projects catalog incomplete '+token)
 selfheal=read('project-state-selfheal-v102.js')
-for token in ('surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false'):
+for token in ('surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false','window.__NIAKGPT_FIND_SIDEBAR_V131__','a[href*="/g/g-p-"]','suppressNative();'):
     if token not in selfheal: fail('single-authority local recovery incomplete '+token)
+ux_css=read('ux-v131.css')
+for token in ('grid-column:1 / -1!important','place-self:auto stretch!important','box-sizing:border-box!important'):
+    if token not in ux_css: fail('field sidebar full-lane geometry invariant missing '+token)
 authority=read('sidebar-projects-authority-v112.js')
 for token in ('[data-ng102-project]',"querySelectorAll('[data-ng8-pin],[data-ng102-project]", "niakgpt:local-project-recovery-ready',()=>apply()"):
     if token not in authority: fail('single-authority native suppression incomplete '+token)
+for token in ('else if(document.body)','roots.add(document.body)'):
+    if token not in authority: fail('SPA sidebar remount authority gap invariant missing '+token)
 scroll_guard=read('conversation-scroll-guard-v133.js')
 for token in ('conversationTail','ancestorScroller','scrollableNode','targetsConversationScroller','noteSendIntent','SEND_LATCH_MS','touchstart','touchPoint','event.shiftKey','editable(event.target)','ng133ScrollSticky','ng133ScrollRoot','remontée volontaire','generation-start','send-intent','ensureRoot','rootObserver','rootScrollEvent','pointerScrollActive','correction scroll native'):
     if token not in scroll_guard: fail('conversation scroll audit contract incomplete '+token)

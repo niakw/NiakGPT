@@ -1,3 +1,11 @@
+## 0.9.97 — vérité terrain : Projects unique + Chats séparés + reclassement
+
+Le scénario terrain ne valide plus uniquement des sélecteurs abstraits. Il construit une sidebar dans laquelle ChatGPT expose un sous-layout à deux colonnes, des liens Projects absolus et une liste Chats indépendante — la combinaison qui reproduit la capture utilisateur.
+
+Le test exige simultanément : une seule surface Projects visible, un bloc NiakGPT couvrant plus de 90 % de la largeur de la sidebar, l’absence de Chats génériques dans #ng8-pins, la conservation de ces Chats sous le bloc, la promotion des IDs g-p-* en inventaire canonique, la reconstruction des Projects principaux puis un reclassement automatique par PATCH sans GET d’historique complet.
+
+La classification ne contourne pas la quarantaine réseau : aucune mutation NiakGPT du backend ChatGPT n’est lancée pendant qu’une conversation est la surface active. Le rattrapage reprend automatiquement dès qu’une surface hors conversation est active.
+
 ## 0.9.96 — vérité terrain : auth invalidée + corrections de scroll natives tardives
 
 - Le scénario GitHub utilise le vrai runtime Project Memory et force `chrome.runtime.connect()` à lever synchroniquement `Extension context invalidated.`. Le test échoue si une promesse non gérée apparaît, si le bouton reste désactivé ou si « Ouverture de GitHub… » reste affiché.

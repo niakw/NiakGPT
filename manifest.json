@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.96",
-  "description": "NiakGPT : connexion GitHub résiliente aux contextes invalidés et suivi de scroll natif adaptatif.",
+  "version": "0.9.97",
+  "description": "NiakGPT : Projects unique restauré, Chats séparés et classification automatique rétablie.",
   "permissions": [
     "storage",
     "scripting",

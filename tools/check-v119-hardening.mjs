@@ -8,9 +8,15 @@ const forbid=(s,t,m)=>{if(s.includes(t))fail(m||`forbidden ${t}`);};
 
 const authority=read('sidebar-projects-authority-v112.js');
 for(const token of [
-  "const shell=own.closest(selector)",
-  'const candidate=el.closest?.(selector)',
+  'function sidebarShellFor(el)',
+  "el.closest?.('[data-testid=\"conversation-sidebar\"]')",
+  "el.closest?.('[data-testid=\"sidebar\"]')",
+  "el.closest?.('aside,nav')",
+  'const shell=sidebarShellFor(own)',
+  'const candidate=sidebarShellFor(el)',
   'const overlap=Math.max(0',
+  'else if(document.body)',
+  'roots.add(document.body)',
   "candidate.querySelector?.('[class*=\"project-unfurl-row\"]')",
   "candidate.getAttribute?.(MARK)==='1'&&structuralProjectSurface(candidate)",
   "projectLinks=links.filter(a=>projectChildHref(a.getAttribute('href')))",
@@ -20,7 +26,8 @@ for(const token of [
 ])need(authority,token,`Projects authority structural-evidence invariant missing: ${token}`);
 for(const token of [
   "const evidence=candidate.querySelector?.('a[href=\"/projects\"],a[href*=\"/g/g-p-\"],[class*=\"project-unfurl-row\"]')",
-  "if(el.closest('aside,nav,[data-testid*=\"sidebar\" i],[class*=\"sidebar\" i]'))return true;"
+  "if(el.closest('aside,nav,[data-testid*=\"sidebar\" i],[class*=\"sidebar\" i]'))return true;",
+  "el.closest?.('[class*=\"sidebar\" i]')"
 ])forbid(authority,token,`Projects authority broad-root regression returned: ${token}`);
 
 const metadata=read('sidebar-metadata-v118.js');

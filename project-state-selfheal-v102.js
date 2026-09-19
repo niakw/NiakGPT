@@ -5,8 +5,8 @@
 
   const CACHE_KEY='niakgpt-v08-cache';
   const GOV_KEY='niakgpt-governance-v085';
-  const PROJECT_SEL='a[href^="/g/g-p-"]:not([href*="/c/"])';
-  const PROJECT_CHAT_SEL='a[href^="/g/g-p-"][href*="/c/"]';
+  const PROJECT_SEL='a[href*="/g/g-p-"]:not([href*="/c/"])';
+  const PROJECT_CHAT_SEL='a[href*="/g/g-p-"][href*="/c/"]';
   const OWN='#ng8-pins,#ng8-panel,#ng8-quick,#ng90-control,#ng100-command';
   const COLORS=['#4FC1FF','#4EC9B0','#C586C0','#DCDCAA','#CE9178','#9CDCFE','#D7BA7D','#B5CEA8','#D16969','#E06CAA','#569CD6','#6A9955','#22D3EE','#A78BFA','#FB7185','#38BDF8','#34D399','#F59E0B'];
   const QUEUE=new Set(['a classer','hors projet / a classer','hors projet/a classer','unclassified','to classify']);
@@ -24,7 +24,11 @@
   const isQueue=p=>QUEUE.has(norm(p?.name));
   const isCanonical=p=>!!p&&String(p.id||'').startsWith('g-p-')&&!p.domOnly&&clean(p.name)&&!isQueue(p);
   const isLocal=p=>!!p&&clean(p.name)&&!isQueue(p)&&!p.duplicateOf;
-  const navRoot=()=>document.querySelector('[data-testid="conversation-sidebar"]')||document.querySelector('[data-testid="sidebar"]')||[...document.querySelectorAll('nav,aside')].find(x=>x.querySelector(PROJECT_SEL)||x.querySelector('a[href*="/c/"]'))||document.querySelector('nav');
+  const navRoot=()=>{
+    const guarded=window.__NIAKGPT_FIND_SIDEBAR_V131__?.();
+    if(guarded?.isConnected)return guarded;
+    return document.querySelector('[data-testid="conversation-sidebar"]')||document.querySelector('[data-testid="sidebar"]')||[...document.querySelectorAll('nav,aside')].find(x=>x.querySelector(PROJECT_SEL)||x.querySelector('a[href*="/c/"]'))||document.querySelector('nav');
+  };
   const diag=(key,text)=>window.__NIAKGPT_DIAGNOSTICS__?.set(key,text);
 
   function projectDate(id){let at=0;for(const c of cache.chats||[])if(c?.projectId===id)at=Math.max(at,parseTime(c.updated||c.update_time||c.create_time));if(!at)return'—';const d=new Date(at);return`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;}
@@ -95,6 +99,7 @@
     for(const a of nav.querySelectorAll(PROJECT_SEL))if(!a.closest('#ng8-pins'))a.classList.add('ng8-native-project-link-suppressed');
     for(const a of nav.querySelectorAll(PROJECT_CHAT_SEL))if(!a.closest('#ng8-pins'))a.classList.add('ng8-native-project-chat-suppressed');
     for(const el of nav.querySelectorAll('h1,h2,h3,[role="heading"],div,span')){if(el.closest('#ng8-pins'))continue;const t=clean(el.textContent);if(/^(projets?|projects?)$/i.test(t))el.classList.add('ng8-native-project-label-suppressed');}
+    for(const el of nav.querySelectorAll('button,[role="button"],a')){if(el.closest('#ng8-pins'))continue;const t=clean(el.getAttribute?.('aria-label')||el.textContent);if(/^(afficher|voir) plus$|^show more$/i.test(t))el.classList.add('ng8-native-project-more-suppressed');}
   }
   function place(box){const nav=navRoot();if(!nav)return false;const first=[...nav.querySelectorAll(PROJECT_SEL)].find(a=>!a.closest('#ng8-pins'))||[...nav.querySelectorAll('a[href*="/c/"]')].find(a=>!a.closest('#ng8-pins'));let top=first;while(top?.parentElement&&top.parentElement!==nav)top=top.parentElement;if(box.parentElement!==nav||box.nextElementSibling!==top)nav.insertBefore(box,top||nav.firstElementChild||null);return true;}
   function closeFallbackDrawers(box){box?.querySelectorAll('.ng102-fallback-drawer').forEach(x=>x.remove());box?.querySelectorAll('[data-ng102-project]').forEach(x=>x.setAttribute('aria-expanded','false'));}
@@ -120,6 +125,9 @@
     }
     const mirrored=nativeMirrorCount(locals);
     box.removeAttribute('data-ng102-native-preferred');box.style.removeProperty('display');box.hidden=false;box.removeAttribute('aria-hidden');
+    // Local recovery is already a complete visual authority. Suppress the visible native
+    // duplicate immediately; v112 still performs the structural section-level pass.
+    suppressNative();
     // The local fallback is not a second product surface anymore: it is the temporary data
     // source for the same NiakGPT Projects node. Native Projects are immediately delegated to
     // v112 suppression in the same task, avoiding the mixed/native-first recovery state.

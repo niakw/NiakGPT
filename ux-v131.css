@@ -13,7 +13,12 @@ body.ng8-panel-open main{margin-right:0!important}
 
 /* Project list: integrate with the native sidebar instead of looking like a second app. */
 #ng8-pins[data-ng131-mounted="1"]{
-  width:calc(100% - 14px)!important;max-width:calc(100% - 14px)!important;min-height:0!important;
+  /* Field invariant: this block is a full-width sidebar section, never an auto-placed
+     child of one ChatGPT grid column. The user-reported failure rendered it only in the
+     right half of the sidebar while native Projects stayed full width above it. */
+  grid-column:1 / -1!important;grid-row:auto!important;justify-self:stretch!important;align-self:stretch!important;
+  place-self:auto stretch!important;float:none!important;inset-inline:auto!important;left:auto!important;right:auto!important;
+  box-sizing:border-box!important;width:calc(100% - 14px)!important;max-width:calc(100% - 14px)!important;min-width:0!important;min-height:0!important;
   margin:6px 7px 8px!important;padding:3px 0 5px!important;
   border:0!important;border-top:1px solid #2b3540!important;
   border-radius:0!important;background:transparent!important;box-shadow:none!important;contain:layout style!important;

@@ -8,6 +8,7 @@ Cette version est une nouvelle passe d’audit réalisée après la 0.9.98, avec
 - retrait de `live-fixes-v104.js` du runtime et du package : `side-panels-v096.js` devient l’unique propriétaire JavaScript des panneaux Activité / Réflexion / Sources / Outputs ;
 - reprise BFCache explicite des panneaux natifs et calcul de leur offset de rail dans le même module ;
 - observer de `live-fixes-v106.js` filtré pour ignorer le DOM courant des réponses ;
+- filtres de pertinence ajoutés aux observers globaux de `sidebar-icons-v114.js` et `project-memory-ui-v132.js`, afin qu’un stream de réponse ordinaire ne déclenche plus de recherche globale sidebar/Control Center ;
 - exclusion stricte de `hiddenProjectIds` de toutes les destinations de classement automatique et de reconstruction des Projects principaux.
 
 Le CSS historique `live-fixes-v104.css` reste empaqueté : il ne contient aucune autorité JavaScript et fournit encore des règles visuelles partagées pour les panneaux et le coach.

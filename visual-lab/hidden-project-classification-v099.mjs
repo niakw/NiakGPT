@@ -122,6 +122,7 @@ try{
         async set(obj){for(const[k,v]of Object.entries(obj))data[k]=structuredClone(v);}
       }}};
       try{Object.defineProperty(navigator,'locks',{configurable:true,value:{request:async(_name,_opts,cb)=>cb({name:'fixture-data-lock'})}});}catch{}
+      try{Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});Object.defineProperty(document,'visibilityState',{configurable:true,get:()=>'visible'});}catch{}
       window.__NIAKGPT_DIAGNOSTICS__={set(){}};
     },store);
     await page.route('https://chatgpt.com/**',r=>r.fulfill({status:200,contentType:'text/html; charset=utf-8',body:'<!doctype html><html><body><main>Home</main></body></html>'}));
@@ -167,6 +168,7 @@ try{
         async set(obj){for(const[k,v]of Object.entries(obj))data[k]=structuredClone(v);}
       }}};
       try{Object.defineProperty(navigator,'locks',{configurable:true,value:{request:async(_name,_opts,cb)=>cb({name:'fixture-data-lock'})}});}catch{}
+      try{Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});Object.defineProperty(document,'visibilityState',{configurable:true,get:()=>'visible'});}catch{}
       window.__NIAKGPT_DIAGNOSTICS__={set(){}};
       document.documentElement.dataset.ng100CacheGuardRestored='backup';
       document.documentElement.dataset.ng86Activity='ready';

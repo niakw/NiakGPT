@@ -15,7 +15,7 @@
   const OUT_RX=/(maximum\s+(?:conversation|context|length)|conversation\s+(?:is\s+)?too\s+long|conversation.{0,32}(?:limit|maximum)|maximum\s+context\s+length|context\s+window.{0,30}(?:limit|maximum)|start\s+(?:a\s+)?new\s+chat|continue\s+in\s+(?:a\s+)?new\s+chat|you(?:'|’)ve\s+reached.{0,40}(?:limit|maximum)|conversation\s+trop\s+longue|limite.{0,28}(?:conversation|contexte)|(?:nouveau|nouvelle)\s+(?:chat|conversation).{0,35}(?:continuer|poursuivre)|ce\s+fil.{0,24}(?:plein|limite))/i;
   const MAX_HISTORY=30000;
   const EVIDENCE='native-limit-v120';
-  let cache={projects:[],chats:[]}, state={schema:2,out:{}}, scanTimer=0, sidebarObserver=null, mainObserver=null, composerObserver=null, rpcSeq=0;
+  let cache={projects:[],chats:[]}, state={schema:2,out:{}}, scanTimer=0, sidebarObserver=null, mainObserver=null, composerObserver=null;
 
   const clean=v=>String(v??'').replace(/\r/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
@@ -36,10 +36,6 @@
       ed.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:text}));
       return true;
     }catch{return false;}
-  }
-  function rpc(path,{method='GET',body=null,timeout=16000}={}){
-    const id=`ng100c-${Date.now()}-${++rpcSeq}`;
-    return new Promise(resolve=>{const t=setTimeout(()=>{off();resolve({ok:false,status:0,error:'rpc_timeout'});},timeout),h=e=>{if(e.detail?.id!==id)return;off();resolve(e.detail);},off=()=>{clearTimeout(t);document.removeEventListener('niakgpt:rpc-response',h);};document.addEventListener('niakgpt:rpc-response',h);document.dispatchEvent(new CustomEvent('niakgpt:rpc-request',{detail:{id,path,method,body,governance:true}}));});
   }
   function projectInfo(projectId){return (cache.projects||[]).find(p=>p.id===projectId)||{};}
   function chatInfo(chatId){return (cache.chats||[]).find(c=>c.id===chatId)||{};}

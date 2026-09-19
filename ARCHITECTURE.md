@@ -164,7 +164,7 @@ L’historique complet est un stockage durable. Le checkpoint est la surface de 
 
 `sidebar-projects-v121.js` est le seul propriétaire du placement Projects/Pins ; l’ancien `sidebar-ux-v119.js` reste dans l’historique du dépôt mais n’est plus injecté ni présent dans le ZIP. Pour les panneaux natifs de droite, `side-panels-v096.js` est le seul propriétaire actif ; `live-fixes-v104.js` est également retiré du runtime et du package. Ces deux retraits suppriment des chemins critiques qui ne faisaient plus de travail utile ou doublaient un observer/mutateur existant.
 
-`live-fixes-v106.js` conserve son rôle de contexte Project mais son observer global est désormais filtré : les mutations ordinaires du flux de conversation ne déclenchent plus de balayage global des anciennes classes de migration.
+`live-fixes-v106.js` conserve son rôle de contexte Project mais son observer global est désormais filtré : les mutations ordinaires du flux de conversation ne déclenchent plus de balayage global des anciennes classes de migration. La même règle s’applique au garde de remount `sidebar-icons-v114.js` et à l’UI optionnelle Project Memory : ils rejettent désormais le churn de `<main>` avant toute recherche globale de sidebar/Control Center.
 
 Un Project présent dans `hiddenProjectIds` reste connu comme identité canonique, mais il est exclu de `coreProjectIds` réparés et de toutes les cibles de classement normal, profond ou de nettoyage automatique. Le masquer ne peut donc plus le ressusciter comme destination automatique.
 

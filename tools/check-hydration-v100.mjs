@@ -8,7 +8,7 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 
 const manifest=JSON.parse(read('manifest.json'));
 if(manifest.manifest_version!==3)fail('manifest_version drift');
-if(manifest.version!=='0.9.97')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.98')fail(`unexpected release ${manifest.version}`);
 same(manifest.permissions,['storage','scripting','identity'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*'],'host scope mismatch');
 const staticRuntime=['boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'];
@@ -113,6 +113,7 @@ for(const token of ['BOOT_ERRORS_KEY','niakgpt:boot-error-v100','worker + runtim
 const multitab=read('multitab-v090.js');
 for(const token of ['window.__NIAKGPT_APP_090__',"role==='WORKER'",'openClientQuick'])need(multitab,token,'Quick Open fallback ownership incomplete');
 for(const token of ['MutationObserver(queueMainNodes)','function renderPins()','window.__NIAKGPT_SIDEBAR_PROJECTS_121__','niakgpt:sidebar-projects-reconcile'])need(app,token,'app/v121 cooperative ownership incomplete');
+for(const token of ['ng8-native-project','syncNativeProjectSection(','function nativeProjectSection('])forbid(app,token,'app fallback must not regain native Projects visual authority');
 need(app,"label.textContent=String(turn.innerText||turn.textContent||'')",'TOC DOM text must stay textContent');
 forbid(app,'function routeTick()');
 
@@ -133,13 +134,14 @@ for(const token of ['nativeBusy=hasThinking()||hasStop()','id===currentChat()&&A
 
 const catalog=read('sidebar-projects-v121.js');
 need(catalog,'placementAnchorNode','v121 must preserve hidden v112 native Projects host as a stable placement anchor');
-for(const token of ['canonicalProjects','renderCatalog','ng121PinsReady','ng121PlacementReady','sessionOrder','armBootstrap','projectScroll','drawerScroll','projectScrollMemory','niakgpt:sidebar-projects-reconcile','surface NiakGPT unique','autorité v121 unique · natif masqué'])need(catalog,token,'single-authority Projects catalog/session ownership incomplete');
+for(const token of ['canonicalProjects','renderCatalog','ng121PinsReady','ng121PlacementReady','sessionOrder','armBootstrap','projectScroll','drawerScroll','projectScrollMemory','niakgpt:sidebar-projects-reconcile','signalAuthorityReady','niakgpt:sidebar-projects-ready','surface NiakGPT unique','autorité v121 unique · natif masqué'])need(catalog,token,'single-authority Projects catalog/session ownership incomplete');
 const projectSelfheal=read('project-state-selfheal-v102.js');
-for(const token of ['surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false','window.__NIAKGPT_FIND_SIDEBAR_V131__','a[href*="/g/g-p-"]','suppressNative();'])need(projectSelfheal,token,'single-authority local recovery incomplete');
+for(const token of ['surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false','window.__NIAKGPT_FIND_SIDEBAR_V131__','a[href*="/g/g-p-"]','niakgpt:local-project-recovery-ready'])need(projectSelfheal,token,'single-authority local recovery incomplete');
+for(const token of ['ng8-native-project','function suppressNative('])forbid(projectSelfheal,token,'local recovery must not own or clean native Projects suppression classes');
 const uxCss=read('ux-v131.css');
 for(const token of ['grid-column:1 / -1!important','place-self:auto stretch!important','box-sizing:border-box!important'])need(uxCss,token,'field sidebar full-lane geometry invariant missing');
 const projectAuthority=read('sidebar-projects-authority-v112.js');
-for(const token of ['[data-ng102-project]',"querySelectorAll('[data-ng8-pin],[data-ng102-project]","niakgpt:local-project-recovery-ready',()=>apply()"])need(projectAuthority,token,'single-authority native suppression incomplete');
+for(const token of ['[data-ng102-project]',"querySelectorAll('[data-ng8-pin],[data-ng102-project]",'niakgpt:local-project-recovery-ready','niakgpt:sidebar-projects-ready','()=>apply()'])need(projectAuthority,token,'single-authority native suppression incomplete');
 const chatScroll=read('conversation-scroll-guard-v133.js');
 for(const token of ['conversationTail','ancestorScroller','scrollableNode','targetsConversationScroller','noteSendIntent','SEND_LATCH_MS','touchstart','touchPoint','event.shiftKey','editable(event.target)','ng133ScrollSticky','ng133ScrollRoot','remontée volontaire','generation-start','send-intent','ensureRoot','rootObserver','rootScrollEvent','pointerScrollActive','correction scroll native'])need(chatScroll,token,'conversation scroll audit contract incomplete');
 forbid(chatScroll,'setInterval(','conversation scroll guard must remain event-driven');
@@ -200,11 +202,13 @@ const packageJson=read('visual-lab/package.json');
 const packageVersion=JSON.parse(packageJson).devDependencies?.['@playwright/test'];if(packageVersion!=='1.62.1')fail(`Playwright package/image version drift: ${packageVersion}`);
 const currentScript=JSON.parse(packageJson).scripts?.['test:current']||'';need(currentScript,'dom-node-stability-v082.mjs','current visual gate missing DOM node stability regression');need(currentScript,'pins-primary-slot-v083.mjs','current visual gate missing Pins slot regression');need(currentScript,'diagnostic-selection-v083.mjs','current visual gate missing diagnostic selection regression');
 const workflow=read('.github/workflows/current-finalization.yml');
-for(const token of ['chromium, firefox, webkit','user-reported-v133.mjs','state-ux-v113.mjs','Chat-state authority + extension-context invalidation','sidebar-session-ux-v123.mjs','CURRENT LEFT SIDEBAR complete session contract','dom-node-stability-v082.mjs','Reported DOM node stability — direct chat and late shell remount','pins-primary-slot-v083.mjs','Reported Pins placement — native controls stay above Projects','sidebar-human-ux-v123.spec.js','PRIMARY real Brave — FULL human sidebar','experience-linux:','extension-runtime-linux:','mcr.microsoft.com/playwright:v1.62.1-noble','PLAYWRIGHT_BROWSERS_PATH: /ms-playwright','HOME: /root'])need(workflow,token,'current full-session/cross-platform workflow incomplete');
+for(const token of ['chromium, firefox, webkit','user-reported-v133.mjs','deep-classification-v112.mjs','Deep classification · orphan chat to canonical Project','state-ux-v113.mjs','Chat-state authority + extension-context invalidation','sidebar-session-ux-v123.mjs','CURRENT LEFT SIDEBAR complete session contract','dom-node-stability-v082.mjs','Reported DOM node stability — direct chat and late shell remount','pins-primary-slot-v083.mjs','Reported Pins placement — native controls stay above Projects','sidebar-human-ux-v123.spec.js','PRIMARY real Brave — FULL human sidebar','experience-linux:','extension-runtime-linux:','mcr.microsoft.com/playwright:v1.62.1-noble','PLAYWRIGHT_BROWSERS_PATH: /ms-playwright','HOME: /root'])need(workflow,token,'current full-session/cross-platform workflow incomplete');
 const imageLines=workflow.split(/\r?\n/).filter(line=>/^\s+image:\s+mcr\.microsoft\.com\/playwright:v1\.62\.1-noble\s*$/.test(line));if(imageLines.length!==3)fail(`expected 3 pinned Linux Playwright image jobs, got ${imageLines.length}`);
 if(/^\s*npx playwright install --with-deps\b/m.test(workflow))fail('Linux Finalization reintroduced apt --with-deps');
 const parallelWorkflow=read('.github/workflows/parallel-continuation-v128.yml');
 for(const token of ['parallel-continue-v128.mjs','composer-continuation-runtime-v128.spec.js','matrix:','browser: [chromium, firefox, webkit]','parallel-continuation-v128'])need(parallelWorkflow,token,'parallel continuation workflow incomplete');
+const projectSwitchWorkflow=read('.github/workflows/project-switch-user-journey-v130.yml');
+for(const token of ['sidebar-projects-authority-v112.js','project-state-selfheal-v102.js','reclassify-v101.js','reclassify-deep-v112.js','ux-v131.js','visual-lab/user-reported-v133.mjs'])need(projectSwitchWorkflow,token,'Project-switch journey trigger coverage incomplete');
 const liveWorkflow=read('.github/workflows/live-stability-v129.yml');
 for(const token of ['live-stability-v129.spec.js','Brave stable','NIAKGPT_EXECUTABLE_PATH','chromium'])need(liveWorkflow,token,'0.9.76 live stability workflow incomplete');
 

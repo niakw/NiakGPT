@@ -1,3 +1,13 @@
+# NiakGPT 0.9.98 — autorité Projects unique renforcée
+
+- **Régression terrain réellement reproduite** : le fallback Projects local pouvait appliquer l’ancienne classe `ng8-native-project-more-suppressed` à un bouton générique « Afficher plus » de la section Chats, donc faire disparaître une partie de la liste des conversations non organisées.
+- **Cause racine supprimée** : `project-state-selfheal-v102.js` ne possède plus de deuxième système de masquage ligne par ligne. La seule autorité visuelle des Projects natifs reste `sidebar-projects-authority-v112.js` et son marqueur structurel `data-ng112-native-projects="1"`.
+- **Pas de double autorité** : le self-heal publie synchroniquement `niakgpt:local-project-recovery-ready`; v112 décide ensuite quels hosts Projects structurels masquer, sans toucher les contrôles Chats.
+- **Reclassement automatique multi-lots** : le test terrain injecte neuf conversations non organisées et exige leur classement intégral malgré la limite interne de huit éléments par passage, sans GET d’historique complet.
+- **CI classification** : `deep-classification-v112.mjs` devient release-critical dans Current Finalization.
+- **Parcours Project réel** : le workflow Chromium + Brave macOS est désormais déclenché aussi par les changements d’autorité Projects, self-heal, classification et UX sidebar.
+- **Vérité de version** : le lab de session sidebar ne simule plus arbitrairement la 0.9.83 ; il lit la version courante du manifest.
+
 # NiakGPT 0.9.97 — sidebar Projects restaurée depuis le cas terrain réel
 
 - **Une seule autorité Projects** : la surface NiakGPT reste la seule liste Projects visible dès qu’elle est exploitable ; le menu Projects natif de ChatGPT est masqué sans emporter la section Chats.

@@ -25,7 +25,7 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.97': fail(f"version={version}")
+if version!='0.9.98': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting','identity']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']: fail('host permissions drift')
 
@@ -133,16 +133,18 @@ for token in ('ng123-action-menu','ng123-rename-dialog','dataset.ng123Action','d
 catalog=read('sidebar-projects-v121.js')
 if 'placementAnchorNode' not in catalog or "data-ng112-native-projects" not in catalog:
     fail('v121 must preserve the hidden v112 native Projects host as a placement anchor')
-for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','userScrollEpoch','user-priority-armed','placeIntentEpoch=userScrollEpoch','niakgpt:sidebar-projects-reconcile','surface NiakGPT unique','autorité v121 unique · natif masqué'):
+for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','userScrollEpoch','user-priority-armed','placeIntentEpoch=userScrollEpoch','niakgpt:sidebar-projects-reconcile','signalAuthorityReady','niakgpt:sidebar-projects-ready','surface NiakGPT unique','autorité v121 unique · natif masqué'):
     if token not in catalog: fail('single-authority Projects catalog incomplete '+token)
 selfheal=read('project-state-selfheal-v102.js')
-for token in ('surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false','window.__NIAKGPT_FIND_SIDEBAR_V131__','a[href*="/g/g-p-"]','suppressNative();'):
+for token in ('surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false','window.__NIAKGPT_FIND_SIDEBAR_V131__','a[href*="/g/g-p-"]','niakgpt:local-project-recovery-ready'):
     if token not in selfheal: fail('single-authority local recovery incomplete '+token)
+for token in ('ng8-native-project','function suppressNative('):
+    if token in selfheal: fail('local recovery regained native Projects visual authority '+token)
 ux_css=read('ux-v131.css')
 for token in ('grid-column:1 / -1!important','place-self:auto stretch!important','box-sizing:border-box!important'):
     if token not in ux_css: fail('field sidebar full-lane geometry invariant missing '+token)
 authority=read('sidebar-projects-authority-v112.js')
-for token in ('[data-ng102-project]',"querySelectorAll('[data-ng8-pin],[data-ng102-project]", "niakgpt:local-project-recovery-ready',()=>apply()"):
+for token in ('[data-ng102-project]',"querySelectorAll('[data-ng8-pin],[data-ng102-project]", 'niakgpt:local-project-recovery-ready','niakgpt:sidebar-projects-ready','()=>apply()'):
     if token not in authority: fail('single-authority native suppression incomplete '+token)
 for token in ('else if(document.body)','roots.add(document.body)'):
     if token not in authority: fail('SPA sidebar remount authority gap invariant missing '+token)
@@ -236,6 +238,8 @@ for token in ('Personnaliser le Project','Nouveau chat dans ce Project','ng129-p
 app=read('app-v090.js')
 for token in ('panelSelectionActive','diagnosticSelectionHeld','syncDiagnosticSelectionLock','releaseDiagnosticSelection','selectionchange','diagSelectionGesture','sticky read/copy mode','S.diagTimer=setTimeout(retry,280)',"role()==='worker'","getManifest().version || '?'"):
     if token not in app: fail('app/client ownership or diagnostic stability incomplete '+token)
+for token in ('ng8-native-project','syncNativeProjectSection(','function nativeProjectSection('):
+    if token in app: fail('app fallback regained native Projects visual authority '+token)
 boot=read('boot-gate-v100.js')
 for token in ('niakgpt:boot-error-v100','github_pat_','access_token','[redacted]'):
     if token not in boot: fail('boot error redaction/diagnostic bridge incomplete '+token)
@@ -257,8 +261,11 @@ for gate in (
 ):
     if not (ROOT/gate).exists(): fail('current browser-fixture UX gate missing '+gate)
 workflow=read('.github/workflows/current-finalization.yml')
-for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','pins-primary-slot-v083.mjs','state-ux-v113.mjs','Chat-state authority + extension-context invalidation','Reported Pins placement — native controls stay above Projects','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble','project-memory-isolation-v133.mjs'):
+for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','pins-primary-slot-v083.mjs','state-ux-v113.mjs','Chat-state authority + extension-context invalidation','Reported Pins placement — native controls stay above Projects','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble','project-memory-isolation-v133.mjs','deep-classification-v112.mjs','Deep classification · orphan chat to canonical Project'):
     if token not in workflow: fail('Current Finalization missing '+token)
+project_switch=read('.github/workflows/project-switch-user-journey-v130.yml')
+for token in ('sidebar-projects-authority-v112.js','project-state-selfheal-v102.js','reclassify-v101.js','reclassify-deep-v112.js','ux-v131.js','visual-lab/user-reported-v133.mjs'):
+    if token not in project_switch: fail('Project-switch journey trigger coverage incomplete '+token)
 live_stability=read('.github/workflows/live-stability-v129.yml')
 for token in ('conversation-scroll-guard-v133.js','project-state-selfheal-v102.js','user-reported-v133.mjs','User-reported scroll + single Projects authority in Brave stable','/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'):
     if token not in live_stability: fail('Brave macOS field gate missing '+token)

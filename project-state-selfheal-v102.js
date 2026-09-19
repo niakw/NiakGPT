@@ -93,14 +93,6 @@
     try{await chrome.storage.local.set({[GOV_KEY]:next});governance=next;diag('organizer',`AUTO-RÉPARÉ · ${(next.coreProjectIds||[]).length} principaux · ${Object.keys(next.locks||{}).length} manuels · ${(next.hiddenProjectIds||[]).length} masqués`);return true;}catch{return false;}
   }
 
-  function unsuppressNative(){const nav=navRoot();if(!nav)return;nav.querySelectorAll('.ng8-native-projects-suppressed,.ng8-native-project-link-suppressed,.ng8-native-project-chat-suppressed,.ng8-native-project-label-suppressed,.ng8-native-project-more-suppressed').forEach(el=>el.classList.remove('ng8-native-projects-suppressed','ng8-native-project-link-suppressed','ng8-native-project-chat-suppressed','ng8-native-project-label-suppressed','ng8-native-project-more-suppressed'));}
-  function suppressNative(){
-    const nav=navRoot();if(!nav)return;
-    for(const a of nav.querySelectorAll(PROJECT_SEL))if(!a.closest('#ng8-pins'))a.classList.add('ng8-native-project-link-suppressed');
-    for(const a of nav.querySelectorAll(PROJECT_CHAT_SEL))if(!a.closest('#ng8-pins'))a.classList.add('ng8-native-project-chat-suppressed');
-    for(const el of nav.querySelectorAll('h1,h2,h3,[role="heading"],div,span')){if(el.closest('#ng8-pins'))continue;const t=clean(el.textContent);if(/^(projets?|projects?)$/i.test(t))el.classList.add('ng8-native-project-label-suppressed');}
-    for(const el of nav.querySelectorAll('button,[role="button"],a')){if(el.closest('#ng8-pins'))continue;const t=clean(el.getAttribute?.('aria-label')||el.textContent);if(/^(afficher|voir) plus$|^show more$/i.test(t))el.classList.add('ng8-native-project-more-suppressed');}
-  }
   function place(box){const nav=navRoot();if(!nav)return false;const first=[...nav.querySelectorAll(PROJECT_SEL)].find(a=>!a.closest('#ng8-pins'))||[...nav.querySelectorAll('a[href*="/c/"]')].find(a=>!a.closest('#ng8-pins'));let top=first;while(top?.parentElement&&top.parentElement!==nav)top=top.parentElement;if(box.parentElement!==nav||box.nextElementSibling!==top)nav.insertBefore(box,top||nav.firstElementChild||null);return true;}
   function closeFallbackDrawers(box){box?.querySelectorAll('.ng102-fallback-drawer').forEach(x=>x.remove());box?.querySelectorAll('[data-ng102-project]').forEach(x=>x.setAttribute('aria-expanded','false'));}
   function openFallback(pid,anchor,box){
@@ -109,7 +101,7 @@
   function renderFallback(){
     const canonical=(cache.projects||[]).filter(isCanonical);if(canonical.length){const box=document.getElementById('ng8-pins');if(box){box.removeAttribute('data-ng102-native-preferred');box.style.removeProperty('display');if(box.dataset.ng102Fallback==='1'){box.removeAttribute('data-ng102-fallback');box.removeAttribute('data-ng102-signature');}}diag('project-repair',`OK · ${canonical.length} Projects canoniques`);return false;}
     const hidden=new Set(governance.hiddenProjectIds||[]),locals=(cache.projects||[]).filter(p=>isLocal(p)&&!hidden.has(p.id));
-    if(!locals.length){unsuppressNative();diag('project-repair','ATTENTE · aucun Project exploitable');return false;}
+    if(!locals.length){diag('project-repair','ATTENTE · aucun Project exploitable');return false;}
     const nav=navRoot();if(!nav)return false;let box=document.getElementById('ng8-pins'),created=false;
     if(!box){box=document.createElement('section');box.id='ng8-pins';created=true;}
     // v121 owns placement. A recovery renderer may populate its box, but must never reparent
@@ -125,15 +117,13 @@
     }
     const mirrored=nativeMirrorCount(locals);
     box.removeAttribute('data-ng102-native-preferred');box.style.removeProperty('display');box.hidden=false;box.removeAttribute('aria-hidden');
-    // Local recovery is already a complete visual authority. Suppress the visible native
-    // duplicate immediately; v112 still performs the structural section-level pass.
-    suppressNative();
-    // The local fallback is not a second product surface anymore: it is the temporary data
-    // source for the same NiakGPT Projects node. Native Projects are immediately delegated to
-    // v112 suppression in the same task, avoiding the mixed/native-first recovery state.
+    // v112 is the sole visual authority for native Projects. Dispatch synchronously after the
+    // recovery surface is ready so it can mark only structural Projects hosts before the next
+    // paint. Do not resurrect the retired per-row suppression classes: they can also match
+    // generic Chats controls such as "Afficher plus".
+    document.dispatchEvent(new CustomEvent('niakgpt:local-project-recovery-ready',{detail:{count:locals.length,nativePreferred:false,mirrored}}));
     diag('pins-ui',`RÉCUPÉRATION · ${locals.length} Projects cache local · surface NiakGPT unique`);
     diag('project-repair',`RÉCUPÉRATION · ${locals.length} Projects locaux · NiakGPT autoritaire · index serveur demandé`);
-    document.dispatchEvent(new CustomEvent('niakgpt:local-project-recovery-ready',{detail:{count:locals.length,nativePreferred:false,mirrored}}));
     if(Date.now()-lastForceAt>12000){lastForceAt=Date.now();document.dispatchEvent(new CustomEvent('niakgpt:force-server-index'));}
     return true;
   }

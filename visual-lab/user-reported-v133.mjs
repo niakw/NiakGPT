@@ -130,6 +130,7 @@ async function falseMirrorRecovery(){
           <div data-sidebar-item="true"><a href="/c/22222222-2222-4222-8222-222222222222">Studio</a></div>
           <div data-sidebar-item="true"><a href="/c/33333333-3333-4333-8333-333333333333">Cinema</a></div>
           <div data-sidebar-item="true"><a href="/c/44444444-4444-4444-8444-444444444444">Commerce Lab</a></div>
+          <button id="local-chat-more">Afficher plus</button>
         </section>
       </aside>
       <main><article data-testid="conversation-turn-1"><div data-message-author-role="assistant">ready</div></article></main>
@@ -144,12 +145,14 @@ async function falseMirrorRecovery(){
       preferred:document.getElementById('ng8-pins')?.dataset.ng102NativePreferred||'',
       fallback:document.getElementById('ng8-pins')?.dataset.ng102Fallback||'',
       localCount:document.querySelectorAll('#ng8-pins [data-ng102-project]').length,
+      chatMoreLegacyHidden:document.getElementById('local-chat-more')?.classList.contains('ng8-native-project-more-suppressed')||false,
       pinsDiag:window.__diag['pins-ui']||''
     }));
     assert.equal(got.hidden,false,'recent chat titles were mistaken for a native Projects mirror');
     assert.equal(got.preferred,'');
     assert.equal(got.fallback,'1');
     assert.equal(got.localCount,3);
+    assert.equal(got.chatMoreLegacyHidden,false,'local-only Projects recovery leaked legacy suppression onto generic Chats "Afficher plus"');
     assert.match(got.pinsDiag,/RÉCUPÉRATION.*surface NiakGPT unique/);
   }finally{await page.close();}
 }
@@ -165,7 +168,10 @@ async function screenshotSidebarRegression(){
           {id:'dom-p-niakgpt',name:'NiakGPT',domOnly:true},
           {id:'dom-p-films',name:'Films',domOnly:true}
         ],
-        chats:[{id:chat,title:'NiakGPT extension GitHub bug',snippet:'extension chrome github code',projectId:'',updated:now-30_000}],
+        chats:[
+          {id:chat,title:'NiakGPT extension GitHub bug',snippet:'extension chrome github code',projectId:'',updated:now-30_000},
+          ...Array.from({length:8},(_,i)=>({id:`90000000-0000-4000-8000-${String(i+1).padStart(12,'0')}`,title:`NiakGPT extension regression ${i+2}`,snippet:'chrome extension javascript github code',projectId:'',updated:now-30_000-i*1000}))
+        ],
         counts:{},indexedProjectIds:[],serverIndexedAt:0
       };
       const store={'niakgpt-v08-cache':raw,'niakgpt-governance-v085':{seeded:true,coreProjectIds:[],hiddenProjectIds:[],locks:{},autoResync:true}};
@@ -199,7 +205,7 @@ async function screenshotSidebarRegression(){
         }
         queueMicrotask(()=>document.dispatchEvent(new CustomEvent('niakgpt:rpc-response',{detail:{id:d.id,ok:true,status:200,data:{gizmo_id:d.body?.gizmo_id||null}}})));
       });
-      window.__fixture={p1,p2,chat};
+      window.__fixture={p1,p2,chat,chatIds:raw.chats.map(c=>c.id)};
     });
     await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html',body:`<!doctype html><html data-ng86-activity="ready"><head><style>
       *{box-sizing:border-box}html,body{margin:0;background:#071019;color:#dce7f1;font:14px Arial}
@@ -225,6 +231,7 @@ async function screenshotSidebarRegression(){
             <h3>Chats</h3>
             <a data-sidebar-item="true" href="/c/55555555-5555-4555-8555-555555555555">NiakGPT extension GitHub bug</a>
             <a data-sidebar-item="true" href="/c/66666666-6666-4666-8666-666666666666">Un autre chat non organisé</a>
+            <button id="chat-more">Afficher plus</button>
           </section>
         </div>
       </aside>
@@ -233,10 +240,12 @@ async function screenshotSidebarRegression(){
     await page.goto('https://chatgpt.com/c/'+C,{waitUntil:'domcontentloaded'});
     await page.addStyleTag({content:authorityCss});
     await page.addStyleTag({content:uxCss});
-    await page.addScriptTag({content:uxJs});
+    // Preserve production authority order: v112 -> v121 -> self-heal -> v131. The original
+    // regression had been easier to hide when the late UX finder was injected first.
+    await page.addScriptTag({content:authority});
     await page.addScriptTag({content:projects});
     await page.addScriptTag({content:selfheal});
-    await page.addScriptTag({content:authority});
+    await page.addScriptTag({content:uxJs});
     await page.waitForTimeout(900);
 
     let got=await page.evaluate(()=>{
@@ -249,6 +258,7 @@ async function screenshotSidebarRegression(){
         boxBeforeChats:!!box&&!!(box.compareDocumentPosition(chats)&Node.DOCUMENT_POSITION_FOLLOWING),
         genericInside:document.querySelectorAll('#ng8-pins a[href*="/c/"]').length,
         genericOutside:document.querySelectorAll('#native-chats a[href*="/c/"]').length,
+        chatMoreLegacyHidden:document.getElementById('chat-more')?.classList.contains('ng8-native-project-more-suppressed')||false,
         core:window.__store['niakgpt-governance-v085']?.coreProjectIds||[],
         canonical:(window.__store['niakgpt-v08-cache']?.projects||[]).filter(p=>String(p.id||'').startsWith('g-p-')&&!p.domOnly).map(p=>p.id),
         authority:window.__diag['projects-authority']||'',pins:window.__diag['pins-ui']||'',ux:window.__diag['ux-v131']||''
@@ -256,13 +266,14 @@ async function screenshotSidebarRegression(){
     });
     assert.equal(got.box,true,'managed Projects block missing in screenshot regression');
     assert.equal(got.boxVisible,true,'managed Projects block is not visible');
-    assert.equal(got.nativeVisible,false,'native ChatGPT Projects still duplicates the managed Projects menu');
+    assert.equal(got.nativeVisible,false,`native ChatGPT Projects still duplicates the managed Projects menu: ${JSON.stringify(got)}`);
     assert.equal(got.chatsVisible,true,'generic Chats section was hidden together with native Projects');
     assert.ok(got.widthRatio>.90,`managed Projects is still a half-width/grid-column fragment: ${JSON.stringify(got)}`);
     assert.ok(got.leftDelta<20,`managed Projects is shifted to the right of the sidebar lane: ${JSON.stringify(got)}`);
     assert.equal(got.boxBeforeChats,true,'managed Projects is not above the generic Chats section');
     assert.equal(got.genericInside,0,'generic/unorganized chats were merged into the managed Projects surface');
     assert.equal(got.genericOutside,2,'generic/unorganized chats disappeared from their native Chats section');
+    assert.equal(got.chatMoreLegacyHidden,false,'Projects recovery leaked legacy suppression onto the generic Chats "Afficher plus" control');
     assert.deepEqual(new Set(got.canonical),new Set(['g-p-niakgpt123','g-p-films123']),'absolute native Project hrefs were not promoted to canonical identities');
     assert.deepEqual(new Set(got.core),new Set(['g-p-niakgpt123','g-p-films123']),'governance did not recover target Projects from the live native inventory');
     await page.screenshot({path:path.join(ARTIFACTS,`${engineName}-01c-user-sidebar-exact.png`),fullPage:true});
@@ -271,15 +282,15 @@ async function screenshotSidebarRegression(){
     // leaves the thread, the canonical inventory recovered above must immediately become usable.
     await page.evaluate(()=>{history.pushState({},'', '/');window.dispatchEvent(new PopStateEvent('popstate'));});
     await page.addScriptTag({content:reclass});
-    await page.waitForTimeout(3600);
+    await page.waitForTimeout(6200);
     got=await page.evaluate(()=>({
-      assigned:window.__store['niakgpt-v08-cache'].chats.find(c=>c.id===window.__fixture.chat)?.projectId||'',
+      assignments:window.__fixture.chatIds.map(id=>window.__store['niakgpt-v08-cache'].chats.find(c=>c.id===id)?.projectId||''),
       patches:window.__rpc.filter(x=>x.method==='PATCH'),
       gets:window.__rpc.filter(x=>x.method==='GET'),
       diag:window.__diag['reclassement']||''
     }));
-    assert.equal(got.assigned,'g-p-niakgpt123','unorganized chat was not automatically assigned after canonical Project recovery');
-    assert.equal(got.patches.length,1,'automatic classification did not perform exactly one Project mutation');
+    assert.ok(got.assignments.every(pid=>pid==='g-p-niakgpt123'),`unorganized batch did not fully auto-classify after canonical Project recovery: ${JSON.stringify(got)}`);
+    assert.equal(got.patches.length,9,'automatic classification did not continue beyond its first 8-chat batch');
     assert.equal(got.gets.length,0,'automatic classification unexpectedly fetched full conversation history');
   }finally{await page.close();}
 }

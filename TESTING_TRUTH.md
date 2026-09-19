@@ -1,3 +1,11 @@
+## 0.9.98 — récupération locale isolée des Chats + classement multi-lots
+
+Le follow-up 0.9.98 part d’un test rouge ajouté avant le correctif : en mode cache local uniquement, une section Chats contenant plusieurs conversations et un bouton « Afficher plus » recevait la classe legacy de masquage Projects. Chromium a reproduit le défaut avec `true !== false` dans `falseMirrorRecovery`.
+
+Le correctif retire au self-heal toute autorité visuelle concurrente. Il rend la surface NiakGPT disponible puis émet synchroniquement l’évènement de récupération ; v112 reste seul propriétaire du masquage structurel des Projects natifs. Les validations statiques interdisent désormais le retour de `function suppressNative(` ou de nouveaux `classList.add('ng8-native-project…')` dans le self-heal.
+
+Le scénario terrain exact conserve séparément les Chats natifs et leur contrôle « Afficher plus », puis vérifie neuf conversations non organisées : les huit premières et la neuvième doivent toutes être classées automatiquement vers le Project canonique, sans lecture complète de conversation. Le lab utilise aussi l’ordre de chargement de production v112 → v121 → self-heal → v131.
+
 ## 0.9.97 — vérité terrain : Projects unique + Chats séparés + reclassement
 
 Le scénario terrain ne valide plus uniquement des sélecteurs abstraits. Il construit une sidebar dans laquelle ChatGPT expose un sous-layout à deux colonnes, des liens Projects absolus et une liste Chats indépendante — la combinaison qui reproduit la capture utilisateur.

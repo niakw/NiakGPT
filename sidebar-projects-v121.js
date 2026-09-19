@@ -432,6 +432,15 @@
     box.dataset.ng121Retired='1';box.hidden=true;box.setAttribute('aria-hidden','true');box.style.setProperty('pointer-events','none','important');
     box.id='ng8-pins-retired-'+(++retiredSeq);
   }
+  function signalAuthorityReady(box){
+    if(!box?.isConnected||box.hidden||getComputedStyle(box).display==='none')return false;
+    const ready=box.querySelector('a[data-ng8-pin][href*="/g/g-p-"],a[data-ng8-pin="1"][href*="/g/g-p-"],[data-ng102-project]');
+    if(!ready)return false;
+    if(box.dataset.ng121AuthorityReady==='1')return true;
+    box.dataset.ng121AuthorityReady='1';
+    document.dispatchEvent(new CustomEvent('niakgpt:sidebar-projects-ready',{detail:{source:'sidebar-projects-v121',placement:box.dataset.ng121Placement||''}}));
+    return true;
+  }
   function place(box){
     const root=navRoot();if(!root||!box||!box.isConnected||!root.contains(box))return false;
     // 0.9.95: one sidebar authority. A stale recovery flag from an older runtime must
@@ -614,6 +623,9 @@
       }
     }else renderCatalog(box);
     place(box);
+    // renderCatalog() can emit pins-rendered while a freshly-created box is still hidden.
+    // Signal the single native-Projects authority only after the managed surface is actually visible.
+    signalAuthorityReady(box);
     restorePendingScroll('reconcile');bind();hideWelcome();
     window.__NIAKGPT_DIAGNOSTICS__?.set('sidebar-ux-119',`OK · Projects ${box.dataset.ng121Placement||'stable'} · autorité v121 unique · natif masqué`);
   }

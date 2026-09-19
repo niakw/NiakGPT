@@ -114,6 +114,9 @@ jobs:
       - name: Project-context hot path · unrelated main churn stays ignored
         working-directory: visual-lab
         run: node live-fixes-context-v106.mjs
+      - name: Global observer hot path · unrelated stream churn stays ignored
+        working-directory: visual-lab
+        run: node global-observer-hotpath-v099.mjs
       - name: Native side-panel owner · rail offset + BFCache recovery
         working-directory: visual-lab
         run: node side-panels-owner-v096.mjs

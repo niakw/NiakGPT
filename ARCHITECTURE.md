@@ -168,6 +168,8 @@ L’historique complet est un stockage durable. Le checkpoint est la surface de 
 
 Un Project présent dans `hiddenProjectIds` reste connu comme identité canonique, mais il est exclu de `coreProjectIds` réparés et de toutes les cibles de classement normal, profond ou de nettoyage automatique. Le masquer ne peut donc plus le ressusciter comme destination automatique.
 
+Le rattachement automatique des conversations n’a qu’une autorité réseau : `reclassify-v101.js` puis `reclassify-deep-v112.js`, tous deux sous `niakgpt-data-mutation-v100`. `project-governance-v090.js` ne possède plus d’`autoResync()` autonome ; il reste un outil de nettoyage **manuel** et prend le même verrou partagé avant toute mutation explicite.
+
 ## Invariant 1 — sanitation du cache avant les consommateurs
 
 L’ordre de démarrage critique est :

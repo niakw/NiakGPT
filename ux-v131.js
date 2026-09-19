@@ -21,8 +21,8 @@
     let n=0,tid=String(el.getAttribute('data-testid')||'').toLowerCase(),aria=String(el.getAttribute('aria-label')||'').toLowerCase();
     if(tid==='conversation-sidebar')n+=160;else if(tid.includes('sidebar'))n+=90;
     if(/sidebar|conversations|historique|history|navigation/.test(aria))n+=35;
-    if(r.left<=24)n+=55;else if(r.left<innerWidth*.18)n+=34;else if(r.left>innerWidth*.32)n-=120;
-    if(r.width>=180&&r.width<=420)n+=45;else if(r.width>520)n-=90;
+    if(r.left<=24)n+=80;else if(r.left<=72)n+=36;else if(innerWidth>760)n-=115;
+    if(r.width>=220&&r.width<=420)n+=55;else if(r.width>=180)n+=18;else n-=55;
     if(r.right<Math.min(innerWidth*.42,620))n+=24;else n-=35;
     const projects=el.querySelectorAll(PROJECT).length,chats=el.querySelectorAll(CHAT).length;
     n+=Math.min(projects,8)*5+Math.min(chats,12)*2;
@@ -35,7 +35,18 @@
     const ranked=candidates.map(el=>[el,score(el)]).filter(([,n])=>Number.isFinite(n)).sort((a,b)=>b[1]-a[1]);
     const winner=ranked[0];
     if(!winner||winner[1]<25)return null;
-    return winner[0];
+    // A nested right-hand nav can contain Projects and still score well. Prefer an enclosing
+    // visible sidebar candidate that owns the left edge and is at least as wide; this prevents
+    // NiakGPT from mounting into one internal grid column (the field screenshot regression).
+    let chosen=winner[0],node=chosen.parentElement;
+    while(node&&node!==document.body&&node!==document.documentElement){
+      if(node.matches?.(SIDEBAR_CANDIDATE)&&!own(node)&&visible(node)){
+        const nr=node.getBoundingClientRect(),cr=chosen.getBoundingClientRect();
+        if(nr.left<=72&&nr.width>=cr.width&&nr.width<=520&&!node.closest('main,[role="main"]'))chosen=node;
+      }
+      node=node.parentElement;
+    }
+    return chosen;
   }
   window.__NIAKGPT_FIND_SIDEBAR_V131__=findSidebar;
 

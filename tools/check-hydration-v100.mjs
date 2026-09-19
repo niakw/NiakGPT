@@ -203,6 +203,7 @@ const parallelRuntime=read('visual-lab/tests/composer-continuation-runtime-v128.
 for(const token of ['real MV3 static continuation layer prefixes only pre-existing parallel work','Message depuis une conversation au repos.','Ajoute ce contrôle sans arrêter ce que tu fais.','annule',"page.locator('#ng8-rail')",'isolated world'])need(parallelRuntime,token,'parallel real-extension/hydration gate incomplete');
 const sidebarProjects=read('sidebar-projects-v121.js');
 for(const token of ['safeInsert(parent,node,before=null)','retireStaleBox','mountParentByBox','box.parentElement!==mountedParent','ng121MountPolicy','direct-once','placementTarget(root=navRoot(),box=null)','visiblePlacementNode','nativeSectionAfterPrimary','projectLinks(parent).length'])need(sidebarProjects,token,'sidebar no-reparent/slot contract incomplete');
+for(const token of ['duplicates=[]','if(host===keepHost){a.remove();structural=true;continue;}'])need(sidebarProjects,token,'sidebar duplicate Project cleanup incomplete');
 for(const forbidden of ["section.parentElement.insertBefore(box,section)","tail.insertAdjacentElement('afterend',box)","root.appendChild(box)"])if(sidebarProjects.includes(forbidden))fail('Pins reparenting path reintroduced: '+forbidden);
 const domNodeLab=read('visual-lab/dom-node-stability-v082.mjs');
 for(const token of ['syntheticMoveNodeErrors','mountParents','late shell remount','Node cannot be found','direct-once'])need(domNodeLab,token,'DOM node stability lab incomplete');

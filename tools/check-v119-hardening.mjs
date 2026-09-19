@@ -15,6 +15,8 @@ for(const token of [
   'const shell=sidebarShellFor(own)',
   'const candidate=sidebarShellFor(el)',
   'const overlap=Math.max(0',
+  'else if(document.body)',
+  'roots.add(document.body)',
   "candidate.querySelector?.('[class*=\"project-unfurl-row\"]')",
   "candidate.getAttribute?.(MARK)==='1'&&structuralProjectSurface(candidate)",
   "projectLinks=links.filter(a=>projectChildHref(a.getAttribute('href')))",

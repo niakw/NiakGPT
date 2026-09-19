@@ -155,6 +155,11 @@
       const shell=sidebarShellFor(own);if(shell)roots.add(shell);
       if(own.parentElement&&own.parentElement!==document.body)roots.add(own.parentElement);
       if(own.parentElement?.parentElement&&own.parentElement.parentElement!==document.body)roots.add(own.parentElement.parentElement);
+    }else if(document.body){
+      // During a SPA sidebar replacement, the managed block can disappear before the new
+      // native shell is inserted. Keep one temporary broad observer alive only for this gap;
+      // bindObservers() narrows back to the sidebar as soon as #ng8-pins returns.
+      roots.add(document.body);
     }
     for(const root of document.querySelectorAll('aside,nav,[data-testid*="sidebar" i],[class*="sidebar" i]')){
       if(inMain(root))continue;

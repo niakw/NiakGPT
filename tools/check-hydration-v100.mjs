@@ -141,7 +141,7 @@ for(const token of ['ng8-native-project','function suppressNative('])forbid(proj
 const uxCss=read('ux-v131.css');
 for(const token of ['grid-column:1 / -1!important','place-self:auto stretch!important','box-sizing:border-box!important'])need(uxCss,token,'field sidebar full-lane geometry invariant missing');
 const projectAuthority=read('sidebar-projects-authority-v112.js');
-for(const token of ['[data-ng102-project]',"querySelectorAll('[data-ng8-pin],[data-ng102-project]","niakgpt:local-project-recovery-ready","niakgpt:sidebar-projects-ready",()=>apply()"])need(projectAuthority,token,'single-authority native suppression incomplete');
+for(const token of ['[data-ng102-project]',"querySelectorAll('[data-ng8-pin],[data-ng102-project]",'niakgpt:local-project-recovery-ready','niakgpt:sidebar-projects-ready','()=>apply()'])need(projectAuthority,token,'single-authority native suppression incomplete');
 const chatScroll=read('conversation-scroll-guard-v133.js');
 for(const token of ['conversationTail','ancestorScroller','scrollableNode','targetsConversationScroller','noteSendIntent','SEND_LATCH_MS','touchstart','touchPoint','event.shiftKey','editable(event.target)','ng133ScrollSticky','ng133ScrollRoot','remontée volontaire','generation-start','send-intent','ensureRoot','rootObserver','rootScrollEvent','pointerScrollActive','correction scroll native'])need(chatScroll,token,'conversation scroll audit contract incomplete');
 forbid(chatScroll,'setInterval(','conversation scroll guard must remain event-driven');

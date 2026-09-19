@@ -165,7 +165,7 @@ async function screenshotSidebarRegression(){
           {id:'dom-p-niakgpt',name:'NiakGPT',domOnly:true},
           {id:'dom-p-films',name:'Films',domOnly:true}
         ],
-        chats:[{id:chat,title:'NiakGPT extension GitHub bug',snippet:'extension chrome github code',projectId:'',updated:now}],
+        chats:[{id:chat,title:'NiakGPT extension GitHub bug',snippet:'extension chrome github code',projectId:'',updated:now-30_000}],
         counts:{},indexedProjectIds:[],serverIndexedAt:0
       };
       const store={'niakgpt-v08-cache':raw,'niakgpt-governance-v085':{seeded:true,coreProjectIds:[],hiddenProjectIds:[],locks:{},autoResync:true}};

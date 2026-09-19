@@ -89,6 +89,8 @@ continuity124=read('continuity-consumer-v124.js')
 continuity129=read('continuity-native-handoff-v129.js')
 if 'patchNewChat' in continuity100: fail('legacy v100 Project PATCH owner reintroduced')
 if "method:'PATCH'" in continuity112: fail('v112 producer regained Project PATCH ownership')
+if 'niakgpt:rpc-request' in continuity100: fail('v100 continuity producer regained network ownership')
+if 'niakgpt:rpc-request' in continuity112: fail('v112 continuity producer regained network ownership')
 for token in ("const DATA_LOCK='niakgpt-data-mutation-v100'","navigator.locks.request(DATA_LOCK"):
     if token not in continuity124: fail('v124 continuity assignment lock incomplete '+token)
 if "const DATA_LOCK='niakgpt-data-mutation-v100'" not in continuity129: fail('native continuity handoff assignment lock missing')

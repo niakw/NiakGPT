@@ -5,7 +5,7 @@
 
   const CACHE_KEY='niakgpt-v08-cache',GOV_KEY='niakgpt-governance-v085',PENDING_KEY='niakgpt-continuity-pending-v100',PENDING_STORE_KEY='niakgpt-continuity-pending-v124',PIN_OPEN_KEY='niakgpt-open-pin-folder-v096';
   const STOP=new Set('le la les un une des de du et ou en sur pour avec sans dans au aux ce cet cette ces mon ma mes ton ta tes son sa ses nos vos leur leurs je tu il elle on nous vous ils elles est sont a à the and or of to for in on with from chat conversation projet project faire fais moi peux peut comment pourquoi quoi cela cette ceci avoir etre être besoin voudrais veux faudrait faut'.split(/\s+/));
-  let seq=0,patching=false,routeTimer=0,injectTimer=0;
+  let routeTimer=0,injectTimer=0;
   const clean=v=>String(v??'').replace(/\r/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const words=v=>norm(v).replace(/[^a-z0-9à-ÿ_-]+/gi,' ').split(/\s+/).filter(x=>x.length>2&&!STOP.has(x));
@@ -17,7 +17,6 @@
     if(!ed)return false;
     try{if('value'in ed){const proto=Object.getPrototypeOf(ed),setter=Object.getOwnPropertyDescriptor(proto,'value')?.set;setter?setter.call(ed,text):ed.value=text;}else{ed.focus();ed.textContent=text;}ed.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:text}));return true;}catch{return false;}
   }
-  function rpc(path,{method='GET',body=null,timeout=15000}={}){const id=`ng112c-${Date.now()}-${++seq}`;return new Promise(resolve=>{const t=setTimeout(()=>{off();resolve({ok:false,status:0,error:'rpc_timeout'});},timeout),h=e=>{if(e.detail?.id!==id)return;off();resolve(e.detail);},off=()=>{clearTimeout(t);document.removeEventListener('niakgpt:rpc-response',h);};document.addEventListener('niakgpt:rpc-response',h);document.dispatchEvent(new CustomEvent('niakgpt:rpc-request',{detail:{id,path,method,body,governance:true}}));});}
   async function cache(){try{return(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||{};}catch{return{};}}
   function pendingSession(){try{const p=JSON.parse(sessionStorage.getItem(PENDING_KEY)||'null');if(!p||Date.now()-Number(p.createdAt||0)>30*60*1000)return null;return p;}catch{return null;}}
   async function pending(){

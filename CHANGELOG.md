@@ -6,6 +6,7 @@
 - **Observers globaux filtrés** : `sidebar-icons-v114.js` ne recalcule plus la racine sidebar à chaque token/fragment du stream ; `project-memory-ui-v132.js` ne recherche plus le Control Center à chaque mutation quand il est fermé.
 - **Projects masqués = jamais cibles automatiques** : `hiddenProjectIds` est désormais exclu des cibles du classifieur normal, du deep-classifier, du self-heal des Projects principaux et du plan de nettoyage/gouvernance. Les identités masquées restent néanmoins canoniques pour ne pas créer de faux orphelins.
 - **Une seule autorité de classement automatique** : l’ancien `autoResync()` de `project-governance-v090.js` est retiré. v101/v112 sont les seuls moteurs automatiques ; le nettoyage manuel de gouvernance utilise désormais leur verrou partagé `niakgpt-data-mutation-v100`.
+- **Continuité sans double PATCH** : v100 et v112 ne modifient plus eux-mêmes le Project du nouveau fil. v124 est l’unique consommateur du pending partagé et effectue exactement un rattachement sous le verrou global ; le handoff natif v129 partage lui aussi ce verrou.
 - **Tests release-critical** : nouveaux labs pour churn conversationnel, propriétaire unique des panneaux + BFCache, et exclusion des Projects masqués du classement.
 
 # NiakGPT 0.9.98 — autorité Projects unique renforcée

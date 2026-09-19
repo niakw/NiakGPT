@@ -133,7 +133,7 @@ for token in ('ng123-action-menu','ng123-rename-dialog','dataset.ng123Action','d
 catalog=read('sidebar-projects-v121.js')
 if 'placementAnchorNode' not in catalog or "data-ng112-native-projects" not in catalog:
     fail('v121 must preserve the hidden v112 native Projects host as a placement anchor')
-for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','userScrollEpoch','user-priority-armed','placeIntentEpoch=userScrollEpoch','niakgpt:sidebar-projects-reconcile','surface NiakGPT unique','autorité v121 unique · natif masqué'):
+for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','userScrollEpoch','user-priority-armed','placeIntentEpoch=userScrollEpoch','niakgpt:sidebar-projects-reconcile','signalAuthorityReady','niakgpt:sidebar-projects-ready','surface NiakGPT unique','autorité v121 unique · natif masqué'):
     if token not in catalog: fail('single-authority Projects catalog incomplete '+token)
 selfheal=read('project-state-selfheal-v102.js')
 for token in ('surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false','window.__NIAKGPT_FIND_SIDEBAR_V131__','a[href*="/g/g-p-"]','niakgpt:local-project-recovery-ready'):
@@ -144,7 +144,7 @@ ux_css=read('ux-v131.css')
 for token in ('grid-column:1 / -1!important','place-self:auto stretch!important','box-sizing:border-box!important'):
     if token not in ux_css: fail('field sidebar full-lane geometry invariant missing '+token)
 authority=read('sidebar-projects-authority-v112.js')
-for token in ('[data-ng102-project]',"querySelectorAll('[data-ng8-pin],[data-ng102-project]", "niakgpt:local-project-recovery-ready',()=>apply()"):
+for token in ('[data-ng102-project]',"querySelectorAll('[data-ng8-pin],[data-ng102-project]", "niakgpt:local-project-recovery-ready","niakgpt:sidebar-projects-ready",()=>apply()"):
     if token not in authority: fail('single-authority native suppression incomplete '+token)
 for token in ('else if(document.body)','roots.add(document.body)'):
     if token not in authority: fail('SPA sidebar remount authority gap invariant missing '+token)

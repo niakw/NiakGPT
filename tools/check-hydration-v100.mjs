@@ -63,7 +63,7 @@ for(const token of ["const OPTIONAL_RUNTIME=[","sendResponse({ok:!coreFailed","P
 forbid(background,"item.includes(':project-memory-v132.js:')",'Project Memory must not be a critical coreFailed owner');
 
 const serverIndex=read('server-index-v100.js');
-  for(const token of ['COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement','coldBootstrap','conversationPage()'])need(serverIndex,token,'cold canonical index recovery incomplete');
+  for(const token of ['COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement','coldBootstrap','conversationPage()',"navigation.addEventListener('navigatesuccess',routeWake)"])need(serverIndex,token,'cold canonical index recovery incomplete');
   const serverBootstrap=read('server-index-bootstrap-v124.js');
   for(const token of ['COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement(raw)','conversationPage()'])need(serverBootstrap,token,'cold canonical bootstrap recovery incomplete');
 
@@ -144,8 +144,8 @@ for(const token of ['canonicalProjects','renderCatalog','ng121PinsReady','ng121P
 const projectSelfheal=read('project-state-selfheal-v102.js');
 for(const token of ['surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false','window.__NIAKGPT_FIND_SIDEBAR_V131__','a[href*="/g/g-p-"]','niakgpt:local-project-recovery-ready','hiddenSet','visibleIds'])need(projectSelfheal,token,'single-authority local recovery incomplete');
 const baseReclassify=read('reclassify-v101.js'),deepReclassify=read('reclassify-deep-v112.js'),governance=read('project-governance-v090.js'),cacheGuardian=read('cache-guardian-v100.js'),recovery=read('recovery-v100.js');
-for(const token of ['hiddenProjectIds','hiddenIds.has(id)'])need(baseReclassify,token,'base classifier hidden-Project exclusion incomplete');
-for(const token of ['hiddenProjectIds','visibleProjects','!hiddenIds.has(p.id)'])need(deepReclassify,token,'deep classifier hidden-Project exclusion incomplete');
+for(const token of ['hiddenProjectIds','hiddenIds.has(id)',"navigation.addEventListener('navigatesuccess',()=>schedule(1400))"])need(baseReclassify,token,'base classifier hidden-Project exclusion / SPA wake incomplete');
+for(const token of ['hiddenProjectIds','visibleProjects','!hiddenIds.has(p.id)',"navigation.addEventListener('navigatesuccess',()=>schedule(1800))"])need(deepReclassify,token,'deep classifier hidden-Project exclusion / SPA wake incomplete');
 for(const token of ['hiddenProjectIds','hidden.has(p.id)','...hidden'])need(governance,token,'governance hidden-Project target exclusion incomplete');
 for(const token of ["const DATA_LOCK='niakgpt-data-mutation-v100'","navigator.locks.request(DATA_LOCK"])need(governance,token,'governance manual mutation lock incomplete');
 forbid(governance,'async function autoResync()','governance must not remain a second automatic classifier');
@@ -155,6 +155,8 @@ for(const token of ['hiddenProjectIds:[...hiddenSet]','targetByOldId.get(oldId)|
 forbid(cacheGuardian,'hiddenProjectIds:[]','cache guardian may not erase hidden Projects');
 forbid(recovery,'hiddenProjectIds:[]','structural recovery may not erase hidden Projects');
 for(const token of ['ng8-native-project','function suppressNative('])forbid(projectSelfheal,token,'local recovery must not own or clean native Projects suppression classes');
+const ux=read('ux-v131.js');
+for(const token of ['columnFragment','genericChats','unlabelled DIV','same sidebar'])need(ux,token,'field sidebar outer-shell promotion incomplete');
 const uxCss=read('ux-v131.css');
 for(const token of ['grid-column:1 / -1!important','place-self:auto stretch!important','box-sizing:border-box!important'])need(uxCss,token,'field sidebar full-lane geometry invariant missing');
 const projectAuthority=read('sidebar-projects-authority-v112.js');

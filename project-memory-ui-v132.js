@@ -177,19 +177,34 @@
         '<div class="ng132-memory-info"><b>Historique complet ≠ prompt complet</b><span>Les conversations restent archivées dans GitHub. ChatGPT ne reçoit normalement que PROJECT_STATE.md, borné et mis à jour.</span></div>';
 
       const status = section.querySelector('.ng132-memory-status b');
+      const failureText = result => {
+        const error=String(result && result.error || 'erreur GitHub');
+        if(/extension_context_invalidated_reload_required|Extension context invalidated/i.test(error)){
+          return 'Contexte NiakGPT expiré après une mise à jour · recharge cet onglet ChatGPT puis réessaie';
+        }
+        if(error==='github_auth_flow_timeout')return 'Délai de connexion GitHub dépassé · réessaie';
+        return error;
+      };
       const setFailure = (prefix, result) => {
-        status.textContent = prefix + ' · ' + String(result && result.error || 'erreur GitHub');
+        status.textContent = prefix + ' · ' + failureText(result);
       };
 
       const githubLogin = section.querySelector('[data-ng132-github-login]');
       if (githubLogin) githubLogin.onclick = async () => {
         githubLogin.disabled = true;
         githubLogin.textContent = 'Ouverture de GitHub…';
-        const result = await memory.githubLogin();
+        let result;
+        try{
+          result = await memory.githubLogin();
+        }catch(error){
+          result = {ok:false,error:String(error?.message||error||'github_login_failed')};
+        }
         if (!result || !result.ok) {
           setFailure('Connexion GitHub refusée', result);
           githubLogin.disabled = false;
-          githubLogin.textContent = 'Réessayer avec GitHub';
+          githubLogin.textContent = /extension_context_invalidated|reload_required/i.test(String(result?.error||''))
+            ? 'Recharger l’onglet puis réessayer'
+            : 'Réessayer avec GitHub';
           return;
         }
         schedule(50,true);

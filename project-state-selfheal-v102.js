@@ -93,7 +93,6 @@
     try{await chrome.storage.local.set({[GOV_KEY]:next});governance=next;diag('organizer',`AUTO-RÉPARÉ · ${(next.coreProjectIds||[]).length} principaux · ${Object.keys(next.locks||{}).length} manuels · ${(next.hiddenProjectIds||[]).length} masqués`);return true;}catch{return false;}
   }
 
-  function unsuppressNative(){const nav=navRoot();if(!nav)return;nav.querySelectorAll('.ng8-native-projects-suppressed,.ng8-native-project-link-suppressed,.ng8-native-project-chat-suppressed,.ng8-native-project-label-suppressed,.ng8-native-project-more-suppressed').forEach(el=>el.classList.remove('ng8-native-projects-suppressed','ng8-native-project-link-suppressed','ng8-native-project-chat-suppressed','ng8-native-project-label-suppressed','ng8-native-project-more-suppressed'));}
   function place(box){const nav=navRoot();if(!nav)return false;const first=[...nav.querySelectorAll(PROJECT_SEL)].find(a=>!a.closest('#ng8-pins'))||[...nav.querySelectorAll('a[href*="/c/"]')].find(a=>!a.closest('#ng8-pins'));let top=first;while(top?.parentElement&&top.parentElement!==nav)top=top.parentElement;if(box.parentElement!==nav||box.nextElementSibling!==top)nav.insertBefore(box,top||nav.firstElementChild||null);return true;}
   function closeFallbackDrawers(box){box?.querySelectorAll('.ng102-fallback-drawer').forEach(x=>x.remove());box?.querySelectorAll('[data-ng102-project]').forEach(x=>x.setAttribute('aria-expanded','false'));}
   function openFallback(pid,anchor,box){
@@ -102,7 +101,7 @@
   function renderFallback(){
     const canonical=(cache.projects||[]).filter(isCanonical);if(canonical.length){const box=document.getElementById('ng8-pins');if(box){box.removeAttribute('data-ng102-native-preferred');box.style.removeProperty('display');if(box.dataset.ng102Fallback==='1'){box.removeAttribute('data-ng102-fallback');box.removeAttribute('data-ng102-signature');}}diag('project-repair',`OK · ${canonical.length} Projects canoniques`);return false;}
     const hidden=new Set(governance.hiddenProjectIds||[]),locals=(cache.projects||[]).filter(p=>isLocal(p)&&!hidden.has(p.id));
-    if(!locals.length){unsuppressNative();diag('project-repair','ATTENTE · aucun Project exploitable');return false;}
+    if(!locals.length){diag('project-repair','ATTENTE · aucun Project exploitable');return false;}
     const nav=navRoot();if(!nav)return false;let box=document.getElementById('ng8-pins'),created=false;
     if(!box){box=document.createElement('section');box.id='ng8-pins';created=true;}
     // v121 owns placement. A recovery renderer may populate its box, but must never reparent

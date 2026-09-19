@@ -113,6 +113,7 @@ for(const token of ['BOOT_ERRORS_KEY','niakgpt:boot-error-v100','worker + runtim
 const multitab=read('multitab-v090.js');
 for(const token of ['window.__NIAKGPT_APP_090__',"role==='WORKER'",'openClientQuick'])need(multitab,token,'Quick Open fallback ownership incomplete');
 for(const token of ['MutationObserver(queueMainNodes)','function renderPins()','window.__NIAKGPT_SIDEBAR_PROJECTS_121__','niakgpt:sidebar-projects-reconcile'])need(app,token,'app/v121 cooperative ownership incomplete');
+for(const token of ['ng8-native-project','syncNativeProjectSection(','function nativeProjectSection('])forbid(app,token,'app fallback must not regain native Projects visual authority');
 need(app,"label.textContent=String(turn.innerText||turn.textContent||'')",'TOC DOM text must stay textContent');
 forbid(app,'function routeTick()');
 

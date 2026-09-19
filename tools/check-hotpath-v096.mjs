@@ -13,6 +13,8 @@ const activity=read('activity-ui-v097.js');
 const bridge=read('page-bridge.js');
 const adapter=read('governance-adapter-v105.js');
 const live106=read('live-fixes-v106.js');
+const sidebarIcons=read('sidebar-icons-v114.js');
+const memoryUi=read('project-memory-ui-v132.js');
 
 // Native animation remains untouched; only idle/background coordination is allowed.
 no(tabs,'niakgptCoordinatedRAF','Global NiakGPT RAF throttling reintroduced');
@@ -73,6 +75,14 @@ no(adapter,'setInterval(','Governance adapter polling reintroduced');
 has(live106,'function relevantGlobalMutation(records)','Project-context mutation relevance filter missing');
 has(live106,'if(relevantGlobalMutation(records))schedule(30)','Project-context global observer is not relevance-gated');
 no(live106,"records.some(r=>[...r.addedNodes,...r.removedNodes].some(n=>n instanceof Element))schedule(30)",'Project-context repair wakes on every structural mutation');
+
+
+// Permanent document observers must reject ordinary conversation churn before global scans.
+has(sidebarIcons,'function rootMutationRelevant(records)','Sidebar icon remount relevance filter missing');
+has(sidebarIcons,'if(!rootMutationRelevant(records))return','Sidebar icon root observer still wakes on unrelated DOM churn');
+has(memoryUi,'function controlMutationRelevant(records, control)','Project Memory control relevance filter missing');
+has(memoryUi,'if (!controlMutationRelevant(records, control)) return','Project Memory observer still wakes on unrelated DOM churn');
+no(memoryUi,"document.querySelector('#ng90-control.open .ng90-grid')",'Project Memory observer reintroduced global control scan');
 
 // Coach has a single owner outside the core and exposes status through the current
 // adaptive prompt dataset API.

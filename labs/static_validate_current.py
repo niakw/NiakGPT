@@ -136,8 +136,17 @@ if 'placementAnchorNode' not in catalog or "data-ng112-native-projects" not in c
 for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','userScrollEpoch','user-priority-armed','placeIntentEpoch=userScrollEpoch','niakgpt:sidebar-projects-reconcile','signalAuthorityReady','niakgpt:sidebar-projects-ready','surface NiakGPT unique','autorité v121 unique · natif masqué'):
     if token not in catalog: fail('single-authority Projects catalog incomplete '+token)
 selfheal=read('project-state-selfheal-v102.js')
-for token in ('surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false','window.__NIAKGPT_FIND_SIDEBAR_V131__','a[href*="/g/g-p-"]','niakgpt:local-project-recovery-ready'):
+for token in ('surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false','window.__NIAKGPT_FIND_SIDEBAR_V131__','a[href*="/g/g-p-"]','niakgpt:local-project-recovery-ready','hiddenSet','visibleIds'):
     if token not in selfheal: fail('single-authority local recovery incomplete '+token)
+base_reclassify=read('reclassify-v101.js')
+deep_reclassify=read('reclassify-deep-v112.js')
+governance=read('project-governance-v090.js')
+for token in ('hiddenProjectIds','hiddenIds.has(id)'):
+    if token not in base_reclassify: fail('base classifier hidden-Project exclusion incomplete '+token)
+for token in ('hiddenProjectIds','visibleProjects','!hiddenIds.has(p.id)'):
+    if token not in deep_reclassify: fail('deep classifier hidden-Project exclusion incomplete '+token)
+for token in ('hiddenProjectIds','hidden.has(p.id)','...hidden'):
+    if token not in governance: fail('governance hidden-Project target exclusion incomplete '+token)
 for token in ('ng8-native-project','function suppressNative('):
     if token in selfheal: fail('local recovery regained native Projects visual authority '+token)
 ux_css=read('ux-v131.css')
@@ -261,7 +270,7 @@ for gate in (
 ):
     if not (ROOT/gate).exists(): fail('current browser-fixture UX gate missing '+gate)
 workflow=read('.github/workflows/current-finalization.yml')
-for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','pins-primary-slot-v083.mjs','state-ux-v113.mjs','Chat-state authority + extension-context invalidation','Reported Pins placement — native controls stay above Projects','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble','project-memory-isolation-v133.mjs','deep-classification-v112.mjs','Deep classification · orphan chat to canonical Project'):
+for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','pins-primary-slot-v083.mjs','state-ux-v113.mjs','Chat-state authority + extension-context invalidation','Reported Pins placement — native controls stay above Projects','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble','project-memory-isolation-v133.mjs','live-fixes-context-v106.mjs','Project-context hot path · unrelated main churn stays ignored','side-panels-owner-v096.mjs','Native side-panel owner · rail offset + BFCache recovery','hidden-project-classification-v099.mjs','Hidden Projects · never automatic classification targets','deep-classification-v112.mjs','Deep classification · orphan chat to canonical Project'):
     if token not in workflow: fail('Current Finalization missing '+token)
 project_switch=read('.github/workflows/project-switch-user-journey-v130.yml')
 for token in ('sidebar-projects-authority-v112.js','project-state-selfheal-v102.js','reclassify-v101.js','reclassify-deep-v112.js','ux-v131.js','visual-lab/user-reported-v133.mjs'):

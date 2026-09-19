@@ -111,6 +111,9 @@ jobs:
       - name: User-reported recovery / historical catch-up / generation scroll
         working-directory: visual-lab
         run: node user-reported-v133.mjs
+      - name: Project-context hot path · unrelated main churn stays ignored
+        working-directory: visual-lab
+        run: node live-fixes-context-v106.mjs
       - name: Deep classification · orphan chat to canonical Project
         working-directory: visual-lab
         env:

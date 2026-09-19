@@ -15,6 +15,7 @@
   const HISTORY_FETCH_GAP_MS = 20000;
   const HUMAN_QUIET_MS = 60*1000;
   const WAKE_HEARTBEAT_MS = 30000;
+  const GITHUB_AUTH_UI_TIMEOUT_MS = 6*60*1000;
   let seq = 0, syncing = false, syncAuto = false, autoTimer = 0, wakeTimer = 0, routeTimer = 0, lastHistoryFetchAt = 0, lastHumanAt = Date.now();
   let contextProject = '', contextText = '';
 
@@ -632,28 +633,56 @@
   }
 
   async function githubLogin() {
-    if (!chrome?.runtime?.connect) {
+    const runtime = chrome?.runtime;
+    const authError = error => {
+      const message = String(error?.message || error || 'github_auth_port_closed');
+      return /Extension context invalidated/i.test(message)
+        ? 'extension_context_invalidated_reload_required'
+        : message.slice(0,260);
+    };
+    if (!runtime) return { ok:false, error:'extension_runtime_unavailable' };
+    if (!runtime.id) return { ok:false, error:'extension_context_invalidated_reload_required' };
+    if (!runtime.connect) {
       const fallback = await send({ type:'niakgpt:memory-github-login-v132' });
       if (fallback && fallback.ok) await state({mode:'github-ready',error:''});
       return fallback;
     }
     const r = await new Promise(resolve => {
-      let settled=false,heartbeatTimer=0;
-      const port=chrome.runtime.connect({name:'niakgpt:memory-github-login-v132'});
+      let settled=false,heartbeatTimer=0,deadlineTimer=0,port=null;
       const finish=value=>{
-        if(settled)return;settled=true;clearTimeout(heartbeatTimer);
-        try{port.disconnect();}catch{}
+        if(settled)return;
+        settled=true;
+        clearTimeout(heartbeatTimer);
+        clearTimeout(deadlineTimer);
+        try{port?.disconnect();}catch{}
         resolve(value||{ok:false,error:'github_auth_port_closed'});
       };
+      try{
+        port=runtime.connect({name:'niakgpt:memory-github-login-v132'});
+      }catch(error){
+        finish({ok:false,error:authError(error)});
+        return;
+      }
       const heartbeat=()=>{
         if(settled)return;
-        try{port.postMessage({type:'keepalive'});}catch{return finish({ok:false,error:'github_auth_port_closed'});}
+        try{port.postMessage({type:'keepalive'});}
+        catch(error){return finish({ok:false,error:authError(error)});}
         heartbeatTimer=setTimeout(heartbeat,20_000);
       };
       port.onMessage.addListener(message=>{if(message?.type==='result')finish(message.result);});
-      port.onDisconnect.addListener(()=>{if(!settled)finish({ok:false,error:chrome.runtime.lastError?.message||'github_auth_port_closed'});});
-      try{port.postMessage({type:'start'});heartbeatTimer=setTimeout(heartbeat,20_000);}
-      catch(error){finish({ok:false,error:String(error?.message||error)});}
+      port.onDisconnect.addListener(()=>{
+        if(settled)return;
+        let reason='github_auth_port_closed';
+        try{reason=runtime.lastError?.message||reason;}catch{}
+        finish({ok:false,error:authError(reason)});
+      });
+      deadlineTimer=setTimeout(()=>finish({ok:false,error:'github_auth_flow_timeout'}),GITHUB_AUTH_UI_TIMEOUT_MS);
+      try{
+        port.postMessage({type:'start'});
+        heartbeatTimer=setTimeout(heartbeat,20_000);
+      }catch(error){
+        finish({ok:false,error:authError(error)});
+      }
     });
     if (r && r.ok) await state({mode:'github-ready',error:''});
     return r;

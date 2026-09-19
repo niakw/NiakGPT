@@ -266,7 +266,7 @@ async function screenshotSidebarRegression(){
     });
     assert.equal(got.box,true,'managed Projects block missing in screenshot regression');
     assert.equal(got.boxVisible,true,'managed Projects block is not visible');
-    assert.equal(got.nativeVisible,false,'native ChatGPT Projects still duplicates the managed Projects menu');
+    assert.equal(got.nativeVisible,false,`native ChatGPT Projects still duplicates the managed Projects menu: ${JSON.stringify(got)}`);
     assert.equal(got.chatsVisible,true,'generic Chats section was hidden together with native Projects');
     assert.ok(got.widthRatio>.90,`managed Projects is still a half-width/grid-column fragment: ${JSON.stringify(got)}`);
     assert.ok(got.leftDelta<20,`managed Projects is shifted to the right of the sidebar lane: ${JSON.stringify(got)}`);

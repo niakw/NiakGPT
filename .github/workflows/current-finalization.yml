@@ -126,6 +126,9 @@ jobs:
       - name: Classification authority · governance never auto-PATCHes
         working-directory: visual-lab
         run: node classification-authority-v099.mjs
+      - name: Continuity authority · one shared-pending Project PATCH
+        working-directory: visual-lab
+        run: node continuity-authority-v099.mjs
       - name: Deep classification · orphan chat to canonical Project
         working-directory: visual-lab
         env:

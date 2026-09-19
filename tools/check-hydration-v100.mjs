@@ -156,7 +156,7 @@ forbid(cacheGuardian,'hiddenProjectIds:[]','cache guardian may not erase hidden 
 forbid(recovery,'hiddenProjectIds:[]','structural recovery may not erase hidden Projects');
 for(const token of ['ng8-native-project','function suppressNative('])forbid(projectSelfheal,token,'local recovery must not own or clean native Projects suppression classes');
 const ux=read('ux-v131.js');
-for(const token of ['columnFragment','genericChats','unlabelled DIV','same sidebar'])need(ux,token,'field sidebar outer-shell promotion incomplete');
+for(const token of ['columnFragment','genericChats','unlabelled DIV','same sidebar','laneMismatch','ux-v131-stale-lane','v121 then retires/recreates'])need(ux,token,'field sidebar outer-shell promotion / stale-lane handoff incomplete');
 const uxCss=read('ux-v131.css');
 for(const token of ['grid-column:1 / -1!important','place-self:auto stretch!important','box-sizing:border-box!important'])need(uxCss,token,'field sidebar full-lane geometry invariant missing');
 const projectAuthority=read('sidebar-projects-authority-v112.js');

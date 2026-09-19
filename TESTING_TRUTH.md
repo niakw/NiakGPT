@@ -9,6 +9,7 @@ La troisième passe a volontairement remis en cause la 0.9.98 après son merge.
 5. `hidden-project-classification-v099.mjs` vérifie qu’un Project masqué n’est ciblé ni par le classifieur normal ni par le deep-classifier, et que le self-heal ne le réinjecte pas dans `coreProjectIds`.
 6. `global-observer-hotpath-v099.mjs` fait churner uniquement `<main>` et exige zéro recherche globale de sidebar/Control Center, puis remonte réellement la sidebar et le Control Center pour vérifier que les observers filtrés restent fonctionnels.
 7. `classification-authority-v099.mjs` accélère volontairement les anciens délais de gouvernance dans un fixture et exige zéro PATCH automatique ; le source courant doit en plus utiliser `niakgpt-data-mutation-v100` pour le nettoyage manuel et ne plus contenir `autoResync()`.
+8. `continuity-authority-v099.mjs` charge v100, v112 et v124 ensemble avec le même pending, le consomme sur la page Project puis simule l’arrivée du nouveau chat. Il exige exactement **un** PATCH `gizmo_id`, provenant de v124 sous `niakgpt-data-mutation-v100`, un lock de gouvernance persistant et aucun résidu de pending/lock.
 
 ## 0.9.98 — récupération locale isolée des Chats + classement multi-lots
 

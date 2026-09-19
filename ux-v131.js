@@ -137,10 +137,13 @@
     // supplies the sidebar finder/visual guard; it must not race v121 by reparenting the
     // same scroll container on every cache reconciliation.
     if(window.__NIAKGPT_SIDEBAR_PROJECTS_121__){
-      const rr=root.getBoundingClientRect(),br=box.getBoundingClientRect();
-      const laneMismatch=rr.width>0&&br.width>0&&(
-        br.width<rr.width*.82||
-        Math.abs(br.left-rr.left)>Math.max(24,rr.width*.08)
+      const parent=box.parentElement,rr=root.getBoundingClientRect(),pr=parent?.getBoundingClientRect?.();
+      // Measure the mounting lane, not the still-unverified box itself: ux-v131.css intentionally
+      // keeps an unverified #ng8-pins visually hidden and applies its full-width sizing only after
+      // data-ng131-mounted is set. Measuring the box here would therefore create a self-locking loop.
+      const laneMismatch=!!pr&&rr.width>0&&pr.width>0&&(
+        pr.width<rr.width*.82||
+        Math.abs(pr.left-rr.left)>Math.max(24,rr.width*.08)
       );
       if(!root.contains(box)||laneMismatch){
         // v131 never reparents the Projects node itself. It only reports that the verified

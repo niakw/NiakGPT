@@ -78,15 +78,15 @@
   async function repairGovernance(){
     const canonical=(cache.projects||[]).filter(isCanonical);if(!canonical.length)return false;
     const valid=new Set(canonical.map(p=>p.id));
-    const current=[...new Set((governance.coreProjectIds||[]).filter(id=>valid.has(id)))];
-    const hidden=[...new Set((governance.hiddenProjectIds||[]).filter(id=>valid.has(id)))];
+    const hidden=[...new Set((governance.hiddenProjectIds||[]).filter(id=>valid.has(id)))],hiddenSet=new Set(hidden);
+    const visible=canonical.filter(p=>!hiddenSet.has(p.id)),visibleIds=new Set(visible.map(p=>p.id));
+    const current=[...new Set((governance.coreProjectIds||[]).filter(id=>visibleIds.has(id)))];
     let changed=false,next={...governance};
-    // A persisted seeded=true + zero valid core IDs is a broken state, not an intentional
-    // empty workspace: NiakGPT cannot render or classify anything from it. Rebuild from the
-    // canonical inventory while preserving locks and valid hidden choices.
-    if(current.length===0){
-      const preferred=canonical.filter(p=>!LEGACY.has(norm(p.name))).map(p=>p.id);
-      next.coreProjectIds=preferred.length?preferred:canonical.map(p=>p.id);next.seeded=true;changed=true;
+    // Zero visible core IDs is broken only when at least one visible canonical Project exists.
+    // An all-hidden workspace is intentional and must not silently resurrect retired Projects.
+    if(current.length===0&&visible.length){
+      const preferred=visible.filter(p=>!LEGACY.has(norm(p.name))).map(p=>p.id);
+      next.coreProjectIds=preferred.length?preferred:visible.map(p=>p.id);next.seeded=true;changed=true;
     }else if(current.length!==(governance.coreProjectIds||[]).length){next.coreProjectIds=current;changed=true;}
     if(hidden.length!==(governance.hiddenProjectIds||[]).length){next.hiddenProjectIds=hidden;changed=true;}
     if(!changed)return false;

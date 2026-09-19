@@ -21,7 +21,7 @@ const forbidden=[
 const violations=[];
 const syntheticEmailDomain=domain=>{
   const d=String(domain||'').toLowerCase();
-  return d.endsWith('.invalid')||d==='invalid'||d==='example.com'||d.endsWith('.example.com')||d.endsWith('users.noreply.github.com');
+  return d.endsWith('.invalid')||d==='invalid'||d==='example.com'||d.endsWith('.example.com')||d==='users.noreply.github.com'||d.endsWith('.users.noreply.github.com');
 };
 const emailRx=/\b[A-Z0-9._%+-]+@([A-Z0-9.-]+\.[A-Z]{2,})\b/giu;
 const localPathRx=/(?:\/Users\/[^/\s]+|[A-Z]:\\Users\\[^\\\s]+)/giu;

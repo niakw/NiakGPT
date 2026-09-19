@@ -1,3 +1,14 @@
+## 0.9.100 — géométrie terrain réelle + réveil SPA déterministe
+
+La capture terrain a été transformée en scénario rouge plutôt qu’en correctif CSS supposé. Le fixture monte d’abord v121 dans un `nav` sémantique qui n’occupe que la colonne droite d’un shell gauche générique : avant v131, le test exige explicitement le défaut (< 60 % de la largeur) afin de prouver que le scénario reproduit bien le bug.
+
+1. La première CI a montré que le fixture ne donnait pas assez d’autorité au `nav`; il a été corrigé sans toucher au produit.
+2. La CI suivante a isolé le vrai défaut produit : v131 retrouvait correctement le shell externe, mais `originalPlacementStillSafe()` de v121 considérait encore le nœud demi-largeur comme valide parce que son ancre DOM n’avait pas bougé.
+3. v121 vérifie désormais la **lane autoritaire** : si le parent du bloc n’occupe plus au moins ~82 % du shell gauche ou dérive horizontalement, le nœud direct-once est retiré sur place et un nouveau bloc est monté directement dans le host autoritaire. Aucun reparent du nœud React-adjacent vivant n’est réintroduit.
+4. Le même scénario doit ensuite obtenir > 90 % de largeur utile, un alignement gauche, rester avant Chats et conserver les Chats génériques hors de `#ng8-pins`.
+5. Le classifieur terrain est lancé pendant une conversation et son premier timer est volontairement laissé expirer. Le test quitte ensuite le fil par `navigation.navigatesuccess` sans `popstate` : le classement doit reprendre seul.
+6. Les index/classifieurs normal et profond ont donc une reprise SPA explicite, verrouillée aussi par les contrats statiques.
+
 ## 0.9.99 — troisième passe, preuves de non-régression supplémentaires
 
 La troisième passe a volontairement remis en cause la 0.9.98 après son merge.

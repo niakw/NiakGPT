@@ -238,6 +238,8 @@ for token in ('Personnaliser le Project','Nouveau chat dans ce Project','ng129-p
 app=read('app-v090.js')
 for token in ('panelSelectionActive','diagnosticSelectionHeld','syncDiagnosticSelectionLock','releaseDiagnosticSelection','selectionchange','diagSelectionGesture','sticky read/copy mode','S.diagTimer=setTimeout(retry,280)',"role()==='worker'","getManifest().version || '?'"):
     if token not in app: fail('app/client ownership or diagnostic stability incomplete '+token)
+for token in ('ng8-native-project','syncNativeProjectSection(','function nativeProjectSection('):
+    if token in app: fail('app fallback regained native Projects visual authority '+token)
 boot=read('boot-gate-v100.js')
 for token in ('niakgpt:boot-error-v100','github_pat_','access_token','[redacted]'):
     if token not in boot: fail('boot error redaction/diagnostic bridge incomplete '+token)

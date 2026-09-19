@@ -25,7 +25,7 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.95': fail(f"version={version}")
+if version!='0.9.96': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting','identity']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']: fail('host permissions drift')
 
@@ -142,7 +142,7 @@ authority=read('sidebar-projects-authority-v112.js')
 for token in ('[data-ng102-project]',"querySelectorAll('[data-ng8-pin],[data-ng102-project]", "niakgpt:local-project-recovery-ready',()=>apply()"):
     if token not in authority: fail('single-authority native suppression incomplete '+token)
 scroll_guard=read('conversation-scroll-guard-v133.js')
-for token in ('conversationTail','ancestorScroller','scrollableNode','targetsConversationScroller','noteSendIntent','SEND_LATCH_MS','touchstart','touchPoint','event.shiftKey','editable(event.target)','ng133ScrollSticky','ng133ScrollRoot','remontée volontaire','generation-start','send-intent'):
+for token in ('conversationTail','ancestorScroller','scrollableNode','targetsConversationScroller','noteSendIntent','SEND_LATCH_MS','touchstart','touchPoint','event.shiftKey','editable(event.target)','ng133ScrollSticky','ng133ScrollRoot','remontée volontaire','generation-start','send-intent','ensureRoot','rootObserver','rootScrollEvent','pointerScrollActive','correction scroll native'):
     if token not in scroll_guard: fail('conversation scroll audit contract incomplete '+token)
 if 'setInterval(' in scroll_guard: fail('conversation scroll guard must remain event-driven')
 chat_state=read('chat-state-authority-v113.js')

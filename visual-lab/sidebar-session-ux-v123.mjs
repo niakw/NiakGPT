@@ -3,6 +3,7 @@ import path from 'node:path';
 import { chromium, firefox, webkit } from '@playwright/test';
 
 const ROOT=path.resolve('..'),OUT=path.resolve('artifacts/sidebar-session-v123');
+const VERSION=JSON.parse(await fs.readFile(path.join(ROOT,'manifest.json'),'utf8')).version;
 const jsNames=['sidebar-projects-authority-v112.js','sidebar-projects-v121.js','pin-folders-v096.js','sidebar-actions-v123.js','project-memory-ui-v132.js','ux-v131.js'];
 const cssNames=['theme-v08.css','sidebar-projects-authority-v112.css','sidebar-ux-v119.css','pin-folders-v096.css','native-actions-v113.css','sidebar-actions-v123.css','project-memory-v132.css','ux-v131.css'];
 const loaded=Object.fromEntries(await Promise.all([...jsNames,...cssNames].map(async n=>[n,await fs.readFile(path.join(ROOT,n),'utf8')])));
@@ -19,9 +20,9 @@ const cache={schema:2,at:Date.now(),projects,chats,projectChats:{[P1]:chats},cou
 for(const [engine,launcher] of Object.entries(engines)){
   const browser=await launcher.launch({headless:true}),context=await browser.newContext({viewport:{width:1180,height:760},colorScheme:'dark',reducedMotion:'reduce'}),page=await context.newPage();
   try{
-    await page.addInitScript(({cache,P1,P2})=>{
+    await page.addInitScript(({cache,P1,P2,VERSION})=>{
       let data=structuredClone(cache);const subs=[],storageListeners=[];const publish=next=>{data=structuredClone(next);for(const fn of subs)fn(structuredClone(data));for(const fn of storageListeners)fn({'niakgpt-v08-cache':{newValue:structuredClone(data),oldValue:null}},'local');};
-      window.chrome={runtime:{id:'lab',getManifest:()=>({version:'0.9.83'})},storage:{local:{get:async keys=>{if(typeof keys==='string')return{[keys]:keys==='niakgpt-v08-cache'?structuredClone(data):{}};return{'niakgpt-v08-cache':structuredClone(data),'niakgpt-governance-v085':{coreProjectIds:[],hiddenProjectIds:[]}};},set:async obj=>{if(obj['niakgpt-v08-cache'])publish(obj['niakgpt-v08-cache']);}},onChanged:{addListener:fn=>storageListeners.push(fn)}}};
+      window.chrome={runtime:{id:'lab',getManifest:()=>({version:VERSION})},storage:{local:{get:async keys=>{if(typeof keys==='string')return{[keys]:keys==='niakgpt-v08-cache'?structuredClone(data):{}};return{'niakgpt-v08-cache':structuredClone(data),'niakgpt-governance-v085':{coreProjectIds:[],hiddenProjectIds:[]}};},set:async obj=>{if(obj['niakgpt-v08-cache'])publish(obj['niakgpt-v08-cache']);}},onChanged:{addListener:fn=>storageListeners.push(fn)}}};
       window.__NIAKGPT_CACHE_BUS__={get:async()=>structuredClone(data),subscribe(fn){subs.push(fn);fn(structuredClone(data));return()=>{};},async update(mutator){const next=await mutator(structuredClone(data));publish(next);return structuredClone(data);}};
       window.__publishHumanCache=mutatorSource=>{const fn=(0,eval)(`(${mutatorSource})`);publish(fn(structuredClone(data)));};window.__humanCache=()=>structuredClone(data);
       document.addEventListener('niakgpt:rpc-request',event=>{const d=event.detail||{},m=String(d.path||'').match(/\/backend-api\/conversation\/([^/?]+)/);if(!m)return;let next=structuredClone(data),row=next.chats.find(c=>c.id===m[1]);if(row&&d.body&&Object.prototype.hasOwnProperty.call(d.body,'title'))row.title=String(d.body.title);if(row&&d.body&&Object.prototype.hasOwnProperty.call(d.body,'gizmo_id'))row.projectId=d.body.gizmo_id||'';setTimeout(()=>document.dispatchEvent(new CustomEvent('niakgpt:rpc-response',{detail:{id:d.id,ok:true,status:200,data:{id:m[1],title:row?.title||'',gizmo_id:row?.projectId||P1}}})),5);});
@@ -38,7 +39,7 @@ for(const [engine,launcher] of Object.entries(engines)){
         syncNow:async()=>({ok:false,error:'synthetic_github_failure'}),
         setPrefs:async value=>value
       };
-    },{cache,P1,P2});
+    },{cache,P1,P2,VERSION});
     const html=`<!doctype html><html data-ng86-activity="ready"><head><style>*{box-sizing:border-box}html,body{margin:0;background:#05090d;color:#dce7f1;font-family:Arial}aside{position:fixed;left:0;top:0;bottom:0;width:310px;overflow:auto;background:#071019}nav{padding:8px}.native{padding:8px}.native a{display:block;padding:7px;color:white}main{margin-left:310px;min-height:100vh;padding:30px}</style></head><body><aside data-testid="conversation-sidebar"><nav><a href="/">Nouveau chat</a><div class="native"><h3>Projects</h3><a href="/g/${P1}/project">Studio</a><a href="/g/${P2}/project">Research Lab</a></div><h3>Récents</h3><a href="/c/${cid(0)}">Recent</a></nav></aside><main><article><div data-message-author-role="assistant">Session UX</div></article><button id="ng90-settings-btn" type="button">Réglages</button><div id="ng90-control" class="open" style="display:none;position:fixed;right:20px;top:20px;z-index:9999;background:#111;padding:12px;width:520px"><div class="ng90-card"><div class="ng90-grid"></div></div></div></main></body></html>`;
     await page.route('https://chatgpt.com/**',r=>r.fulfill({status:200,contentType:'text/html',body:html}));await page.goto('https://chatgpt.com/c/'+cid(0),{waitUntil:'domcontentloaded'});
     for(const n of cssNames)await page.addStyleTag({content:loaded[n]});for(const n of jsNames)await page.addScriptTag({content:loaded[n]});

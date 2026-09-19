@@ -1,3 +1,11 @@
+# NiakGPT 0.9.99 — troisième passe : runtime simplifié, observers filtrés, Projects masqués sûrs
+
+- **Runtime sidebar nettoyé** : `sidebar-ux-v119.js` était encore injecté et critique alors que v121 neutralisait immédiatement son exécution. Il n’est plus injecté ni empaqueté ; le test statique a d’abord reproduit `legacy/conflicting runtime loaded sidebar-ux-v119.js`.
+- **Panneaux natifs à propriétaire unique** : `side-panels-v096.js` et `live-fixes-v104.js` modifiaient tous deux les mêmes panneaux. v096 possède désormais seul la détection, l’offset réel du rail et le cycle BFCache ; le JS v104 est retiré du runtime/ZIP.
+- **Hot path allégé** : `live-fixes-v106.js` ne se réveille plus sur chaque mutation structurelle d’un long fil. Son observer global filtre uniquement breadcrumb, statut Project et anciennes marques de migration.
+- **Projects masqués = jamais cibles automatiques** : `hiddenProjectIds` est désormais exclu des cibles du classifieur normal, du deep-classifier, du self-heal des Projects principaux et du plan de nettoyage/gouvernance. Les identités masquées restent néanmoins canoniques pour ne pas créer de faux orphelins.
+- **Tests release-critical** : nouveaux labs pour churn conversationnel, propriétaire unique des panneaux + BFCache, et exclusion des Projects masqués du classement.
+
 # NiakGPT 0.9.98 — autorité Projects unique renforcée
 
 - **Régression terrain réellement reproduite** : le fallback Projects local pouvait appliquer l’ancienne classe `ng8-native-project-more-suppressed` à un bouton générique « Afficher plus » de la section Chats, donc faire disparaître une partie de la liste des conversations non organisées.

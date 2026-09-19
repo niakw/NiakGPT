@@ -51,6 +51,8 @@ if(idx('continuity-consumer-v124.js')<=idx('continuity-v112.js'))fail('continuit
 const continuity100=read('continuity-v100.js'),continuity112=read('continuity-v112.js'),continuity124=read('continuity-consumer-v124.js'),continuity129=read('continuity-native-handoff-v129.js');
 forbid(continuity100,'patchNewChat','legacy v100 Project PATCH owner reintroduced');
 forbid(continuity112,"method:'PATCH'",'v112 producer regained Project PATCH ownership');
+forbid(continuity100,'niakgpt:rpc-request','v100 continuity producer regained network ownership');
+forbid(continuity112,'niakgpt:rpc-request','v112 continuity producer regained network ownership');
 for(const token of ["const DATA_LOCK='niakgpt-data-mutation-v100'","navigator.locks.request(DATA_LOCK"])need(continuity124,token,'v124 continuity assignment lock incomplete');
 need(continuity129,"const DATA_LOCK='niakgpt-data-mutation-v100'",'native continuity handoff assignment lock missing');
 

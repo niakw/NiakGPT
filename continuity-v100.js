@@ -155,17 +155,7 @@
     composerObserver.observe(document.documentElement,{childList:true,subtree:true});
     return true;
   }
-  async function patchNewChat(attempt=0){
-    const p=await readPending(),newId=currentCid();if(!p||!newId||newId===p.chatId||p.patched)return;
-    const known=chatInfo(newId);if(p.projectId&&known?.projectId!==p.projectId){
-      const r=await rpc(`/backend-api/conversation/${encodeURIComponent(newId)}`,{method:'PATCH',body:{gizmo_id:p.projectId}});
-      if(!r.ok){if(attempt<5)setTimeout(()=>patchNewChat(attempt+1),700+attempt*500);return;}
-      const row=(cache.chats||[]).find(c=>c.id===newId);if(row)row.projectId=p.projectId;
-      try{const bus=window.__NIAKGPT_CACHE_BUS__;if(bus?.update)await bus.update(latest=>{latest=latest&&typeof latest==='object'?latest:{};const chats=(latest.chats||[]).map(c=>c.id===newId?{...c,projectId:p.projectId}:c);return{...latest,chats};});}catch{}
-    }
-    p.patched=true;await writePending(p);setTimeout(()=>clearPending(),1000);
-  }
-  function onRoute(){delete document.documentElement.dataset.ng100Out;armComposerObserver();setTimeout(()=>{decorateSidebar();if(outSignal())markCurrentOut('route-native-limit',{trusted:true,evidence:EVIDENCE});injectPending();patchNewChat();},180);}
+  function onRoute(){delete document.documentElement.dataset.ng100Out;armComposerObserver();setTimeout(()=>{decorateSidebar();if(outSignal())markCurrentOut('route-native-limit',{trusted:true,evidence:EVIDENCE});injectPending();},180);}
   function scheduleScan(){clearTimeout(scanTimer);scanTimer=setTimeout(()=>{if(outSignal())markCurrentOut('scan-native-limit',{trusted:true,evidence:EVIDENCE});decorateSidebar();},220);}
   function bindObservers(){
     const side=navRoot();if(side){sidebarObserver?.disconnect();sidebarObserver=new MutationObserver(()=>decorateSidebar());sidebarObserver.observe(side,{childList:true,subtree:true});}
@@ -182,7 +172,7 @@
   }
   async function init(){
     try{const got=await chrome.storage.local.get([CACHE_KEY,STATE_KEY]);cache=got[CACHE_KEY]||cache;state=got[STATE_KEY]&&typeof got[STATE_KEY]==='object'?got[STATE_KEY]:state;if(migrateState())await saveState();}catch{}
-    bindObservers();decorateSidebar();if(outSignal())markCurrentOut('init-native-limit',{trusted:true,evidence:EVIDENCE});armComposerObserver();injectPending();patchNewChat();
+    bindObservers();decorateSidebar();if(outSignal())markCurrentOut('init-native-limit',{trusted:true,evidence:EVIDENCE});armComposerObserver();injectPending();
   }
   chrome.storage.onChanged.addListener((changes,area)=>{if(area!=='local')return;if(changes[CACHE_KEY])cache=changes[CACHE_KEY].newValue||cache;if(changes[STATE_KEY]){state=changes[STATE_KEY].newValue||state;state.out=state.out||{};}decorateSidebar();});
   window.addEventListener('popstate',onRoute);if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',onRoute);

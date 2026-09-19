@@ -176,8 +176,8 @@ if 'hiddenProjectIds:[]' in recovery_runtime: fail('structural recovery may not 
 for token in ('ng8-native-project','function suppressNative('):
     if token in selfheal: fail('local recovery regained native Projects visual authority '+token)
 ux=read('ux-v131.js')
-for token in ('columnFragment','genericChats','unlabelled DIV','same sidebar'):
-    if token not in ux: fail('field sidebar outer-shell promotion incomplete '+token)
+for token in ('columnFragment','genericChats','unlabelled DIV','same sidebar','laneMismatch','ux-v131-stale-lane','v121 then retires/recreates'):
+    if token not in ux: fail('field sidebar outer-shell promotion / stale-lane handoff incomplete '+token)
 ux_css=read('ux-v131.css')
 for token in ('grid-column:1 / -1!important','place-self:auto stretch!important','box-sizing:border-box!important'):
     if token not in ux_css: fail('field sidebar full-lane geometry invariant missing '+token)

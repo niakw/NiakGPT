@@ -278,10 +278,16 @@ async function screenshotSidebarRegression(){
     assert.deepEqual(new Set(got.core),new Set(['g-p-niakgpt123','g-p-films123']),'governance did not recover target Projects from the live native inventory');
     await page.screenshot({path:path.join(ARTIFACTS,`${engineName}-01c-user-sidebar-exact.png`),fullPage:true});
 
-    // Auto-classification remains network-quarantined inside a conversation. Once the user
-    // leaves the thread, the canonical inventory recovered above must immediately become usable.
-    await page.evaluate(()=>{history.pushState({},'', '/');window.dispatchEvent(new PopStateEvent('popstate'));});
+    // Auto-classification remains network-quarantined inside a conversation. Let its initial
+    // timer fire and die while still in-chat, then leave through the SPA Navigation API. This
+    // reproduces the field case where pushState does not emit popstate.
     await page.addScriptTag({content:reclass});
+    await page.waitForTimeout(2600);
+    await page.evaluate(()=>{
+      history.pushState({},'', '/');
+      if(window.navigation?.dispatchEvent)window.navigation.dispatchEvent(new Event('navigatesuccess'));
+      else window.dispatchEvent(new PopStateEvent('popstate'));
+    });
     await page.waitForTimeout(6200);
     got=await page.evaluate(()=>({
       assignments:window.__fixture.chatIds.map(id=>window.__store['niakgpt-v08-cache'].chats.find(c=>c.id===id)?.projectId||''),
@@ -292,6 +298,72 @@ async function screenshotSidebarRegression(){
     assert.ok(got.assignments.every(pid=>pid==='g-p-niakgpt123'),`unorganized batch did not fully auto-classify after canonical Project recovery: ${JSON.stringify(got)}`);
     assert.equal(got.patches.length,9,'automatic classification did not continue beyond its first 8-chat batch');
     assert.equal(got.gets.length,0,'automatic classification unexpectedly fetched full conversation history');
+  }finally{await page.close();}
+}
+
+async function nestedSemanticSidebarRegression(){
+  const page=await browser.newPage({viewport:{width:1200,height:820}});
+  try{
+    await page.addInitScript(()=>{
+      const p1='g-p-niakgpt123',p2='g-p-films123';
+      const raw={
+        schema:2,
+        projects:[
+          {id:p1,name:'NiakGPT',href:'/g/'+p1+'/project',domOnly:false},
+          {id:p2,name:'Films',href:'/g/'+p2+'/project',domOnly:false}
+        ],
+        chats:[],counts:{[p1]:0,[p2]:0},indexedProjectIds:[p1,p2],serverIndexedAt:Date.now()
+      };
+      const store={'niakgpt-v08-cache':raw,'niakgpt-governance-v085':{seeded:true,coreProjectIds:[p1,p2],hiddenProjectIds:[],locks:{}}};
+      const listeners=[];
+      window.chrome={storage:{local:{
+        get:async keys=>{
+          if(typeof keys==='string')return {[keys]:store[keys]};
+          const arr=Array.isArray(keys)?keys:Object.keys(store);
+          return Object.fromEntries(arr.map(k=>[k,store[k]]));
+        },
+        set:async obj=>{const changes={};for(const[k,v]of Object.entries(obj)){const oldValue=store[k];store[k]=v;changes[k]={oldValue,newValue:v};}for(const fn of listeners)fn(changes,'local');}
+      },onChanged:{addListener:fn=>listeners.push(fn)}}};
+      window.__diag={};
+      window.__NIAKGPT_DIAGNOSTICS__={set:(k,v)=>window.__diag[k]=String(v)};
+    });
+    await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html',body:"<!doctype html><html><head><style>*{box-sizing:border-box}html,body{margin:0;background:#071019;color:#dce7f1;font:14px Arial}#field-left-shell{position:fixed;inset:0 auto 0 0;width:310px;height:800px;display:grid;grid-template-columns:1fr 1fr;align-content:start;background:#0b131b}#semantic-fragment{grid-column:2;width:100%;min-height:330px}#semantic-fragment a{display:block;padding:11px 12px;color:#dce7f1;text-decoration:none}#native-chats{grid-column:1;padding:10px 12px;min-height:330px}#native-chats h3{margin:8px 0;color:#8ea0b2}#native-chats a{display:block;padding:8px 0;color:#dce7f1;text-decoration:none}main{margin-left:310px;padding:40px}</style></head><body><div id='field-left-shell'><nav id='semantic-fragment'><a href='/'>ChatGPT</a><a href='/new'>Nouveau chat</a><a href='/library'>Bibliothèque</a><a href='/search'>Rechercher</a></nav><section id='native-chats'><h3>Chats</h3><a href='/c/77777777-7777-4777-8777-777777777777'>Chat générique</a></section></div><main>ready</main></body></html>"}));
+    await page.goto('https://chatgpt.com/',{waitUntil:'domcontentloaded'});
+    await page.addStyleTag({content:uxCss});
+    // Production order matters: v121 can mount first into the semantic NAV fragment. v131 must
+    // then discover the unlabelled enclosing left shell and force a one-time authority upgrade.
+    await page.addScriptTag({content:projects});
+    await page.waitForTimeout(120);
+    const before=await page.evaluate(()=>{
+      const shell=document.getElementById('field-left-shell'),box=document.getElementById('ng8-pins');
+      const sr=shell.getBoundingClientRect(),br=box?.getBoundingClientRect();
+      return{parent:box?.parentElement?.id||'',ratio:br?br.width/sr.width:0,placement:box?.dataset.ng121Placement||''};
+    });
+    assert.equal(before.parent,'semantic-fragment','fixture failed to reproduce the nested semantic sidebar mount');
+    assert.ok(before.ratio<.60,'fixture did not reproduce the half-width Projects block: '+JSON.stringify(before));
+
+    await page.addScriptTag({content:uxJs});
+    await page.waitForTimeout(700);
+    const got=await page.evaluate(()=>{
+      const shell=document.getElementById('field-left-shell'),box=document.getElementById('ng8-pins'),chats=document.getElementById('native-chats');
+      const sr=shell.getBoundingClientRect(),br=box?.getBoundingClientRect();
+      return{
+        parent:box?.parentElement?.id||'',
+        ratio:br?br.width/sr.width:0,
+        left:br?Math.abs(br.left-sr.left):999,
+        beforeChats:!!box&&!!(box.compareDocumentPosition(chats)&Node.DOCUMENT_POSITION_FOLLOWING),
+        sidebar:window.__NIAKGPT_FIND_SIDEBAR_V131__?.()?.id||'',
+        placement:box?.dataset.ng121Placement||'',
+        ux:window.__diag['ux-v131']||''
+      };
+    });
+    assert.equal(got.sidebar,'field-left-shell','v131 kept the nested semantic fragment as sidebar root: '+JSON.stringify(got));
+    assert.equal(got.parent,'field-left-shell','managed Projects did not escape the half-width semantic fragment: '+JSON.stringify(got));
+    assert.ok(got.ratio>.90,'managed Projects remains half-width after sidebar verification: '+JSON.stringify(got));
+    assert.ok(got.left<20,'managed Projects remains right-shifted after sidebar verification: '+JSON.stringify(got));
+    assert.equal(got.beforeChats,true,'managed Projects should remain before generic Chats after shell promotion');
+    assert.match(got.ux,/sidebar vérifiée/);
+    await page.screenshot({path:path.join(ARTIFACTS,engineName+'-01d-nested-semantic-sidebar.png'),fullPage:true});
   }finally{await page.close();}
 }
 
@@ -531,6 +603,7 @@ try{
   await duplicateRecovery();
   await falseMirrorRecovery();
   await screenshotSidebarRegression();
+  await nestedSemanticSidebarRegression();
   await historicalCatchup();
   await generationScroll();
   await generationScrollRootMigration();

@@ -168,7 +168,10 @@ async function screenshotSidebarRegression(){
           {id:'dom-p-niakgpt',name:'NiakGPT',domOnly:true},
           {id:'dom-p-films',name:'Films',domOnly:true}
         ],
-        chats:[{id:chat,title:'NiakGPT extension GitHub bug',snippet:'extension chrome github code',projectId:'',updated:now-30_000}],
+        chats:[
+          {id:chat,title:'NiakGPT extension GitHub bug',snippet:'extension chrome github code',projectId:'',updated:now-30_000},
+          ...Array.from({length:8},(_,i)=>({id:`90000000-0000-4000-8000-${String(i+1).padStart(12,'0')}`,title:`NiakGPT extension regression ${i+2}`,snippet:'chrome extension javascript github code',projectId:'',updated:now-30_000-i*1000}))
+        ],
         counts:{},indexedProjectIds:[],serverIndexedAt:0
       };
       const store={'niakgpt-v08-cache':raw,'niakgpt-governance-v085':{seeded:true,coreProjectIds:[],hiddenProjectIds:[],locks:{},autoResync:true}};
@@ -202,7 +205,7 @@ async function screenshotSidebarRegression(){
         }
         queueMicrotask(()=>document.dispatchEvent(new CustomEvent('niakgpt:rpc-response',{detail:{id:d.id,ok:true,status:200,data:{gizmo_id:d.body?.gizmo_id||null}}})));
       });
-      window.__fixture={p1,p2,chat};
+      window.__fixture={p1,p2,chat,chatIds:raw.chats.map(c=>c.id)};
     });
     await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html',body:`<!doctype html><html data-ng86-activity="ready"><head><style>
       *{box-sizing:border-box}html,body{margin:0;background:#071019;color:#dce7f1;font:14px Arial}
@@ -277,15 +280,15 @@ async function screenshotSidebarRegression(){
     // leaves the thread, the canonical inventory recovered above must immediately become usable.
     await page.evaluate(()=>{history.pushState({},'', '/');window.dispatchEvent(new PopStateEvent('popstate'));});
     await page.addScriptTag({content:reclass});
-    await page.waitForTimeout(3600);
+    await page.waitForTimeout(6200);
     got=await page.evaluate(()=>({
-      assigned:window.__store['niakgpt-v08-cache'].chats.find(c=>c.id===window.__fixture.chat)?.projectId||'',
+      assignments:window.__fixture.chatIds.map(id=>window.__store['niakgpt-v08-cache'].chats.find(c=>c.id===id)?.projectId||''),
       patches:window.__rpc.filter(x=>x.method==='PATCH'),
       gets:window.__rpc.filter(x=>x.method==='GET'),
       diag:window.__diag['reclassement']||''
     }));
-    assert.equal(got.assigned,'g-p-niakgpt123','unorganized chat was not automatically assigned after canonical Project recovery');
-    assert.equal(got.patches.length,1,'automatic classification did not perform exactly one Project mutation');
+    assert.ok(got.assignments.every(pid=>pid==='g-p-niakgpt123'),`unorganized batch did not fully auto-classify after canonical Project recovery: ${JSON.stringify(got)}`);
+    assert.equal(got.patches.length,9,'automatic classification did not continue beyond its first 8-chat batch');
     assert.equal(got.gets.length,0,'automatic classification unexpectedly fetched full conversation history');
   }finally{await page.close();}
 }

@@ -210,8 +210,9 @@
       const nextCache={schema:2,at:Date.now(),serverIndexedAt:Date.now(),projects:current,chats:[...finalChats.values()],counts,indexedProjectIds:current.map(p=>p.id)};
 
       const {kept,quarantined}=remapLocks(ctx.gov,backup,targetByOldId);
-      const core=[];for(const old of backup.projects){if(isQueueName(old.name))continue;const id=targetByOldId.get(normalizePid(old.id));if(id&&finalProjectById.has(id))core.push(id);}
-      const nextGov={...ctx.gov,seeded:true,seedVersion:3,manualCoreSelection:false,coreProjectIds:[...new Set(core)],hiddenProjectIds:[],locks:kept,recoveredAt:Date.now(),recoveryVersion:VERSION};
+      const hidden=[];for(const rawId of ctx.gov?.hiddenProjectIds||[]){const oldId=normalizePid(rawId),mapped=targetByOldId.get(oldId)||oldId;if(mapped&&finalProjectById.has(mapped))hidden.push(mapped);}
+      const hiddenSet=new Set(hidden),core=[];for(const old of backup.projects){if(isQueueName(old.name))continue;const id=targetByOldId.get(normalizePid(old.id));if(id&&finalProjectById.has(id)&&!hiddenSet.has(id))core.push(id);}
+      const nextGov={...ctx.gov,seeded:true,seedVersion:3,manualCoreSelection:false,coreProjectIds:[...new Set(core)],hiddenProjectIds:[...hiddenSet],locks:kept,recoveredAt:Date.now(),recoveryVersion:VERSION};
       const quarantineCount=Object.keys(quarantined).length;
       await chrome.storage.local.set({
         [CACHE_KEY]:nextCache,

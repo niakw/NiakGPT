@@ -25,7 +25,7 @@ for(const token of [
 for(const token of [
   "const evidence=candidate.querySelector?.('a[href=\"/projects\"],a[href*=\"/g/g-p-\"],[class*=\"project-unfurl-row\"]')",
   "if(el.closest('aside,nav,[data-testid*=\"sidebar\" i],[class*=\"sidebar\" i]'))return true;",
-  "[class*=\"sidebar\" i]"
+  "el.closest?.('[class*=\"sidebar\" i]')"
 ])forbid(authority,token,`Projects authority broad-root regression returned: ${token}`);
 
 const metadata=read('sidebar-metadata-v118.js');

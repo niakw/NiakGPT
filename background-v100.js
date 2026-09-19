@@ -62,7 +62,6 @@ const ISOLATED_RUNTIME=[
   'coach-v101.js',
   'polish-v090.js',
   'side-panels-v096.js',
-  'live-fixes-v104.js',
   'live-fixes-v106.js',
   'chronology-v090.js',
   'project-chat-ux-v110.js',

@@ -24,7 +24,11 @@
   const isQueue=p=>QUEUE.has(norm(p?.name));
   const isCanonical=p=>!!p&&String(p.id||'').startsWith('g-p-')&&!p.domOnly&&clean(p.name)&&!isQueue(p);
   const isLocal=p=>!!p&&clean(p.name)&&!isQueue(p)&&!p.duplicateOf;
-  const navRoot=()=>document.querySelector('[data-testid="conversation-sidebar"]')||document.querySelector('[data-testid="sidebar"]')||[...document.querySelectorAll('nav,aside')].find(x=>x.querySelector(PROJECT_SEL)||x.querySelector('a[href*="/c/"]'))||document.querySelector('nav');
+  const navRoot=()=>{
+    const guarded=window.__NIAKGPT_FIND_SIDEBAR_V131__?.();
+    if(guarded?.isConnected)return guarded;
+    return document.querySelector('[data-testid="conversation-sidebar"]')||document.querySelector('[data-testid="sidebar"]')||[...document.querySelectorAll('nav,aside')].find(x=>x.querySelector(PROJECT_SEL)||x.querySelector('a[href*="/c/"]'))||document.querySelector('nav');
+  };
   const diag=(key,text)=>window.__NIAKGPT_DIAGNOSTICS__?.set(key,text);
 
   function projectDate(id){let at=0;for(const c of cache.chats||[])if(c?.projectId===id)at=Math.max(at,parseTime(c.updated||c.update_time||c.create_time));if(!at)return'—';const d=new Date(at);return`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;}

@@ -157,10 +157,10 @@ deep_reclassify=read('reclassify-deep-v112.js')
 governance=read('project-governance-v090.js')
 cache_guardian=read('cache-guardian-v100.js')
 recovery_runtime=read('recovery-v100.js')
-for token in ('hiddenProjectIds','hiddenIds.has(id)'):
-    if token not in base_reclassify: fail('base classifier hidden-Project exclusion incomplete '+token)
-for token in ('hiddenProjectIds','visibleProjects','!hiddenIds.has(p.id)'):
-    if token not in deep_reclassify: fail('deep classifier hidden-Project exclusion incomplete '+token)
+for token in ('hiddenProjectIds','hiddenIds.has(id)',"navigation.addEventListener('navigatesuccess',()=>schedule(1400))"):
+    if token not in base_reclassify: fail('base classifier hidden-Project exclusion / SPA wake incomplete '+token)
+for token in ('hiddenProjectIds','visibleProjects','!hiddenIds.has(p.id)',"navigation.addEventListener('navigatesuccess',()=>schedule(1800))"):
+    if token not in deep_reclassify: fail('deep classifier hidden-Project exclusion / SPA wake incomplete '+token)
 for token in ('hiddenProjectIds','hidden.has(p.id)','...hidden'):
     if token not in governance: fail('governance hidden-Project target exclusion incomplete '+token)
 for token in ("const DATA_LOCK='niakgpt-data-mutation-v100'","navigator.locks.request(DATA_LOCK"):
@@ -175,6 +175,9 @@ if 'hiddenProjectIds:[]' in cache_guardian: fail('cache guardian may not erase h
 if 'hiddenProjectIds:[]' in recovery_runtime: fail('structural recovery may not erase hidden Projects')
 for token in ('ng8-native-project','function suppressNative('):
     if token in selfheal: fail('local recovery regained native Projects visual authority '+token)
+ux=read('ux-v131.js')
+for token in ('columnFragment','genericChats','unlabelled DIV','same sidebar'):
+    if token not in ux: fail('field sidebar outer-shell promotion incomplete '+token)
 ux_css=read('ux-v131.css')
 for token in ('grid-column:1 / -1!important','place-self:auto stretch!important','box-sizing:border-box!important'):
     if token not in ux_css: fail('field sidebar full-lane geometry invariant missing '+token)
@@ -229,7 +232,7 @@ if "interruption === 'network'" not in bridge or "interruption === 'verify'" not
 if 'native_conversation_quiet' not in bridge or 'chat-route-guard' not in bridge or 'ng90PeerChatActive' not in bridge or 'conversationQuiet()' not in bridge: fail('absolute current/peer conversation network quarantine missing')
 
 server_index=read('server-index-v100.js')
-for token in ('COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement','coldBootstrap','conversationPage()'):
+for token in ('COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement','coldBootstrap','conversationPage()',"navigation.addEventListener('navigatesuccess',routeWake)"):
     if token not in server_index: fail('cold canonical index recovery incomplete '+token)
 server_bootstrap=read('server-index-bootstrap-v124.js')
 for token in ('COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement(raw)','conversationPage()'):

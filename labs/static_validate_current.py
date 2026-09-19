@@ -76,12 +76,22 @@ if main!=['page-bridge.js']: fail(f'MAIN_RUNTIME={main!r}')
 required={
     'sidebar-metadata-v118.js','sidebar-projects-authority-v112.js','sidebar-projects-v121.js','pin-folders-v096.js','app-v090.js','sidebar-actions-v123.js',
     'home-layout-v112.js','analysis-bridge-v112.js','reclassify-deep-v112.js','matrix-guardian-v112.js','performance-guard-v112.js','turn-headers-v112.js','continuity-v112.js',
-    'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','interruption-guard-v119.js',
+    'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','continuity-consumer-v124.js','interruption-guard-v119.js',
     'conversation-scroll-guard-v133.js','ux-v131.js'
 }
 missing_runtime=sorted(required-set(isolated))
 if missing_runtime: fail('current runtime missing: '+', '.join(missing_runtime))
 if isolated and isolated[-1]!='ux-v131.js': fail('v131 UX reconciler must be the final isolated runtime authority')
+if isolated.index('continuity-consumer-v124.js')<=isolated.index('continuity-v112.js'): fail('continuity v124 consumer must load after v112 producer')
+continuity100=read('continuity-v100.js')
+continuity112=read('continuity-v112.js')
+continuity124=read('continuity-consumer-v124.js')
+continuity129=read('continuity-native-handoff-v129.js')
+if 'patchNewChat' in continuity100: fail('legacy v100 Project PATCH owner reintroduced')
+if "method:'PATCH'" in continuity112: fail('v112 producer regained Project PATCH ownership')
+for token in ("const DATA_LOCK='niakgpt-data-mutation-v100'","navigator.locks.request(DATA_LOCK"):
+    if token not in continuity124: fail('v124 continuity assignment lock incomplete '+token)
+if "const DATA_LOCK='niakgpt-data-mutation-v100'" not in continuity129: fail('native continuity handoff assignment lock missing')
 if optional!=['project-memory-v132.js','project-memory-ui-v132.js']: fail(f'OPTIONAL_RUNTIME={optional!r}')
 if any(x.startswith('project-memory-') for x in isolated): fail('Project Memory leaked into critical isolated runtime')
 for forbidden in (
@@ -282,7 +292,7 @@ for gate in (
 ):
     if not (ROOT/gate).exists(): fail('current browser-fixture UX gate missing '+gate)
 workflow=read('.github/workflows/current-finalization.yml')
-for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','pins-primary-slot-v083.mjs','state-ux-v113.mjs','Chat-state authority + extension-context invalidation','Reported Pins placement — native controls stay above Projects','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble','project-memory-isolation-v133.mjs','live-fixes-context-v106.mjs','Project-context hot path · unrelated main churn stays ignored','global-observer-hotpath-v099.mjs','Global observer hot path · unrelated stream churn stays ignored','side-panels-owner-v096.mjs','Native side-panel owner · rail offset + BFCache recovery','hidden-project-classification-v099.mjs','Hidden Projects · never automatic classification targets','classification-authority-v099.mjs','Classification authority · governance never auto-PATCHes','deep-classification-v112.mjs','Deep classification · orphan chat to canonical Project'):
+for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','pins-primary-slot-v083.mjs','state-ux-v113.mjs','Chat-state authority + extension-context invalidation','Reported Pins placement — native controls stay above Projects','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble','project-memory-isolation-v133.mjs','live-fixes-context-v106.mjs','Project-context hot path · unrelated main churn stays ignored','global-observer-hotpath-v099.mjs','Global observer hot path · unrelated stream churn stays ignored','side-panels-owner-v096.mjs','Native side-panel owner · rail offset + BFCache recovery','hidden-project-classification-v099.mjs','Hidden Projects · never automatic classification targets','classification-authority-v099.mjs','Classification authority · governance never auto-PATCHes','continuity-authority-v099.mjs','Continuity authority · one shared-pending Project PATCH','deep-classification-v112.mjs','Deep classification · orphan chat to canonical Project'):
     if token not in workflow: fail('Current Finalization missing '+token)
 project_switch=read('.github/workflows/project-switch-user-journey-v130.yml')
 for token in ('sidebar-projects-authority-v112.js','project-state-selfheal-v102.js','reclassify-v101.js','reclassify-deep-v112.js','ux-v131.js','visual-lab/user-reported-v133.mjs'):

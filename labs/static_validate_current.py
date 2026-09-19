@@ -141,12 +141,20 @@ for token in ('surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:fa
 base_reclassify=read('reclassify-v101.js')
 deep_reclassify=read('reclassify-deep-v112.js')
 governance=read('project-governance-v090.js')
+cache_guardian=read('cache-guardian-v100.js')
+recovery_runtime=read('recovery-v100.js')
 for token in ('hiddenProjectIds','hiddenIds.has(id)'):
     if token not in base_reclassify: fail('base classifier hidden-Project exclusion incomplete '+token)
 for token in ('hiddenProjectIds','visibleProjects','!hiddenIds.has(p.id)'):
     if token not in deep_reclassify: fail('deep classifier hidden-Project exclusion incomplete '+token)
 for token in ('hiddenProjectIds','hidden.has(p.id)','...hidden'):
     if token not in governance: fail('governance hidden-Project target exclusion incomplete '+token)
+for token in ('hiddenProjectIds','hiddenSet','!hiddenSet.has(id)'):
+    if token not in cache_guardian: fail('cache guardian hidden-Project preservation incomplete '+token)
+for token in ('hiddenProjectIds:[...hiddenSet]','targetByOldId.get(oldId)||oldId','!hiddenSet.has(id)'):
+    if token not in recovery_runtime: fail('structural recovery hidden-Project preservation incomplete '+token)
+if 'hiddenProjectIds:[]' in cache_guardian: fail('cache guardian may not erase hidden Projects')
+if 'hiddenProjectIds:[]' in recovery_runtime: fail('structural recovery may not erase hidden Projects')
 for token in ('ng8-native-project','function suppressNative('):
     if token in selfheal: fail('local recovery regained native Projects visual authority '+token)
 ux_css=read('ux-v131.css')

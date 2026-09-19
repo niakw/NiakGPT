@@ -130,6 +130,7 @@ async function falseMirrorRecovery(){
           <div data-sidebar-item="true"><a href="/c/22222222-2222-4222-8222-222222222222">Studio</a></div>
           <div data-sidebar-item="true"><a href="/c/33333333-3333-4333-8333-333333333333">Cinema</a></div>
           <div data-sidebar-item="true"><a href="/c/44444444-4444-4444-8444-444444444444">Commerce Lab</a></div>
+          <button id="local-chat-more">Afficher plus</button>
         </section>
       </aside>
       <main><article data-testid="conversation-turn-1"><div data-message-author-role="assistant">ready</div></article></main>
@@ -144,12 +145,14 @@ async function falseMirrorRecovery(){
       preferred:document.getElementById('ng8-pins')?.dataset.ng102NativePreferred||'',
       fallback:document.getElementById('ng8-pins')?.dataset.ng102Fallback||'',
       localCount:document.querySelectorAll('#ng8-pins [data-ng102-project]').length,
+      chatMoreLegacyHidden:document.getElementById('local-chat-more')?.classList.contains('ng8-native-project-more-suppressed')||false,
       pinsDiag:window.__diag['pins-ui']||''
     }));
     assert.equal(got.hidden,false,'recent chat titles were mistaken for a native Projects mirror');
     assert.equal(got.preferred,'');
     assert.equal(got.fallback,'1');
     assert.equal(got.localCount,3);
+    assert.equal(got.chatMoreLegacyHidden,false,'local-only Projects recovery leaked legacy suppression onto generic Chats "Afficher plus"');
     assert.match(got.pinsDiag,/RÉCUPÉRATION.*surface NiakGPT unique/);
   }finally{await page.close();}
 }

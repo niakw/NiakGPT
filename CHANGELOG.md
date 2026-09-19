@@ -1,3 +1,13 @@
+# NiakGPT 0.9.97 — sidebar Projects restaurée depuis le cas terrain réel
+
+- **Une seule autorité Projects** : la surface NiakGPT reste la seule liste Projects visible dès qu’elle est exploitable ; le menu Projects natif de ChatGPT est masqué sans emporter la section Chats.
+- **Correction de la géométrie vue sur le terrain** : le catalogue NiakGPT occupe toute la largeur utile de la sidebar et ne peut plus tomber dans une sous-colonne interne d’un layout ChatGPT en grille.
+- **Vrai shell gauche** : la détection privilégie la sidebar de conversation située sur le bord gauche au lieu d’un nav/wrapper interne dont le nom de classe contient seulement « sidebar ».
+- **Identités canoniques récupérées** : le self-heal accepte aussi les href Projects absolus https://chatgpt.com/g/g-p-…, ce qui restaure les g-p-*, les Projects principaux et les cibles de classification quand le cache n’a plus que des entrées locales/dom-only.
+- **Chats non organisés séparés** : les conversations génériques /c/... restent dans la section Chats native sous le bloc Projects ; elles ne sont pas injectées dans #ng8-pins.
+- **Classification automatique** : une conversation non organisée et déjà stabilisée est de nouveau déplacée vers le Project pertinent après récupération des identités canoniques, avec un PATCH ciblé et sans lecture complète de conversation. La quarantaine réseau reste volontairement active tant qu’une conversation est visible.
+- **Régression navigateur dédiée** : le lab reproduit une sidebar à deux colonnes, des liens Projects absolus, un cache uniquement local, des Chats génériques et vérifie géométrie, unicité, gouvernance puis classification automatique.
+
 # NiakGPT 0.9.96 — GitHub invalidé + scroll terrain réellement adaptatif
 
 - **Connexion GitHub** : un onglet ChatGPT resté ouvert après une mise à jour de l’extension ne peut plus laisser le bouton bloqué sur « Ouverture de GitHub… ». L’appel `chrome.runtime.connect` est désormais capturé même lorsqu’il lève synchroniquement `Extension context invalidated`, le port possède un état terminal borné et l’UI réactive immédiatement l’action avec une consigne de rechargement explicite.

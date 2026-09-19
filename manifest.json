@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.97",
-  "description": "NiakGPT : Projects unique restauré, Chats séparés et classification automatique rétablie.",
+  "version": "0.9.98",
+  "description": "NiakGPT : autorité Projects unique renforcée, Chats natifs isolés et reclassement multi-lots vérifié.",
   "permissions": [
     "storage",
     "scripting",

@@ -15,9 +15,18 @@
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const pidFromHref=h=>String(h||'').match(/\/g\/(g-p-[^/?#]+)/i)?.[1]||'';
 
+  const LEGACY_PROJECT_SELECTOR=LEGACY_PROJECT_CLASSES.map(name=>'.'+name).join(',');
   function clearLegacyProjectMarks(){
-    const selector=LEGACY_PROJECT_CLASSES.map(name=>'.'+name).join(',');
-    for(const el of document.querySelectorAll(selector))el.classList.remove(...LEGACY_PROJECT_CLASSES);
+    for(const el of document.querySelectorAll(LEGACY_PROJECT_SELECTOR))el.classList.remove(...LEGACY_PROJECT_CLASSES);
+  }
+  function relevantGlobalNode(node){
+    if(!(node instanceof Element))return false;
+    if(node.id==='ng100-breadcrumb'||node.id==='ng8-status'||node.matches?.(LEGACY_PROJECT_SELECTOR))return true;
+    return !!node.querySelector?.('#ng100-breadcrumb,#ng8-status,'+LEGACY_PROJECT_SELECTOR);
+  }
+  function relevantGlobalMutation(records){
+    for(const r of records)for(const n of [...r.addedNodes,...r.removedNodes])if(relevantGlobalNode(n))return true;
+    return false;
   }
 
   function breadcrumbContext(){
@@ -75,9 +84,7 @@
   function start(){
     suspended=false;clearLegacyProjectMarks();bindTargets();
     globalObserver?.disconnect();
-    globalObserver=new MutationObserver(records=>{
-      if(records.some(r=>[...r.addedNodes,...r.removedNodes].some(n=>n instanceof Element)))schedule(30);
-    });
+    globalObserver=new MutationObserver(records=>{if(relevantGlobalMutation(records))schedule(30);});
     globalObserver.observe(document.documentElement,{childList:true,subtree:true});
     for(const delay of [0,120,450,1100,2400])setTimeout(()=>schedule(0),delay);
   }

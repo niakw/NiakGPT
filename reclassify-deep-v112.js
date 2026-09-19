@@ -77,7 +77,7 @@
     if(busy||!can())return;busy=true;
     try{
       const got=await chrome.storage.local.get([CACHE_KEY,GOV_KEY,BASE_STATE,STATE_KEY]),raw=got[CACHE_KEY];if(!raw)return;const gov=got[GOV_KEY]||{};if(gov.autoResync===false)return;
-      const projects=(raw.projects||[]).filter(canonical),byId=new Map(projects.map(p=>[p.id,p])),core=(gov.coreProjectIds||[]).map(id=>byId.get(id)).filter(Boolean),targets=core.length?core:projects;if(!targets.length)return;
+      const projects=(raw.projects||[]).filter(canonical),byId=new Map(projects.map(p=>[p.id,p])),hiddenIds=new Set(gov.hiddenProjectIds||[]),visibleProjects=projects.filter(p=>!hiddenIds.has(p.id)),core=(gov.coreProjectIds||[]).map(id=>byId.get(id)).filter(p=>p&&!hiddenIds.has(p.id)),targets=core.length?core:visibleProjects;if(!targets.length)return;
       const chats=allChats(raw),base=got[BASE_STATE]||{},attempts=base.attempts||{},locks=gov.locks||{},prof=profiles(targets,chats);let state=got[STATE_KEY];if(!state||state.schema!==2)state={schema:2,checked:{}};state.checked=state.checked||{};
       const now=Date.now();
       const queue=chats.filter(c=>{

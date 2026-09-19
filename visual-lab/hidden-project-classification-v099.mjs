@@ -61,11 +61,10 @@ async function makePage({attemptAmbiguous=false,core=[HIDDEN]}={}){
         setTimeout(()=>document.dispatchEvent(new CustomEvent('niakgpt:rpc-response',{detail:{id:d.id,ok:false,status:0,error:'disabled-in-test'}})),5);
       }
     });
-    document.documentElement.dataset.ng8TabRole='worker';
-    document.documentElement.dataset.ng86Activity='ready';
   },{cache,gov,reclassState});
   await page.route('https://chatgpt.com/**',r=>r.fulfill({status:200,contentType:'text/html; charset=utf-8',body:html}));
   await page.goto('https://chatgpt.com/',{waitUntil:'domcontentloaded'});
+  await page.evaluate(()=>{document.documentElement.dataset.ng8TabRole='worker';document.documentElement.dataset.ng86Activity='ready';});
   return page;
 }
 
@@ -170,8 +169,6 @@ try{
       try{Object.defineProperty(navigator,'locks',{configurable:true,value:{request:async(_name,_opts,cb)=>cb({name:'fixture-data-lock'})}});}catch{}
       try{Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});Object.defineProperty(document,'visibilityState',{configurable:true,get:()=>'visible'});}catch{}
       window.__NIAKGPT_DIAGNOSTICS__={set(k,v){window.__recoveryDiag={k:String(k),v:String(v)};}};
-      document.documentElement.dataset.ng100CacheGuardRestored='backup';
-      document.documentElement.dataset.ng86Activity='ready';
       document.addEventListener('niakgpt:rpc-request',e=>{
         const d=e.detail||{};let detail={id:d.id,ok:true,status:200,data:{}};
         if(String(d.path).startsWith('/backend-api/gizmos/snorlax/sidebar')){
@@ -193,6 +190,7 @@ try{
     await page.route('https://chatgpt.com/**',r=>r.fulfill({status:200,contentType:'text/html; charset=utf-8',body:'<!doctype html><html><body><main>Home</main></body></html>'}));
     await page.goto('https://chatgpt.com/',{waitUntil:'domcontentloaded'});
     await page.bringToFront();
+    await page.evaluate(()=>{document.documentElement.dataset.ng100CacheGuardRestored='backup';document.documentElement.dataset.ng86Activity='ready';});
     await page.addScriptTag({content:recovery});
     await page.evaluate(()=>{document.dispatchEvent(new Event('visibilitychange'));document.dispatchEvent(new CustomEvent('niakgpt:activity-changed',{detail:{active:false}}));});
     try{

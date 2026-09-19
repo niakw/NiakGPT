@@ -170,6 +170,8 @@ Un Project présent dans `hiddenProjectIds` reste connu comme identité canoniqu
 
 Le rattachement automatique des conversations n’a qu’une autorité réseau : `reclassify-v101.js` puis `reclassify-deep-v112.js`, tous deux sous `niakgpt-data-mutation-v100`. `project-governance-v090.js` ne possède plus d’`autoResync()` autonome ; il reste un outil de nettoyage **manuel** et prend le même verrou partagé avant toute mutation explicite.
 
+La continuité suit la même règle de propriété : `continuity-v112.js` produit/injecte le pending enrichi, `continuity-v100.js` conserve la détection OUT et l’API de capsule, mais **aucun des deux ne PATCH plus le Project du nouveau chat**. `continuity-consumer-v124.js` est l’unique consommateur du pending partagé qui rattache le nouveau chat et persiste le verrou de gouvernance, sous `niakgpt-data-mutation-v100`. Le handoff natif v129 utilise un namespace distinct mais prend le même verrou avant son PATCH.
+
 ## Invariant 1 — sanitation du cache avant les consommateurs
 
 L’ordre de démarrage critique est :

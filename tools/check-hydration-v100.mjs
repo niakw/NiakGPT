@@ -140,7 +140,7 @@ for(const token of ['nativeBusy=hasThinking()||hasStop()','id===currentChat()&&A
 
 const catalog=read('sidebar-projects-v121.js');
 need(catalog,'placementAnchorNode','v121 must preserve hidden v112 native Projects host as a stable placement anchor');
-for(const token of ['canonicalProjects','renderCatalog','ng121PinsReady','ng121PlacementReady','sessionOrder','armBootstrap','projectScroll','drawerScroll','projectScrollMemory','niakgpt:sidebar-projects-reconcile','signalAuthorityReady','niakgpt:sidebar-projects-ready','surface NiakGPT unique','autorité v121 unique · natif masqué'])need(catalog,token,'single-authority Projects catalog/session ownership incomplete');
+for(const token of ['canonicalProjects','renderCatalog','ng121PinsReady','ng121PlacementReady','sessionOrder','armBootstrap','projectScroll','drawerScroll','projectScrollMemory','niakgpt:sidebar-projects-reconcile','signalAuthorityReady','niakgpt:sidebar-projects-ready','authoritativeLaneSafe','column-fragment','laneUnsafe','surface NiakGPT unique','autorité v121 unique · natif masqué'])need(catalog,token,'single-authority Projects catalog/session/lane ownership incomplete');
 const projectSelfheal=read('project-state-selfheal-v102.js');
 for(const token of ['surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false','window.__NIAKGPT_FIND_SIDEBAR_V131__','a[href*="/g/g-p-"]','niakgpt:local-project-recovery-ready','hiddenSet','visibleIds'])need(projectSelfheal,token,'single-authority local recovery incomplete');
 const baseReclassify=read('reclassify-v101.js'),deepReclassify=read('reclassify-deep-v112.js'),governance=read('project-governance-v090.js'),cacheGuardian=read('cache-guardian-v100.js'),recovery=read('recovery-v100.js');

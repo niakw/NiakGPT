@@ -7,6 +7,7 @@ La troisième passe a volontairement remis en cause la 0.9.98 après son merge.
 3. `live-fixes-context-v106.mjs` fait muter le contenu principal d’une conversation sans rapport avec Projects et exige zéro balayage global de migration ; un remount réel du breadcrumb doit en revanche encore resynchroniser le Project.
 4. `side-panels-owner-v096.mjs` exige la détection du panneau, l’offset exact du rail, l’absence de mutation pendant `pagehide` et la reprise après `pageshow.persisted`.
 5. `hidden-project-classification-v099.mjs` vérifie qu’un Project masqué n’est ciblé ni par le classifieur normal ni par le deep-classifier, et que le self-heal ne le réinjecte pas dans `coreProjectIds`.
+6. `global-observer-hotpath-v099.mjs` fait churner uniquement `<main>` et exige zéro recherche globale de sidebar/Control Center, puis remonte réellement la sidebar et le Control Center pour vérifier que les observers filtrés restent fonctionnels.
 
 ## 0.9.98 — récupération locale isolée des Chats + classement multi-lots
 

@@ -6,7 +6,7 @@
   <p>Projects · performance des longs fils · continuité · navigation · productivité ciblée</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.98-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.99-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,7 +21,7 @@
 NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT en **véritable espace de travail pour un usage intensif et organisé par Projects**, sans remplacer ChatGPT.
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
-> **Version actuelle : 0.9.98.** La sidebar Projects n’a plus qu’une seule autorité structurelle de masquage : la récupération locale ne réapplique plus les anciennes classes ligne par ligne susceptibles de toucher des contrôles des Chats génériques. La CI courante vérifie aussi le reclassement automatique sur plusieurs lots et relance le parcours réel de changement de Project dès que l’autorité sidebar, le self-heal ou le classement changent.
+> **Version actuelle : 0.9.99.** La troisième passe de régression retire deux anciens propriétaires JavaScript du runtime critique, filtre l’observation du contexte Project pour ignorer le churn normal des conversations, réarme les panneaux natifs après BFCache et garantit qu’un Project masqué ne peut plus redevenir une cible de classement automatique.
 
 ## Points forts
 

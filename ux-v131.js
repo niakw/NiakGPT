@@ -137,8 +137,19 @@
     // supplies the sidebar finder/visual guard; it must not race v121 by reparenting the
     // same scroll container on every cache reconciliation.
     if(window.__NIAKGPT_SIDEBAR_PROJECTS_121__){
-      if(!root.contains(box)){
-        document.dispatchEvent(new CustomEvent('niakgpt:sidebar-projects-reconcile',{detail:{source:'ux-v131-wrong-host'}}));
+      const rr=root.getBoundingClientRect(),br=box.getBoundingClientRect();
+      const laneMismatch=rr.width>0&&br.width>0&&(
+        br.width<rr.width*.82||
+        Math.abs(br.left-rr.left)>Math.max(24,rr.width*.08)
+      );
+      if(!root.contains(box)||laneMismatch){
+        // v131 never reparents the Projects node itself. It only reports that the verified
+        // sidebar authority changed (or that the current node still occupies an inner column);
+        // v121 then retires/recreates under its direct-once ownership contract.
+        const source=laneMismatch?'ux-v131-stale-lane':'ux-v131-wrong-host';
+        document.documentElement.dataset.ng131LaneGuard=source;
+        document.dispatchEvent(new CustomEvent('niakgpt:sidebar-projects-reconcile',{detail:{source}}));
+        window.__NIAKGPT_DIAGNOSTICS__?.set('ux-v131',laneMismatch?'RÉCUPÉRATION · bloc Projects hors lane pleine largeur':'RÉCUPÉRATION · host Projects obsolète');
         schedule(140);
         return false;
       }

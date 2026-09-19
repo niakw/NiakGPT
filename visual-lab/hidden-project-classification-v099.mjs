@@ -123,7 +123,7 @@ try{
       }}};
       try{Object.defineProperty(navigator,'locks',{configurable:true,value:{request:async(_name,_opts,cb)=>cb({name:'fixture-data-lock'})}});}catch{}
       try{Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});Object.defineProperty(document,'visibilityState',{configurable:true,get:()=>'visible'});}catch{}
-      window.__NIAKGPT_DIAGNOSTICS__={set(){}};
+      window.__NIAKGPT_DIAGNOSTICS__={set(k,v){window.__recoveryDiag={k:String(k),v:String(v)};}};
     },store);
     await page.route('https://chatgpt.com/**',r=>r.fulfill({status:200,contentType:'text/html; charset=utf-8',body:'<!doctype html><html><body><main>Home</main></body></html>'}));
     await page.goto('https://chatgpt.com/',{waitUntil:'domcontentloaded'});
@@ -169,7 +169,7 @@ try{
       }}};
       try{Object.defineProperty(navigator,'locks',{configurable:true,value:{request:async(_name,_opts,cb)=>cb({name:'fixture-data-lock'})}});}catch{}
       try{Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});Object.defineProperty(document,'visibilityState',{configurable:true,get:()=>'visible'});}catch{}
-      window.__NIAKGPT_DIAGNOSTICS__={set(){}};
+      window.__NIAKGPT_DIAGNOSTICS__={set(k,v){window.__recoveryDiag={k:String(k),v:String(v)};}};
       document.documentElement.dataset.ng100CacheGuardRestored='backup';
       document.documentElement.dataset.ng86Activity='ready';
       document.addEventListener('niakgpt:rpc-request',e=>{
@@ -192,8 +192,23 @@ try{
     },{store,ids:{NV:NEW_VISIBLE,NH:NEW_HIDDEN,TEMP},chat,now});
     await page.route('https://chatgpt.com/**',r=>r.fulfill({status:200,contentType:'text/html; charset=utf-8',body:'<!doctype html><html><body><main>Home</main></body></html>'}));
     await page.goto('https://chatgpt.com/',{waitUntil:'domcontentloaded'});
+    await page.bringToFront();
     await page.addScriptTag({content:recovery});
-    await page.waitForFunction(()=>window.__store['niakgpt-recovery-v100']?.done===true,null,{timeout:6000});
+    await page.evaluate(()=>{document.dispatchEvent(new Event('visibilitychange'));document.dispatchEvent(new CustomEvent('niakgpt:activity-changed',{detail:{active:false}}));});
+    try{
+      await page.waitForFunction(()=>window.__store['niakgpt-recovery-v100']?.done===true,null,{timeout:10000});
+    }catch(error){
+      const debug=await page.evaluate(()=>({
+        hidden:document.hidden,visibilityState:document.visibilityState,
+        recovery:document.documentElement.dataset.ng100Recovery||'',
+        activity:document.documentElement.dataset.ng86Activity||'',
+        cacheGuard:document.documentElement.dataset.ng100CacheGuard||'',
+        restored:document.documentElement.dataset.ng100CacheGuardRestored||'',
+        diag:window.__recoveryDiag||null,
+        mark:window.__store['niakgpt-recovery-v100']||null
+      }));
+      throw new Error('structural recovery fixture timeout '+JSON.stringify(debug),{cause:error});
+    }
     const g=await page.evaluate(()=>window.__store['niakgpt-governance-v085']);
     assert(g.hiddenProjectIds.includes(NEW_HIDDEN),`structural recovery lost/remapped hidden Project incorrectly: ${JSON.stringify(g)}`);
     assert(!g.coreProjectIds.includes(NEW_HIDDEN),`structural recovery resurrected hidden Project as core: ${JSON.stringify(g)}`);

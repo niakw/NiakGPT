@@ -135,10 +135,14 @@ need(catalog,'placementAnchorNode','v121 must preserve hidden v112 native Projec
 for(const token of ['canonicalProjects','renderCatalog','ng121PinsReady','ng121PlacementReady','sessionOrder','armBootstrap','projectScroll','drawerScroll','projectScrollMemory','niakgpt:sidebar-projects-reconcile','signalAuthorityReady','niakgpt:sidebar-projects-ready','surface NiakGPT unique','autorité v121 unique · natif masqué'])need(catalog,token,'single-authority Projects catalog/session ownership incomplete');
 const projectSelfheal=read('project-state-selfheal-v102.js');
 for(const token of ['surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false','window.__NIAKGPT_FIND_SIDEBAR_V131__','a[href*="/g/g-p-"]','niakgpt:local-project-recovery-ready','hiddenSet','visibleIds'])need(projectSelfheal,token,'single-authority local recovery incomplete');
-const baseReclassify=read('reclassify-v101.js'),deepReclassify=read('reclassify-deep-v112.js'),governance=read('project-governance-v090.js');
+const baseReclassify=read('reclassify-v101.js'),deepReclassify=read('reclassify-deep-v112.js'),governance=read('project-governance-v090.js'),cacheGuardian=read('cache-guardian-v100.js'),recovery=read('recovery-v100.js');
 for(const token of ['hiddenProjectIds','hiddenIds.has(id)'])need(baseReclassify,token,'base classifier hidden-Project exclusion incomplete');
 for(const token of ['hiddenProjectIds','visibleProjects','!hiddenIds.has(p.id)'])need(deepReclassify,token,'deep classifier hidden-Project exclusion incomplete');
 for(const token of ['hiddenProjectIds','hidden.has(p.id)','...hidden'])need(governance,token,'governance hidden-Project target exclusion incomplete');
+for(const token of ['hiddenProjectIds','hiddenSet','!hiddenSet.has(id)'])need(cacheGuardian,token,'cache guardian hidden-Project preservation incomplete');
+for(const token of ['hiddenProjectIds:[...hiddenSet]','targetByOldId.get(oldId)||oldId','!hiddenSet.has(id)'])need(recovery,token,'structural recovery hidden-Project preservation incomplete');
+forbid(cacheGuardian,'hiddenProjectIds:[]','cache guardian may not erase hidden Projects');
+forbid(recovery,'hiddenProjectIds:[]','structural recovery may not erase hidden Projects');
 for(const token of ['ng8-native-project','function suppressNative('])forbid(projectSelfheal,token,'local recovery must not own or clean native Projects suppression classes');
 const uxCss=read('ux-v131.css');
 for(const token of ['grid-column:1 / -1!important','place-self:auto stretch!important','box-sizing:border-box!important'])need(uxCss,token,'field sidebar full-lane geometry invariant missing');

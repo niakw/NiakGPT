@@ -284,50 +284,8 @@
       for(const el of list)if(el!==canonical)el.dataset.ng8TitleDuplicate='1';
     }
   }
-  function nativeProjectSection(root,anchor){
-    let node=anchor,best=null;
-    while(node?.parentElement&&node.parentElement!==root){
-      const parent=node.parentElement;
-      const projectRows=parent.querySelectorAll(PROJECT_SEL).length;
-      const projectChats=parent.querySelectorAll(PROJECT_CHAT_SEL).length;
-      const genericChats=[...parent.querySelectorAll(CHAT_SEL)].filter(a=>!a.matches(PROJECT_CHAT_SEL)&&!a.closest('#ng8-pins')).length;
-      const headings=[...parent.querySelectorAll(':scope > h2,:scope > h3,:scope > [role="heading"],:scope > div > h2,:scope > div > h3')];
-      if(headings.some(h=>/^(projets?|projects?)$/i.test(String(h.textContent||'').replace(/\s+/g,' ').trim()))&&genericChats===0)return parent;
-      if(projectRows>=1&&(projectChats>=1||projectRows>=2)&&genericChats===0)best=parent;
-      node=parent;
-    }
-    return best;
-  }
-  function syncNativeProjectSection(root,box,active){
-    root.querySelectorAll('.ng8-native-projects-suppressed,.ng8-native-project-link-suppressed,.ng8-native-project-chat-suppressed,.ng8-native-project-label-suppressed,.ng8-native-project-more-suppressed').forEach(el=>el.classList.remove('ng8-native-projects-suppressed','ng8-native-project-link-suppressed','ng8-native-project-chat-suppressed','ng8-native-project-label-suppressed','ng8-native-project-more-suppressed'));
-    if(!active)return;
-    const groups=new Set();
-    const nativeLinks=[...root.querySelectorAll(PROJECT_SEL)].filter(a=>!a.closest('#ng8-pins')&&!a.closest(OWN));
-    const nativeProjectChats=[...root.querySelectorAll(PROJECT_CHAT_SEL)].filter(a=>!a.closest('#ng8-pins')&&!a.closest(OWN));
-    for(const a of nativeLinks){
-      a.classList.add('ng8-native-project-link-suppressed');
-      const host=nativeProjectSection(root,a);
-      if(host&&!host.contains(box))groups.add(host);
-    }
-    for(const a of nativeProjectChats)a.classList.add('ng8-native-project-chat-suppressed');
-    for(const label of root.querySelectorAll('h1,h2,h3,[role="heading"],div,span')){
-      if(label.closest('#ng8-pins')||label.closest(OWN))continue;
-      const text=String(label.textContent||'').replace(/\s+/g,' ').trim();
-      if(!/^(projets?|projects?)$/i.test(text))continue;
-      label.classList.add('ng8-native-project-label-suppressed');
-    }
-    for(const more of root.querySelectorAll('button,a,[role="button"]')){
-      if(more.closest('#ng8-pins')||more.closest(OWN))continue;
-      const text=String(more.textContent||more.getAttribute?.('aria-label')||'').replace(/\s+/g,' ').trim();
-      if(!/^(afficher plus|show more|voir plus)$/i.test(text))continue;
-      const parent=more.parentElement;if(!parent)continue;
-      if(parent.querySelector(PROJECT_CHAT_SEL)||parent.querySelector(PROJECT_SEL))more.classList.add('ng8-native-project-more-suppressed');
-    }
-    for(const host of groups){
-      const genericChats=[...host.querySelectorAll(CHAT_SEL)].filter(a=>!a.matches(PROJECT_CHAT_SEL)&&!a.closest('#ng8-pins')).length;
-      if(!genericChats)host.classList.add('ng8-native-projects-suppressed');
-    }
-  }
+  // Native Projects visibility is owned exclusively by sidebar-projects-authority-v112.
+  // app-v090 may render the legacy fallback catalogue, but it never hides ChatGPT rows itself.
 
   function currentProject(){
     // A background reclassification/recovery can move the current chat before ChatGPT
@@ -379,13 +337,13 @@
     // The previous two-stage render (count first, then chronology date) was visible as a
     // 100-300 ms flicker between `41` and `15/08 [41]`. Render the final metadata atomically.
     if(box.dataset.ng8Signature===signature){
-      box.hidden=false;box.removeAttribute('aria-hidden');syncNativeProjectSection(root,box,shown.length>0);
+      box.hidden=false;box.removeAttribute('aria-hidden');
       window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',shown.length?`OK · ${shown.length} Projects NiakGPT · stable`:'ATTENTE · aucun Project à afficher');
       return;
     }
     const row=p=>{const meta=metaFor(p),title=meta.latest?`Dernier échange du Project : ${new Date(meta.latest).toLocaleString('fr-FR')}`:'Aucune date disponible';return`<a data-ng8-pin="1" href="${esc(p.href)}" style="--ng-project:${p.color}" class="${active===p.id?'ng8-active-project':''}"><i>${esc(p.icon)}</i><span>${esc(p.name)}</span><small class="ng8-project-meta" title="${esc(title)}">${esc(meta.text)}</small></a>`;};
     box.innerHTML=`<div class="ng8-pin-head"><span>PROJECTS</span><b>${all.length}</b></div><div class="ng8-pin-list">${shown.map(row).join('')}</div>${primary.length&&extras.length?`<details class="ng90-project-extras"><summary>AUTRES · ${extras.length}</summary><div>${extras.map(row).join('')}</div></details>`:''}`;
-    box.dataset.ng8Rendered=String(shown.length);box.dataset.ng8Signature=signature;syncNativeProjectSection(root,box,shown.length>0);
+    box.dataset.ng8Rendered=String(shown.length);box.dataset.ng8Signature=signature;
     window.__NIAKGPT_DIAGNOSTICS__?.set('pins-ui',shown.length?`OK · ${shown.length} Projects NiakGPT · stable`:'ATTENTE · aucun Project à afficher');
     document.dispatchEvent(new CustomEvent('niakgpt:pins-rendered',{detail:{count:all.length,shown:shown.length}}));
   }

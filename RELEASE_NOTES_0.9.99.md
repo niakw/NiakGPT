@@ -11,6 +11,7 @@ Cette version est une nouvelle passe d’audit réalisée après la 0.9.98, avec
 - filtres de pertinence ajoutés aux observers globaux de `sidebar-icons-v114.js` et `project-memory-ui-v132.js`, afin qu’un stream de réponse ordinaire ne déclenche plus de recherche globale sidebar/Control Center ;
 - exclusion stricte de `hiddenProjectIds` de toutes les destinations de classement automatique et de reconstruction des Projects principaux.
 - suppression du second moteur automatique `project-governance-v090.js::autoResync()` ; les mutations automatiques appartiennent uniquement à v101/v112 et le nettoyage manuel partage le même verrou de mutation.
+- suppression des propriétaires de rattachement redondants dans la continuité : v100/v112 n’émettent plus de PATCH Project ; v124 est l’unique consommateur du pending partagé, et v124/v129 utilisent `niakgpt-data-mutation-v100`.
 
 Le CSS historique `live-fixes-v104.css` reste empaqueté : il ne contient aucune autorité JavaScript et fournit encore des règles visuelles partagées pour les panneaux et le coach.
 

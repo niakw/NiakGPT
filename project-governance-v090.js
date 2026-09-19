@@ -63,7 +63,7 @@
   const isSuspectProject=p=>!!p&&SUSPECT.test(norm(p.name));
 
   function seedCore(){
-    if(config.seeded)return false;const{duplicateOf}=canonicalMap(),ids=[];for(const p of cache.projects||[]){if(duplicateOf.has(p.id)||isLegacyProject(p)||isSuspectProject(p))continue;ids.push(p.id);}config.coreProjectIds=ids;config.seeded=true;return true;
+    if(config.seeded)return false;const{duplicateOf}=canonicalMap(),hidden=new Set(config.hiddenProjectIds||[]),ids=[];for(const p of cache.projects||[]){if(hidden.has(p.id)||duplicateOf.has(p.id)||isLegacyProject(p)||isSuspectProject(p))continue;ids.push(p.id);}config.coreProjectIds=ids;config.seeded=true;return true;
   }
 
   function buildProfiles(coreIds){
@@ -81,14 +81,14 @@
   }
 
   function buildCleanupPlan(){
-    seedCore();const projects=new Map((cache.projects||[]).map(p=>[p.id,p])),{duplicateOf}=canonicalMap(),coreIds=new Set((config.coreProjectIds||[]).filter(id=>projects.has(id))),relics=new Map();
+    seedCore();const projects=new Map((cache.projects||[]).map(p=>[p.id,p])),{duplicateOf}=canonicalMap(),hidden=new Set(config.hiddenProjectIds||[]),coreIds=new Set((config.coreProjectIds||[]).filter(id=>projects.has(id)&&!hidden.has(id))),relics=new Map();
     for(const p of cache.projects||[]){if(duplicateOf.has(p.id))relics.set(p.id,{project:p,type:'DOUBLON',targetId:duplicateOf.get(p.id)});else if(!coreIds.has(p.id)&&isLegacyProject(p))relics.set(p.id,{project:p,type:'RELIQUAT',targetId:''});else if(!coreIds.has(p.id)&&isSuspectProject(p))relics.set(p.id,{project:p,type:'TEST/TEMP',targetId:''});}
-    const model=buildProfiles([...coreIds]),blocked=new Set(relics.keys()),operations=[],preserved=[],unassigned=[];
+    const model=buildProfiles([...coreIds]),blocked=new Set([...relics.keys(),...hidden]),operations=[],preserved=[],unassigned=[];
     for(const chat of uniqueChats()){
       if(config.locks?.[chat.id]){preserved.push({chat,reason:'MANUEL',projectId:chat.projectId});continue;}
       const relic=relics.get(chat.projectId);
       if(relic){
-        if(relic.type==='DOUBLON'&&relic.targetId){operations.push({chat,fromId:chat.projectId,toId:relic.targetId,reason:'DOUBLON',confidence:999});continue;}
+        if(relic.type==='DOUBLON'&&relic.targetId&&!hidden.has(relic.targetId)){operations.push({chat,fromId:chat.projectId,toId:relic.targetId,reason:'DOUBLON',confidence:999});continue;}
         const best=bestTarget(chat,[...coreIds],blocked,model);if(best&&best.score>=58&&best.margin>=16)operations.push({chat,fromId:chat.projectId,toId:best.project.id,reason:'CLASSÉ',confidence:best.score});else operations.push({chat,fromId:chat.projectId,toId:'',reason:'À CLASSER',confidence:best?.score||0});continue;
       }
       if(!chat.projectId){const best=bestTarget(chat,[...coreIds],blocked,model);if(best&&best.score>=70&&best.margin>=20)operations.push({chat,fromId:'',toId:best.project.id,reason:'RESYNC',confidence:best.score});else unassigned.push(chat);}

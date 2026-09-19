@@ -57,7 +57,8 @@ if 'MAX_PER_RUN=2' not in deep or 'MAX_HEAVY=1' not in deep: fail('deep classifi
 analysis=(ROOT/'analysis-bridge-v112.js').read_text(encoding='utf-8')
 if 'MIN_GAP=1800' not in analysis or 'MAX_MESSAGES=10' not in analysis or 'MAX_TEXT=14000' not in analysis: fail('deep analysis budget drift')
 continuity=(ROOT/'continuity-v112.js').read_text(encoding='utf-8')
-if 'exactProject:true' not in continuity or "source:'continuity-exact'" not in continuity: fail('continuity Project lock missing')
+consumer=(ROOT/'continuity-consumer-v124.js').read_text(encoding='utf-8')
+if 'exactProject:true' not in continuity or "source:'continuity-consumer-v124'" not in consumer: fail('continuity Project lock missing')
 
 if errors:
     print('STATIC_0962_FAIL')

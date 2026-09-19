@@ -9,6 +9,7 @@
   const PENDING_STORE_KEY='niakgpt-continuity-pending-v124';
   const LOCK_KEY='niakgpt-continuity-project-lock-v124';
   const PIN_OPEN_KEY='niakgpt-open-pin-folder-v096';
+  const DATA_LOCK='niakgpt-data-mutation-v100';
   const MAX_AGE=30*60*1000;
   let seq=0,consumeBusy=false,lockBusy=false,timer=0;
 
@@ -79,13 +80,21 @@
     const newId=currentCid();if(!newId)return;
     lockBusy=true;
     try{
-      const lock=await readLock();if(!lock?.projectId||!lock.chatId||newId===lock.chatId)return;
-      const r=await rpc(`/backend-api/conversation/${encodeURIComponent(newId)}`,{method:'PATCH',body:{gizmo_id:lock.projectId}});
-      if(!r.ok)return;
-      await persistLock(lock,newId);
-      try{await chrome.storage.local.remove(LOCK_KEY);}catch{}
-      delete document.documentElement.dataset.ng124ContinuityConsumed;
-      window.__NIAKGPT_DIAGNOSTICS__?.set('continuité-consommation',`OK · nouveau chat verrouillé sur ${lock.projectName||lock.projectId}`);
+      const run=async()=>{
+        const lock=await readLock();if(!lock?.projectId||!lock.chatId||newId===lock.chatId)return true;
+        const r=await rpc(`/backend-api/conversation/${encodeURIComponent(newId)}`,{method:'PATCH',body:{gizmo_id:lock.projectId}});
+        if(!r.ok)return false;
+        await persistLock(lock,newId);
+        try{await chrome.storage.local.remove(LOCK_KEY);}catch{}
+        delete document.documentElement.dataset.ng124ContinuityConsumed;
+        window.__NIAKGPT_DIAGNOSTICS__?.set('continuité-consommation',`OK · nouveau chat verrouillé sur ${lock.projectName||lock.projectId}`);
+        return true;
+      };
+      if(navigator.locks?.request){
+        let acquired=false,done=false;
+        await navigator.locks.request(DATA_LOCK,{mode:'exclusive',ifAvailable:true},async lock=>{if(!lock)return;acquired=true;done=await run();});
+        if(!acquired||!done)schedule(500);
+      }else if(!(await run()))schedule(500);
     }finally{lockBusy=false;}
   }
   function schedule(delay=40){clearTimeout(timer);timer=setTimeout(()=>{consumeIfInjected().finally(()=>lockNewChat());},delay);}

@@ -86,7 +86,7 @@ if optional!=['project-memory-v132.js','project-memory-ui-v132.js']: fail(f'OPTI
 if any(x.startswith('project-memory-') for x in isolated): fail('Project Memory leaked into critical isolated runtime')
 for forbidden in (
     'project-pins-v090.js','native-rename-v112.js','breadcrumb-v100.js','sidebar-authority-v107.js','sidebar-expando-guard-v108.js',
-    'native-actions-controller-v119.js','native-actions-v113.js','composer-continuation-v128.js','long-run-watchdog-v129.js',
+    'sidebar-ux-v119.js','live-fixes-v104.js','native-actions-controller-v119.js','native-actions-v113.js','composer-continuation-v128.js','long-run-watchdog-v129.js',
     'pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'
 ):
     if forbidden in isolated: fail(f'legacy/conflicting runtime wired: {forbidden}')

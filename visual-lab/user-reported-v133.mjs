@@ -240,10 +240,12 @@ async function screenshotSidebarRegression(){
     await page.goto('https://chatgpt.com/c/'+C,{waitUntil:'domcontentloaded'});
     await page.addStyleTag({content:authorityCss});
     await page.addStyleTag({content:uxCss});
-    await page.addScriptTag({content:uxJs});
+    // Preserve production authority order: v112 -> v121 -> self-heal -> v131. The original
+    // regression had been easier to hide when the late UX finder was injected first.
+    await page.addScriptTag({content:authority});
     await page.addScriptTag({content:projects});
     await page.addScriptTag({content:selfheal});
-    await page.addScriptTag({content:authority});
+    await page.addScriptTag({content:uxJs});
     await page.waitForTimeout(900);
 
     let got=await page.evaluate(()=>{

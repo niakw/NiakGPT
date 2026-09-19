@@ -12,6 +12,8 @@ const selfheal=read('project-state-selfheal-v102.js');
 const projects=read('sidebar-projects-v121.js');
 const authority=read('sidebar-projects-authority-v112.js');
 const authorityCss=read('sidebar-projects-authority-v112.css');
+const uxJs=read('ux-v131.js');
+const uxCss=read('ux-v131.css');
 const reclass=read('reclassify-v101.js');
 const scrollGuard=read('conversation-scroll-guard-v133.js');
 const launchOptions={headless:process.env.NIAKGPT_HEADLESS==='0'?false:true};
@@ -149,6 +151,136 @@ async function falseMirrorRecovery(){
     assert.equal(got.fallback,'1');
     assert.equal(got.localCount,3);
     assert.match(got.pinsDiag,/RÉCUPÉRATION.*surface NiakGPT unique/);
+  }finally{await page.close();}
+}
+
+async function screenshotSidebarRegression(){
+  const page=await browser.newPage({viewport:{width:1200,height:820}});
+  try{
+    await page.addInitScript(()=>{
+      const now=Date.now(),p1='g-p-niakgpt123',p2='g-p-films123',chat='55555555-5555-4555-8555-555555555555';
+      const raw={
+        schema:2,
+        projects:[
+          {id:'dom-p-niakgpt',name:'NiakGPT',domOnly:true},
+          {id:'dom-p-films',name:'Films',domOnly:true}
+        ],
+        chats:[{id:chat,title:'NiakGPT extension GitHub bug',snippet:'extension chrome github code',projectId:'',updated:now}],
+        counts:{},indexedProjectIds:[],serverIndexedAt:0
+      };
+      const store={'niakgpt-v08-cache':raw,'niakgpt-governance-v085':{seeded:true,coreProjectIds:[],hiddenProjectIds:[],locks:{},autoResync:true}};
+      const listeners=[];
+      window.chrome={runtime:{id:'lab'},storage:{local:{
+        get:async keys=>{
+          if(typeof keys==='string')return {[keys]:store[keys]};
+          const arr=Array.isArray(keys)?keys:Object.keys(store);
+          return Object.fromEntries(arr.map(k=>[k,store[k]]));
+        },
+        set:async obj=>{const changes={};for(const[k,v]of Object.entries(obj)){const oldValue=store[k];store[k]=v;changes[k]={oldValue,newValue:v};}for(const fn of listeners)fn(changes,'local');},
+        remove:async keys=>{for(const key of (Array.isArray(keys)?keys:[keys]))delete store[key];}
+      },onChanged:{addListener:fn=>listeners.push(fn)}}};
+      try{Object.defineProperty(navigator,'locks',{configurable:true,value:{request:async(_name,_opts,cb)=>cb({name:'lock'})}});}catch{}
+      window.__store=store;window.__diag={};window.__rpc=[];
+      window.__NIAKGPT_DIAGNOSTICS__={set:(k,v)=>window.__diag[k]=String(v)};
+      window.__NIAKGPT_CACHE_BUS__={
+        update:async fn=>{
+          const before=store['niakgpt-v08-cache'];
+          const next=await fn(structuredClone(before));
+          store['niakgpt-v08-cache']=next;
+          for(const listener of listeners)listener({'niakgpt-v08-cache':{oldValue:before,newValue:next}},'local');
+          return next;
+        }
+      };
+      document.addEventListener('niakgpt:rpc-request',e=>{
+        const d=e.detail||{};window.__rpc.push({path:d.path,method:d.method,body:d.body});
+        if(d.method==='PATCH'){
+          const id=String(d.path||'').split('/').pop(),row=store['niakgpt-v08-cache'].chats.find(c=>c.id===id);
+          if(row&&d.body&&Object.prototype.hasOwnProperty.call(d.body,'gizmo_id'))row.projectId=d.body.gizmo_id||'';
+        }
+        queueMicrotask(()=>document.dispatchEvent(new CustomEvent('niakgpt:rpc-response',{detail:{id:d.id,ok:true,status:200,data:{gizmo_id:d.body?.gizmo_id||null}}})));
+      });
+      window.__fixture={p1,p2,chat};
+    });
+    await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html',body:`<!doctype html><html data-ng86-activity="ready"><head><style>
+      *{box-sizing:border-box}html,body{margin:0;background:#071019;color:#dce7f1;font:14px Arial}
+      #left{position:fixed;inset:0 auto 0 0;width:310px;height:100vh;overflow:auto;background:#0b131b}
+      #sidebar-grid{display:grid;grid-template-columns:150px 160px;align-items:start}
+      #primary,#native-projects,#native-chats{grid-column:1 / -1}
+      #primary a{display:block;padding:10px 18px;color:#dce7f1;text-decoration:none}
+      #native-projects,#native-chats{padding:8px 12px}
+      #native-projects h3,#native-chats h3{margin:8px 0;color:#8ea0b2;font-size:12px}
+      #native-projects a,#native-chats a,#native-projects button{display:block;width:100%;padding:8px;color:#dce7f1;background:transparent;border:0;text-align:left;text-decoration:none}
+      main{margin-left:310px;padding:40px}
+    </style></head><body>
+      <aside id="left" data-testid="conversation-sidebar">
+        <div id="sidebar-grid">
+          <section id="primary"><a href="/">ChatGPT</a><a href="/new">Nouveau chat</a><a href="/search">Rechercher</a></section>
+          <section id="native-projects">
+            <h3>Projects</h3>
+            <a data-sidebar-item="true" href="https://chatgpt.com/g/g-p-niakgpt123/project">NiakGPT</a>
+            <a data-sidebar-item="true" href="https://chatgpt.com/g/g-p-films123/project">Films</a>
+            <button>Afficher plus</button>
+          </section>
+          <section id="native-chats">
+            <h3>Chats</h3>
+            <a data-sidebar-item="true" href="/c/55555555-5555-4555-8555-555555555555">NiakGPT extension GitHub bug</a>
+            <a data-sidebar-item="true" href="/c/66666666-6666-4666-8666-666666666666">Un autre chat non organisé</a>
+          </section>
+        </div>
+      </aside>
+      <main><article data-testid="conversation-turn-1"><div data-message-author-role="assistant">ready</div></article></main>
+    </body></html>`}));
+    await page.goto('https://chatgpt.com/c/'+C,{waitUntil:'domcontentloaded'});
+    await page.addStyleTag({content:authorityCss});
+    await page.addStyleTag({content:uxCss});
+    await page.addScriptTag({content:uxJs});
+    await page.addScriptTag({content:projects});
+    await page.addScriptTag({content:selfheal});
+    await page.addScriptTag({content:authority});
+    await page.waitForTimeout(900);
+
+    let got=await page.evaluate(()=>{
+      const left=document.getElementById('left'),box=document.getElementById('ng8-pins'),native=document.getElementById('native-projects'),chats=document.getElementById('native-chats');
+      const lr=left.getBoundingClientRect(),br=box?.getBoundingClientRect(),cr=chats.getBoundingClientRect();
+      const visible=el=>{const st=getComputedStyle(el),r=el.getBoundingClientRect();return st.display!=='none'&&st.visibility!=='hidden'&&r.width>0&&r.height>0;};
+      return{
+        box:!!box,boxVisible:box?visible(box):false,nativeVisible:visible(native),chatsVisible:visible(chats),
+        widthRatio:br?br.width/lr.width:0,leftDelta:br?Math.abs(br.left-lr.left):999,
+        boxBeforeChats:!!box&&!!(box.compareDocumentPosition(chats)&Node.DOCUMENT_POSITION_FOLLOWING),
+        genericInside:document.querySelectorAll('#ng8-pins a[href*="/c/"]').length,
+        genericOutside:document.querySelectorAll('#native-chats a[href*="/c/"]').length,
+        core:window.__store['niakgpt-governance-v085']?.coreProjectIds||[],
+        canonical:(window.__store['niakgpt-v08-cache']?.projects||[]).filter(p=>String(p.id||'').startsWith('g-p-')&&!p.domOnly).map(p=>p.id),
+        authority:window.__diag['projects-authority']||'',pins:window.__diag['pins-ui']||'',ux:window.__diag['ux-v131']||''
+      };
+    });
+    assert.equal(got.box,true,'managed Projects block missing in screenshot regression');
+    assert.equal(got.boxVisible,true,'managed Projects block is not visible');
+    assert.equal(got.nativeVisible,false,'native ChatGPT Projects still duplicates the managed Projects menu');
+    assert.equal(got.chatsVisible,true,'generic Chats section was hidden together with native Projects');
+    assert.ok(got.widthRatio>.90,`managed Projects is still a half-width/grid-column fragment: ${JSON.stringify(got)}`);
+    assert.ok(got.leftDelta<20,`managed Projects is shifted to the right of the sidebar lane: ${JSON.stringify(got)}`);
+    assert.equal(got.boxBeforeChats,true,'managed Projects is not above the generic Chats section');
+    assert.equal(got.genericInside,0,'generic/unorganized chats were merged into the managed Projects surface');
+    assert.equal(got.genericOutside,2,'generic/unorganized chats disappeared from their native Chats section');
+    assert.deepEqual(new Set(got.canonical),new Set(['g-p-niakgpt123','g-p-films123']),'absolute native Project hrefs were not promoted to canonical identities');
+    assert.deepEqual(new Set(got.core),new Set(['g-p-niakgpt123','g-p-films123']),'governance did not recover target Projects from the live native inventory');
+    await page.screenshot({path:path.join(ARTIFACTS,`${engineName}-01c-user-sidebar-exact.png`),fullPage:true});
+
+    // Auto-classification remains network-quarantined inside a conversation. Once the user
+    // leaves the thread, the canonical inventory recovered above must immediately become usable.
+    await page.evaluate(()=>{history.pushState({},'', '/');window.dispatchEvent(new PopStateEvent('popstate'));});
+    await page.addScriptTag({content:reclass});
+    await page.waitForTimeout(3600);
+    got=await page.evaluate(()=>({
+      assigned:window.__store['niakgpt-v08-cache'].chats.find(c=>c.id===window.__fixture.chat)?.projectId||'',
+      patches:window.__rpc.filter(x=>x.method==='PATCH'),
+      gets:window.__rpc.filter(x=>x.method==='GET'),
+      diag:window.__diag['reclassement']||''
+    }));
+    assert.equal(got.assigned,'g-p-niakgpt123','unorganized chat was not automatically assigned after canonical Project recovery');
+    assert.equal(got.patches.length,1,'automatic classification did not perform exactly one Project mutation');
+    assert.equal(got.gets.length,0,'automatic classification unexpectedly fetched full conversation history');
   }finally{await page.close();}
 }
 
@@ -387,6 +519,7 @@ async function generationScrollRootMigration(){
 try{
   await duplicateRecovery();
   await falseMirrorRecovery();
+  await screenshotSidebarRegression();
   await historicalCatchup();
   await generationScroll();
   await generationScrollRootMigration();

@@ -8,6 +8,7 @@ La troisième passe a volontairement remis en cause la 0.9.98 après son merge.
 4. `side-panels-owner-v096.mjs` exige la détection du panneau, l’offset exact du rail, l’absence de mutation pendant `pagehide` et la reprise après `pageshow.persisted`.
 5. `hidden-project-classification-v099.mjs` vérifie qu’un Project masqué n’est ciblé ni par le classifieur normal ni par le deep-classifier, et que le self-heal ne le réinjecte pas dans `coreProjectIds`.
 6. `global-observer-hotpath-v099.mjs` fait churner uniquement `<main>` et exige zéro recherche globale de sidebar/Control Center, puis remonte réellement la sidebar et le Control Center pour vérifier que les observers filtrés restent fonctionnels.
+7. `classification-authority-v099.mjs` accélère volontairement les anciens délais de gouvernance dans un fixture et exige zéro PATCH automatique ; le source courant doit en plus utiliser `niakgpt-data-mutation-v100` pour le nettoyage manuel et ne plus contenir `autoResync()`.
 
 ## 0.9.98 — récupération locale isolée des Chats + classement multi-lots
 

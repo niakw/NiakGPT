@@ -18,6 +18,15 @@
   const showMoreLabel=v=>/^(afficher|voir) plus$|^show more$/.test(norm(v));
   const projectHomeHref=href=>{const raw=String(href||'').trim();if(/^\/projects\/?(?:[?#].*)?$/.test(raw))return true;try{const u=new URL(raw,location.href);return u.origin===location.origin&&/^\/projects\/?$/.test(u.pathname);}catch{return false;}};
   const projectChildHref=href=>/\/g\/g-p-[^/?#]+(?:\/|$)/i.test(String(href||''));
+  function sidebarShellFor(el){
+    if(!el)return null;
+    // Prefer ChatGPT's actual conversation sidebar. Generic class names such as
+    // "sidebar-expando-section" are internal sub-lanes and can be only half-width.
+    return el.closest?.('[data-testid="conversation-sidebar"]')
+      ||el.closest?.('[data-testid="sidebar"]')
+      ||el.closest?.('aside,nav')
+      ||null;
+  }
   function structuralProjectSurface(candidate){
     if(!candidate)return false;
     if(candidate.querySelector?.('[class*="project-unfurl-row"]'))return true;
@@ -30,11 +39,10 @@
   function sharesSidebarShell(el){
     if(!el||!outsideOwn(el)||inMain(el))return false;
     const own=ownProjects();if(!own)return false;
-    const selector='aside,nav,[data-testid*="sidebar" i],[class*="sidebar" i]';
-    const shell=own.closest(selector);if(shell&&(shell===el||shell.contains(el)))return true;
+    const shell=sidebarShellFor(own);if(shell&&(shell===el||shell.contains(el)))return true;
     let node=own.parentElement;
     for(let depth=0;depth<7&&node&&node!==document.body&&node!==document.documentElement;depth++,node=node.parentElement){if(node.contains(el))return true;}
-    const candidate=el.closest?.(selector);if(!shell||!candidate||candidate===shell)return false;
+    const candidate=sidebarShellFor(el);if(!shell||!candidate||candidate===shell)return false;
     if(candidate.getAttribute?.(MARK)==='1'&&structuralProjectSurface(candidate))return true;
     const sr=shell.getBoundingClientRect?.(),cr=candidate.getBoundingClientRect?.();if(!sr||!cr)return false;
     const maxWidth=Math.min(520,innerWidth*.48);if(sr.width<80||cr.width<40||sr.width>maxWidth||cr.width>maxWidth)return false;
@@ -144,7 +152,7 @@
   function watchRoots(){
     const roots=new Set(),own=ownProjects();
     if(own){
-      const shell=own.closest('aside,[data-testid*="sidebar" i],[class*="sidebar" i]');if(shell)roots.add(shell);
+      const shell=sidebarShellFor(own);if(shell)roots.add(shell);
       if(own.parentElement&&own.parentElement!==document.body)roots.add(own.parentElement);
       if(own.parentElement?.parentElement&&own.parentElement.parentElement!==document.body)roots.add(own.parentElement.parentElement);
     }

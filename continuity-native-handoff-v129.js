@@ -8,6 +8,7 @@
   const CACHE_KEY='niakgpt-v08-cache';
   const PENDING_KEY='niakgpt-native-handoff-v129';
   const PIN_OPEN_KEY='niakgpt-open-pin-folder-v096';
+  const DATA_LOCK='niakgpt-data-mutation-v100';
   const LIMIT_RX=/(maximum\s+(?:conversation|context|length)|conversation\s+(?:is\s+)?too\s+long|conversation.{0,42}(?:limit|maximum)|maximum\s+context\s+length|context\s+window.{0,38}(?:limit|maximum)|you(?:'|’)ve\s+reached.{0,50}(?:limit|maximum)|conversation\s+trop\s+longue|limite.{0,38}(?:conversation|contexte)|ce\s+fil.{0,34}(?:plein|limite|maximum))/i;
   const CONTINUE_RX=/(start\s+(?:a\s+)?new\s+chat|continue\s+in\s+(?:a\s+)?new\s+chat|new\s+(?:chat|conversation)|(?:nouveau|nouvelle)\s+(?:chat|conversation)|continuer.{0,30}(?:nouveau|nouvelle)\s+(?:chat|conversation)|poursuivre.{0,30}(?:nouveau|nouvelle)\s+(?:chat|conversation))/i;
   const SEND_RX=/(?:^|\b)(?:send|envoyer|submit)(?:\b|$)/i;
@@ -88,7 +89,10 @@
     }finally{busy=false;}
   }
   async function finishProjectLock(p,newId){
-    if(!p.projectId)return true;const out=await rpc(`/backend-api/conversation/${encodeURIComponent(newId)}`,{method:'PATCH',body:{gizmo_id:p.projectId}});if(out.ok){try{sessionStorage.setItem(PIN_OPEN_KEY,p.projectId);}catch{}document.dispatchEvent(new CustomEvent('niakgpt:force-server-index',{detail:{source:'native-handoff-v129'}}));return true;}return false;
+    if(!p.projectId)return true;
+    const run=async()=>{const out=await rpc(`/backend-api/conversation/${encodeURIComponent(newId)}`,{method:'PATCH',body:{gizmo_id:p.projectId}});if(!out.ok)return false;try{sessionStorage.setItem(PIN_OPEN_KEY,p.projectId);}catch{}document.dispatchEvent(new CustomEvent('niakgpt:force-server-index',{detail:{source:'native-handoff-v129'}}));return true;};
+    if(!navigator.locks?.request)return run();
+    let acquired=false,done=false;await navigator.locks.request(DATA_LOCK,{mode:'exclusive',ifAvailable:true},async lock=>{if(!lock)return;acquired=true;done=await run();});return acquired&&done;
   }
   async function resumePending(){
     if(busy)return;const p=await readPending();if(!p?.capsule)return;const newId=currentCid();

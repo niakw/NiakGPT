@@ -10,11 +10,11 @@
 - **Privacy fail-closed sur l’arbre public.** La CI parcourt tous les fichiers texte suivis par Git et refuse les marqueurs privés connus, les e-mails non synthétiques, les chemins utilisateur locaux et les secrets/tokens plausibles.
 
 
-NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.98 privilégie cinq propriétés : **faible coût runtime**, **priorité absolue au flux natif ChatGPT**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
+NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.99 privilégie cinq propriétés : **faible coût runtime**, **priorité absolue au flux natif ChatGPT**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
 
 ## Périmètre
 
-Le manifest 0.9.88 déclare :
+Le manifest 0.9.99 déclare :
 
 ```text
 https://chatgpt.com/*
@@ -160,6 +160,18 @@ L’historique complet est un stockage durable. Le checkpoint est la surface de 
 
 `app-v090.js` peut recevoir des événements de diagnostic fréquents. Tant qu’un `Selection/Range` natif non vide se trouve dans le panneau Diagnostic, le panneau ne reconstruit plus son `innerHTML`. Les mises à jour sont différées par un timer borné puis reprennent dès que la sélection est relâchée. `diagnostic-selection-v083.mjs` vérifie la conservation du même nœud DOM et du texte sélectionné pendant des changements d’état.
 
+## Invariant runtime 0.9.99 — un propriétaire actif par surface
+
+`sidebar-projects-v121.js` est le seul propriétaire du placement Projects/Pins ; l’ancien `sidebar-ux-v119.js` reste dans l’historique du dépôt mais n’est plus injecté ni présent dans le ZIP. Pour les panneaux natifs de droite, `side-panels-v096.js` est le seul propriétaire actif ; `live-fixes-v104.js` est également retiré du runtime et du package. Ces deux retraits suppriment des chemins critiques qui ne faisaient plus de travail utile ou doublaient un observer/mutateur existant.
+
+`live-fixes-v106.js` conserve son rôle de contexte Project mais son observer global est désormais filtré : les mutations ordinaires du flux de conversation ne déclenchent plus de balayage global des anciennes classes de migration. La même règle s’applique au garde de remount `sidebar-icons-v114.js` et à l’UI optionnelle Project Memory : ils rejettent désormais le churn de `<main>` avant toute recherche globale de sidebar/Control Center.
+
+Un Project présent dans `hiddenProjectIds` reste connu comme identité canonique, mais il est exclu de `coreProjectIds` réparés et de toutes les cibles de classement normal, profond ou de nettoyage automatique. Le masquer ne peut donc plus le ressusciter comme destination automatique.
+
+Le rattachement automatique des conversations n’a qu’une autorité réseau : `reclassify-v101.js` puis `reclassify-deep-v112.js`, tous deux sous `niakgpt-data-mutation-v100`. `project-governance-v090.js` ne possède plus d’`autoResync()` autonome ; il reste un outil de nettoyage **manuel** et prend le même verrou partagé avant toute mutation explicite.
+
+La continuité suit la même règle de propriété : `continuity-v112.js` produit/injecte le pending enrichi, `continuity-v100.js` conserve la détection OUT et l’API de capsule, mais **aucun des deux ne PATCH plus le Project du nouveau chat**. `continuity-consumer-v124.js` est l’unique consommateur du pending partagé qui rattache le nouveau chat et persiste le verrou de gouvernance, sous `niakgpt-data-mutation-v100`. Le handoff natif v129 utilise un namespace distinct mais prend le même verrou avant son PATCH.
+
 ## Invariant 1 — sanitation du cache avant les consommateurs
 
 L’ordre de démarrage critique est :
@@ -209,7 +221,7 @@ data-ng112-native-projects="1"
 
 Le CSS courant masque ce marqueur. L’autorité ne réécrit pas en boucle les classes natives, ne pose pas `aria-hidden` et n’observe pas les attributs globaux.
 
-Les anciens propriétaires `sidebar-authority-v107.js` et `sidebar-expando-guard-v108.js` restent uniquement comme régressions historiques. Ils ne sont ni injectés ni empaquetés. `live-fixes-v104.js` gère les panneaux natifs ; `live-fixes-v106.js` gère le contexte Project et retire ponctuellement les anciennes marques de migration, sans devenir une autorité concurrente.
+Les anciens propriétaires `sidebar-authority-v107.js` et `sidebar-expando-guard-v108.js` restent uniquement comme régressions historiques. Ils ne sont ni injectés ni empaquetés. `side-panels-v096.js` est l’unique propriétaire JavaScript des panneaux natifs Activité / Réflexion / Sources / Outputs ; il possède aussi l’offset du rail et la reprise BFCache. `live-fixes-v104.js` n’est plus injecté ni empaqueté (son CSS historique reste utilisé pour les règles visuelles communes). `live-fixes-v106.js` gère le contexte Project avec un observer filtré et retire ponctuellement les anciennes marques de migration, sans devenir une autorité concurrente.
 
 ## Invariant 3 — un seul host Projects géré, dans la vraie sidebar gauche
 

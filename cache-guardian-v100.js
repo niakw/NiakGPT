@@ -43,11 +43,12 @@
 
   function rescueGovernance(gov,cache,backup){
     const projects=(cache?.projects||[]).filter(isServerProject),valid=new Set(projects.map(p=>p.id));
-    const existing=(gov?.coreProjectIds||[]).map(normalizePid).filter(id=>valid.has(id));
-    if(existing.length)return gov||{};
-    const backupIds=(backup?.projects||[]).filter(p=>isServerProject(p)&&!isQueue(p)).map(p=>normalizePid(p.id)).filter(id=>valid.has(id));
-    if(!backupIds.length)return gov||{};
-    return{...(gov||{}),seeded:true,seedVersion:3,manualCoreSelection:false,coreProjectIds:[...new Set(backupIds)],hiddenProjectIds:[],guardRecoveredAt:Date.now()};
+    const hidden=[...new Set((gov?.hiddenProjectIds||[]).map(normalizePid).filter(id=>valid.has(id)))],hiddenSet=new Set(hidden);
+    const existing=[...new Set((gov?.coreProjectIds||[]).map(normalizePid).filter(id=>valid.has(id)&&!hiddenSet.has(id)))];
+    if(existing.length)return{...(gov||{}),coreProjectIds:existing,hiddenProjectIds:hidden};
+    const backupIds=(backup?.projects||[]).filter(p=>isServerProject(p)&&!isQueue(p)).map(p=>normalizePid(p.id)).filter(id=>valid.has(id)&&!hiddenSet.has(id));
+    if(!backupIds.length)return{...(gov||{}),coreProjectIds:[],hiddenProjectIds:hidden};
+    return{...(gov||{}),seeded:true,seedVersion:3,manualCoreSelection:false,coreProjectIds:[...new Set(backupIds)],hiddenProjectIds:hidden,guardRecoveredAt:Date.now()};
   }
 
   async function rememberGood(cache,gov,source='runtime'){

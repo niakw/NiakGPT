@@ -69,10 +69,10 @@
     try{
       const got=await chrome.storage.local.get([CACHE_KEY,GOV_KEY,STATE_KEY]),raw=got[CACHE_KEY];if(!raw)return;
       let gov=got[GOV_KEY]||{};if(gov.autoResync===false)return;
-      const queueIds=new Set((raw.projects||[]).filter(isQueue).map(p=>p.id));
-      const filtered=(gov.coreProjectIds||[]).filter(id=>!queueIds.has(id));if(filtered.length!==(gov.coreProjectIds||[]).length){gov={...gov,coreProjectIds:filtered};await chrome.storage.local.set({[GOV_KEY]:gov});}
+      const queueIds=new Set((raw.projects||[]).filter(isQueue).map(p=>p.id)),hiddenIds=new Set(gov.hiddenProjectIds||[]);
+      const filtered=(gov.coreProjectIds||[]).filter(id=>!queueIds.has(id)&&!hiddenIds.has(id));if(filtered.length!==(gov.coreProjectIds||[]).length){gov={...gov,coreProjectIds:filtered};await chrome.storage.local.set({[GOV_KEY]:gov});}
       const projects=new Map((raw.projects||[]).map(p=>[p.id,p]));
-      const targets=(filtered.length?filtered:[...projects.keys()]).map(id=>projects.get(id)).filter(p=>p&&p.id.startsWith('g-p-')&&!p.domOnly&&!isQueue(p));
+      const targets=(filtered.length?filtered:[...projects.keys()].filter(id=>!hiddenIds.has(id))).map(id=>projects.get(id)).filter(p=>p&&p.id.startsWith('g-p-')&&!p.domOnly&&!isQueue(p));
       const locks=gov.locks||{},chats=allChats(raw),catchup=historicalCatchupReady(raw,targets),queue=chats.filter(c=>needsClassification(c,queueIds,catchup)&&!locks[c.id]);
       if(!targets.length){
         const unassignedCount=chats.filter(unassigned).length;

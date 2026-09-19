@@ -4,7 +4,7 @@ import { chromium, firefox, webkit } from '@playwright/test';
 
 const ROOT=path.resolve('..');
 const OUT=path.resolve('artifacts/finalization-v112');
-const code=await fs.readFile(path.join(ROOT,'continuity-v112.js'),'utf8');
+const [code,consumer]=await Promise.all(['continuity-v112.js','continuity-consumer-v124.js'].map(f=>fs.readFile(path.join(ROOT,f),'utf8')));
 const ALL_ENGINES={chromium,firefox,webkit};
 const requested=String(process.env.NIAKGPT_BROWSER||'').trim();
 if(requested&&!ALL_ENGINES[requested])throw new Error(`Unsupported NIAKGPT_BROWSER=${requested}`);
@@ -54,6 +54,7 @@ for(const [engine,launcher] of Object.entries(engines)){
       },true);
     });
     await page.addScriptTag({content:code});
+    await page.addScriptTag({content:consumer});
     await page.waitForTimeout(850);
     const result=await page.evaluate(({newId,projectId})=>{
       const store=window.__testStore,cache=store['niakgpt-v08-cache'],gov=store['niakgpt-governance-v085'];
@@ -76,7 +77,7 @@ for(const [engine,launcher] of Object.entries(engines)){
     assert(result.count>=2,'Project conversation count did not include continued chat');
     assert(result.indexed===true,'continued Project lost indexed state');
     assert(result.openKey===projectId,'continued chat did not keep source Project drawer open');
-    assert(result.lock?.projectId===projectId&&result.lock?.source==='continuity-exact','governance exact Project lock missing');
+    assert(result.lock?.projectId===projectId&&result.lock?.source==='continuity-consumer-v124','governance exact Project lock missing');
 
     const dir=path.join(OUT,engine);await fs.mkdir(dir,{recursive:true});
     const analysis={pending:{projectId:pending.projectId,projectName:pending.projectName,chatName:pending.chatName,exactProject:pending.exactProject,capsuleStart:pending.capsule.slice(0,180)},result};

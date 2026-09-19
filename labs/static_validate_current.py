@@ -25,7 +25,7 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.98': fail(f"version={version}")
+if version!='0.9.99': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting','identity']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']: fail('host permissions drift')
 
@@ -64,6 +64,8 @@ if 'ux-v131.css' not in css_runtime: fail('v131 visual authority missing from ma
 sidebar_projects=read('sidebar-projects-v121.js')
 for token in ('safeInsert(parent,node,before=null)','dataset.ng121Retired','mountParentByBox','box.parentElement!==mountedParent','ng121MountPolicy','direct-once','retireStaleBox','placementTarget(root=navRoot(),box=null)','visiblePlacementNode','nativeSectionAfterPrimary','projectLinks(parent).length'):
     if token not in sidebar_projects: fail('sidebar no-reparent contract incomplete '+token)
+for token in ('duplicates=[]','if(host===keepHost){a.remove();structural=true;continue;}'):
+    if token not in sidebar_projects: fail('sidebar duplicate Project cleanup incomplete '+token)
 if "section.parentElement.insertBefore(box,section)" in sidebar_projects or "tail.insertAdjacentElement('afterend',box)" in sidebar_projects or "root.appendChild(box)" in sidebar_projects: fail('Pins reparenting path reintroduced')
 if not (ROOT/'visual-lab/dom-node-stability-v082.mjs').exists(): fail('DOM node stability regression gate missing')
 if not (ROOT/'visual-lab/pins-primary-slot-v083.mjs').exists(): fail('Pins primary-slot regression gate missing')
@@ -74,19 +76,31 @@ isolated=runtime('ISOLATED_RUNTIME')
 optional=runtime('OPTIONAL_RUNTIME')
 if main!=['page-bridge.js']: fail(f'MAIN_RUNTIME={main!r}')
 required={
-    'sidebar-metadata-v118.js','sidebar-projects-authority-v112.js','sidebar-projects-v121.js','sidebar-ux-v119.js','pin-folders-v096.js','app-v090.js','sidebar-actions-v123.js',
+    'sidebar-metadata-v118.js','sidebar-projects-authority-v112.js','sidebar-projects-v121.js','pin-folders-v096.js','app-v090.js','sidebar-actions-v123.js',
     'home-layout-v112.js','analysis-bridge-v112.js','reclassify-deep-v112.js','matrix-guardian-v112.js','performance-guard-v112.js','turn-headers-v112.js','continuity-v112.js',
-    'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','interruption-guard-v119.js',
+    'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','continuity-consumer-v124.js','interruption-guard-v119.js',
     'conversation-scroll-guard-v133.js','ux-v131.js'
 }
 missing_runtime=sorted(required-set(isolated))
 if missing_runtime: fail('current runtime missing: '+', '.join(missing_runtime))
 if isolated and isolated[-1]!='ux-v131.js': fail('v131 UX reconciler must be the final isolated runtime authority')
+if isolated.index('continuity-consumer-v124.js')<=isolated.index('continuity-v112.js'): fail('continuity v124 consumer must load after v112 producer')
+continuity100=read('continuity-v100.js')
+continuity112=read('continuity-v112.js')
+continuity124=read('continuity-consumer-v124.js')
+continuity129=read('continuity-native-handoff-v129.js')
+if 'patchNewChat' in continuity100: fail('legacy v100 Project PATCH owner reintroduced')
+if "method:'PATCH'" in continuity112: fail('v112 producer regained Project PATCH ownership')
+if 'niakgpt:rpc-request' in continuity100: fail('v100 continuity producer regained network ownership')
+if 'niakgpt:rpc-request' in continuity112: fail('v112 continuity producer regained network ownership')
+for token in ("const DATA_LOCK='niakgpt-data-mutation-v100'","navigator.locks.request(DATA_LOCK"):
+    if token not in continuity124: fail('v124 continuity assignment lock incomplete '+token)
+if "const DATA_LOCK='niakgpt-data-mutation-v100'" not in continuity129: fail('native continuity handoff assignment lock missing')
 if optional!=['project-memory-v132.js','project-memory-ui-v132.js']: fail(f'OPTIONAL_RUNTIME={optional!r}')
 if any(x.startswith('project-memory-') for x in isolated): fail('Project Memory leaked into critical isolated runtime')
 for forbidden in (
     'project-pins-v090.js','native-rename-v112.js','breadcrumb-v100.js','sidebar-authority-v107.js','sidebar-expando-guard-v108.js',
-    'native-actions-controller-v119.js','native-actions-v113.js','composer-continuation-v128.js','long-run-watchdog-v129.js',
+    'sidebar-ux-v119.js','live-fixes-v104.js','native-actions-controller-v119.js','native-actions-v113.js','composer-continuation-v128.js','long-run-watchdog-v129.js',
     'pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'
 ):
     if forbidden in isolated: fail(f'legacy/conflicting runtime wired: {forbidden}')
@@ -136,8 +150,29 @@ if 'placementAnchorNode' not in catalog or "data-ng112-native-projects" not in c
 for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','userScrollEpoch','user-priority-armed','placeIntentEpoch=userScrollEpoch','niakgpt:sidebar-projects-reconcile','signalAuthorityReady','niakgpt:sidebar-projects-ready','surface NiakGPT unique','autorité v121 unique · natif masqué'):
     if token not in catalog: fail('single-authority Projects catalog incomplete '+token)
 selfheal=read('project-state-selfheal-v102.js')
-for token in ('surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false','window.__NIAKGPT_FIND_SIDEBAR_V131__','a[href*="/g/g-p-"]','niakgpt:local-project-recovery-ready'):
+for token in ('surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false','window.__NIAKGPT_FIND_SIDEBAR_V131__','a[href*="/g/g-p-"]','niakgpt:local-project-recovery-ready','hiddenSet','visibleIds'):
     if token not in selfheal: fail('single-authority local recovery incomplete '+token)
+base_reclassify=read('reclassify-v101.js')
+deep_reclassify=read('reclassify-deep-v112.js')
+governance=read('project-governance-v090.js')
+cache_guardian=read('cache-guardian-v100.js')
+recovery_runtime=read('recovery-v100.js')
+for token in ('hiddenProjectIds','hiddenIds.has(id)'):
+    if token not in base_reclassify: fail('base classifier hidden-Project exclusion incomplete '+token)
+for token in ('hiddenProjectIds','visibleProjects','!hiddenIds.has(p.id)'):
+    if token not in deep_reclassify: fail('deep classifier hidden-Project exclusion incomplete '+token)
+for token in ('hiddenProjectIds','hidden.has(p.id)','...hidden'):
+    if token not in governance: fail('governance hidden-Project target exclusion incomplete '+token)
+for token in ("const DATA_LOCK='niakgpt-data-mutation-v100'","navigator.locks.request(DATA_LOCK"):
+    if token not in governance: fail('governance manual mutation lock incomplete '+token)
+if 'async function autoResync()' in governance: fail('governance must not remain a second automatic classifier')
+if 'scheduleAutoResync(' in governance: fail('governance automatic classifier scheduler reintroduced')
+for token in ('hiddenProjectIds','hiddenSet','!hiddenSet.has(id)'):
+    if token not in cache_guardian: fail('cache guardian hidden-Project preservation incomplete '+token)
+for token in ('hiddenProjectIds:[...hiddenSet]','targetByOldId.get(oldId)||oldId','!hiddenSet.has(id)'):
+    if token not in recovery_runtime: fail('structural recovery hidden-Project preservation incomplete '+token)
+if 'hiddenProjectIds:[]' in cache_guardian: fail('cache guardian may not erase hidden Projects')
+if 'hiddenProjectIds:[]' in recovery_runtime: fail('structural recovery may not erase hidden Projects')
 for token in ('ng8-native-project','function suppressNative('):
     if token in selfheal: fail('local recovery regained native Projects visual authority '+token)
 ux_css=read('ux-v131.css')
@@ -261,7 +296,7 @@ for gate in (
 ):
     if not (ROOT/gate).exists(): fail('current browser-fixture UX gate missing '+gate)
 workflow=read('.github/workflows/current-finalization.yml')
-for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','pins-primary-slot-v083.mjs','state-ux-v113.mjs','Chat-state authority + extension-context invalidation','Reported Pins placement — native controls stay above Projects','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble','project-memory-isolation-v133.mjs','deep-classification-v112.mjs','Deep classification · orphan chat to canonical Project'):
+for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','pins-primary-slot-v083.mjs','state-ux-v113.mjs','Chat-state authority + extension-context invalidation','Reported Pins placement — native controls stay above Projects','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble','project-memory-isolation-v133.mjs','live-fixes-context-v106.mjs','Project-context hot path · unrelated main churn stays ignored','global-observer-hotpath-v099.mjs','Global observer hot path · unrelated stream churn stays ignored','side-panels-owner-v096.mjs','Native side-panel owner · rail offset + BFCache recovery','hidden-project-classification-v099.mjs','Hidden Projects · never automatic classification targets','classification-authority-v099.mjs','Classification authority · governance never auto-PATCHes','continuity-authority-v099.mjs','Continuity authority · one shared-pending Project PATCH','deep-classification-v112.mjs','Deep classification · orphan chat to canonical Project'):
     if token not in workflow: fail('Current Finalization missing '+token)
 project_switch=read('.github/workflows/project-switch-user-journey-v130.yml')
 for token in ('sidebar-projects-authority-v112.js','project-state-selfheal-v102.js','reclassify-v101.js','reclassify-deep-v112.js','ux-v131.js','visual-lab/user-reported-v133.mjs'):

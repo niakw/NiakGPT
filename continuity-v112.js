@@ -5,7 +5,7 @@
 
   const CACHE_KEY='niakgpt-v08-cache',GOV_KEY='niakgpt-governance-v085',PENDING_KEY='niakgpt-continuity-pending-v100',PENDING_STORE_KEY='niakgpt-continuity-pending-v124',PIN_OPEN_KEY='niakgpt-open-pin-folder-v096';
   const STOP=new Set('le la les un une des de du et ou en sur pour avec sans dans au aux ce cet cette ces mon ma mes ton ta tes son sa ses nos vos leur leurs je tu il elle on nous vous ils elles est sont a à the and or of to for in on with from chat conversation projet project faire fais moi peux peut comment pourquoi quoi cela cette ceci avoir etre être besoin voudrais veux faudrait faut'.split(/\s+/));
-  let seq=0,patching=false,routeTimer=0,injectTimer=0;
+  let routeTimer=0,injectTimer=0;
   const clean=v=>String(v??'').replace(/\r/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const words=v=>norm(v).replace(/[^a-z0-9à-ÿ_-]+/gi,' ').split(/\s+/).filter(x=>x.length>2&&!STOP.has(x));
@@ -17,7 +17,6 @@
     if(!ed)return false;
     try{if('value'in ed){const proto=Object.getPrototypeOf(ed),setter=Object.getOwnPropertyDescriptor(proto,'value')?.set;setter?setter.call(ed,text):ed.value=text;}else{ed.focus();ed.textContent=text;}ed.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:text}));return true;}catch{return false;}
   }
-  function rpc(path,{method='GET',body=null,timeout=15000}={}){const id=`ng112c-${Date.now()}-${++seq}`;return new Promise(resolve=>{const t=setTimeout(()=>{off();resolve({ok:false,status:0,error:'rpc_timeout'});},timeout),h=e=>{if(e.detail?.id!==id)return;off();resolve(e.detail);},off=()=>{clearTimeout(t);document.removeEventListener('niakgpt:rpc-response',h);};document.addEventListener('niakgpt:rpc-response',h);document.dispatchEvent(new CustomEvent('niakgpt:rpc-request',{detail:{id,path,method,body,governance:true}}));});}
   async function cache(){try{return(await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY]||{};}catch{return{};}}
   function pendingSession(){try{const p=JSON.parse(sessionStorage.getItem(PENDING_KEY)||'null');if(!p||Date.now()-Number(p.createdAt||0)>30*60*1000)return null;return p;}catch{return null;}}
   async function pending(){
@@ -77,36 +76,6 @@
     window.__NIAKGPT_DIAGNOSTICS__?.set('continuité-112',data.exactProject?`PRÊT · ${data.projectName} > ${data.chatName} · Project verrouillé`:data.recommendedProjectId?`PRÊT · Project recommandé ${data.recommendedProjectName}`:'PRÊT · continuité hors Project');
     location.assign(data.projectId?`/g/${encodeURIComponent(data.projectId)}/project`:'/');
   }
-  async function persistExactLock(p,newId){
-    try{
-      const got=await chrome.storage.local.get([CACHE_KEY,GOV_KEY]),raw=got[CACHE_KEY]||{},gov=got[GOV_KEY]||{},now=Date.now();
-      raw.chats=Array.isArray(raw.chats)?raw.chats:[];raw.projectChats=raw.projectChats&&typeof raw.projectChats==='object'?raw.projectChats:{};raw.counts=raw.counts&&typeof raw.counts==='object'?raw.counts:{};
-      let row=raw.chats.find(c=>c?.id===newId);
-      if(!row){row={id:newId,title:p.chatName?`Suite · ${p.chatName}`:'Nouvelle conversation',projectId:p.projectId,href:`/g/${p.projectId}/c/${newId}`,updated:now};raw.chats.unshift(row);}
-      else{row.projectId=p.projectId;row.href=row.href||`/g/${p.projectId}/c/${newId}`;row.updated=Math.max(Number(row.updated||0),now);}
-      const list=Array.isArray(raw.projectChats[p.projectId])?raw.projectChats[p.projectId]:[];
-      raw.projectChats[p.projectId]=[{...row},...list.filter(c=>c?.id!==newId)];
-      raw.counts[p.projectId]=Math.max(Number(raw.counts[p.projectId]||0),raw.projectChats[p.projectId].length);
-      raw.indexedProjectIds=Array.isArray(raw.indexedProjectIds)?raw.indexedProjectIds:[];if(!raw.indexedProjectIds.includes(p.projectId))raw.indexedProjectIds.push(p.projectId);
-      raw.at=now;gov.locks={...(gov.locks||{}),[newId]:{projectId:p.projectId,at:now,source:'continuity-exact'}};
-      await chrome.storage.local.set({[CACHE_KEY]:raw,[GOV_KEY]:gov});keepProjectDrawerOpen(p.projectId);
-      document.dispatchEvent(new CustomEvent('niakgpt:force-server-index'));
-    }catch{}
-    p.patched=true;p.lockedAt=Date.now();await savePending(p);document.documentElement.dataset.ng112ContinuityProject=p.projectId;
-    window.__NIAKGPT_DIAGNOSTICS__?.set('continuité-112',`OK · nouveau chat visible et verrouillé sur ${p.projectName||p.projectId}`);
-    setTimeout(()=>{clearPending();delete document.documentElement.dataset.ng112ContinuityProject;},1800);
-  }
-  async function lockNewChat(attempt=0){
-    if(patching)return;const p=await pending(),newId=currentCid();if(!p?.exactProject||!p.projectId||!newId||newId===p.chatId)return;
-    // continuity-v100 is injected just before this module and already owns the normal
-    // Project PATCH. Give it one short chance to finish so v112 only adds the exact lock.
-    if(!p.patched&&attempt<1){routeTimer=setTimeout(()=>lockNewChat(attempt+1),180);return;}
-    patching=true;
-    try{
-      if(!p.patched){const r=await rpc(`/backend-api/conversation/${encodeURIComponent(newId)}`,{method:'PATCH',body:{gizmo_id:p.projectId}});if(!r.ok)return;}
-      await persistExactLock(p,newId);
-    }finally{patching=false;}
-  }
-  function onRoute(){clearTimeout(routeTimer);injectPending();routeTimer=setTimeout(()=>{injectPending();lockNewChat(0);},120);}
+  function onRoute(){clearTimeout(routeTimer);injectPending();routeTimer=setTimeout(()=>injectPending(),120);}
   document.addEventListener('click',interceptContinue,true);window.addEventListener('popstate',onRoute);if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',onRoute);document.addEventListener('niakgpt:activity-changed',()=>{if((document.documentElement.dataset.ng86Activity||'ready')==='ready')onRoute();});window.addEventListener('pagehide',()=>clearTimeout(injectTimer),{once:true});onRoute();
 })();

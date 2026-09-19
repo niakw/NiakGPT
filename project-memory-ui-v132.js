@@ -350,10 +350,23 @@
     renderTimer = setTimeout(render, delay == null ? 80 : delay);
   }
 
+  function controlMutationRelevant(records, control) {
+    for (const record of records) {
+      if (control && record.target instanceof Node && (record.target === control || control.contains(record.target))) return true;
+      for (const node of [...record.addedNodes,...record.removedNodes]) {
+        if (!(node instanceof Element)) continue;
+        if (node.id === 'ng90-control' || node.querySelector?.('#ng90-control')) return true;
+        if (control && (node === control || node.contains?.(control) || control.contains(node))) return true;
+      }
+    }
+    return false;
+  }
   const observer = new MutationObserver(records => {
-    const controlAdded = records.some(record => [...record.addedNodes].some(node => node instanceof Element && (node.id === 'ng90-control' || node.querySelector && node.querySelector('#ng90-control'))));
-    const openWithoutMemory = !!document.querySelector('#ng90-control.open .ng90-grid') && !document.querySelector('#ng90-control [data-ng132-memory]');
-    if (controlAdded || openWithoutMemory) schedule(40);
+    const control = document.getElementById('ng90-control');
+    if (!controlMutationRelevant(records, control)) return;
+    if (!control) { schedule(40); return; }
+    const openWithoutMemory = control.classList.contains('open') && !!control.querySelector('.ng90-grid') && !control.querySelector('[data-ng132-memory]');
+    if (openWithoutMemory || records.some(record => [...record.addedNodes].some(node => node instanceof Element && (node.id === 'ng90-control' || node.querySelector?.('#ng90-control'))))) schedule(40);
   });
   observer.observe(document.documentElement,{childList:true,subtree:true});
 

@@ -8,7 +8,7 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 
 const manifest=JSON.parse(read('manifest.json'));
 if(manifest.manifest_version!==3)fail('manifest_version drift');
-if(manifest.version!=='0.9.98')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.99')fail(`unexpected release ${manifest.version}`);
 same(manifest.permissions,['storage','scripting','identity'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*'],'host scope mismatch');
 const staticRuntime=['boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'];
@@ -23,14 +23,14 @@ const main=runtimeList('MAIN_RUNTIME'),isolated=runtimeList('ISOLATED_RUNTIME'),
 same(main,['page-bridge.js'],'MAIN runtime mismatch');
 
 const required=[
-  'sidebar-metadata-v118.js','sidebar-projects-authority-v112.js','sidebar-projects-v121.js','sidebar-ux-v119.js','pin-folders-v096.js','app-v090.js','sidebar-actions-v123.js','folder-scroll-anchor-v124.js','project-native-name-sync-v124.js',
+  'sidebar-metadata-v118.js','sidebar-projects-authority-v112.js','sidebar-projects-v121.js','pin-folders-v096.js','app-v090.js','sidebar-actions-v123.js','folder-scroll-anchor-v124.js','project-native-name-sync-v124.js',
   'home-layout-v112.js','analysis-bridge-v112.js','reclassify-deep-v112.js','matrix-guardian-v112.js','performance-guard-v112.js','turn-headers-v112.js',
-  'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','continuity-v112.js','interruption-guard-v119.js'
+  'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','continuity-v112.js','continuity-consumer-v124.js','interruption-guard-v119.js'
 ];
 same(optional,['project-memory-v132.js','project-memory-ui-v132.js'],'optional Project Memory runtime mismatch');
 for(const file of optional)if(isolated.includes(file))fail(`optional Project Memory leaked into critical runtime ${file}`);
 for(const file of required)if(!isolated.includes(file))fail(`current runtime missing ${file}`);
-for(const file of ['project-pins-v090.js','native-rename-v112.js','breadcrumb-v100.js','sidebar-authority-v107.js','sidebar-expando-guard-v108.js','sidebar-projects-authority-v109.js','sidebar-projects-authority-v110.js','sidebar-projects-authority-v111.js','native-actions-controller-v119.js','native-actions-v113.js',...staticRuntime.slice(1)])if(isolated.includes(file))fail(`legacy/conflicting runtime loaded ${file}`);
+for(const file of ['project-pins-v090.js','native-rename-v112.js','breadcrumb-v100.js','sidebar-authority-v107.js','sidebar-expando-guard-v108.js','sidebar-projects-authority-v109.js','sidebar-projects-authority-v110.js','sidebar-projects-authority-v111.js','sidebar-ux-v119.js','live-fixes-v104.js','native-actions-controller-v119.js','native-actions-v113.js',...staticRuntime.slice(1)])if(isolated.includes(file))fail(`legacy/conflicting runtime loaded ${file}`);
 
 const recoveryOverlays=[
   'native-ux-v125.js','native-ux-v126.js','continuity-limit-v125.js','continuity-live-v126.js','sidebar-route-placement-v125.js','sidebar-truth-v127.js',
@@ -43,12 +43,18 @@ for(const file of recoveryOverlays){
 
 const idx=file=>isolated.indexOf(file);
 for(const consumer of ['cache-guardian-v100.js','recovery-v100.js','server-index-v100.js','project-governance-v090.js','reclassify-v101.js'])if(idx('sidebar-metadata-v118.js')<0||idx('sidebar-metadata-v118.js')>=idx(consumer))fail(`sidebar metadata must sanitize cache before ${consumer}`);
-if(idx('sidebar-projects-v121.js')>=idx('sidebar-ux-v119.js'))fail('v121 Projects authority must load before v119 guard');
-if(idx('sidebar-ux-v119.js')>=idx('pin-folders-v096.js'))fail('sidebar UX guard must register before folder handlers');
 if(idx('sidebar-actions-v123.js')<=idx('pin-folders-v096.js')||idx('sidebar-actions-v123.js')<=idx('app-v090.js'))fail('single sidebar action owner must load after rows/render owner');
 if(idx('folder-scroll-anchor-v124.js')<=idx('sidebar-actions-v123.js'))fail('folder scroll anchor must load after sidebar actions');
 if(idx('project-native-name-sync-v124.js')<=idx('sidebar-actions-v123.js'))fail('native Project name sync must load after sidebar actions');
 if(idx('interruption-guard-v119.js')<=idx('continuity-v112.js'))fail('interruption guard must load after continuity capture handler');
+if(idx('continuity-consumer-v124.js')<=idx('continuity-v112.js'))fail('continuity v124 consumer must load after v112 producer');
+const continuity100=read('continuity-v100.js'),continuity112=read('continuity-v112.js'),continuity124=read('continuity-consumer-v124.js'),continuity129=read('continuity-native-handoff-v129.js');
+forbid(continuity100,'patchNewChat','legacy v100 Project PATCH owner reintroduced');
+forbid(continuity112,"method:'PATCH'",'v112 producer regained Project PATCH ownership');
+forbid(continuity100,'niakgpt:rpc-request','v100 continuity producer regained network ownership');
+forbid(continuity112,'niakgpt:rpc-request','v112 continuity producer regained network ownership');
+for(const token of ["const DATA_LOCK='niakgpt-data-mutation-v100'","navigator.locks.request(DATA_LOCK"])need(continuity124,token,'v124 continuity assignment lock incomplete');
+need(continuity129,"const DATA_LOCK='niakgpt-data-mutation-v100'",'native continuity handoff assignment lock missing');
 
 for(const file of [...isolated,...optional].filter(x=>x!=='retro-loader-v097.js'))forbid(read(file),'setInterval(',`permanent polling in ${file}`);
 for(const file of [...main,...isolated,...optional,'background-v100.js','project-memory-background-v132.js','github-vault-start.html','github-vault-start.js',...staticRuntime])if(!fs.existsSync(file))fail(`missing runtime ${file}`);
@@ -136,7 +142,18 @@ const catalog=read('sidebar-projects-v121.js');
 need(catalog,'placementAnchorNode','v121 must preserve hidden v112 native Projects host as a stable placement anchor');
 for(const token of ['canonicalProjects','renderCatalog','ng121PinsReady','ng121PlacementReady','sessionOrder','armBootstrap','projectScroll','drawerScroll','projectScrollMemory','niakgpt:sidebar-projects-reconcile','signalAuthorityReady','niakgpt:sidebar-projects-ready','surface NiakGPT unique','autorité v121 unique · natif masqué'])need(catalog,token,'single-authority Projects catalog/session ownership incomplete');
 const projectSelfheal=read('project-state-selfheal-v102.js');
-for(const token of ['surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false','window.__NIAKGPT_FIND_SIDEBAR_V131__','a[href*="/g/g-p-"]','niakgpt:local-project-recovery-ready'])need(projectSelfheal,token,'single-authority local recovery incomplete');
+for(const token of ['surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false','window.__NIAKGPT_FIND_SIDEBAR_V131__','a[href*="/g/g-p-"]','niakgpt:local-project-recovery-ready','hiddenSet','visibleIds'])need(projectSelfheal,token,'single-authority local recovery incomplete');
+const baseReclassify=read('reclassify-v101.js'),deepReclassify=read('reclassify-deep-v112.js'),governance=read('project-governance-v090.js'),cacheGuardian=read('cache-guardian-v100.js'),recovery=read('recovery-v100.js');
+for(const token of ['hiddenProjectIds','hiddenIds.has(id)'])need(baseReclassify,token,'base classifier hidden-Project exclusion incomplete');
+for(const token of ['hiddenProjectIds','visibleProjects','!hiddenIds.has(p.id)'])need(deepReclassify,token,'deep classifier hidden-Project exclusion incomplete');
+for(const token of ['hiddenProjectIds','hidden.has(p.id)','...hidden'])need(governance,token,'governance hidden-Project target exclusion incomplete');
+for(const token of ["const DATA_LOCK='niakgpt-data-mutation-v100'","navigator.locks.request(DATA_LOCK"])need(governance,token,'governance manual mutation lock incomplete');
+forbid(governance,'async function autoResync()','governance must not remain a second automatic classifier');
+forbid(governance,'scheduleAutoResync(','governance automatic classifier scheduler reintroduced');
+for(const token of ['hiddenProjectIds','hiddenSet','!hiddenSet.has(id)'])need(cacheGuardian,token,'cache guardian hidden-Project preservation incomplete');
+for(const token of ['hiddenProjectIds:[...hiddenSet]','targetByOldId.get(oldId)||oldId','!hiddenSet.has(id)'])need(recovery,token,'structural recovery hidden-Project preservation incomplete');
+forbid(cacheGuardian,'hiddenProjectIds:[]','cache guardian may not erase hidden Projects');
+forbid(recovery,'hiddenProjectIds:[]','structural recovery may not erase hidden Projects');
 for(const token of ['ng8-native-project','function suppressNative('])forbid(projectSelfheal,token,'local recovery must not own or clean native Projects suppression classes');
 const uxCss=read('ux-v131.css');
 for(const token of ['grid-column:1 / -1!important','place-self:auto stretch!important','box-sizing:border-box!important'])need(uxCss,token,'field sidebar full-lane geometry invariant missing');
@@ -186,6 +203,7 @@ const parallelRuntime=read('visual-lab/tests/composer-continuation-runtime-v128.
 for(const token of ['real MV3 static continuation layer prefixes only pre-existing parallel work','Message depuis une conversation au repos.','Ajoute ce contrôle sans arrêter ce que tu fais.','annule',"page.locator('#ng8-rail')",'isolated world'])need(parallelRuntime,token,'parallel real-extension/hydration gate incomplete');
 const sidebarProjects=read('sidebar-projects-v121.js');
 for(const token of ['safeInsert(parent,node,before=null)','retireStaleBox','mountParentByBox','box.parentElement!==mountedParent','ng121MountPolicy','direct-once','placementTarget(root=navRoot(),box=null)','visiblePlacementNode','nativeSectionAfterPrimary','projectLinks(parent).length'])need(sidebarProjects,token,'sidebar no-reparent/slot contract incomplete');
+for(const token of ['duplicates=[]','if(host===keepHost){a.remove();structural=true;continue;}'])need(sidebarProjects,token,'sidebar duplicate Project cleanup incomplete');
 for(const forbidden of ["section.parentElement.insertBefore(box,section)","tail.insertAdjacentElement('afterend',box)","root.appendChild(box)"])if(sidebarProjects.includes(forbidden))fail('Pins reparenting path reintroduced: '+forbidden);
 const domNodeLab=read('visual-lab/dom-node-stability-v082.mjs');
 for(const token of ['syntheticMoveNodeErrors','mountParents','late shell remount','Node cannot be found','direct-once'])need(domNodeLab,token,'DOM node stability lab incomplete');
@@ -202,7 +220,7 @@ const packageJson=read('visual-lab/package.json');
 const packageVersion=JSON.parse(packageJson).devDependencies?.['@playwright/test'];if(packageVersion!=='1.62.1')fail(`Playwright package/image version drift: ${packageVersion}`);
 const currentScript=JSON.parse(packageJson).scripts?.['test:current']||'';need(currentScript,'dom-node-stability-v082.mjs','current visual gate missing DOM node stability regression');need(currentScript,'pins-primary-slot-v083.mjs','current visual gate missing Pins slot regression');need(currentScript,'diagnostic-selection-v083.mjs','current visual gate missing diagnostic selection regression');
 const workflow=read('.github/workflows/current-finalization.yml');
-for(const token of ['chromium, firefox, webkit','user-reported-v133.mjs','deep-classification-v112.mjs','Deep classification · orphan chat to canonical Project','state-ux-v113.mjs','Chat-state authority + extension-context invalidation','sidebar-session-ux-v123.mjs','CURRENT LEFT SIDEBAR complete session contract','dom-node-stability-v082.mjs','Reported DOM node stability — direct chat and late shell remount','pins-primary-slot-v083.mjs','Reported Pins placement — native controls stay above Projects','sidebar-human-ux-v123.spec.js','PRIMARY real Brave — FULL human sidebar','experience-linux:','extension-runtime-linux:','mcr.microsoft.com/playwright:v1.62.1-noble','PLAYWRIGHT_BROWSERS_PATH: /ms-playwright','HOME: /root'])need(workflow,token,'current full-session/cross-platform workflow incomplete');
+for(const token of ['chromium, firefox, webkit','user-reported-v133.mjs','hidden-project-classification-v099.mjs','Hidden Projects · never automatic classification targets','classification-authority-v099.mjs','Classification authority · governance never auto-PATCHes','continuity-authority-v099.mjs','Continuity authority · one shared-pending Project PATCH','side-panels-owner-v096.mjs','Native side-panel owner · rail offset + BFCache recovery','live-fixes-context-v106.mjs','Project-context hot path · unrelated main churn stays ignored','global-observer-hotpath-v099.mjs','Global observer hot path · unrelated stream churn stays ignored','deep-classification-v112.mjs','Deep classification · orphan chat to canonical Project','state-ux-v113.mjs','Chat-state authority + extension-context invalidation','sidebar-session-ux-v123.mjs','CURRENT LEFT SIDEBAR complete session contract','dom-node-stability-v082.mjs','Reported DOM node stability — direct chat and late shell remount','pins-primary-slot-v083.mjs','Reported Pins placement — native controls stay above Projects','sidebar-human-ux-v123.spec.js','PRIMARY real Brave — FULL human sidebar','experience-linux:','extension-runtime-linux:','mcr.microsoft.com/playwright:v1.62.1-noble','PLAYWRIGHT_BROWSERS_PATH: /ms-playwright','HOME: /root'])need(workflow,token,'current full-session/cross-platform workflow incomplete');
 const imageLines=workflow.split(/\r?\n/).filter(line=>/^\s+image:\s+mcr\.microsoft\.com\/playwright:v1\.62\.1-noble\s*$/.test(line));if(imageLines.length!==3)fail(`expected 3 pinned Linux Playwright image jobs, got ${imageLines.length}`);
 if(/^\s*npx playwright install --with-deps\b/m.test(workflow))fail('Linux Finalization reintroduced apt --with-deps');
 const parallelWorkflow=read('.github/workflows/parallel-continuation-v128.yml');

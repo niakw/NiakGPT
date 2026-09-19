@@ -513,8 +513,17 @@
     const drawerScroll=new Map([...box.querySelectorAll('.ng96-pin-drawer')].map(d=>[normalizePid(d.dataset.pid),d.querySelector('.ng96-folder-list')?.scrollTop||0]));
     internal=true;const epoch=++renderEpoch;
     try{
-      const {head,list}=ensureStructure(box),existing=new Map();
-      for(const a of box.querySelectorAll('a[data-ng8-pin="1"]')){const id=anchorPid(a);if(id&&!existing.has(id))existing.set(id,a);}
+      const {head,list}=ensureStructure(box),existing=new Map(),duplicates=[];
+      for(const a of box.querySelectorAll('a[data-ng8-pin="1"]')){
+        const id=anchorPid(a);if(!id)continue;
+        if(!existing.has(id)){existing.set(id,a);continue;}
+        duplicates.push({id,a,keeper:existing.get(id)});
+      }
+      for(const {id,a,keeper} of duplicates){
+        const host=hostFor(a),keepHost=hostFor(keeper);
+        if(host===keepHost){a.remove();structural=true;continue;}
+        const drawer=drawerFor(host,id);drawer?.remove();host?.remove();structural=true;
+      }
       const pairs=[];
       for(const p of projects){
         let a=existing.get(p.id);if(!a){a=makeAnchor(p);structural=true;}else updateAnchor(a,p);

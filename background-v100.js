@@ -42,7 +42,6 @@ const ISOLATED_RUNTIME=[
   'sidebar-host-v090.js',
   'performance-guard-v112.js',
   'sidebar-projects-v121.js',
-  'sidebar-ux-v119.js',
   'pin-folders-v096.js',
   'app-v090.js',
   'sidebar-actions-v123.js',
@@ -63,7 +62,6 @@ const ISOLATED_RUNTIME=[
   'coach-v101.js',
   'polish-v090.js',
   'side-panels-v096.js',
-  'live-fixes-v104.js',
   'live-fixes-v106.js',
   'chronology-v090.js',
   'project-chat-ux-v110.js',
@@ -135,7 +133,7 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
         if(file===HARD_ISOLATED_BARRIER){bootBlocked=true;break;}
       }
     }
-    const coreFailed=bootBlocked||errors.some(item=>item.includes(':app-v090.js:')||item.includes(':pin-folders-v096.js:')||item.includes(':folder-scroll-anchor-v124.js:')||item.includes(':project-native-name-sync-v124.js:')||item.includes(':project-state-selfheal-v102.js:')||item.includes(':project-assignment-selfheal-v103.js:')||item.includes(':sidebar-projects-authority-v112.js:')||item.includes(':sidebar-projects-v121.js:')||item.includes(':sidebar-metadata-v118.js:')||item.includes(':server-index-v100.js:')||item.includes(':server-index-bootstrap-v124.js:')||item.includes(':chat-state-authority-v113.js:')||item.includes(':sidebar-ux-v119.js:')||item.includes(':sidebar-actions-v123.js:')||item.includes(':continuity-consumer-v124.js:')||item.includes(':interruption-guard-v119.js:')||item.includes(':conversation-scroll-guard-v133.js:')||item.includes(':ux-v131.js:'));
+    const coreFailed=bootBlocked||errors.some(item=>item.includes(':app-v090.js:')||item.includes(':pin-folders-v096.js:')||item.includes(':folder-scroll-anchor-v124.js:')||item.includes(':project-native-name-sync-v124.js:')||item.includes(':project-state-selfheal-v102.js:')||item.includes(':project-assignment-selfheal-v103.js:')||item.includes(':sidebar-projects-authority-v112.js:')||item.includes(':sidebar-projects-v121.js:')||item.includes(':sidebar-metadata-v118.js:')||item.includes(':server-index-v100.js:')||item.includes(':server-index-bootstrap-v124.js:')||item.includes(':chat-state-authority-v113.js:')||item.includes(':sidebar-actions-v123.js:')||item.includes(':continuity-consumer-v124.js:')||item.includes(':interruption-guard-v119.js:')||item.includes(':conversation-scroll-guard-v133.js:')||item.includes(':ux-v131.js:'));
     sendResponse({ok:!coreFailed,errors,projectMemoryBackendReady:PROJECT_MEMORY_BACKEND_READY});
     if(!coreFailed&&PROJECT_MEMORY_BACKEND_READY){
       (async()=>{

@@ -138,8 +138,8 @@ for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjec
 selfheal=read('project-state-selfheal-v102.js')
 for token in ('surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false','window.__NIAKGPT_FIND_SIDEBAR_V131__','a[href*="/g/g-p-"]','niakgpt:local-project-recovery-ready'):
     if token not in selfheal: fail('single-authority local recovery incomplete '+token)
-for token in ("classList.add('ng8-native-project","function suppressNative("):
-    if token in selfheal: fail('local recovery regained native Projects suppression authority '+token)
+for token in ('ng8-native-project','function suppressNative('):
+    if token in selfheal: fail('local recovery regained native Projects visual authority '+token)
 ux_css=read('ux-v131.css')
 for token in ('grid-column:1 / -1!important','place-self:auto stretch!important','box-sizing:border-box!important'):
     if token not in ux_css: fail('field sidebar full-lane geometry invariant missing '+token)

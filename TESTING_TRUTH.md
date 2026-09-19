@@ -1,3 +1,10 @@
+## 0.9.96 — vérité terrain : auth invalidée + corrections de scroll natives tardives
+
+- Le scénario GitHub utilise le vrai runtime Project Memory et force `chrome.runtime.connect()` à lever synchroniquement `Extension context invalidated.`. Le test échoue si une promesse non gérée apparaît, si le bouton reste désactivé ou si « Ouverture de GitHub… » reste affiché.
+- Le scénario de scroll attend volontairement qu’une correction native arrive **après** les mutations du stream et après l’ancienne fenêtre de protection ; le fil doit encore finir à moins de 8 px du bas.
+- Un second scénario bascule le propriétaire du scroll de `#shell` vers `#outer` sans remplacer `main`. Le diagnostic doit annoncer le nouveau root et le nouveau scroller doit rester au bas.
+- Ces scénarios produisent des screenshots dans `visual-lab/artifacts` et Current Finalization les publie dans l’artefact terrain.
+
 ## 0.9.95 — terrain Brave/macOS : scroll réel + autorité Projects unique
 
 - Le test terrain de scroll utilise désormais un scroller **ancêtre de `main`**, comme sur le shell ChatGPT réel, et contient volontairement un faux gros descendant non scrollable.

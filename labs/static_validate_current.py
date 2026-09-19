@@ -64,6 +64,8 @@ if 'ux-v131.css' not in css_runtime: fail('v131 visual authority missing from ma
 sidebar_projects=read('sidebar-projects-v121.js')
 for token in ('safeInsert(parent,node,before=null)','dataset.ng121Retired','mountParentByBox','box.parentElement!==mountedParent','ng121MountPolicy','direct-once','retireStaleBox','placementTarget(root=navRoot(),box=null)','visiblePlacementNode','nativeSectionAfterPrimary','projectLinks(parent).length'):
     if token not in sidebar_projects: fail('sidebar no-reparent contract incomplete '+token)
+for token in ('duplicates=[]','if(host===keepHost){a.remove();structural=true;continue;}'):
+    if token not in sidebar_projects: fail('sidebar duplicate Project cleanup incomplete '+token)
 if "section.parentElement.insertBefore(box,section)" in sidebar_projects or "tail.insertAdjacentElement('afterend',box)" in sidebar_projects or "root.appendChild(box)" in sidebar_projects: fail('Pins reparenting path reintroduced')
 if not (ROOT/'visual-lab/dom-node-stability-v082.mjs').exists(): fail('DOM node stability regression gate missing')
 if not (ROOT/'visual-lab/pins-primary-slot-v083.mjs').exists(): fail('Pins primary-slot regression gate missing')

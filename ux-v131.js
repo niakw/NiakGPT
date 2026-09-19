@@ -40,9 +40,20 @@
     // NiakGPT from mounting into one internal grid column (the field screenshot regression).
     let chosen=winner[0],node=chosen.parentElement;
     while(node&&node!==document.body&&node!==document.documentElement){
-      if(node.matches?.(SIDEBAR_CANDIDATE)&&!own(node)&&visible(node)){
+      if(!own(node)&&visible(node)&&!node.closest('main,[role="main"]')){
         const nr=node.getBoundingClientRect(),cr=chosen.getBoundingClientRect();
-        if(nr.left<=72&&nr.width>=cr.width&&nr.width<=520&&!node.closest('main,[role="main"]'))chosen=node;
+        const primaryHits=[...node.querySelectorAll('a[href]')].filter(a=>PRIMARY.test(a.getAttribute('href')||'')).length;
+        const genericChats=[...node.querySelectorAll(CHAT)].filter(a=>!own(a)&&!a.getAttribute('href')?.includes('/g/g-p-')).length;
+        const structural=node.matches?.(SIDEBAR_CANDIDATE)||primaryHits>=2||genericChats>0;
+        const wider=nr.width>=cr.width&&nr.width<=560&&nr.left<=72;
+        const sidebarHeight=nr.height>=Math.min(cr.height,innerHeight*.55);
+        // ChatGPT can wrap the real left sidebar in an unlabelled DIV while exposing only
+        // a nested NAV/ASIDE as a semantic candidate.  That nested node can be one grid
+        // column wide; mounting Projects there makes grid-column:1/-1 span only that column.
+        // Promote to the enclosing visible left shell when geometry + native controls prove
+        // it owns the same sidebar, even if the shell has no sidebar data-testid.
+        const columnFragment=cr.width<nr.width*.84||cr.left>nr.left+24;
+        if(structural&&wider&&sidebarHeight&&(node.matches?.(SIDEBAR_CANDIDATE)||columnFragment))chosen=node;
       }
       node=node.parentElement;
     }

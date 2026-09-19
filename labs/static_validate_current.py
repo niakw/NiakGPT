@@ -144,6 +144,8 @@ for token in ('grid-column:1 / -1!important','place-self:auto stretch!important'
 authority=read('sidebar-projects-authority-v112.js')
 for token in ('[data-ng102-project]',"querySelectorAll('[data-ng8-pin],[data-ng102-project]", "niakgpt:local-project-recovery-ready',()=>apply()"):
     if token not in authority: fail('single-authority native suppression incomplete '+token)
+for token in ('else if(document.body)','roots.add(document.body)'):
+    if token not in authority: fail('SPA sidebar remount authority gap invariant missing '+token)
 scroll_guard=read('conversation-scroll-guard-v133.js')
 for token in ('conversationTail','ancestorScroller','scrollableNode','targetsConversationScroller','noteSendIntent','SEND_LATCH_MS','touchstart','touchPoint','event.shiftKey','editable(event.target)','ng133ScrollSticky','ng133ScrollRoot','remontée volontaire','generation-start','send-intent','ensureRoot','rootObserver','rootScrollEvent','pointerScrollActive','correction scroll native'):
     if token not in scroll_guard: fail('conversation scroll audit contract incomplete '+token)

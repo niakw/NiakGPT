@@ -176,6 +176,7 @@
   function start(){stopped=false;clearLegacyMarks();bindObservers();apply();}
   function stop(){stopped=true;clearTimeout(timer);timer=0;observer?.disconnect();observer=null;observedRoots=[];}
   document.addEventListener('niakgpt:pins-rendered',()=>apply());
+  document.addEventListener('niakgpt:sidebar-projects-ready',()=>apply());
   document.addEventListener('niakgpt:local-project-recovery-ready',()=>apply());
   document.addEventListener('niakgpt:recovery-complete',()=>schedule(12));
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){bindObservers();apply();}});

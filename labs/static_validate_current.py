@@ -147,8 +147,8 @@ for token in ('ng123-action-menu','ng123-rename-dialog','dataset.ng123Action','d
 catalog=read('sidebar-projects-v121.js')
 if 'placementAnchorNode' not in catalog or "data-ng112-native-projects" not in catalog:
     fail('v121 must preserve the hidden v112 native Projects host as a placement anchor')
-for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','userScrollEpoch','user-priority-armed','placeIntentEpoch=userScrollEpoch','niakgpt:sidebar-projects-reconcile','signalAuthorityReady','niakgpt:sidebar-projects-ready','surface NiakGPT unique','autorité v121 unique · natif masqué'):
-    if token not in catalog: fail('single-authority Projects catalog incomplete '+token)
+for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','userScrollEpoch','user-priority-armed','placeIntentEpoch=userScrollEpoch','niakgpt:sidebar-projects-reconcile','signalAuthorityReady','niakgpt:sidebar-projects-ready','authoritativeLaneSafe','column-fragment','laneUnsafe','surface NiakGPT unique','autorité v121 unique · natif masqué'):
+    if token not in catalog: fail('single-authority Projects catalog/lane incomplete '+token)
 selfheal=read('project-state-selfheal-v102.js')
 for token in ('surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false','window.__NIAKGPT_FIND_SIDEBAR_V131__','a[href*="/g/g-p-"]','niakgpt:local-project-recovery-ready','hiddenSet','visibleIds'):
     if token not in selfheal: fail('single-authority local recovery incomplete '+token)

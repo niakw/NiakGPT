@@ -7,6 +7,7 @@
   const GOV_KEY='niakgpt-governance-v085';
   const LOCK_MIRROR_KEY='niakgpt-manual-locks-v085';
   const CHANNEL='niakgpt-governance-v085';
+  const DATA_LOCK='niakgpt-data-mutation-v100';
   const LEGACY=new Set(['design','ai','ia','coding','code','development','web development','technology','tech','social','social media','writing','general knowledge','general','e-commerce','ecommerce','seo','marketing','business','creative','research','productivity','other','misc','work','education','health','finance','home','cars','gaming','movies','food','personal development']);
   const SUSPECT=/^(test|tests|demo|sandbox|temp|temporary|tmp|untitled|nouveau projet|new project)(\b|\s|[-_])/i;
   const STOP=new Set(('le la les un une des de du et ou en sur pour avec sans dans au aux ce cet cette ces mon ma mes ton ta tes son sa ses nos vos leur leurs je tu il elle on nous vous ils elles est sont a à the and or of to for in on with from chat conversation projet project faire fais moi peux peut comment pourquoi quoi cela cette ceci avoir etre être besoin voudrais veux faudrait faut').split(/\s+/));
@@ -14,7 +15,7 @@
 
   let config={seeded:false,coreProjectIds:[],hiddenProjectIds:[],locks:{},lastCleanup:null,autoResync:true};
   let cache={projects:[],chats:[],counts:{},projectChats:{}};
-  let lastPlan=null,rpcSeq=0,running=false,autoTimer=0,sidebarObserver=null,sidebarRoot=null,sidebarTimer=0,modalReturnFocus=null;
+  let lastPlan=null,rpcSeq=0,running=false,sidebarObserver=null,sidebarRoot=null,sidebarTimer=0,modalReturnFocus=null;
 
   const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[’']/g,"'").replace(/\s+/g,' ').trim();
   const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
@@ -23,11 +24,7 @@
   const normalizePid=v=>{if(!v||typeof v!=='string')return'';const s=v.trim(),m=s.match(/^g-p-([A-Za-z0-9]+)(?:-.+)?$/);return m?`g-p-${m[1]}`:s;};
   const cidFromHref=h=>String(h||'').match(/\/c\/([0-9a-f-]{20,})/i)?.[1]||'';
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-  const role=()=>document.documentElement.dataset.ng8TabRole||'unknown';
   const runningChat=()=>document.documentElement.dataset.ng8Running==='1';
-  const heavy=()=>document.documentElement.dataset.ng8Heavy==='1';
-  const safeMode=()=>document.documentElement.dataset.ng90Safe==='1';
-  const canAutomate=()=>role()==='worker'&&!document.hidden&&!runningChat()&&!heavy()&&!safeMode();
 
   function rpc(path,{method='GET',body=null,timeout=16000,governance=false}={}){
     const id=`ng90-gov-${Date.now()}-${++rpcSeq}`;
@@ -198,13 +195,7 @@
       }
       const hidden=new Set(config.hiddenProjectIds||[]);for(const relic of plan.relics){const locked=plan.lockedByRelic.get(relic.project.id)||0,unresolved=plan.operations.some(op=>op.fromId===relic.project.id&&failedIds.has(op.chat.id));if(!locked&&!unresolved)hidden.add(relic.project.id);}config.hiddenProjectIds=[...hidden];config.lastCleanup={at:Date.now(),moved,detached,failed,relics:plan.relics.length};await saveCache();await saveConfig();lastPlan=buildCleanupPlan();running=false;renderGovernanceModal('result',{moved,detached,failed});toast(`Nettoyage terminé · ${moved+detached} traités`);
     };
-    if(navigator.locks?.request){let acquired=false;await navigator.locks.request('niakgpt-governance-cleanup-v090',{mode:'exclusive',ifAvailable:true},async lock=>{if(!lock)return;acquired=true;await run();});if(!acquired)toast('Un autre onglet exécute déjà le nettoyage');}else await run();
-  }
-
-  function scheduleAutoResync(delay=18000){clearTimeout(autoTimer);if(!config.autoResync||safeMode())return;autoTimer=setTimeout(autoResync,delay);}
-  async function autoResync(){
-    autoTimer=0;if(!config.autoResync||!canAutomate())return;await loadCache();const plan=buildCleanupPlan(),ops=plan.operations.filter(op=>!op.fromId&&op.toId&&op.reason==='RESYNC').slice(0,3);if(!ops.length)return;
-    let changed=false;for(const op of ops){if(!canAutomate())break;const r=await moveConversation(op.chat.id,op.toId);if(r.ok){applyMoveToCache(op.chat.id,op.toId);changed=true;}await sleep(120);}if(changed)await saveCache();
+    if(navigator.locks?.request){let acquired=false;await navigator.locks.request(DATA_LOCK,{mode:'exclusive',ifAvailable:true},async lock=>{if(!lock)return;acquired=true;await run();});if(!acquired)toast('Un autre onglet modifie déjà les rattachements');}else await run();
   }
 
   document.addEventListener('click',event=>{
@@ -219,15 +210,15 @@
     if(event.key==='Tab'&&document.getElementById('ng85-governance')){const modal=document.getElementById('ng85-governance'),items=modalFocusable(modal);if(!items.length)return;const first=items[0],last=items.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}}
   },true);
   document.addEventListener('niakgpt:manual-project-move',event=>verifyAndLockManualMove(event.detail));
-  document.addEventListener('niakgpt:settings-changed',()=>{if(config.autoResync&&!safeMode())scheduleAutoResync(12000);patchDiagnostic();});
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden){bindSidebar();decorateLocks();if(config.autoResync)scheduleAutoResync(12000);}});
+  document.addEventListener('niakgpt:settings-changed',()=>patchDiagnostic());
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden){bindSidebar();decorateLocks();}});
   window.addEventListener('popstate',()=>setTimeout(()=>{bindSidebar();decorateLocks();applyHiddenProjects();},80));
   chrome.storage.onChanged.addListener((changes,area)=>{
     if(area!=='local')return;
     if(changes[GOV_KEY]){config={...config,...(changes[GOV_KEY].newValue||{}),locks:changes[GOV_KEY].newValue?.locks||{}};mirrorLocks();applyHiddenProjects();decorateLocks();patchExplorer();patchDiagnostic();renderGovernanceModal();}
-    if(changes[CACHE_KEY]){cache=changes[CACHE_KEY].newValue||cache;lastPlan=null;patchExplorer();if(config.autoResync)scheduleAutoResync(18000);}
+    if(changes[CACHE_KEY]){cache=changes[CACHE_KEY].newValue||cache;lastPlan=null;patchExplorer();}
   });
   bc?.addEventListener('message',event=>{if(event.data?.type==='config')loadConfig().then(()=>{applyHiddenProjects();decorateLocks();patchExplorer();patchDiagnostic();});});
 
-  Promise.all([loadConfig(),loadCache()]).then(async()=>{if(seedCore())await saveConfig();applyHiddenProjects();bindSidebar();decorateLocks();patchExplorer();patchDiagnostic();if(config.autoResync)scheduleAutoResync(20000);});
+  Promise.all([loadConfig(),loadCache()]).then(async()=>{if(seedCore())await saveConfig();applyHiddenProjects();bindSidebar();decorateLocks();patchExplorer();patchDiagnostic();});
 })();

@@ -225,6 +225,7 @@ async function screenshotSidebarRegression(){
             <h3>Chats</h3>
             <a data-sidebar-item="true" href="/c/55555555-5555-4555-8555-555555555555">NiakGPT extension GitHub bug</a>
             <a data-sidebar-item="true" href="/c/66666666-6666-4666-8666-666666666666">Un autre chat non organisé</a>
+            <button id="chat-more">Afficher plus</button>
           </section>
         </div>
       </aside>
@@ -249,6 +250,7 @@ async function screenshotSidebarRegression(){
         boxBeforeChats:!!box&&!!(box.compareDocumentPosition(chats)&Node.DOCUMENT_POSITION_FOLLOWING),
         genericInside:document.querySelectorAll('#ng8-pins a[href*="/c/"]').length,
         genericOutside:document.querySelectorAll('#native-chats a[href*="/c/"]').length,
+        chatMoreLegacyHidden:document.getElementById('chat-more')?.classList.contains('ng8-native-project-more-suppressed')||false,
         core:window.__store['niakgpt-governance-v085']?.coreProjectIds||[],
         canonical:(window.__store['niakgpt-v08-cache']?.projects||[]).filter(p=>String(p.id||'').startsWith('g-p-')&&!p.domOnly).map(p=>p.id),
         authority:window.__diag['projects-authority']||'',pins:window.__diag['pins-ui']||'',ux:window.__diag['ux-v131']||''
@@ -263,6 +265,7 @@ async function screenshotSidebarRegression(){
     assert.equal(got.boxBeforeChats,true,'managed Projects is not above the generic Chats section');
     assert.equal(got.genericInside,0,'generic/unorganized chats were merged into the managed Projects surface');
     assert.equal(got.genericOutside,2,'generic/unorganized chats disappeared from their native Chats section');
+    assert.equal(got.chatMoreLegacyHidden,false,'Projects recovery leaked legacy suppression onto the generic Chats "Afficher plus" control');
     assert.deepEqual(new Set(got.canonical),new Set(['g-p-niakgpt123','g-p-films123']),'absolute native Project hrefs were not promoted to canonical identities');
     assert.deepEqual(new Set(got.core),new Set(['g-p-niakgpt123','g-p-films123']),'governance did not recover target Projects from the live native inventory');
     await page.screenshot({path:path.join(ARTIFACTS,`${engineName}-01c-user-sidebar-exact.png`),fullPage:true});

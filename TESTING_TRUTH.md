@@ -1,3 +1,13 @@
+## 0.9.99 — troisième passe, preuves de non-régression supplémentaires
+
+La troisième passe a volontairement remis en cause la 0.9.98 après son merge.
+
+1. Un contrat statique a été rendu rouge en déclarant `sidebar-ux-v119.js` legacy : la CI a confirmé qu’il était toujours injecté comme runtime critique alors que v121 rendait son exécution inerte. Il a été retiré de l’injection et du ZIP.
+2. Le même procédé a confirmé `live-fixes-v104.js` comme second propriétaire actif des panneaux natifs. `side-panels-v096.js` possède maintenant seul cette surface, y compris l’offset du rail et la reprise BFCache.
+3. `live-fixes-context-v106.mjs` fait muter le contenu principal d’une conversation sans rapport avec Projects et exige zéro balayage global de migration ; un remount réel du breadcrumb doit en revanche encore resynchroniser le Project.
+4. `side-panels-owner-v096.mjs` exige la détection du panneau, l’offset exact du rail, l’absence de mutation pendant `pagehide` et la reprise après `pageshow.persisted`.
+5. `hidden-project-classification-v099.mjs` vérifie qu’un Project masqué n’est ciblé ni par le classifieur normal ni par le deep-classifier, et que le self-heal ne le réinjecte pas dans `coreProjectIds`.
+
 ## 0.9.98 — récupération locale isolée des Chats + classement multi-lots
 
 Le follow-up 0.9.98 part d’un test rouge ajouté avant le correctif : en mode cache local uniquement, une section Chats contenant plusieurs conversations et un bouton « Afficher plus » recevait la classe legacy de masquage Projects. Chromium a reproduit le défaut avec `true !== false` dans `falseMirrorRecovery`.

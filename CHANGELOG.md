@@ -1,3 +1,11 @@
+# NiakGPT 0.9.96 — GitHub invalidé + scroll terrain réellement adaptatif
+
+- **Connexion GitHub** : un onglet ChatGPT resté ouvert après une mise à jour de l’extension ne peut plus laisser le bouton bloqué sur « Ouverture de GitHub… ». L’appel `chrome.runtime.connect` est désormais capturé même lorsqu’il lève synchroniquement `Extension context invalidated`, le port possède un état terminal borné et l’UI réactive immédiatement l’action avec une consigne de rechargement explicite.
+- **Cause racine du scroll persistant** : un scroll natif tardif de ChatGPT pouvait être pris pour une remontée volontaire dès qu’il arrivait hors de la petite fenêtre des écritures programmatiques. Le garde ne déduit plus l’intention utilisateur d’un simple déplacement du scroll : wheel/touch/clavier et scrollbar restent les autorités de l’intention humaine, tandis qu’une correction native pendant une génération est restaurée vers le bas.
+- **Changement de propriétaire du scroll** : si ChatGPT transfère dynamiquement le scroll d’un wrapper vers un ancêtre sans remplacer `<main>`, NiakGPT réévalue l’ancêtre scrollable, observe les changements de géométrie/classe/style et rebinde l’autorité au nouveau root.
+- **Tests terrain** : le lab reproduit maintenant une correction native tardive après la dernière mutation du stream et une migration du scroll-root en pleine génération. Project Memory reproduit aussi exactement `runtime.connect() -> Extension context invalidated` et exige que le CTA ne reste jamais bloqué.
+- **Preuves visuelles** : Current Finalization exécute le lab Project Memory dans le job terrain Chromium et collecte les screenshots avec les autres artefacts de régression.
+
 # NiakGPT 0.9.95 — GitHub ref autoritative + diagnostic runtime
 
 - **Correction terrain supplémentaire** : le recovery Projects n’abandonne plus l’UI à la liste native ChatGPT. Le cache local et l’inventaire canonique utilisent désormais la même surface visuelle `#ng8-pins`; la surface native est masquée dès que cette autorité est exploitable.

@@ -197,7 +197,7 @@ assert.equal(prePatchAttempts,1,'preflight race still emitted doomed update-ref 
 assert.equal(preResult.sha,preHead);
 
 const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
-assert.equal(manifest.version, '0.9.95');
+assert.equal(manifest.version, '0.9.96');
 assert.deepEqual(manifest.permissions, ['storage','scripting','identity']);
 assert.deepEqual(manifest.host_permissions, ['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']);
 
@@ -276,7 +276,9 @@ assert.match(runtime, /PROJECT_STATE\.md/);
 assert.match(runtime, /NIAKGPT PROJECT MEMORY — CHECKPOINT RÉCUPÉRÉ/);
 assert.match(runtime, /Superseded/);
 assert.match(runtime, /githubLogin/);
-assert.match(runtime, /chrome\.runtime\.connect\(\{name:'niakgpt:memory-github-login-v132'\}\)/);
+assert.match(runtime, /runtime\.connect\(\{name:'niakgpt:memory-github-login-v132'\}\)/);
+assert.match(runtime, /extension_context_invalidated_reload_required/);
+assert.match(runtime, /GITHUB_AUTH_UI_TIMEOUT_MS/);
 assert.match(runtime, /setTimeout\(heartbeat,20_000\)/);
 assert.match(runtime, /githubRepositories/);
 assert.match(runtime, /githubConnectRepo/);
@@ -300,6 +302,8 @@ assert.match(ui, /GITHUB PRIVÉ/);
 assert.match(ui, /openWithoutMemory/);
 assert.match(ui, /Réessayer avec le PAT/);
 assert.match(ui, /Réessayer avec GitHub/);
+assert.match(ui, /Recharger l’onglet puis réessayer/);
+assert.match(ui, /Contexte NiakGPT expiré après une mise à jour/);
 assert.match(ui, /Réessayer ce dépôt/);
 assert.match(ui, /Coffre initialisé · snapshot local en attente/);
 assert.match(ui, /Snapshot local GitHub écrit/);

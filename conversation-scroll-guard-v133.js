@@ -6,8 +6,8 @@
   const CHAT_RX=/(?:^|\/)c\/[A-Za-z0-9_-]+(?:$|[/?#])/;
   const ACTIVE=new Set(['loading','waiting','thinking','executing']);
   const SEND_LATCH_MS=6500;
-  let root=null,main=null,observer=null,shellObserver=null,resizeObserver=null,raf=0,sticky=false,userUpAt=-Infinity,lastBottom=Infinity,lastPath=location.pathname,touchY=null;
-  let sendIntentAt=-Infinity,sendLatched=false,wasActive=false,latchTimer=0,observedTail=null,programmaticUntil=0;
+  let root=null,main=null,observer=null,shellObserver=null,rootObserver=null,resizeObserver=null,raf=0,sticky=false,userUpAt=-Infinity,lastBottom=Infinity,lastPath=location.pathname,touchY=null;
+  let sendIntentAt=-Infinity,sendLatched=false,wasActive=false,latchTimer=0,observedTail=null,programmaticUntil=0,pointerScrollActive=false,pointerReleaseTimer=0;
 
   const diag=text=>window.__NIAKGPT_DIAGNOSTICS__?.set('scroll-chat',text);
   const isChat=()=>CHAT_RX.test(String(location.pathname||''));
@@ -66,12 +66,17 @@
   }
   const distanceBottom=el=>Math.max(0,el.scrollHeight-el.clientHeight-el.scrollTop);
   const connected=el=>el===document.scrollingElement||!!el?.isConnected;
+  const rootLabel=el=>!el?'none':el===document.scrollingElement?'document':(el.id||el.getAttribute?.('data-testid')||el.tagName||'element');
+  const rootScrollEvent=(event,el)=>el===document.scrollingElement
+    ? event.target===document||event.target===document.scrollingElement||event.target===document.documentElement||event.target===document.body
+    : event.target===el;
   function cancelRaf(){if(raf){cancelAnimationFrame(raf);raf=0;}}
   function clearLatch(){clearTimeout(latchTimer);latchTimer=0;sendLatched=false;sendIntentAt=-Infinity;}
   function setSticky(value,reason){
     sticky=!!value;if(!sticky)cancelRaf();
     document.documentElement.dataset.ng133ScrollSticky=sticky?'1':'0';
-    diag(sticky?`OK · bas suivi pendant génération · ${reason}`:`OK · scroll utilisateur libre · ${reason}`);
+    const suffix=root?` · root ${rootLabel(root)} · Δ ${Math.round(distanceBottom(root))}px`:'';
+    diag((sticky?`OK · bas suivi pendant génération · ${reason}`:`OK · scroll utilisateur libre · ${reason}`)+suffix);
   }
   function setBottom(el){
     const max=Math.max(0,el.scrollHeight-el.clientHeight);
@@ -93,7 +98,7 @@
     const nextMain=conversationMain(),nextRoot=scrollRoot();if(!nextRoot)return;
     const mainChanged=nextMain!==main,rootChanged=nextRoot!==root;
     if(!mainChanged&&!rootChanged&&observer){refreshResizeTargets();return;}
-    observer?.disconnect();resizeObserver?.disconnect();shellObserver?.disconnect();
+    observer?.disconnect();resizeObserver?.disconnect();shellObserver?.disconnect();rootObserver?.disconnect();
     main=nextMain;root=nextRoot;observedTail=null;
     observer=new MutationObserver(()=>{if(main!==conversationMain()){bind();return;}refreshResizeTargets();pinBottom('mutation');});
     if(main)observer.observe(main,{childList:true,subtree:true,characterData:true});
@@ -104,9 +109,27 @@
       });
       shellObserver.observe(shell,{childList:true,subtree:false});
     }
+    if(root instanceof Element){
+      rootObserver=new MutationObserver(()=>{
+        const candidate=ancestorScroller(conversationTail())||scrollRoot();
+        if(candidate&&candidate!==root){bind();if(sticky)pinBottom('scroll-root-change');}
+      });
+      let watched=root;
+      while(watched&&watched!==document.body){
+        try{rootObserver.observe(watched,{attributes:true,attributeFilter:['class','style','data-scroll-root']});}catch{}
+        watched=watched.parentElement;
+      }
+    }
     if('ResizeObserver'in window){resizeObserver=new ResizeObserver(()=>pinBottom('resize'));refreshResizeTargets();}
     lastBottom=distanceBottom(root);
-    document.documentElement.dataset.ng133ScrollRoot=root===document.scrollingElement?'document':(root.id||root.getAttribute?.('data-testid')||root.tagName||'element');
+    document.documentElement.dataset.ng133ScrollRoot=rootLabel(root);
+  }
+  function ensureRoot(){
+    const tail=conversationTail();
+    const candidate=ancestorScroller(tail)||scrollRoot();
+    const invalid=!root||!connected(root)||!scrollableNode(root)||(tail&&root!==document.scrollingElement&&!root.contains(tail));
+    if(invalid||(candidate&&candidate!==root))bind();
+    return root;
   }
   function restoreBottom(el,reason,phase){
     if(!sticky||!followingActive()||!connected(el))return;
@@ -115,8 +138,8 @@
   }
   function pinBottom(reason='growth'){
     if(!sticky||!followingActive())return;
-    if(!root||!connected(root)){bind();if(!root)return;}
-    const el=root;restoreBottom(el,reason,'sync');queueMicrotask(()=>restoreBottom(el,reason,'microtask'));
+    const current=ensureRoot();if(!current)return;
+    const el=current;restoreBottom(el,reason,'sync');queueMicrotask(()=>restoreBottom(el,reason,'microtask'));
     cancelRaf();raf=requestAnimationFrame(()=>{
       raf=0;restoreBottom(el,reason,'raf1');
       if(!sticky||!followingActive())return;
@@ -124,8 +147,9 @@
     });
   }
   function armFromPosition(reason){
-    if(!followingActive()||!root)return;
-    const d=distanceBottom(root);lastBottom=d;
+    const current=ensureRoot();
+    if(!followingActive()||!current)return;
+    const d=distanceBottom(current);lastBottom=d;
     if(d<=220&&performance.now()-userUpAt>180)setSticky(true,reason);
   }
   function targetsConversationScroller(target){
@@ -149,6 +173,20 @@
   }
   function touchStart(event){if(!isChat())return;bind();if(!targetsConversationScroller(event.target))return;touchY=touchPoint(event);}
   function touchEnd(){touchY=null;}
+  function pointerScrollStart(event){
+    if(!isChat()||isSendIntent(event))return;
+    bind();if(!root)return;
+    const target=event.target;
+    const ownsScrollbar=root===document.scrollingElement
+      ? target===document.documentElement||target===document.body
+      : target===root;
+    if(ownsScrollbar){clearTimeout(pointerReleaseTimer);pointerScrollActive=true;}
+  }
+  function pointerScrollEnd(){
+    if(!pointerScrollActive)return;
+    clearTimeout(pointerReleaseTimer);
+    pointerReleaseTimer=setTimeout(()=>{pointerScrollActive=false;},180);
+  }
   function userIntent(event){
     if(!isChat())return;bind();
     if(event.type==='keydown'){
@@ -173,10 +211,14 @@
     });
   }
   function scrollEvent(event){
-    if(!root||event.target!==root)return;
-    const d=distanceBottom(root);
-    if(sticky&&performance.now()>programmaticUntil&&d>Math.max(160,lastBottom+100)){
-      userUpAt=performance.now();sendLatched=false;setSticky(false,'défilement manuel détecté');
+    const current=ensureRoot();if(!current||!rootScrollEvent(event,current))return;
+    const d=distanceBottom(current);
+    if(sticky&&d>Math.max(160,lastBottom+100)){
+      if(pointerScrollActive){
+        userUpAt=performance.now();sendLatched=false;setSticky(false,'défilement scrollbar utilisateur');
+      }else if(followingActive()){
+        lastBottom=d;pinBottom('correction scroll native');return;
+      }
     }
     lastBottom=d;
     if(!sticky&&d<=45&&followingActive()&&performance.now()-userUpAt>120){userUpAt=-Infinity;setSticky(true,'bas retrouvé');pinBottom('scroll-bottom');}
@@ -191,10 +233,13 @@
     wasActive=now;if(now&&sticky)pinBottom('activity');
   }
   function route(){
-    if(lastPath===location.pathname)return;lastPath=location.pathname;clearLatch();sticky=false;userUpAt=-Infinity;lastBottom=Infinity;main=null;root=null;observer?.disconnect();resizeObserver?.disconnect();shellObserver?.disconnect();observer=resizeObserver=shellObserver=null;bind();activity();
+    if(lastPath===location.pathname)return;lastPath=location.pathname;clearLatch();sticky=false;userUpAt=-Infinity;lastBottom=Infinity;main=null;root=null;pointerScrollActive=false;clearTimeout(pointerReleaseTimer);observer?.disconnect();resizeObserver?.disconnect();shellObserver?.disconnect();rootObserver?.disconnect();observer=resizeObserver=shellObserver=rootObserver=null;bind();activity();
   }
 
   document.addEventListener('pointerdown',noteSendIntent,true);
+  document.addEventListener('pointerdown',pointerScrollStart,true);
+  document.addEventListener('pointerup',pointerScrollEnd,true);
+  document.addEventListener('pointercancel',pointerScrollEnd,true);
   document.addEventListener('keydown',event=>{noteSendIntent(event);userIntent(event);},true);
   document.addEventListener('wheel',userIntent,{capture:true,passive:true});
   document.addEventListener('touchstart',touchStart,{capture:true,passive:true});
@@ -206,7 +251,7 @@
   window.addEventListener('popstate',route);
   if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',route);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){bind();activity();}});
-  window.addEventListener('pagehide',()=>{observer?.disconnect();resizeObserver?.disconnect();shellObserver?.disconnect();cancelRaf();clearLatch();});
+  window.addEventListener('pagehide',()=>{observer?.disconnect();resizeObserver?.disconnect();shellObserver?.disconnect();rootObserver?.disconnect();cancelRaf();clearLatch();clearTimeout(pointerReleaseTimer);});
   window.addEventListener('pageshow',event=>{if(event.persisted){bind();activity();}});
 
   bind();activity();

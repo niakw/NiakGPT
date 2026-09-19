@@ -6,7 +6,7 @@
   <p>Projects · performance des longs fils · continuité · navigation · productivité ciblée</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.95-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.96-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,7 +21,7 @@
 NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT en **véritable espace de travail pour un usage intensif et organisé par Projects**, sans remplacer ChatGPT.
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
-> **Version actuelle : 0.9.95.** Project Memory utilise désormais des refs GitHub autoritatives avec revalidation juste avant l’update-ref ; la sidebar conserve une seule surface Projects possédée par NiakGPT même pendant le recovery local ; et le suivi d’une réponse part de l’intention d’envoi puis s’ancre sur le vrai conteneur scrollable du fil. Le scénario terrain est exécuté dans Brave stable sur macOS en plus de la matrice cross-engine.
+> **Version actuelle : 0.9.96.** La connexion GitHub ne reste plus bloquée lorsqu’un ancien onglet ChatGPT possède un contexte d’extension invalidé ; le suivi des réponses distingue désormais l’intention de scroll réellement humaine des corrections natives tardives de ChatGPT et rebinde automatiquement le vrai conteneur scrollable lorsqu’il change.
 
 ## Points forts
 

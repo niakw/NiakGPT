@@ -99,6 +99,9 @@ jobs:
       - name: Screenshot regression · local cache Pins above Projects/Chats
         working-directory: visual-lab
         run: node field-sidebar-cache-recovery-v090.mjs
+      - name: Project Memory GitHub invalid-context recovery
+        working-directory: visual-lab
+        run: node project-memory-v132.mjs
       - name: Project Memory cache bootstrap + deferred history wake
         working-directory: visual-lab
         run: node project-memory-wake-v086.mjs

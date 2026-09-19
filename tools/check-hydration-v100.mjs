@@ -8,7 +8,7 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 
 const manifest=JSON.parse(read('manifest.json'));
 if(manifest.manifest_version!==3)fail('manifest_version drift');
-if(manifest.version!=='0.9.95')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.96')fail(`unexpected release ${manifest.version}`);
 same(manifest.permissions,['storage','scripting','identity'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*'],'host scope mismatch');
 const staticRuntime=['boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'];
@@ -139,7 +139,7 @@ for(const token of ['surface NiakGPT unique','NiakGPT autoritaire','nativePrefer
 const projectAuthority=read('sidebar-projects-authority-v112.js');
 for(const token of ['[data-ng102-project]',"querySelectorAll('[data-ng8-pin],[data-ng102-project]","niakgpt:local-project-recovery-ready',()=>apply()"])need(projectAuthority,token,'single-authority native suppression incomplete');
 const chatScroll=read('conversation-scroll-guard-v133.js');
-for(const token of ['conversationTail','ancestorScroller','scrollableNode','targetsConversationScroller','noteSendIntent','SEND_LATCH_MS','touchstart','touchPoint','event.shiftKey','editable(event.target)','ng133ScrollSticky','ng133ScrollRoot','remontée volontaire','generation-start','send-intent'])need(chatScroll,token,'conversation scroll audit contract incomplete');
+for(const token of ['conversationTail','ancestorScroller','scrollableNode','targetsConversationScroller','noteSendIntent','SEND_LATCH_MS','touchstart','touchPoint','event.shiftKey','editable(event.target)','ng133ScrollSticky','ng133ScrollRoot','remontée volontaire','generation-start','send-intent','ensureRoot','rootObserver','rootScrollEvent','pointerScrollActive','correction scroll native'])need(chatScroll,token,'conversation scroll audit contract incomplete');
 forbid(chatScroll,'setInterval(','conversation scroll guard must remain event-driven');
 const chatState=read('chat-state-authority-v113.js');
 for(const token of ['contextAlive','markDead','ng113Context','Promise.resolve(pending).catch','invalidated=e=>'])need(chatState,token,'chat-state context invalidation guard incomplete');

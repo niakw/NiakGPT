@@ -86,6 +86,9 @@ has(coach,"window.__NIAKGPT_DIAGNOSTICS__?.set('coach',text)",'Coach diagnostics
 // or wakes from generation-network traffic.
 no(panels,'niakgpt:activity-network','Side-panel adapter must not wake from generation traffic');
 has(panels,'ng96-native-sidepanel','Native side-panel ownership marker missing');
+has(panels,'--ng96-rail-offset','Side-panel owner must publish live rail offset itself');
+has(panels,"window.addEventListener('pageshow'",'Side-panel owner must restore observation after BFCache');
+has(panels,'bindObserver()','Side-panel observer lifecycle helper missing');
 has(panels,'observer.observe(document.documentElement,{childList:true,subtree:true})','Side-panel structural observer missing');
 no(panels,'characterData:true','Side-panel text mutation observer reintroduced');
 has(panels,"document.addEventListener('click',()=>schedule(document,100),true)",'Side-panel interaction wakeup missing');

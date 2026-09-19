@@ -117,6 +117,9 @@ jobs:
       - name: Native side-panel owner · rail offset + BFCache recovery
         working-directory: visual-lab
         run: node side-panels-owner-v096.mjs
+      - name: Hidden Projects · never automatic classification targets
+        working-directory: visual-lab
+        run: node hidden-project-classification-v099.mjs
       - name: Deep classification · orphan chat to canonical Project
         working-directory: visual-lab
         env:

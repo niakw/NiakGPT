@@ -148,7 +148,18 @@ async function runJourney(){
       }
       await assertSingleOpen(page,P2);
       expect(page.url()).toBe(initialUrl);
-      const pins=await page.locator('#ng8-pins a[data-ng8-pin="1"]').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('data-ng121-pid')));
+      let pins=await page.locator('#ng8-pins a[data-ng8-pin="1"]').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('data-ng121-pid')));
+      expect(new Set(pins).size).toBe(pins.length);
+
+      // Deterministic non-regression for the Brave race observed in CI: even if another
+      // cooperative layer temporarily duplicates one Project anchor, v121 must collapse it.
+      await page.evaluate(pid=>{
+        const list=document.querySelector('#ng8-pins>.ng8-pin-list'),src=list?.querySelector(`a[data-ng121-pid="${pid}"]`);
+        if(list&&src){const dup=src.cloneNode(true);dup.dataset.ng121InjectedDuplicate='1';list.appendChild(dup);}
+        document.dispatchEvent(new CustomEvent('niakgpt:sidebar-projects-reconcile'));
+      },P1);
+      await page.waitForFunction(()=>{const ids=[...document.querySelectorAll('#ng8-pins a[data-ng8-pin="1"]')].map(a=>a.dataset.ng121Pid);return ids.length===new Set(ids).size;},null,{timeout:2500});
+      pins=await page.locator('#ng8-pins a[data-ng8-pin="1"]').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('data-ng121-pid')));
       expect(new Set(pins).size).toBe(pins.length);
       await shot(page,'02-rapid-switch-final.png');
     });

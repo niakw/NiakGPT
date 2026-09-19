@@ -228,7 +228,7 @@ async function generationScroll(){
       </div>
       <script>
         const shell=document.getElementById('shell'),send=document.getElementById('send'),assistant=document.getElementById('assistant');
-        window.__nativeSabotage=0;
+        window.__nativeSabotage=0;window.__nativeLateSabotage=0;
         send.addEventListener('pointerdown',()=>{
           requestAnimationFrame(()=>{shell.scrollTop=0;window.__nativeSabotage++;});
           setTimeout(()=>{
@@ -238,9 +238,13 @@ async function generationScroll(){
           },25);
           [70,130,210].forEach((ms,i)=>setTimeout(()=>{
             const x=document.createElement('div');x.style.height=(220+i*40)+'px';x.textContent='stream-'+i;assistant.appendChild(x);
-            // Simulate a late native ChatGPT scrollIntoView/layout correction fighting our guard.
+            // Simulate a native ChatGPT scrollIntoView/layout correction fighting our guard.
             requestAnimationFrame(()=>{if(i<2)shell.scrollTop=Math.max(0,shell.scrollTop-500);});
           },ms));
+          // Field regression: a native correction can arrive well after the last stream mutation.
+          setTimeout(()=>requestAnimationFrame(()=>{
+            shell.scrollTop=Math.max(0,shell.scrollTop-620);window.__nativeLateSabotage++;
+          }),520);
         });
       <\/script>
     </body></html>`}));
@@ -265,6 +269,17 @@ async function generationScroll(){
     assert.ok(got.d<8,`send/generation path still ended above the bottom: ${JSON.stringify(got)}`);
     assert.equal(got.sticky,'1');
     assert.equal(got.root,'shell','guard did not bind to the ancestor conversation scroller');
+    await page.waitForTimeout(320);
+    got=await page.evaluate(()=>{const e=document.getElementById('shell');return{
+      d:e.scrollHeight-e.clientHeight-e.scrollTop,
+      sticky:document.documentElement.dataset.ng133ScrollSticky,
+      restore:document.documentElement.dataset.ng133ScrollRestore,
+      lateSabotage:window.__nativeLateSabotage
+    };});
+    assert.equal(got.lateSabotage,1,'late native scroll sabotage did not run');
+    assert.ok(got.d<8,`late native correction escaped the live-follow guard: ${JSON.stringify(got)}`);
+    assert.equal(got.sticky,'1','late native correction was mistaken for deliberate user reading');
+    assert.match(String(got.restore||''),/correction scroll native|mutation|resize|raf/);
     await page.screenshot({path:path.join(ARTIFACTS,`${engineName}-02-post-send-live-scroll.png`),fullPage:true});
 
     await page.evaluate(()=>{
@@ -316,11 +331,65 @@ async function generationScroll(){
   }finally{await page.close();}
 }
 
+async function generationScrollRootMigration(){
+  const page=await browser.newPage({viewport:{width:1100,height:760}});
+  try{
+    await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html',body:`<!doctype html><html data-ng86-activity="ready"><head><style>
+      html,body{margin:0;height:100%;overflow:hidden}
+      #outer{height:100vh;overflow:hidden}
+      #shell{height:100vh;overflow-y:auto}
+      main{min-height:100%;padding:20px 40px 120px}
+      .chunk{height:300px}
+      #composer{position:fixed;left:180px;right:40px;bottom:20px;background:#222;padding:12px}
+    </style></head><body>
+      <div id="outer"><div id="shell"><main>
+        <div class="chunk"></div><div class="chunk"></div><div class="chunk"></div>
+        <article data-testid="conversation-turn-20"><div data-message-author-role="assistant" id="answer">ready</div></article>
+        <div id="composer"><button id="send" data-testid="send-button" aria-label="Envoyer">Send</button></div>
+      </main></div></div>
+      <script>
+        const outer=document.getElementById('outer'),shell=document.getElementById('shell'),answer=document.getElementById('answer');
+        document.getElementById('send').addEventListener('pointerdown',()=>{
+          document.documentElement.dataset.ng86Activity='executing';
+          document.dispatchEvent(new CustomEvent('niakgpt:activity-changed'));
+          setTimeout(()=>{
+            outer.style.overflowY='auto';
+            shell.style.height='auto';
+            shell.style.overflow='visible';
+            const growth=document.createElement('div');growth.style.height='720px';growth.textContent='root-migration-growth';answer.appendChild(growth);
+            outer.scrollTop=0;
+          },120);
+        });
+      <\/script>
+    </body></html>`}));
+    await page.goto('https://chatgpt.com/c/'+C,{waitUntil:'domcontentloaded'});
+    await page.evaluate(()=>{const e=document.getElementById('shell');e.scrollTop=e.scrollHeight;});
+    await page.addScriptTag({content:scrollGuard});
+    await page.waitForTimeout(80);
+    await page.locator('#send').dispatchEvent('pointerdown');
+    await page.waitForTimeout(420);
+    const got=await page.evaluate(()=>{
+      const outer=document.getElementById('outer');
+      return{
+        d:outer.scrollHeight-outer.clientHeight-outer.scrollTop,
+        root:document.documentElement.dataset.ng133ScrollRoot,
+        sticky:document.documentElement.dataset.ng133ScrollSticky,
+        restore:document.documentElement.dataset.ng133ScrollRestore
+      };
+    });
+    assert.equal(got.root,'outer','scroll authority did not migrate to the new live conversation scroller');
+    assert.equal(got.sticky,'1','root migration disabled live answer following');
+    assert.ok(got.d<8,`new scroll root was not pinned after ownership migration: ${JSON.stringify(got)}`);
+    await page.screenshot({path:path.join(ARTIFACTS,`${engineName}-03-scroll-root-migration.png`),fullPage:true});
+  }finally{await page.close();}
+}
+
 try{
   await duplicateRecovery();
   await falseMirrorRecovery();
   await historicalCatchup();
   await generationScroll();
+  await generationScrollRootMigration();
   console.log(`user-reported-v133 ${engineName}: OK`);
 }finally{
   await browser.close();

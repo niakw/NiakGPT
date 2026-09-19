@@ -12,6 +12,7 @@ const coach=read('coach-v101.js');
 const activity=read('activity-ui-v097.js');
 const bridge=read('page-bridge.js');
 const adapter=read('governance-adapter-v105.js');
+const live106=read('live-fixes-v106.js');
 
 // Native animation remains untouched; only idle/background coordination is allowed.
 no(tabs,'niakgptCoordinatedRAF','Global NiakGPT RAF throttling reintroduced');
@@ -65,6 +66,13 @@ has(adapter,"/backend-api/gizmos/${encodeURIComponent(pid)}/conversations?limit=
 has(adapter,"trusted-project-menu",'Trusted manual Project move signal missing');
 no(adapter,'window.fetch =','Governance adapter global fetch hook reintroduced');
 no(adapter,'setInterval(','Governance adapter polling reintroduced');
+
+
+// Project-context repair may keep a structural remount observer, but unrelated
+// conversation DOM churn must never trigger a full legacy-class sweep.
+has(live106,'function relevantGlobalMutation(records)','Project-context mutation relevance filter missing');
+has(live106,'if(relevantGlobalMutation(records))schedule(30)','Project-context global observer is not relevance-gated');
+no(live106,"records.some(r=>[...r.addedNodes,...r.removedNodes].some(n=>n instanceof Element))schedule(30)",'Project-context repair wakes on every structural mutation');
 
 // Coach has a single owner outside the core and exposes status through the current
 // adaptive prompt dataset API.

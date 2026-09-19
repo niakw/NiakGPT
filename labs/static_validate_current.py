@@ -149,6 +149,10 @@ for token in ('hiddenProjectIds','visibleProjects','!hiddenIds.has(p.id)'):
     if token not in deep_reclassify: fail('deep classifier hidden-Project exclusion incomplete '+token)
 for token in ('hiddenProjectIds','hidden.has(p.id)','...hidden'):
     if token not in governance: fail('governance hidden-Project target exclusion incomplete '+token)
+for token in ("const DATA_LOCK='niakgpt-data-mutation-v100'","navigator.locks.request(DATA_LOCK"):
+    if token not in governance: fail('governance manual mutation lock incomplete '+token)
+if 'async function autoResync()' in governance: fail('governance must not remain a second automatic classifier')
+if 'scheduleAutoResync(' in governance: fail('governance automatic classifier scheduler reintroduced')
 for token in ('hiddenProjectIds','hiddenSet','!hiddenSet.has(id)'):
     if token not in cache_guardian: fail('cache guardian hidden-Project preservation incomplete '+token)
 for token in ('hiddenProjectIds:[...hiddenSet]','targetByOldId.get(oldId)||oldId','!hiddenSet.has(id)'):
@@ -278,7 +282,7 @@ for gate in (
 ):
     if not (ROOT/gate).exists(): fail('current browser-fixture UX gate missing '+gate)
 workflow=read('.github/workflows/current-finalization.yml')
-for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','pins-primary-slot-v083.mjs','state-ux-v113.mjs','Chat-state authority + extension-context invalidation','Reported Pins placement — native controls stay above Projects','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble','project-memory-isolation-v133.mjs','live-fixes-context-v106.mjs','Project-context hot path · unrelated main churn stays ignored','global-observer-hotpath-v099.mjs','Global observer hot path · unrelated stream churn stays ignored','side-panels-owner-v096.mjs','Native side-panel owner · rail offset + BFCache recovery','hidden-project-classification-v099.mjs','Hidden Projects · never automatic classification targets','deep-classification-v112.mjs','Deep classification · orphan chat to canonical Project'):
+for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','pins-primary-slot-v083.mjs','state-ux-v113.mjs','Chat-state authority + extension-context invalidation','Reported Pins placement — native controls stay above Projects','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble','project-memory-isolation-v133.mjs','live-fixes-context-v106.mjs','Project-context hot path · unrelated main churn stays ignored','global-observer-hotpath-v099.mjs','Global observer hot path · unrelated stream churn stays ignored','side-panels-owner-v096.mjs','Native side-panel owner · rail offset + BFCache recovery','hidden-project-classification-v099.mjs','Hidden Projects · never automatic classification targets','classification-authority-v099.mjs','Classification authority · governance never auto-PATCHes','deep-classification-v112.mjs','Deep classification · orphan chat to canonical Project'):
     if token not in workflow: fail('Current Finalization missing '+token)
 project_switch=read('.github/workflows/project-switch-user-journey-v130.yml')
 for token in ('sidebar-projects-authority-v112.js','project-state-selfheal-v102.js','reclassify-v101.js','reclassify-deep-v112.js','ux-v131.js','visual-lab/user-reported-v133.mjs'):

@@ -40,9 +40,20 @@
     // NiakGPT from mounting into one internal grid column (the field screenshot regression).
     let chosen=winner[0],node=chosen.parentElement;
     while(node&&node!==document.body&&node!==document.documentElement){
-      if(node.matches?.(SIDEBAR_CANDIDATE)&&!own(node)&&visible(node)){
+      if(!own(node)&&visible(node)&&!node.closest('main,[role="main"]')){
         const nr=node.getBoundingClientRect(),cr=chosen.getBoundingClientRect();
-        if(nr.left<=72&&nr.width>=cr.width&&nr.width<=520&&!node.closest('main,[role="main"]'))chosen=node;
+        const primaryHits=[...node.querySelectorAll('a[href]')].filter(a=>PRIMARY.test(a.getAttribute('href')||'')).length;
+        const genericChats=[...node.querySelectorAll(CHAT)].filter(a=>!own(a)&&!a.getAttribute('href')?.includes('/g/g-p-')).length;
+        const structural=node.matches?.(SIDEBAR_CANDIDATE)||primaryHits>=2||genericChats>0;
+        const wider=nr.width>=cr.width&&nr.width<=560&&nr.left<=72;
+        const sidebarHeight=nr.height>=Math.min(cr.height,innerHeight*.55);
+        // ChatGPT can wrap the real left sidebar in an unlabelled DIV while exposing only
+        // a nested NAV/ASIDE as a semantic candidate.  That nested node can be one grid
+        // column wide; mounting Projects there makes grid-column:1/-1 span only that column.
+        // Promote to the enclosing visible left shell when geometry + native controls prove
+        // it owns the same sidebar, even if the shell has no sidebar data-testid.
+        const columnFragment=cr.width<nr.width*.84||cr.left>nr.left+24;
+        if(structural&&wider&&sidebarHeight&&(node.matches?.(SIDEBAR_CANDIDATE)||columnFragment))chosen=node;
       }
       node=node.parentElement;
     }
@@ -126,8 +137,22 @@
     // supplies the sidebar finder/visual guard; it must not race v121 by reparenting the
     // same scroll container on every cache reconciliation.
     if(window.__NIAKGPT_SIDEBAR_PROJECTS_121__){
-      if(!root.contains(box)){
-        document.dispatchEvent(new CustomEvent('niakgpt:sidebar-projects-reconcile',{detail:{source:'ux-v131-wrong-host'}}));
+      const parent=box.parentElement,rr=root.getBoundingClientRect(),pr=parent?.getBoundingClientRect?.();
+      // Measure the mounting lane, not the still-unverified box itself: ux-v131.css intentionally
+      // keeps an unverified #ng8-pins visually hidden and applies its full-width sizing only after
+      // data-ng131-mounted is set. Measuring the box here would therefore create a self-locking loop.
+      const laneMismatch=!!pr&&rr.width>0&&pr.width>0&&(
+        pr.width<rr.width*.82||
+        Math.abs(pr.left-rr.left)>Math.max(24,rr.width*.08)
+      );
+      if(!root.contains(box)||laneMismatch){
+        // v131 never reparents the Projects node itself. It only reports that the verified
+        // sidebar authority changed (or that the current node still occupies an inner column);
+        // v121 then retires/recreates under its direct-once ownership contract.
+        const source=laneMismatch?'ux-v131-stale-lane':'ux-v131-wrong-host';
+        document.documentElement.dataset.ng131LaneGuard=source;
+        document.dispatchEvent(new CustomEvent('niakgpt:sidebar-projects-reconcile',{detail:{source}}));
+        window.__NIAKGPT_DIAGNOSTICS__?.set('ux-v131',laneMismatch?'RÉCUPÉRATION · bloc Projects hors lane pleine largeur':'RÉCUPÉRATION · host Projects obsolète');
         schedule(140);
         return false;
       }

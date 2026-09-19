@@ -215,7 +215,10 @@
   });
   document.addEventListener('niakgpt:rate-limit-cleared',()=>schedule(remainingQuiet(450),true));
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){lastUserOrNativeAt=Date.now();schedule(quietRequirement()+250,pendingDeep);}});
-  window.addEventListener('popstate',()=>{lastUserOrNativeAt=Date.now();schedule(quietRequirement()+250,false);});
+  const routeWake=()=>{lastUserOrNativeAt=Date.now();schedule(quietRequirement()+250,pendingDeep);};
+  window.addEventListener('popstate',routeWake);
+  if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',routeWake);
+  window.addEventListener('pageshow',()=>{if(!document.hidden)routeWake();});
   // A cold/reinstalled cache needs canonical Project identities before classification can work.
   // Keep the absolute conversation quarantine, but off-chat recover the first canonical index
   // after a short calm window instead of requiring two full idle minutes.

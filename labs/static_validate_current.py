@@ -25,7 +25,7 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.99': fail(f"version={version}")
+if version!='0.9.100': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting','identity']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']: fail('host permissions drift')
 
@@ -147,8 +147,8 @@ for token in ('ng123-action-menu','ng123-rename-dialog','dataset.ng123Action','d
 catalog=read('sidebar-projects-v121.js')
 if 'placementAnchorNode' not in catalog or "data-ng112-native-projects" not in catalog:
     fail('v121 must preserve the hidden v112 native Projects host as a placement anchor')
-for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','userScrollEpoch','user-priority-armed','placeIntentEpoch=userScrollEpoch','niakgpt:sidebar-projects-reconcile','signalAuthorityReady','niakgpt:sidebar-projects-ready','surface NiakGPT unique','autorité v121 unique · natif masqué'):
-    if token not in catalog: fail('single-authority Projects catalog incomplete '+token)
+for token in ('sessionOrder','armBootstrap','projectScrollMemory','pendingProjectScroll','userScrollIntentAt','userScrollEpoch','user-priority-armed','placeIntentEpoch=userScrollEpoch','niakgpt:sidebar-projects-reconcile','signalAuthorityReady','niakgpt:sidebar-projects-ready','authoritativeLaneSafe','column-fragment','laneUnsafe','surface NiakGPT unique','autorité v121 unique · natif masqué'):
+    if token not in catalog: fail('single-authority Projects catalog/lane incomplete '+token)
 selfheal=read('project-state-selfheal-v102.js')
 for token in ('surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false','window.__NIAKGPT_FIND_SIDEBAR_V131__','a[href*="/g/g-p-"]','niakgpt:local-project-recovery-ready','hiddenSet','visibleIds'):
     if token not in selfheal: fail('single-authority local recovery incomplete '+token)
@@ -157,10 +157,10 @@ deep_reclassify=read('reclassify-deep-v112.js')
 governance=read('project-governance-v090.js')
 cache_guardian=read('cache-guardian-v100.js')
 recovery_runtime=read('recovery-v100.js')
-for token in ('hiddenProjectIds','hiddenIds.has(id)'):
-    if token not in base_reclassify: fail('base classifier hidden-Project exclusion incomplete '+token)
-for token in ('hiddenProjectIds','visibleProjects','!hiddenIds.has(p.id)'):
-    if token not in deep_reclassify: fail('deep classifier hidden-Project exclusion incomplete '+token)
+for token in ('hiddenProjectIds','hiddenIds.has(id)',"navigation.addEventListener('navigatesuccess',()=>schedule(1400))"):
+    if token not in base_reclassify: fail('base classifier hidden-Project exclusion / SPA wake incomplete '+token)
+for token in ('hiddenProjectIds','visibleProjects','!hiddenIds.has(p.id)',"navigation.addEventListener('navigatesuccess',()=>schedule(1800))"):
+    if token not in deep_reclassify: fail('deep classifier hidden-Project exclusion / SPA wake incomplete '+token)
 for token in ('hiddenProjectIds','hidden.has(p.id)','...hidden'):
     if token not in governance: fail('governance hidden-Project target exclusion incomplete '+token)
 for token in ("const DATA_LOCK='niakgpt-data-mutation-v100'","navigator.locks.request(DATA_LOCK"):
@@ -175,6 +175,9 @@ if 'hiddenProjectIds:[]' in cache_guardian: fail('cache guardian may not erase h
 if 'hiddenProjectIds:[]' in recovery_runtime: fail('structural recovery may not erase hidden Projects')
 for token in ('ng8-native-project','function suppressNative('):
     if token in selfheal: fail('local recovery regained native Projects visual authority '+token)
+ux=read('ux-v131.js')
+for token in ('columnFragment','genericChats','unlabelled DIV','same sidebar','laneMismatch','ux-v131-stale-lane','v121 then retires/recreates'):
+    if token not in ux: fail('field sidebar outer-shell promotion / stale-lane handoff incomplete '+token)
 ux_css=read('ux-v131.css')
 for token in ('grid-column:1 / -1!important','place-self:auto stretch!important','box-sizing:border-box!important'):
     if token not in ux_css: fail('field sidebar full-lane geometry invariant missing '+token)
@@ -229,7 +232,7 @@ if "interruption === 'network'" not in bridge or "interruption === 'verify'" not
 if 'native_conversation_quiet' not in bridge or 'chat-route-guard' not in bridge or 'ng90PeerChatActive' not in bridge or 'conversationQuiet()' not in bridge: fail('absolute current/peer conversation network quarantine missing')
 
 server_index=read('server-index-v100.js')
-for token in ('COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement','coldBootstrap','conversationPage()'):
+for token in ('COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement','coldBootstrap','conversationPage()',"navigation.addEventListener('navigatesuccess',routeWake)"):
     if token not in server_index: fail('cold canonical index recovery incomplete '+token)
 server_bootstrap=read('server-index-bootstrap-v124.js')
 for token in ('COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement(raw)','conversationPage()'):

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.99",
-  "description": "NiakGPT : runtime simplifié, panneaux à autorité unique et Projects masqués exclus du classement automatique.",
+  "version": "0.9.100",
+  "description": "NiakGPT : sidebar Projects pleine largeur, reprise SPA fiable et mémoire GitHub privée.",
   "permissions": [
     "storage",
     "scripting",

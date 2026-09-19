@@ -1,3 +1,11 @@
+# NiakGPT 0.9.100 — shell sidebar terrain + reprise SPA déterministe
+
+- **Bloc Projects demi-largeur reproduit** : un nouveau scénario navigateur reproduit le cas où le vrai shell gauche est un `div` non étiqueté tandis qu’un `nav` interne n’occupe qu’une colonne. Avant correction, `#ng8-pins` restait monté dans cette colonne droite.
+- **Cause racine corrigée** : `ux-v131.js` peut désormais promouvoir un ancêtre gauche visible non sémantique lorsque sa géométrie et les contrôles natifs prouvent qu’il est le shell de la même sidebar. v121 détecte alors le changement d’autorité, retire l’ancien nœud direct-once et recrée le catalogue dans le shell pleine largeur.
+- **Classement après navigation SPA** : `server-index-v100.js`, `reclassify-v101.js` et `reclassify-deep-v112.js` se réveillent sur `navigation.navigatesuccess` en plus de `popstate`. Quitter un chat ne dépend plus d’un événement de cache/activité fortuit.
+- **Non-régression terrain** : le lab laisse volontairement expirer le premier passage du classifieur dans une conversation puis quitte le fil via l’API Navigation sans `popstate`; le rattrapage doit repartir seul.
+- **Project Memory GitHub** : aucun changement de politique réseau : le snapshot local est écrit immédiatement, mais l’historique complet reste volontairement différé tant qu’une conversation est visible puis attend une fenêtre de calme hors chat.
+
 # NiakGPT 0.9.99 — troisième passe : runtime simplifié, observers filtrés, Projects masqués sûrs
 
 - **Runtime sidebar nettoyé** : `sidebar-ux-v119.js` était encore injecté et critique alors que v121 neutralisait immédiatement son exécution. Il n’est plus injecté ni empaqueté ; le test statique a d’abord reproduit `legacy/conflicting runtime loaded sidebar-ux-v119.js`.

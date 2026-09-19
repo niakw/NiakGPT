@@ -402,9 +402,25 @@
     if(target.before===box)return true; // already immediately after the selected primary tail
     return box.nextSibling===target.before;
   }
+  function authoritativeLaneSafe(root,parent){
+    if(!(root instanceof Element)||!(parent instanceof Element)||!root.isConnected||!parent.isConnected)return false;
+    if(parent===root)return true;
+    const rr=root.getBoundingClientRect(),pr=parent.getBoundingClientRect();
+    // Zero-size geometry can happen for one frame during React hydration. Do not retire a
+    // direct-once node on an unmeasurable frame; the next structural/UX reconcile will retry.
+    if(rr.width<=0||pr.width<=0)return true;
+    const minWidth=rr.width*.82,maxLeftDrift=Math.max(24,rr.width*.08);
+    const fullLane=pr.width>=minWidth&&Math.abs(pr.left-rr.left)<=maxLeftDrift;
+    if(!fullLane)document.documentElement.dataset.ng121LaneGuard=`column-fragment:${Math.round(pr.width)}/${Math.round(rr.width)}`;
+    return fullLane;
+  }
   function originalPlacementStillSafe(root,box,ideal=null){
     const original=mountTargetByBox.get(box);
     if(!root||!box?.isConnected||!original||box.parentElement!==original.parent)return false;
+    // If v131 later proves that the authoritative sidebar is an enclosing shell, an old
+    // mount can still be DOM-valid while living in one internal grid column. It is not safe.
+    // Return false so ensureBox retires it and creates a fresh direct-once node in the real lane.
+    if(!authoritativeLaneSafe(root,original.parent))return false;
     // A genuine late native Projects section is an authority upgrade, not an equivalent
     // reclassification: a catalogue originally mounted after primary controls must remount once
     // before that newly arrived native section.
@@ -556,7 +572,10 @@
     const root=navRoot();if(!root)return null;
     let box=document.getElementById('ng8-pins');
     const mountedParent=box?mountParentByBox.get(box):null;
-    if(box?.isConnected&&(!root.contains(box)||(mountedParent&&box.parentElement!==mountedParent))){
+    const laneUnsafe=box?.isConnected&&!authoritativeLaneSafe(root,box.parentElement);
+    if(box?.isConnected&&(!root.contains(box)||(mountedParent&&box.parentElement!==mountedParent)||laneUnsafe)){
+      // Never reparent a live React-adjacent Projects node. A host-identity or lane-authority
+      // upgrade retires the stale node; the replacement is mounted directly into the new slot.
       retireStaleBox(box);box=null;
     }
     if(box?.dataset.ng121Retired==='1')box=null;

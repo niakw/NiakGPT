@@ -259,8 +259,11 @@ for gate in (
 ):
     if not (ROOT/gate).exists(): fail('current browser-fixture UX gate missing '+gate)
 workflow=read('.github/workflows/current-finalization.yml')
-for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','pins-primary-slot-v083.mjs','state-ux-v113.mjs','Chat-state authority + extension-context invalidation','Reported Pins placement — native controls stay above Projects','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble','project-memory-isolation-v133.mjs'):
+for token in ('sidebar-session-ux-v123.mjs','sidebar-human-ux-v123.spec.js','pins-primary-slot-v083.mjs','state-ux-v113.mjs','Chat-state authority + extension-context invalidation','Reported Pins placement — native controls stay above Projects','PRIMARY real Brave — FULL human sidebar','mcr.microsoft.com/playwright:v1.62.1-noble','project-memory-isolation-v133.mjs','deep-classification-v112.mjs','Deep classification · orphan chat to canonical Project'):
     if token not in workflow: fail('Current Finalization missing '+token)
+project_switch=read('.github/workflows/project-switch-user-journey-v130.yml')
+for token in ('sidebar-projects-authority-v112.js','project-state-selfheal-v102.js','reclassify-v101.js','reclassify-deep-v112.js','ux-v131.js','visual-lab/user-reported-v133.mjs'):
+    if token not in project_switch: fail('Project-switch journey trigger coverage incomplete '+token)
 live_stability=read('.github/workflows/live-stability-v129.yml')
 for token in ('conversation-scroll-guard-v133.js','project-state-selfheal-v102.js','user-reported-v133.mjs','User-reported scroll + single Projects authority in Brave stable','/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'):
     if token not in live_stability: fail('Brave macOS field gate missing '+token)

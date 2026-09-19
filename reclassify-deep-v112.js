@@ -117,5 +117,8 @@
   document.addEventListener('niakgpt:activity-changed',e=>{if(e.detail?.active===false||document.documentElement.dataset.ng86Activity==='ready')schedule(1900);});
   document.addEventListener('niakgpt:server-index-complete',()=>schedule(1200));
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)schedule(2200);});
+  window.addEventListener('popstate',()=>schedule(1800));
+  if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',()=>schedule(1800));
+  window.addEventListener('pageshow',()=>schedule(1800));
   schedule(3200);
 })();

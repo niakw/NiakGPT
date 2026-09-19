@@ -11,6 +11,8 @@ if(!engines[requested])throw new Error('Unsupported browser '+requested);
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg);};
 const browser=await engines[requested].launch({headless:true});
 const context=await browser.newContext({viewport:{width:1280,height:820},reducedMotion:'reduce'});
+const ARTIFACTS=path.join(process.cwd(),'artifacts','project-memory-v132',requested);
+await fs.mkdir(ARTIFACTS,{recursive:true});
 const errors=[];
 
 async function newPage(){
@@ -96,6 +98,57 @@ try{
     assert(selection?.options?.branch==='stable','chosen GitHub branch not forwarded');
     const connectedText=await page.locator('.ng132-memory-status').innerText();
     assert(/Coffre écrit/i.test(connectedText)&&/2 Project/.test(connectedText)&&/7 fichier/.test(connectedText),'immediate cached GitHub snapshot state not visible after repository connection: '+connectedText);
+    await page.close();
+  }
+
+  {
+    const page=await newPage();
+    await page.addInitScript(()=>{
+      const localData={};
+      const listeners=[];
+      window.chrome={
+        runtime:{
+          id:'lopeiincnbjihmoahcbogokeniojgobk',
+          lastError:null,
+          sendMessage(message,cb){
+            if(message.type==='niakgpt:memory-status-v132')cb({ok:true,connected:false,configured:false,tokenAvailable:false,github:{authenticated:false,repositories:[]},state:{mode:'disconnected'}});
+            else cb({ok:false,error:'not_connected'});
+          },
+          connect(){throw new Error('Extension context invalidated.');}
+        },
+        storage:{
+          local:{
+            async get(keys){
+              if(keys==null)return structuredClone(localData);
+              const list=Array.isArray(keys)?keys:[keys],out={};
+              for(const key of list)if(localData[key]!==undefined)out[key]=structuredClone(localData[key]);
+              return out;
+            },
+            async set(obj){Object.assign(localData,structuredClone(obj));},
+            async remove(keys){for(const key of (Array.isArray(keys)?keys:[keys]))delete localData[key];}
+          },
+          onChanged:{addListener(fn){listeners.push(fn);}}
+        }
+      };
+    });
+    await page.route('https://chatgpt.com/**',route=>route.fulfill({
+      status:200,
+      contentType:'text/html; charset=utf-8',
+      body:'<!doctype html><html lang="fr"><body><button id="ng90-settings-btn">Réglages</button><div id="ng90-control" class="open"><div class="ng90-card"><div class="ng90-grid"></div></div></div></body></html>'
+    }));
+    await page.goto('https://chatgpt.com/',{waitUntil:'domcontentloaded'});
+    await page.addScriptTag({content:coreScript});
+    await page.waitForFunction(()=>window.__NIAKGPT_PROJECT_MEMORY__);
+    await page.addScriptTag({content:uiScript});
+    await page.locator('[data-ng132-memory]').waitFor({timeout:3000});
+    const button=page.locator('[data-ng132-github-login]');
+    await button.click();
+    await page.waitForTimeout(120);
+    const authFailure=await page.locator('[data-ng132-memory]').innerText();
+    assert(/Contexte NiakGPT expiré/i.test(authFailure),'invalidated extension context did not become an actionable GitHub login error');
+    assert(await button.isEnabled(),'GitHub login button stayed disabled after extension-context failure');
+    assert(/Recharger l’onglet puis réessayer/i.test(await button.innerText()),'GitHub login CTA stayed stuck on Ouverture de GitHub');
+    await page.screenshot({path:path.join(ARTIFACTS,'github-context-invalidated-recovery.png'),fullPage:true});
     await page.close();
   }
 
@@ -280,7 +333,7 @@ try{
   }
 
   assert(errors.length===0,'browser errors: '+JSON.stringify(errors));
-  console.log('project-memory-v132 '+requested+': PASS auto-render+github-picker+immediate-cache-bootstrap+persistent-history-queue+manual-fallback+single-injection');
+  console.log('project-memory-v132 '+requested+': PASS auto-render+github-picker+invalid-context-recovery+immediate-cache-bootstrap+persistent-history-queue+manual-fallback+single-injection');
 }finally{
   await context.close();
   await browser.close();

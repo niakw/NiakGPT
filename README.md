@@ -21,7 +21,7 @@
 NiakGPT is a browser extension that turns the ChatGPT web interface into a more capable **workspace for heavy, project-based use** without replacing ChatGPT itself.
 
 It adds a native-first layer for Projects, navigation, long conversations, continuity, diagnostics and local productivity. Core features run locally in the browser: **no NiakGPT account, no NiakGPT analytics and no NiakGPT server are required**.
-> **Current version: 0.9.105.** Startup now waits for real React ownership on ChatGPT’s full-document renderer before NiakGPT may touch `<html>`, `<body>` or the sidebar. The 0.9.103 Project Memory and Projects/Chats fixes remain intact.
+> **Current version: 0.9.105.** Startup now leaves **both DOM and CSS untouched** until ChatGPT’s React HostRoot explicitly reports `isDehydrated=false`; bare React ownership keys no longer unlock NiakGPT. The Project Memory and Projects/Chats fixes remain intact.
 
 ## Highlights
 
@@ -29,7 +29,7 @@ It adds a native-first layer for Projects, navigation, long conversations, conti
 
 0.9.105 removes the last early surface: **no NiakGPT CSS is declared as a static content script anymore**. All 34 stylesheets are inserted only after the hydration gate succeeds, immediately before the runtime scripts. This prevents early layout/style influence from changing ChatGPT's client render during SSR hydration.
 
-NiakGPT JavaScript no longer runs at `document_start`: the bootstrap group starts at `document_idle`, then waits for stable host identities, DOM quiet, scheduler idle **and React ownership markers on the full-document ChatGPT root and host nodes** before any NiakGPT mutation. If those ownership markers are unavailable, the gate fails closed until a trusted native user interaction. A Chromium/Firefox/WebKit lab now keeps the DOM visually stable while React continues scheduling work through `MessageChannel`, and fails if NiakGPT writes any `data-ng*` attribute or custom node before React ownership.
+NiakGPT JavaScript no longer runs at `document_start`: the bootstrap group starts at `document_idle`, then waits for stable host identities, DOM quiet, scheduler idle, React host ownership **and an explicitly settled HostRoot (`memoizedState.isDehydrated === false`)** before any NiakGPT mutation. If those ownership markers are unavailable, the gate fails closed until a trusted native user interaction. A Chromium/Firefox/WebKit lab now keeps the DOM visually stable while React continues scheduling work through `MessageChannel`, and fails if NiakGPT writes any `data-ng*` attribute or custom node before React ownership.
 
 ### Projects that behave like part of ChatGPT
 

@@ -286,7 +286,7 @@ for token in ('memoryBootstrap: memoryBootstrap === true','PROJECT_STATE.md','co
     if token not in memory: fail('Project Memory runtime incomplete '+token)
 bridge=read('page-bridge.js')
 if "d.memoryBootstrap !== true" not in bridge or 'conversation_detail_get_disabled' not in bridge: fail('Project Memory full-history bridge guard incomplete')
-if 'project-memory-v132.css' not in style_runtime: fail('Project Memory UI CSS missing from deferred STYLE_RUNTIME')
+if 'project-memory-v132.css' not in style_runtime: fail('Project Memory UI CSS missing from declarative manifest styles')
 if not (ROOT/'visual-lab/project-memory-v132.mjs').exists(): fail('Project Memory browser UX gate missing')
 if not (ROOT/'visual-lab/native-chat-zero-background-v087.mjs').exists(): fail('native chat zero-background regression gate missing')
 if not (ROOT/'visual-lab/field-regressions-v088.mjs').exists(): fail('0.9.88 combined field regression gate missing')
@@ -348,23 +348,15 @@ project_switch=read('.github/workflows/project-switch-user-journey-v130.yml')
 for token in ('sidebar-projects-authority-v112.js','project-state-selfheal-v102.js','reclassify-v101.js','reclassify-deep-v112.js','ux-v131.js','visual-lab/user-reported-v133.mjs'):
     if token not in project_switch: fail('Project-switch journey trigger coverage incomplete '+token)
 live_stability=read('.github/workflows/live-stability-v129.yml')
-live_stability_fixture=read('visual-lab/tests/live-stability-v129.spec.js')
-if 'niakgpt:probe-react-hydration-v107' not in live_stability_fixture: fail('live stability fixture hydration protocol stale')
-if 'niakgpt:probe-react-hydration-v106' in live_stability_fixture: fail('live stability fixture still accepts superseded hydration probe v106')
-if live_stability.count('tests/hydration-isolated-world-v106.spec.js') < 2: fail('MAIN-world hydration regression must execute in Chromium and Brave stability jobs')
-if live_stability.count('tests/hydration-document-root-v107.spec.js') < 2: fail('document-root hydration regression must execute in Chromium and Brave stability jobs')
-if live_stability.count('tests/hydration-fiber-root-v109.spec.js') < 3: fail('fiber-root hydration regression must be tracked and execute in Chromium and Brave stability jobs')
-if live_stability.count('tests/hydration-recovery-v110.spec.js') < 3: fail('post-418 recovery regression must be tracked and execute in Chromium and Brave stability jobs')
-if live_stability.count('tests/hydration-scheduler-drain-v111.spec.js') < 3: fail('late scheduler drain regression must be tracked and execute in Chromium and Brave stability jobs')
-if live_stability.count('tests/hydration-active-spa-v112.spec.js') < 3: fail('active-SPA regression must be tracked and execute in Chromium and Brave stability jobs')
-for token in ('background-v100.js','hydration-isolated-world-v106.spec.js','hydration-document-root-v107.spec.js','hydration-fiber-root-v109.spec.js','hydration-recovery-v110.spec.js','hydration-scheduler-drain-v111.spec.js','hydration-active-spa-v112.spec.js','HYDRATION_MAIN_WORLD_CHECKPOINT PASS','HYDRATION_DOCUMENT_ROOT_CHECKPOINT PASS','HYDRATION_FIBER_ROOT_CHECKPOINT PASS','HYDRATION_RECOVERY_V110_CHECKPOINT PASS','HYDRATION_SCHEDULER_DRAIN_V111_CHECKPOINT PASS','HYDRATION_ACTIVE_SPA_V112_CHECKPOINT PASS','conversation-scroll-guard-v133.js','project-state-selfheal-v102.js','user-reported-v133.mjs','User-reported scroll + single Projects authority in Brave stable','/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'):
+if live_stability.count('tests/hydration-known-good-v113.spec.js') < 3: fail('known-good hydration regression must be tracked and execute in Chromium and Brave stability jobs')
+for token in ('background-v100.js','hydration-known-good-v113.spec.js','HYDRATION_KNOWN_GOOD_V113_CHECKPOINT PASS','conversation-scroll-guard-v133.js','project-state-selfheal-v102.js','user-reported-v133.mjs','User-reported scroll + single Projects authority in Brave stable','/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'):
     if token not in live_stability: fail('Brave macOS field gate missing '+token)
 if re.search(r'^\s*npx playwright install --with-deps\b',workflow,re.M): fail('Linux Finalization reintroduced apt --with-deps')
 parallel_workflow=read('.github/workflows/parallel-continuation-v128.yml')
 for token in ('parallel-continue-v128.mjs','composer-continuation-runtime-v128.spec.js','chromium, firefox, webkit','parallel-continuation-v128'):
     if token not in parallel_workflow: fail('Parallel continuation workflow missing '+token)
 live_workflow=read('.github/workflows/live-stability-v129.yml')
-for token in ('live-stability-v129.spec.js','long-run-composer-residue-v131.spec.js','hydration-isolated-world-v106.spec.js','hydration-document-root-v107.spec.js','hydration-fiber-root-v109.spec.js','hydration-recovery-v110.spec.js','hydration-scheduler-drain-v111.spec.js','hydration-active-spa-v112.spec.js','HYDRATION_MAIN_WORLD_CHECKPOINT PASS','HYDRATION_DOCUMENT_ROOT_CHECKPOINT PASS','HYDRATION_FIBER_ROOT_CHECKPOINT PASS','HYDRATION_RECOVERY_V110_CHECKPOINT PASS','HYDRATION_SCHEDULER_DRAIN_V111_CHECKPOINT PASS','HYDRATION_ACTIVE_SPA_V112_CHECKPOINT PASS','[1-9][0-9]* passed','Brave stable','chromium'):
+for token in ('live-stability-v129.spec.js','long-run-composer-residue-v131.spec.js','hydration-known-good-v113.spec.js','HYDRATION_KNOWN_GOOD_V113_CHECKPOINT PASS','[1-9][0-9]* passed','Brave stable','chromium'):
     if token not in live_workflow: fail('Live stability workflow missing '+token)
 ux_workflow=read('.github/workflows/ux-integral-v131.yml')
 for token in ('ux-integral-v131.mjs','chromium, firefox, webkit','screenshot UX','mcr.microsoft.com/playwright:v1.62.1-noble'):

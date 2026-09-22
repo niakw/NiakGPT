@@ -252,7 +252,7 @@ assert.equal(catalog.projects.some(row=>Object.hasOwn(row,'instructions')||Objec
 delete sessionStore['niakgpt-project-memory-session-token-v132'];
 
 const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
-assert.equal(manifest.version, '0.9.115');
+assert.equal(manifest.version, '0.9.116');
 assert.deepEqual(manifest.permissions, ['storage','scripting','identity']);
 assert.deepEqual(manifest.host_permissions, ['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']);
 

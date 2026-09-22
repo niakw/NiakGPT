@@ -298,6 +298,8 @@ assert.match(runtime, /captureCurrentDomConversation/);
 assert.match(runtime, /captureSource:'live-dom'/);
 assert.match(runtime, /complete:false/);
 assert.match(runtime, /old&&Number\(old\.parts\|\|0\)>0&&Number\(old\.messages\|\|0\)>0/);
+assert.match(runtime, /Number\(p\.count\|\|0\) > \(p\.chats\|\|\[\]\)\.length/);
+assert.match(runtime, /name:projectName\(project\.name\|\|''\)/);
 assert.match(runtime, /projectName = v =>/);
 assert.match(runtime, /CACHE_BOOTSTRAP_LOCK/);
 assert.match(runtime, /writeCachedBootstrap/);

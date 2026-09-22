@@ -681,7 +681,7 @@
       );
 
       // Per-chat durable checkpoint stays authoritative. Speedups happen below the commit
-      // boundary (larger transcript chunks, concurrent blobs, cached private-repo verification),
+      // boundary (larger transcript chunks, inline Git tree content and cached private-repo verification),
       // so a later failure never forces a previously committed chat to be fetched again.
       await commit(files,'NiakGPT memory: '+one(project.name||project.id)+' / '+one(chat.title||chat.id),prioritySync);
       if(ledger[retryKey]){delete ledger[retryKey];await persistLedger();}

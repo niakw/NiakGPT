@@ -22,9 +22,6 @@
   const PRIORITY_RETRY_MS = 1000;
   const CHAT_FETCH_RETRIES_PRIORITY = 2;
   const CHAT_FETCH_RETRIES_NORMAL = 2;
-  const PRIORITY_CHAT_BATCH = 3;
-  const PRIORITY_CHAT_BATCH_FILES = 22;
-  const PRIORITY_CHAT_BATCH_BYTES = 4 * 1024 * 1024;
   const CHAT_RETRY_BACKOFF_MS = [45_000,120_000,300_000,900_000,1_800_000];
   const WAKE_HEARTBEAT_MS = 30000;
   const GITHUB_AUTH_UI_TIMEOUT_MS = 6*60*1000;
@@ -569,40 +566,10 @@
       const old=idx.conversations[chat.id],updated=parseTime(chat.updated);
       return !force && !!old && old.complete !== false && Number(old.updated || 0) >= updated && Number(old.parts || 0) > 0;
     };
-    let completed = chats.filter(complete).length, changed = 0, batchFiles = [], batchRows = [], batchBytes = 0;
+    let completed = chats.filter(complete).length, changed = 0;
     const deferred=[];
     let ledger=await chatRetryLedger();
-
     const persistLedger=async()=>saveChatRetryLedger(ledger);
-    const flushBatch=async()=>{
-      if(!batchRows.length)return;
-      const nextConversations={...idx.conversations};
-      for(const row of batchRows)nextConversations[row.chat.id]=row.chatIndex;
-      const nextIdx={
-        ...idx,schema:1,projectId:project.id,projectName:projectName(project.name||''),
-        updatedAt:new Date().toISOString(),bootstrapMetadataOnly:false,conversations:nextConversations
-      };
-      const files=batchFiles.concat({
-        path:ppath(project.id,'index.json'),
-        content:JSON.stringify(nextIdx,null,2)+'\n'
-      });
-      const label=batchRows.length===1
-        ? one(batchRows[0].chat.title||batchRows[0].chat.id)
-        : batchRows.length+' chats';
-      await commit(files,'NiakGPT memory: '+one(project.name||project.id)+' / '+label,prioritySync);
-      idx=nextIdx;
-      changed+=batchRows.length;
-      completed+=batchRows.length;
-      for(const row of batchRows)delete ledger[retryEntryKey(project.id,row.chat.id)];
-      await persistLedger();
-      await state({
-        mode:'syncing',projectId:project.id,projectName:project.name,
-        chatId:batchRows.at(-1)?.chat.id||'',chatTitle:batchRows.at(-1)?.chat.title||'',
-        chatDone:completed,chatTotal:chats.length,prioritySync,deferredChats:deferred.length,
-        retryingChat:false,retryAttempt:0,retryLimit:0,lastTransientError:''
-      });
-      batchFiles=[];batchRows=[];batchBytes=0;
-    };
 
     await state({
       mode:'syncing',projectId:project.id,projectName:project.name,
@@ -611,16 +578,16 @@
     });
 
     for (const chat of chats) {
-      if (document.hidden) { await flushBatch(); throw new Error('memory_sync_paused_hidden'); }
-      if (syncAuto && !autoOwner()) { await flushBatch(); throw new Error('memory_sync_paused_owner_change'); }
-      const old = idx.conversations[chat.id], updated = parseTime(chat.updated);
+      if (document.hidden) throw new Error('memory_sync_paused_hidden');
+      if (syncAuto && !autoOwner()) throw new Error('memory_sync_paused_owner_change');
+
+      const old=idx.conversations[chat.id],updated=parseTime(chat.updated),retryKey=retryEntryKey(project.id,chat.id);
       if (complete(chat)) {
-        const key=retryEntryKey(project.id,chat.id);
-        if(ledger[key]){delete ledger[key];await persistLedger();}
+        if(ledger[retryKey]){delete ledger[retryKey];await persistLedger();}
         continue;
       }
 
-      const retryKey=retryEntryKey(project.id,chat.id),prior=ledger[retryKey];
+      const prior=ledger[retryKey];
       if(!force&&Number(prior?.nextAt||0)>Date.now()){
         deferred.push({projectId:project.id,chatId:chat.id,nextAt:Number(prior.nextAt),error:String(prior.error||'conversation_retry_deferred')});
         await state({
@@ -633,8 +600,8 @@
       }
 
       await state({
-        mode:'syncing', projectId:project.id, projectName:project.name,
-        chatId:chat.id, chatTitle:chat.title, chatDone:completed, chatTotal:chats.length,
+        mode:'syncing',projectId:project.id,projectName:project.name,
+        chatId:chat.id,chatTitle:chat.title,chatDone:completed,chatTotal:chats.length,
         prioritySync,deferredChats:deferred.length,retryingChat:false,lastTransientError:''
       });
 
@@ -664,6 +631,33 @@
         continue;
       }
 
+      const canonicalUpdated=Math.max(updated,parseTime(data.update_time))||Date.now();
+      const canonicalHash=rowsHash(rows);
+
+      // One canonical directory per conversation ID. Existing conversations are updated at the
+      // same Git paths; no timestamp/suffix folder is ever created. If content is unchanged and
+      // only metadata advanced, update just the two index files and leave transcript parts intact.
+      if(!force&&old&&old.complete!==false&&Number(old.parts||0)>0&&old.canonicalHash===canonicalHash){
+        const chatIndex={
+          ...old,title:one(chat.title||data.title||old.title||'Conversation'),updated:canonicalUpdated,
+          capturedAt:new Date().toISOString(),canonicalHash
+        };
+        idx.conversations[chat.id]=chatIndex;
+        idx.projectId=project.id;idx.projectName=projectName(project.name||'');idx.updatedAt=new Date().toISOString();idx.bootstrapMetadataOnly=false;
+        await commit([
+          {path:ppath(project.id,'conversations/'+safe(chat.id)+'/index.json'),content:JSON.stringify(chatIndex,null,2)+'\n'},
+          {path:ppath(project.id,'index.json'),content:JSON.stringify(idx,null,2)+'\n'}
+        ],'NiakGPT memory: metadata '+one(project.name||project.id)+' / '+one(chat.title||chat.id),prioritySync);
+        if(ledger[retryKey]){delete ledger[retryKey];await persistLedger();}
+        completed++;
+        await state({
+          mode:'syncing',projectId:project.id,projectName:project.name,chatId:chat.id,chatTitle:chat.title,
+          chatDone:completed,chatTotal:chats.length,prioritySync,deferredChats:deferred.length,
+          retryingChat:false,lastTransientError:''
+        });
+        continue;
+      }
+
       const full=transcript(project,chat,rows),chunks=[];
       for(let at=0;at<full.length;at+=CHUNK)chunks.push(full.slice(at,at+CHUNK));
       const base=ppath(project.id,'conversations/'+safe(chat.id)),files=[];
@@ -672,27 +666,34 @@
         path:base+'/part-'+String(stale+1).padStart(3,'0')+'.md',
         content:'# Superseded\n\nThis chunk is no longer part of the current conversation snapshot. Use Git history for the previous revision.\n'
       });
-      const canonicalUpdated=Math.max(updated,parseTime(data.update_time))||Date.now();
+
       const chatIndex={
         schema:1,id:chat.id,title:one(chat.title||data.title||'Conversation'),updated:canonicalUpdated,
-        capturedAt:new Date().toISOString(),parts:chunks.length,messages:rows.length,
+        capturedAt:new Date().toISOString(),parts:chunks.length,messages:rows.length,canonicalHash,
         bootstrapMetadataOnly:false,historyPartial:false,complete:true,captureSource:'backend',signals:signals(rows)
       };
-      files.push({path:base+'/index.json',content:JSON.stringify(chatIndex,null,2)+'\n'});
-      const fileBytes=files.reduce((sum,file)=>sum+new TextEncoder().encode(String(file.content||'')).byteLength,0);
 
-      if(prioritySync&&batchRows.length&&(batchRows.length>=PRIORITY_CHAT_BATCH||batchFiles.length+files.length>PRIORITY_CHAT_BATCH_FILES||batchBytes+fileBytes>PRIORITY_CHAT_BATCH_BYTES)){
-        await flushBatch();
-      }
-      batchFiles.push(...files);
-      batchRows.push({chat,chatIndex});
-      batchBytes+=fileBytes;
-      if(!prioritySync||batchRows.length>=PRIORITY_CHAT_BATCH||batchFiles.length>=PRIORITY_CHAT_BATCH_FILES||batchBytes>=PRIORITY_CHAT_BATCH_BYTES){
-        await flushBatch();
-      }
+      idx.conversations[chat.id]=chatIndex;
+      idx.projectId=project.id;idx.projectName=projectName(project.name||'');idx.updatedAt=new Date().toISOString();idx.bootstrapMetadataOnly=false;
+      files.push(
+        {path:base+'/index.json',content:JSON.stringify(chatIndex,null,2)+'\n'},
+        {path:ppath(project.id,'index.json'),content:JSON.stringify(idx,null,2)+'\n'}
+      );
+
+      // Per-chat durable checkpoint stays authoritative. Speedups happen below the commit
+      // boundary (larger transcript chunks, concurrent blobs, cached private-repo verification),
+      // so a later failure never forces a previously committed chat to be fetched again.
+      await commit(files,'NiakGPT memory: '+one(project.name||project.id)+' / '+one(chat.title||chat.id),prioritySync);
+      if(ledger[retryKey]){delete ledger[retryKey];await persistLedger();}
+      changed++;completed++;
+      await state({
+        mode:'syncing',projectId:project.id,projectName:project.name,chatId:chat.id,chatTitle:chat.title,
+        chatDone:completed,chatTotal:chats.length,prioritySync,deferredChats:deferred.length,
+        retryingChat:false,retryAttempt:0,retryLimit:0,lastTransientError:''
+      });
+      await sleep(prioritySync?40:300);
     }
 
-    await flushBatch();
     idx.projectId=project.id;idx.projectName=projectName(project.name||'');idx.updatedAt=new Date().toISOString();
     idx.bootstrapMetadataOnly=!Object.values(idx.conversations||{}).some(row=>Number(row?.parts||0)>0&&Number(row?.messages||0)>0);
     const compact=buildState(project,idx);
@@ -702,6 +703,7 @@
         conversationCount:Object.keys(idx.conversations).length,knownConversationCount:Number(project.count||0),cachedConversationCount:(project.chats||[]).length,
         indexed:project.indexed===true,bootstrapMetadataOnly:idx.bootstrapMetadataOnly,updatedAt:idx.updatedAt
       },null,2)+'\n'},
+      {path:ppath(project.id,'index.json'),content:JSON.stringify(idx,null,2)+'\n'},
       {path:ppath(project.id,'PROJECT_STATE.md'),content:compact}
     ],'NiakGPT memory: checkpoint '+one(project.name||project.id),prioritySync);
     await saveContext(project.id,compact);

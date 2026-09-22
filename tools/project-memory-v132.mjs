@@ -249,7 +249,7 @@ assert.match(bridge, /fetch_aborted_native_priority/);
 assert.match(bridge, /native_conversation_quiet/);
 assert.match(bridge, /chat-route-guard/);
 assert.match(bridge, /ng90PeerChatActive/);
-assert.match(bridge, /const conversationQuiet = \(\) => conversationPage\(\) \|\| peerConversationPage\(\)/);
+assert.match(bridge, /memoryPeerSafe/);\nassert.match(bridge, /peerBusyPage/);\nassert.match(bridge, /data-ng90-peer-busy/);\nassert.match(bridge, /d\.memoryBootstrap === true/);
 assert.match(bridge, /if \(conversationQuiet\(\)\) \{\s*document\.dispatchEvent/s);
 assert.match(bridge, /return fetchRequest\(path, method, body, token\)/);
 assert.doesNotMatch(bridge, /transport:'fetch\+xhr'/);

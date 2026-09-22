@@ -1,3 +1,13 @@
+# NiakGPT 0.9.109 — résolution HostRoot par chaîne Fiber réelle
+
+- **Régression terrain persistante** : après 0.9.108, l’utilisateur observe encore le #418 React et surtout l’absence de la sidebar NiakGPT dans son ChatGPT authentifié.
+- **Limite des tests précédents** : les fixtures MV3 plaçaient toujours `__reactContainer$…` sur `document/html/body`. Elles validaient donc notre barrière, mais pas le cas où ChatGPT n’expose plus ce marqueur à cet emplacement.
+- **Correction d’architecture** : le probe MAIN-world sait désormais retrouver le HostRoot en remontant la chaîne `.return` depuis les vrais `__reactFiber$…` attachés à `<html>`, `<body>`, la navigation, `main` ou le composer. Le conteneur React reste une voie rapide, mais n’est plus une condition obligatoire.
+- **Preuve toujours stricte** : le runtime ne démarre que si un HostRoot est réellement trouvé, `isDehydrated === false`, aucune racine candidate n’est encore déshydratée, React possède `<html>` + `<body>`, au moins deux identités hôtes sont possédées, puis une seconde lecture confirme le même état.
+- **Non-régression dédiée** : `hydration-fiber-root-v109.spec.js` ne crée aucun `__reactContainer$…`. Le HostRoot n’est accessible que par les chaînes Fiber, reste déshydraté 6,5 s, puis le test exige `react-fiber-root-settled` et le rail réel.
+- **Diagnostic terrain** : si la preuve échoue encore, NiakGPT écrit un snapshot compact `niakgpt-hydration-probe-v109` en sessionStorage et logue `[NiakGPT hydration blocked]` sans muter le DOM.
+- **Test live GitHub** : une tentative directe contre `chatgpt.com` a été ajoutée séparément ; GitHub Actions est bloqué par Cloudflare avant l’app réelle, donc ce signal n’est pas utilisé comme preuve produit.
+
 # NiakGPT 0.9.108 — preuve React positive, aucun bypass heuristique
 
 - **Complément indispensable à 0.9.107** : l’ownership React de `<html>` + `<body>` était bien vérifié sur le chemin full-document, mais un ancien raccourci restait actif lorsque `data-build` et `window.__reactRouterContext` étaient absents.

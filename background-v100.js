@@ -197,7 +197,7 @@ async function probeReactHydration(tabId,frameId){
         const needed=Math.min(2,identities.length);
         const ownedCount=identities.filter(owned).length;
         return {
-          fullDocument:!!(document.documentElement?.hasAttribute('data-build')||window.__reactRouterContext),
+          containerFound:!!container,
           rootSettled,
           needed,
           ownedCount

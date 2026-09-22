@@ -1,5 +1,15 @@
 # Architecture de NiakGPT
 
+## Invariant architecture 0.9.118 — l’index Project est une union monotone
+
+Le répertoire `projects/<project>/conversations/<conversation>/` est la preuve durable élémentaire ; `projects/<project>/index.json` n’a plus le droit de perdre une conversation déjà prouvée. Sérialiser les commits GitHub ne suffit pas si deux content scripts ont construit leur payload depuis des snapshots différents : le dernier commit peut être proprement fast-forward tout en étant sémantiquement plus pauvre.
+
+La fusion est donc déplacée dans le service worker, au plus près de l’autorité Git. Pour tout commit contenant un `projects/g-p-*/index.json`, le worker relit ce fichier sur le **SHA parent exact** utilisé pour le prochain commit, fusionne l’union des conversations, puis choisit pour chaque ID la preuve la plus forte : archive backend complète > transcript partiel > metadata-only. Les retries sur déplacement du ref recalculent cette fusion sur le nouveau parent. `project.json` applique de la même façon des compteurs monotones (`max`).
+
+Si l’index a déjà été endommagé, le runtime ne retélécharge pas aveuglément les conversations. Il demande au worker d’énumérer les répertoires de conversations du Project, relit leurs `index.json` individuels avec concurrence bornée à 8, reconstruit l’index Project, le committe, puis seulement calcule les chats réellement manquants. La passe est bornée à 1000 répertoires, largement au-dessus du backlog actuel.
+
+La régression `project-memory-index-union-v118.mjs` reproduit le symptôme « reprise depuis 0 » : cache de 5 chats, index Project tombé à 2, quatre checkpoints conversation déjà durables. Le test exige une réparation à 4 puis un unique fetch du cinquième chat. Le test backend couvre séparément le writer obsolète qui tente d’écraser 100 lignes avec un snapshot réduit.
+
 ## Invariant architecture 0.9.117 — une panne de lecture appartient au chat, pas au Project
 
 Un échec transitoire de `/backend-api/conversation/<id>` ne peut plus interrompre tout `syncProject()`. Chaque conversation possède son état de retry local persistant. Après un petit nombre de tentatives immédiates, le chat fautif est différé avec une échéance croissante tandis que les autres conversations continuent. La queue globale ne réveille ce Project qu’à l’échéance utile, ce qui interdit l’ancienne boucle de reprise à 1 s sur le même chat.

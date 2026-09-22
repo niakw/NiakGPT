@@ -169,8 +169,8 @@ async function probeReactHydration(tabId,frameId){
       target:{tabId,frameIds:[frameId]},
       world:'MAIN',
       func:()=>{
-        const OWNER_RX=/^__react(?:Fiber|Props|Container)\\$.+/;
-        const CONTAINER_RX=/^__reactContainer\\$.+/;
+        const OWNER_RX=/^__react(?:Fiber|Props|Container)\$.+/;
+        const CONTAINER_RX=/^__reactContainer\$.+/;
         const owned=node=>{
           if(!node)return false;
           try{return Object.getOwnPropertyNames(node).some(key=>OWNER_RX.test(key));}catch{return false;}

@@ -89,15 +89,14 @@
     while(performance.now()-started<maxWait){
       const probe=await mainWorldReactProbe();
       if(probe.ok){
-        if(probe.fullDocument===false){hydrationProof='main-world-legacy-host';return true;}
         const needed=Math.max(0,Number(probe.needed||0));
         const ownedCount=Math.max(0,Number(probe.ownedCount||0));
-        if(probe.rootSettled===true&&needed>0&&ownedCount>=needed){
+        if(probe.containerFound===true&&probe.rootSettled===true&&needed>0&&ownedCount>=needed){
           await nextFrames();
           const confirm=await mainWorldReactProbe();
           const confirmNeeded=Math.max(0,Number(confirm?.needed||0));
           const confirmOwned=Math.max(0,Number(confirm?.ownedCount||0));
-          if(confirm?.ok&&confirm.rootSettled===true&&confirmNeeded>0&&confirmOwned>=confirmNeeded){
+          if(confirm?.ok&&confirm.containerFound===true&&confirm.rootSettled===true&&confirmNeeded>0&&confirmOwned>=confirmNeeded){
             hydrationProof=hydrationFault?'react-main-world-settled-after-host-fault':'react-main-world-settled';
             return true;
           }

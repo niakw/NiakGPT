@@ -1,12 +1,18 @@
 # Architecture de NiakGPT
 
-## Invariant hydratation React 0.9.104 — aucune mutation avant propriété hôte
+## Invariant styles 0.9.105 — zéro influence avant hydratation
+
+Le manifest ne déclare plus aucune feuille CSS dans `content_scripts`. `background-v100.js` possède l’unique `STYLE_RUNTIME` et appelle `chrome.scripting.insertCSS()` seulement après réception de `niakgpt:inject-runtime-v100`, donc après le gate d’hydratation. Les styles et le JavaScript NiakGPT partagent désormais la même frontière temporelle : **rien de NiakGPT ne peut influencer le DOM ou sa mise en page avant la preuve d’hydratation**.
+
+Le gate React n’accepte plus la simple présence des clés internes `__reactContainer$…` / `__reactFiber$…`. Il exige aussi que le HostRoot expose explicitement `memoizedState.isDehydrated === false`. Si cette preuve n’est pas disponible, le fallback reste l’interaction native fiable.
+
+## Invariant hydratation React 0.9.105 — aucune mutation avant propriété hôte
 
 Le HTML ChatGPT courant est hydraté comme document React complet. Un DOM visuellement stable et deux tours idle ne suffisent pas : React peut continuer à planifier du travail via `MessagePort` sans remplacer les nœuds. `boot-gate-v100.js` exige donc, sur les hôtes `data-build` / React Router actuels, un marqueur React interne sur le root (`__reactContainer$…`) et sur au moins deux nœuds hôtes (`__reactFiber$…` / `__reactProps$…`) avant de poser le moindre attribut/nœud NiakGPT. À défaut, il attend une interaction native fiable plutôt que de deviner un délai.
 
 Le gate enregistre ensuite uniquement après cette preuve `data-ng100-hydration-proof=react-owned|trusted-interaction`. Une erreur d’hydratation React #418 observée avant activation ouvre le fusible `hydrationFault` et empêche le runtime NiakGPT de muter la page.
 
-## Invariants terrain actuels 0.9.104
+## Invariants terrain actuels 0.9.105
 
 - **Chat courant = zéro lecture via le broker réseau de la page.** La conversation affichée est sauvegardée immédiatement depuis le DOM visible. Après une minute de calme, le service worker MV3 peut compléter l’historique avec un GET strictement borné à `/backend-api/conversation/{id}` ; son jeton ChatGPT est éphémère et mémoire-only.
 - **Peer chat = quarantaine ordinaire, exception mémoire bornée.** Depuis un onglet hors chat, seuls les GET `memoryBootstrap:true` de Project Memory (conversation complète ou inventaire ciblé d’un Project incomplet) peuvent traverser un peer visible mais inactif. `ng90PeerBusy`, génération, vérification ou incident réseau referment l’exception et annulent les GET en vol.
@@ -18,11 +24,11 @@ Le gate enregistre ensuite uniquement après cette preuve `data-ng100-hydration-
 - **Privacy fail-closed sur l’arbre public.** La CI parcourt tous les fichiers texte suivis par Git et refuse les marqueurs privés connus, les e-mails non synthétiques, les chemins utilisateur locaux et les secrets/tokens plausibles.
 
 
-NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.104 privilégie cinq propriétés : **faible coût runtime**, **priorité absolue au flux natif ChatGPT**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
+NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.105 privilégie cinq propriétés : **faible coût runtime**, **priorité absolue au flux natif ChatGPT**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
 
 ## Périmètre
 
-Le manifest 0.9.104 déclare :
+Le manifest 0.9.105 déclare :
 
 ```text
 https://chatgpt.com/*

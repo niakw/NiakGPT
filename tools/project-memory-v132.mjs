@@ -514,6 +514,7 @@ assert.match(runtime, /ACCOUNT_RATE_COOLDOWN_MS = 15\*60\*1000/);
 assert.match(runtime, /reserveHistoryRequest/);
 assert.match(runtime, /markAccountRateLimit/);
 assert.match(runtime, /accountRateLimitText/);
+assert.match(runtime, /demandes\\s\+trop\\s\+rapidement/);
 assert.match(runtime, /function normalizePid\(value\)/);
 assert.match(runtime, /return m \? normalizePid\(m\[1\]\) : ''/);
 assert.match(runtime, /captureSource:'live-dom'/);

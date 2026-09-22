@@ -10,6 +10,7 @@
   const BACKGROUND_QUIET_MS=2*60*1000;
   const COLD_BOOTSTRAP_QUIET_MS=12*1000;
   let busy=false,timer=0,rpcSeq=0,partialRetries=0,pendingDeep=false,lastUserOrNativeAt=Date.now(),coldBootstrap=true;
+  const memoryRepairIds=new Set();
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const parseTime=v=>{if(typeof v==='number'&&Number.isFinite(v))return v>1e12?v:v*1000;if(typeof v==='string'){const n=Number(v);if(Number.isFinite(n))return n>1e12?n:n*1000;const d=Date.parse(v);return Number.isFinite(d)?d:0;}return 0;};
@@ -21,19 +22,22 @@
   const nativeBusy=()=>document.documentElement.dataset.ng8Running==='1'||['loading','waiting','thinking','executing'].includes(document.documentElement.dataset.ng86Activity||'')||document.documentElement.dataset.ng105Verification==='1'||['verify','network'].includes(String(document.documentElement.dataset.ng119Interruption||'').toLowerCase());
   const conversationPage=()=>/(?:^|\/)c\/[A-Za-z0-9_-]+(?:$|[/?#])/.test(String(location.pathname||''));
   const quietFor=()=>Date.now()-lastUserOrNativeAt;
-  const quietRequirement=()=>coldBootstrap?COLD_BOOTSTRAP_QUIET_MS:BACKGROUND_QUIET_MS;
-  const projectReady=()=>!conversationPage()&&document.documentElement.dataset.ng90PeerChatActive!=='1'&&quietFor()>=quietRequirement()&&document.documentElement.dataset.ng100CacheGuard!=='pending'&&!ratePaused()&&!document.hidden&&document.documentElement.dataset.ng90Safe!=='1'&&!document.documentElement.dataset.ng100Recovery&&!nativeBusy();
+  const memoryRepair=()=>memoryRepairIds.size>0;
+  const peerBusy=()=>document.documentElement.dataset.ng90PeerBusy==='1';
+  const quietRequirement=()=>memoryRepair()?1000:(coldBootstrap?COLD_BOOTSTRAP_QUIET_MS:BACKGROUND_QUIET_MS);
+  const peerBlocked=()=>document.documentElement.dataset.ng90PeerChatActive==='1'&&(!memoryRepair()||peerBusy());
+  const projectReady=()=>!conversationPage()&&!peerBlocked()&&quietFor()>=quietRequirement()&&document.documentElement.dataset.ng100CacheGuard!=='pending'&&!ratePaused()&&!document.hidden&&document.documentElement.dataset.ng90Safe!=='1'&&!document.documentElement.dataset.ng100Recovery&&!nativeBusy();
   const chatReady=()=>projectReady();
 
   function diagnostic(text){window.__NIAKGPT_DIAGNOSTICS__?.set('index-serveur',text);}
-  function rpc(path,{method='GET',body=null,timeout=18000}={}){
+  function rpc(path,{method='GET',body=null,timeout=18000,memoryBootstrap=false}={}){
     const id=`ng100-index-${Date.now()}-${++rpcSeq}`;
     return new Promise(resolve=>{
       const timeoutId=setTimeout(()=>{off();resolve({ok:false,status:0,error:'rpc_timeout'});},timeout);
       const handler=event=>{if(event.detail?.id!==id)return;off();resolve(event.detail);};
       const off=()=>{clearTimeout(timeoutId);document.removeEventListener('niakgpt:rpc-response',handler);};
       document.addEventListener('niakgpt:rpc-response',handler);
-      document.dispatchEvent(new CustomEvent('niakgpt:rpc-request',{detail:{id,path,method,body,governance:true}}));
+      document.dispatchEvent(new CustomEvent('niakgpt:rpc-request',{detail:{id,path,method,body,governance:true,memoryBootstrap:memoryBootstrap===true}}));
     });
   }
   function projectFromRaw(raw){
@@ -68,12 +72,12 @@
     }
     return[...found.values()];
   }
-  async function fetchProjectChats(project){
+  async function fetchProjectChats(project,memoryBootstrap=false){
     const out=new Map(),seen=new Set();let cursor=null;
     for(let page=0;page<250;page++){
       if(!chatReady())throw new Error('paused');
       const qs=new URLSearchParams({limit:'20'});if(cursor!=null&&cursor!=='')qs.set('cursor',String(cursor));
-      const r=await rpc(`/backend-api/gizmos/${encodeURIComponent(project.id)}/conversations?${qs}`);if(!r.ok){if(r.status===429)throw new Error('rate-limited');throw new Error(`${project.name} · ${r.status||0}`);}
+      const r=await rpc(`/backend-api/gizmos/${encodeURIComponent(project.id)}/conversations?${qs}`,{memoryBootstrap});if(!r.ok){if(r.status===429)throw new Error('rate-limited');throw new Error(`${project.name} · ${r.status||0}`);}
       const items=listFrom(r.data,'items','conversations');for(const raw of items){const c=chatFromRaw(raw,project.id);if(c)out.set(c.id,c);}
       const next=nextCursor(r.data);if(!items.length||next==null||next==='')break;const key=String(next);if(seen.has(key))break;seen.add(key);cursor=next;await sleep(45);
     }
@@ -116,9 +120,11 @@
       coldBootstrap=knownServer===0||Number(before.serverIndexedAt||0)<=0;
       if(!needsIndex(before,force)){coldBootstrap=false;diagnostic(`OK · index serveur récent · ${knownServer} Projects`);return;}
       const cachedProjects=(before.projects||[]).filter(p=>String(p?.id||'').startsWith('g-p-')&&!p.domOnly);
+      const memoryMode=memoryRepair(),memoryTargets=new Set(memoryRepairIds);
       const inventoryFresh=Number(before.projectInventoryAt||0)>0&&Date.now()-Number(before.projectInventoryAt)<PROJECT_FRESH_MS&&cachedProjects.length>0;
-      let projects=cachedProjects;
-      if(!inventoryFresh){
+      let projects=memoryMode?cachedProjects.filter(p=>memoryTargets.has(p.id)):cachedProjects;
+      if(memoryMode&&!projects.length)throw new Error('memory inventory target missing from cache');
+      if(!memoryMode&&!inventoryFresh){
         diagnostic('INDEX · inventaire Projects');
         projects=await fetchProjects();if(!projects.length)throw new Error('aucun Project serveur retourné');
         // 0.9.51: never hit ChatGPT's undocumented Project APIs while a response, native
@@ -141,11 +147,13 @@
       const indexed=new Set((Array.isArray(before.indexedProjectIds)?before.indexedProjectIds:[]).filter(id=>String(id).startsWith('g-p-')));let failures=0;
       for(let i=0;i<projects.length;i++){
         if(!chatReady())throw new Error('paused');const p=projects[i];diagnostic(`INDEX · ${i+1}/${projects.length} · ${p.name}`);
-        try{const list=await fetchProjectChats(p);counts[p.id]=list.length;indexed.add(p.id);for(const c of list){seenIds.add(c.id);const old=chats.get(c.id)||{};chats.set(c.id,{...old,...c,projectId:p.id,updated:Math.max(parseTime(old.updated),c.updated||0)});}}catch(error){if(['paused','rate-limited'].includes(String(error?.message)))throw error;failures++;}
+        try{const list=await fetchProjectChats(p,memoryMode);counts[p.id]=list.length;indexed.add(p.id);for(const c of list){seenIds.add(c.id);const old=chats.get(c.id)||{};chats.set(c.id,{...old,...c,projectId:p.id,updated:Math.max(parseTime(old.updated),c.updated||0)});}}catch(error){if(['paused','rate-limited'].includes(String(error?.message)))throw error;failures++;}
         await sleep(35);
       }
-      diagnostic('INDEX · conversations générales');
-      try{for(const c of await fetchGeneral()){seenIds.add(c.id);const old=chats.get(c.id)||{},projectId=mergedProjectId(old,c);chats.set(c.id,{...old,...c,projectId,updated:Math.max(parseTime(old.updated),c.updated||0),snippet:c.snippet||old.snippet||''});}}catch(error){if(['paused','rate-limited'].includes(String(error?.message)))throw error;failures++;}
+      if(!memoryMode){
+        diagnostic('INDEX · conversations générales');
+        try{for(const c of await fetchGeneral()){seenIds.add(c.id);const old=chats.get(c.id)||{},projectId=mergedProjectId(old,c);chats.set(c.id,{...old,...c,projectId,updated:Math.max(parseTime(old.updated),c.updated||0),snippet:c.snippet||old.snippet||''});}}catch(error){if(['paused','rate-limited'].includes(String(error?.message)))throw error;failures++;}
+      }
       const freshProjectIds=new Set(projects.map(p=>p.id));
       // Never treat one undocumented API inventory as destructive truth. ChatGPT can return
       // a short/partial Project or conversation page under load without an explicit error.
@@ -158,7 +166,7 @@
       const suspiciousProjectDrop=beforeServerProjects>=4&&projects.length<beforeServerProjects;
       const suspiciousChatDrop=beforeChats>=30&&seenIds.size<Math.floor(beforeChats*.65);
       const suspiciousDates=beforeDated>=20&&freshDated<Math.floor(beforeDated*.45);
-      const partial=failures>0||suspiciousProjectDrop||suspiciousChatDrop||suspiciousDates;
+      const partial=failures>0||(!memoryMode&&(suspiciousProjectDrop||suspiciousChatDrop||suspiciousDates));
       const finalChats=[...chats.values()];
       const canonicalById=new Map(finalChats.filter(c=>c?.id).map(c=>[String(c.id),c]));
       const projectChats={};
@@ -169,7 +177,7 @@
           return !canonical||canonical.projectIdKnown!==true||normalizePid(canonical.projectId)===normalizePid(pid);
         });
       }
-      const next={...before,schema:2,projectInventoryAt:Number(before.projectInventoryAt)||Date.now(),serverIndexedAt:partial?(Number(before.serverIndexedAt)||0):Date.now(),projects:[...projectMap.values()],chats:finalChats,projectChats,counts,indexedProjectIds:[...new Set([...(before.indexedProjectIds||[]),...indexed])].filter(id=>String(id).startsWith('g-p-'))};
+      const next={...before,schema:2,projectInventoryAt:Number(before.projectInventoryAt)||Date.now(),serverIndexedAt:memoryMode?Number(before.serverIndexedAt||0):(partial?(Number(before.serverIndexedAt)||0):Date.now()),projects:[...projectMap.values()],chats:finalChats,projectChats,counts,indexedProjectIds:[...new Set([...(before.indexedProjectIds||[]),...indexed])].filter(id=>String(id).startsWith('g-p-'))};
       const bus=window.__NIAKGPT_CACHE_BUS__;
       if(bus?.update){
         await bus.update(latest=>{
@@ -186,7 +194,8 @@
         document.dispatchEvent(new CustomEvent('niakgpt:server-index-partial',{detail:{projects:projects.length,seen:seenIds.size,cachedProjects:projectMap.size,cachedChats:chats.size,failures}}));
         if(partialRetries<2){partialRetries++;if(chatReady())schedule(30000,true);else pendingDeep=true;}
       }else{
-        partialRetries=0;coldBootstrap=false;diagnostic(`OK · ${projects.length} Projects · ${chats.size} chats · ${dated} datés`);
+        if(memoryMode)for(const id of memoryTargets)memoryRepairIds.delete(id);
+        partialRetries=0;coldBootstrap=false;diagnostic(memoryMode?`OK · réparation mémoire · ${projects.length} Project(s) · ${seenIds.size} chats relus`:`OK · ${projects.length} Projects · ${chats.size} chats · ${dated} datés`);
         document.dispatchEvent(new CustomEvent('niakgpt:server-indexed',{detail:{projects:projects.length,chats:chats.size,dated,failures:0}}));
       }
     }catch(error){if(String(error?.message)==='paused'){pendingDeep=true;diagnostic('PAUSE · reprise événementielle à la prochaine fenêtre disponible');}else if(String(error?.message)==='rate-limited'){diagnostic('PAUSE · limite API ChatGPT · reprise automatique');}else diagnostic(`ERREUR · ${String(error?.message||error).slice(0,100)}`);}finally{busy=false;}
@@ -206,7 +215,15 @@
   function noteHuman(){lastUserOrNativeAt=Date.now();schedule(quietRequirement()+250,false);}
   for(const type of ['pointerdown','keydown','touchstart','wheel'])document.addEventListener(type,noteHuman,{capture:true,passive:type==='touchstart'||type==='wheel'});
   document.addEventListener('niakgpt:cache-guard-ready',()=>schedule(remainingQuiet(),true));
-  document.addEventListener('niakgpt:force-server-index',()=>schedule(remainingQuiet(),true));
+  document.addEventListener('niakgpt:force-server-index',event=>{
+    const detail=event.detail||{};
+    if(detail.memoryBootstrap===true){
+      for(const id of (Array.isArray(detail.projectIds)?detail.projectIds:[]))if(String(id).startsWith('g-p-'))memoryRepairIds.add(String(id));
+      schedule(remainingQuiet(250),true);
+      return;
+    }
+    schedule(remainingQuiet(),true);
+  });
   document.addEventListener('niakgpt:recovery-complete',()=>{lastUserOrNativeAt=Date.now();coldBootstrap=true;schedule(quietRequirement()+250,true);});
   document.addEventListener('niakgpt:tab-role-changed',()=>schedule(remainingQuiet(500),false));
   document.addEventListener('niakgpt:activity-changed',event=>{

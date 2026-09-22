@@ -22,11 +22,11 @@ test('real MV3 static continuation layer prefixes only pre-existing parallel wor
   const context=await chromium.launchPersistentContext(dir,{headless:true,channel:'chromium',viewport:{width:1280,height:800},args:[`--disable-extensions-except=${extensionPath}`,`--load-extension=${extensionPath}`]});
   const fixture=`<!doctype html><html><body><main id="thread"><article data-testid="conversation-turn-1"><div data-message-author-role="assistant">Travail en cours.</div></article><form data-type="unified-composer" onsubmit="return false"><textarea id="prompt-textarea" data-testid="prompt-textarea"></textarea><button type="button" id="send" data-testid="send-button" aria-label="Envoyer">Envoyer</button></form></main><script>
   const reactDollar=String.fromCharCode(36);
-  const parallelRootFiber={memoizedState:{isDehydrated:false},stateNode:{current:null}};
+  const parallelRootFiber={tag:3,memoizedState:{isDehydrated:false},stateNode:{current:null},return:null,alternate:null};
   parallelRootFiber.stateNode.current=parallelRootFiber;
   Object.defineProperty(document,'__reactContainer'+reactDollar+'parallel',{value:parallelRootFiber,configurable:true});
   for(const node of [document.documentElement,document.body,document.querySelector('main'),document.getElementById('prompt-textarea')]){
-    if(node)Object.defineProperty(node,'__reactFiber'+reactDollar+'parallel',{value:{memoizedState:{}},configurable:true});
+    if(node)Object.defineProperty(node,'__reactFiber'+reactDollar+'parallel',{value:{tag:5,memoizedState:{},return:parallelRootFiber,alternate:null},configurable:true});
   }
   window.__sent=[];window.__dropNext=false;const e=document.getElementById('prompt-textarea');
   document.getElementById('send').addEventListener('click',()=>{

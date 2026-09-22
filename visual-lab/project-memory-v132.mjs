@@ -332,8 +332,83 @@ try{
     await page.close();
   }
 
+  {
+    const page=await newPage();
+    const pid='g-p-lab0001',slug=pid+'-niakgpt',current='current-chat-0001',historical='historical-chat-0002';
+    await page.addInitScript(({pid,current,historical})=>{
+      const localData={
+        'niakgpt-v08-cache':{
+          schema:2,
+          projects:[{id:pid,name:'Memory Lab',href:'/g/'+pid+'/project'}],
+          chats:[{id:historical,title:'Historical cached chat',projectId:pid,updated:Date.now()-5000}],
+          counts:{[pid]:2},indexedProjectIds:[pid]
+        },
+        'niakgpt-project-memory-prefs-v132':{autoSync:false,injectOnNewChat:true}
+      };
+      const listeners=[];window.__commits=[];window.__pageRpc=[];
+      const clone=value=>value===undefined?undefined:structuredClone(value);
+      window.chrome={
+        runtime:{
+          lastError:null,
+          sendMessage(message,cb){
+            const reply=value=>queueMicrotask(()=>cb(value));
+            if(message.type==='niakgpt:memory-status-v132')return reply({ok:true,connected:true,configured:true,tokenAvailable:true,config:{repo:'synthetic/private',branch:'main',root:'.niakgpt-memory',authMode:'github-app'}});
+            if(message.type==='niakgpt:memory-read-v132')return reply({ok:false,error:'github_http_404:not_found'});
+            if(message.type==='niakgpt:memory-commit-v132'){window.__commits.push(clone({files:message.files,message:message.message}));return reply({ok:true,sha:'commit-'+window.__commits.length});}
+            if(message.type==='niakgpt:memory-chatgpt-probe-v132')return reply({ok:true,authenticated:true,transport:'extension-background'});
+            if(message.type==='niakgpt:memory-chatgpt-fetch-v132'){
+              const id=String(message.path||'').split('/').at(-1);
+              if(id!==historical)return reply({ok:false,status:404,error:'chatgpt_memory_http_404'});
+              return reply({ok:true,status:200,transport:'extension-background',data:{
+                title:'Historical cached chat',update_time:Date.now()/1000,current_node:'a2',mapping:{
+                  a1:{id:'a1',parent:null,message:{author:{role:'user'},content:{parts:['historical user request']},create_time:Date.now()/1000-2}},
+                  a2:{id:'a2',parent:'a1',message:{author:{role:'assistant'},content:{parts:['historical assistant answer']},create_time:Date.now()/1000-1}}
+                }
+              }});
+            }
+            return reply({ok:false,error:'unexpected:'+message.type});
+          }
+        },
+        storage:{
+          local:{
+            async get(keys){
+              if(keys==null)return clone(localData);
+              if(typeof keys==='string')return{[keys]:clone(localData[keys])};
+              if(Array.isArray(keys))return Object.fromEntries(keys.filter(k=>localData[k]!==undefined).map(k=>[k,clone(localData[k])]));
+              if(keys&&typeof keys==='object')return Object.fromEntries(Object.entries(keys).map(([k,v])=>[k,localData[k]===undefined?v:clone(localData[k])]));
+              return{};
+            },
+            async set(obj){const changes={};for(const[k,v]of Object.entries(obj||{})){changes[k]={oldValue:clone(localData[k]),newValue:clone(v)};localData[k]=clone(v);}for(const fn of listeners)fn(changes,'local');},
+            async remove(keys){for(const k of(Array.isArray(keys)?keys:[keys]))delete localData[k];}
+          },
+          onChanged:{addListener(fn){listeners.push(fn);}}
+        }
+      };
+      document.addEventListener('niakgpt:rpc-request',event=>window.__pageRpc.push(clone(event.detail||{})));
+    },{pid,current,historical});
+    await page.route('https://chatgpt.com/**',route=>route.fulfill({
+      status:200,contentType:'text/html; charset=utf-8',
+      body:'<!doctype html><html><body><main><article data-testid="conversation-turn-1"><div data-message-author-role="user">current user message</div></article><article data-testid="conversation-turn-2"><div data-message-author-role="assistant">current assistant answer</div></article></main></body></html>'
+    }));
+    await page.goto('https://chatgpt.com/g/'+slug+'/c/'+current,{waitUntil:'domcontentloaded'});
+    await page.evaluate(()=>{document.documentElement.dataset.ng8TabRole='worker';document.documentElement.dataset.ng86Activity='ready';});
+    await page.addScriptTag({content:coreScript});
+    await page.waitForFunction(()=>window.__NIAKGPT_PROJECT_MEMORY__);
+    const result=await page.evaluate(()=>window.__NIAKGPT_PROJECT_MEMORY__.syncNow({force:true}));
+    assert(result.ok===true,'active-chat background history sync failed: '+JSON.stringify(result));
+    const evidence=await page.evaluate(()=>({commits:window.__commits,rpc:window.__pageRpc,transport:document.documentElement.dataset.ng132HistoryTransport||''}));
+    const files=evidence.commits.flatMap(commit=>commit.files||[]),paths=files.map(file=>String(file.path||''));
+    assert(paths.some(path=>path.includes('/conversations/'+current+'/part-001.md')),'slugged current Project route did not archive visible DOM: '+JSON.stringify(paths));
+    assert(paths.some(path=>path.includes('/conversations/'+historical+'/part-001.md')),'active chat did not archive cached history through extension background: '+JSON.stringify(paths));
+    assert(evidence.commits.some(commit=>/live DOM Memory Lab/.test(commit.message)),'current DOM archive commit missing');
+    assert(evidence.commits.some(commit=>/Memory Lab \/ Historical cached chat/.test(commit.message)),'historical background archive commit missing');
+    assert(evidence.rpc.length===0,'active-chat history sync escaped into page RPC broker: '+JSON.stringify(evidence.rpc));
+    assert(evidence.transport==='background','active-chat history transport was not marked background: '+evidence.transport);
+    await page.close();
+  }
+
   assert(errors.length===0,'browser errors: '+JSON.stringify(errors));
-  console.log('project-memory-v132 '+requested+': PASS auto-render+github-picker+invalid-context-recovery+immediate-cache-bootstrap+persistent-history-queue+manual-fallback+single-injection');
+  console.log('project-memory-v132 '+requested+': PASS auto-render+github-picker+invalid-context-recovery+immediate-cache-bootstrap+persistent-history-queue+active-chat-background-history+slugged-dom-capture+manual-fallback+single-injection');
 }finally{
   await context.close();
   await browser.close();

@@ -1,6 +1,6 @@
 # Confidentialité — NiakGPT
 
-NiakGPT 0.9.102 conserve un **cœur local-first** et Project Memory v132, une synchronisation GitHub privée **optionnelle et explicitement activée par l’utilisateur**.
+NiakGPT 0.9.103 conserve un **cœur local-first** et Project Memory v132, une synchronisation GitHub privée **optionnelle et explicitement activée par l’utilisateur**.
 
 ## Résumé
 
@@ -15,7 +15,7 @@ NiakGPT 0.9.102 conserve un **cœur local-first** et Project Memory v132, une sy
 
 ## Réveil de la file privée
 
-En 0.9.102, une file Project Memory persistante possède un heartbeat **strictement local** de 30 s. Le **chat courant** reste une frontière absolue pour les lectures backend de Project Memory : les messages déjà rendus peuvent être copiés depuis le DOM vers le coffre, sans GET ChatGPT. Depuis un onglet hors chat, une exception réseau étroite permet uniquement aux lectures `memoryBootstrap` nécessaires à l’archive privée — détail d’une conversation ou inventaire ciblé d’un Project incomplet — de coexister avec un autre chat visible **mais inactif**. Dès qu’un peer génère ou qu’une vérification/récupération native est active, ces lectures sont suspendues/annulées. Le trafic NiakGPT ordinaire reste quarantiné.
+En 0.9.103, une file Project Memory persistante possède un heartbeat **strictement local** de 30 s. Le chat courant est d’abord copié depuis le DOM visible, sans lecture backend du broker de la page. Après une minute de calme, le service worker de l’extension peut compléter l’historique par un GET strictement limité à `/backend-api/conversation/<id>`. Le bearer ChatGPT obtenu via la session du navigateur reste uniquement en mémoire du worker, n’est ni journalisé ni persisté et n’est jamais envoyé au dépôt GitHub. Le broker réseau de la page conserve sa quarantaine du chat courant ; toute génération, vérification ou activité native suspend la reprise historique.
 
 ## Périmètre réseau
 

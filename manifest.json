@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.102",
-  "description": "NiakGPT : Project Memory ferme les inventaires incomplets, archive les vrais chats et assainit les noms Projects.",
+  "version": "0.9.103",
+  "description": "NiakGPT : Project Memory archive réellement les historiques depuis un chat inactif et stabilise le bloc Projects avant Chats.",
   "permissions": [
     "storage",
     "scripting",

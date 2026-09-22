@@ -45,7 +45,7 @@ async function pinsFieldRegression(browser){
       };
       const clone=v=>v===undefined?undefined:structuredClone(v);
       window.chrome={
-        runtime:{getManifest:()=>({version:'0.9.102'})},
+        runtime:{getManifest:()=>({version:'0.9.103'})},
         storage:{
           local:{
             async get(keys){
@@ -150,7 +150,7 @@ async function screenshotSidebarRegression(browser){
       };
       const clone=v=>v===undefined?undefined:structuredClone(v);
       window.chrome={
-        runtime:{getManifest:()=>({version:'0.9.102'})},
+        runtime:{getManifest:()=>({version:'0.9.103'})},
         storage:{
           local:{
             async get(keys){
@@ -175,13 +175,14 @@ async function screenshotSidebarRegression(browser){
       body{background:#080d12;color:#dce4ed;font-family:Arial}
       aside[data-testid="conversation-sidebar"]{position:fixed;left:0;top:0;bottom:0;width:320px;background:#071018;overflow:auto}
       #shell{min-height:100%;padding:10px}
-      #primary a,#native-chats a{display:block;min-height:38px;padding:8px;color:#dde;text-decoration:none}
-      #native-chats{margin-top:12px}#native-chats h3{margin:8px 12px}
+      #primary a,#native-chat-list a{display:block;min-height:38px;padding:8px;color:#dde;text-decoration:none}
+      #chat-heading-row{margin-top:12px}#native-chat-list{display:block;width:100%}
       main{margin-left:320px}
     </style></head><body>
       <aside data-testid="conversation-sidebar"><div id="shell">
         <div id="primary"><a href="/">ChatGPT</a><a href="/new">Nouveau chat</a><a href="/library">Bibliothèque</a><a href="/apps">Plugins</a></div>
-        <section id="native-chats"><h3>Chats</h3><a href="/c/${C3}">Choisir un purificateur</a><a href="/c/${C4}">Voyant batterie moteur arrêté</a></section>
+        <div id="chat-heading-row" style="height:220px;display:flex;flex-direction:row;align-items:flex-start;gap:8px"><h3 style="margin:8px 12px">Chats</h3><button type="button">⋯</button></div>
+        <section id="native-chat-list"><a href="/c/${C3}">Choisir un purificateur</a><a href="/c/${C4}">Voyant batterie moteur arrêté</a></section>
       </div></aside><main></main>
     </body></html>`;
     await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html; charset=utf-8',body:html}));
@@ -189,18 +190,21 @@ async function screenshotSidebarRegression(browser){
     await page.addScriptTag({content:projectsSource});
     await page.addScriptTag({content:pinFoldersSource});
     await page.waitForFunction(()=>document.getElementById('ng8-pins'),null,{timeout:5000});
-    const placed=await page.evaluate(()=>{const pins=document.getElementById('ng8-pins'),chats=document.getElementById('native-chats');return{
-      beforeChats:pins?.nextElementSibling===chats,
+    const placed=await page.evaluate(()=>{const pins=document.getElementById('ng8-pins'),heading=document.getElementById('chat-heading-row');return{
+      beforeChats:pins?.nextElementSibling===heading,
       placement:pins?.dataset.ng121Placement||'',
-      parent:pins?.parentElement?.id||''
+      parent:pins?.parentElement?.id||'',
+      insideHeading:heading?.contains(pins)||false,
+      headingDisplay:getComputedStyle(heading).display,
+      headingDirection:getComputedStyle(heading).flexDirection
     };});
-    assert(placed.beforeChats&&placed.placement==='before-native-chats','screenshot shape still mounts Pins under native Chats: '+JSON.stringify(placed));
+    assert(placed.beforeChats&&placed.placement==='before-native-chats'&&placed.parent==='shell'&&!placed.insideHeading,'Projects catalogue was inserted inside the horizontal Chats title row: '+JSON.stringify(placed));
     const pin=page.locator('#ng8-pins a[data-ng8-pin="1"]').first();
     await pin.click();
     await page.waitForTimeout(80);
     const rows=await page.locator('#ng8-pins .ng96-chat-entry').count();
     assert(rows===0,'stale generic chats leaked into MediaLab drawer: '+rows);
-    console.log('field-v089 screenshot: PASS Pins before Chats + stale cross-project rows suppressed');
+    console.log('field-v103 screenshot: PASS Projects is a full section before a horizontal Chats heading row + stale cross-project rows suppressed');
   }finally{await context.close();}
 }
 
@@ -334,7 +338,7 @@ async function memoryFieldRegression(browser){
       window.chrome={
         runtime:{
           lastError:null,
-          getManifest:()=>({version:'0.9.102'}),
+          getManifest:()=>({version:'0.9.103'}),
           sendMessage(message,cb){
             const reply=value=>queueMicrotask(()=>cb(value));
             if(message.type==='niakgpt:memory-status-v132')return reply({ok:true,connected:window.__vaultConnected,configured:window.__vaultConnected,tokenAvailable:window.__vaultConnected,config:window.__vaultConnected?{repo:'synthetic/private',branch:'main',root:'.niakgpt-memory',authMode:'github-app'}:null,github:{authenticated:true,repositories:[{fullName:'synthetic/private',defaultBranch:'main'}]}});
@@ -433,4 +437,4 @@ try{
   await memoryFieldRegression(browser);
   await diagnosticNoiseRegression(browser);
 }finally{await browser.close();}
-console.log('field-regressions-v088: PASS Pins + screenshot placement + ownership cleanup + network + GitHub bootstrap + runtime diagnostics');
+console.log('field-regressions-v088: PASS Pins + live Chats-row placement + ownership cleanup + network + GitHub bootstrap + runtime diagnostics');

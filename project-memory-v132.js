@@ -22,6 +22,9 @@
   const PRIORITY_RETRY_MS = 1000;
   const CHAT_FETCH_RETRIES_PRIORITY = 3;
   const CHAT_FETCH_RETRIES_NORMAL = 2;
+  const PRIORITY_CHAT_BATCH = 3;
+  const PRIORITY_CHAT_BATCH_FILES = 22;
+  const PRIORITY_CHAT_BATCH_BYTES = 4 * 1024 * 1024;
   const CHAT_RETRY_BACKOFF_MS = [45_000,120_000,300_000,900_000,1_800_000];
   const WAKE_HEARTBEAT_MS = 30000;
   const GITHUB_AUTH_UI_TIMEOUT_MS = 6*60*1000;
@@ -566,25 +569,58 @@
       const old=idx.conversations[chat.id],updated=parseTime(chat.updated);
       return !force && !!old && old.complete !== false && Number(old.updated || 0) >= updated && Number(old.parts || 0) > 0;
     };
-    let completed = chats.filter(complete).length, changed = 0;
+    let completed = chats.filter(complete).length, changed = 0, batchFiles = [], batchRows = [], batchBytes = 0;
     const deferred=[];
     let ledger=await chatRetryLedger();
+
+    const persistLedger=async()=>saveChatRetryLedger(ledger);
+    const flushBatch=async()=>{
+      if(!batchRows.length)return;
+      const nextConversations={...idx.conversations};
+      for(const row of batchRows)nextConversations[row.chat.id]=row.chatIndex;
+      const nextIdx={
+        ...idx,schema:1,projectId:project.id,projectName:projectName(project.name||''),
+        updatedAt:new Date().toISOString(),bootstrapMetadataOnly:false,conversations:nextConversations
+      };
+      const files=batchFiles.concat({
+        path:ppath(project.id,'index.json'),
+        content:JSON.stringify(nextIdx,null,2)+'\n'
+      });
+      const label=batchRows.length===1
+        ? one(batchRows[0].chat.title||batchRows[0].chat.id)
+        : batchRows.length+' chats';
+      await commit(files,'NiakGPT memory: '+one(project.name||project.id)+' / '+label,prioritySync);
+      idx=nextIdx;
+      changed+=batchRows.length;
+      completed+=batchRows.length;
+      for(const row of batchRows)delete ledger[retryEntryKey(project.id,row.chat.id)];
+      await persistLedger();
+      await state({
+        mode:'syncing',projectId:project.id,projectName:project.name,
+        chatId:batchRows.at(-1)?.chat.id||'',chatTitle:batchRows.at(-1)?.chat.title||'',
+        chatDone:completed,chatTotal:chats.length,prioritySync,deferredChats:deferred.length,
+        retryingChat:false,retryAttempt:0,retryLimit:0,lastTransientError:''
+      });
+      batchFiles=[];batchRows=[];batchBytes=0;
+    };
+
     await state({
       mode:'syncing',projectId:project.id,projectName:project.name,
       chatId:'',chatTitle:'',chatDone:completed,chatTotal:chats.length,
-      prioritySync,projectArchivedBefore:completed,deferredChats:0,retryingChat:false
+      prioritySync,projectArchivedBefore:completed,deferredChats:0,retryingChat:false,lastTransientError:''
     });
 
     for (const chat of chats) {
-      if (document.hidden) throw new Error('memory_sync_paused_hidden');
-      if (syncAuto && !autoOwner()) throw new Error('memory_sync_paused_owner_change');
-      const old = idx.conversations[chat.id], updated = parseTime(chat.updated), retryKey=retryEntryKey(project.id,chat.id);
+      if (document.hidden) { await flushBatch(); throw new Error('memory_sync_paused_hidden'); }
+      if (syncAuto && !autoOwner()) { await flushBatch(); throw new Error('memory_sync_paused_owner_change'); }
+      const old = idx.conversations[chat.id], updated = parseTime(chat.updated);
       if (complete(chat)) {
-        if(ledger[retryKey]){delete ledger[retryKey];await saveChatRetryLedger(ledger);}
+        const key=retryEntryKey(project.id,chat.id);
+        if(ledger[key]){delete ledger[key];await persistLedger();}
         continue;
       }
 
-      const prior=ledger[retryKey];
+      const retryKey=retryEntryKey(project.id,chat.id),prior=ledger[retryKey];
       if(!force&&Number(prior?.nextAt||0)>Date.now()){
         deferred.push({projectId:project.id,chatId:chat.id,nextAt:Number(prior.nextAt),error:String(prior.error||'conversation_retry_deferred')});
         await state({
@@ -601,6 +637,7 @@
         chatId:chat.id, chatTitle:chat.title, chatDone:completed, chatTotal:chats.length,
         prioritySync,deferredChats:deferred.length,retryingChat:false,lastTransientError:''
       });
+
       const fetched=await fetchConversationResilient(project,chat,{chatDone:completed,chatTotal:chats.length});
       if(!fetched.ok){
         const cycles=Math.max(1,Number(prior?.cycles||0)+1),nextAt=Date.now()+retryBackoff(cycles);
@@ -608,7 +645,7 @@
           projectId:project.id,chatId:chat.id,cycles,nextAt,lastAt:Date.now(),
           error:String(fetched.error||'conversation_fetch_failed:0:unknown').slice(0,180)
         };
-        await saveChatRetryLedger(ledger);
+        await persistLedger();
         deferred.push({projectId:project.id,chatId:chat.id,nextAt,error:ledger[retryKey].error});
         await state({
           mode:'syncing',projectId:project.id,projectName:project.name,chatId:chat.id,chatTitle:chat.title,
@@ -621,82 +658,56 @@
       const data=fetched.data,rows=messages(data);
       if(!rows.length){
         const cycles=Math.max(1,Number(prior?.cycles||0)+1),nextAt=Date.now()+retryBackoff(cycles);
-        ledger[retryKey]={
-          projectId:project.id,chatId:chat.id,cycles,nextAt,lastAt:Date.now(),
-          error:'conversation_empty_mapping'
-        };
-        await saveChatRetryLedger(ledger);
-        deferred.push({projectId:project.id,chatId:chat.id,nextAt,error:'conversation_empty_mapping'});
+        ledger[retryKey]={projectId:project.id,chatId:chat.id,cycles,nextAt,lastAt:Date.now(),error:'conversation_empty'};
+        await persistLedger();
+        deferred.push({projectId:project.id,chatId:chat.id,nextAt,error:'conversation_empty'});
         continue;
       }
 
-      const canonicalHash=rowsHash(rows);
-      const canonicalUpdated = Math.max(updated, parseTime(data.update_time)) || Date.now();
-
-      // Existing conversations are never duplicated: the Project/chat ID is the stable path.
-      // If the backend revision has the same canonical content hash, only metadata/index state
-      // advances; otherwise the same part-xxx.md paths are replaced in Git history.
-      if(!force&&old&&old.complete!==false&&Number(old.parts||0)>0&&old.canonicalHash===canonicalHash){
-        const chatIndex={...old,title:one(chat.title||data.title||old.title||'Conversation'),updated:canonicalUpdated,capturedAt:new Date().toISOString(),canonicalHash};
-        idx.conversations[chat.id]=chatIndex;
-        idx.projectId=project.id;idx.projectName=projectName(project.name||'');idx.updatedAt=new Date().toISOString();idx.bootstrapMetadataOnly=false;
-        await commit([
-          {path:ppath(project.id,'conversations/'+safe(chat.id)+'/index.json'),content:JSON.stringify(chatIndex,null,2)+'\n'},
-          {path:ppath(project.id,'index.json'),content:JSON.stringify(idx,null,2)+'\n'}
-        ],'NiakGPT memory: metadata '+one(project.name||project.id)+' / '+one(chat.title||chat.id),prioritySync);
-        if(ledger[retryKey]){delete ledger[retryKey];await saveChatRetryLedger(ledger);}
-        completed++;
-        await state({mode:'syncing',projectId:project.id,projectName:project.name,chatId:chat.id,chatTitle:chat.title,chatDone:completed,chatTotal:chats.length,prioritySync,deferredChats:deferred.length,retryingChat:false,lastTransientError:''});
-        continue;
-      }
-
-      const full = transcript(project, chat, rows), chunks = [];
-      for (let at = 0; at < full.length; at += CHUNK) chunks.push(full.slice(at, at + CHUNK));
-      const base = ppath(project.id, 'conversations/' + safe(chat.id)), files = [];
-      chunks.forEach((text, part) => files.push({ path: base + '/part-' + String(part + 1).padStart(3,'0') + '.md', content:text }));
-      for (let stale = chunks.length; stale < Number(old && old.parts || 0); stale++) {
-        files.push({
-          path: base + '/part-' + String(stale + 1).padStart(3,'0') + '.md',
-          content:'# Superseded\n\nThis chunk is no longer part of the current conversation snapshot. Use Git history for the previous revision.\n'
-        });
-      }
-      const chatIndex = {
-        schema:1,id:chat.id,title:one(chat.title || data.title || 'Conversation'),updated:canonicalUpdated,
-        capturedAt:new Date().toISOString(),parts:chunks.length,messages:rows.length,canonicalHash,
+      const full=transcript(project,chat,rows),chunks=[];
+      for(let at=0;at<full.length;at+=CHUNK)chunks.push(full.slice(at,at+CHUNK));
+      const base=ppath(project.id,'conversations/'+safe(chat.id)),files=[];
+      chunks.forEach((text,part)=>files.push({path:base+'/part-'+String(part+1).padStart(3,'0')+'.md',content:text}));
+      for(let stale=chunks.length;stale<Number(old&&old.parts||0);stale++)files.push({
+        path:base+'/part-'+String(stale+1).padStart(3,'0')+'.md',
+        content:'# Superseded\n\nThis chunk is no longer part of the current conversation snapshot. Use Git history for the previous revision.\n'
+      });
+      const canonicalUpdated=Math.max(updated,parseTime(data.update_time))||Date.now();
+      const chatIndex={
+        schema:1,id:chat.id,title:one(chat.title||data.title||'Conversation'),updated:canonicalUpdated,
+        capturedAt:new Date().toISOString(),parts:chunks.length,messages:rows.length,
         bootstrapMetadataOnly:false,historyPartial:false,complete:true,captureSource:'backend',signals:signals(rows)
       };
+      files.push({path:base+'/index.json',content:JSON.stringify(chatIndex,null,2)+'\n'});
+      const fileBytes=files.reduce((sum,file)=>sum+new TextEncoder().encode(String(file.content||'')).byteLength,0);
 
-      idx.conversations[chat.id] = chatIndex;
-      idx.projectId = project.id;
-      idx.projectName = projectName(project.name || '');
-      idx.updatedAt = new Date().toISOString();
-      idx.bootstrapMetadataOnly = false;
-      files.push(
-        { path: base + '/index.json', content: JSON.stringify(chatIndex, null, 2) + '\n' },
-        { path: ppath(project.id,'index.json'), content: JSON.stringify(idx, null, 2) + '\n' }
-      );
-      await commit(files, 'NiakGPT memory: ' + one(project.name || project.id) + ' / ' + one(chat.title || chat.id), prioritySync);
-      if(ledger[retryKey]){delete ledger[retryKey];await saveChatRetryLedger(ledger);}
-      changed++;
-      completed++;
-      await state({
-        mode:'syncing', projectId:project.id, projectName:project.name,
-        chatId:chat.id, chatTitle:chat.title, chatDone:completed, chatTotal:chats.length,
-        prioritySync,deferredChats:deferred.length,retryingChat:false,lastTransientError:''
-      });
-      await sleep(prioritySync ? 40 : 300);
+      if(prioritySync&&batchRows.length&&(batchRows.length>=PRIORITY_CHAT_BATCH||batchFiles.length+files.length>PRIORITY_CHAT_BATCH_FILES||batchBytes+fileBytes>PRIORITY_CHAT_BATCH_BYTES)){
+        await flushBatch();
+      }
+      batchFiles.push(...files);
+      batchRows.push({chat,chatIndex});
+      batchBytes+=fileBytes;
+      if(!prioritySync||batchRows.length>=PRIORITY_CHAT_BATCH||batchFiles.length>=PRIORITY_CHAT_BATCH_FILES||batchBytes>=PRIORITY_CHAT_BATCH_BYTES){
+        await flushBatch();
+      }
     }
 
-    idx.projectId = project.id; idx.projectName = projectName(project.name || ''); idx.updatedAt = new Date().toISOString();
-    idx.bootstrapMetadataOnly = !Object.values(idx.conversations||{}).some(row=>Number(row?.parts||0)>0&&Number(row?.messages||0)>0);
-    const compact = buildState(project, idx);
+    await flushBatch();
+    idx.projectId=project.id;idx.projectName=projectName(project.name||'');idx.updatedAt=new Date().toISOString();
+    idx.bootstrapMetadataOnly=!Object.values(idx.conversations||{}).some(row=>Number(row?.parts||0)>0&&Number(row?.messages||0)>0);
+    const compact=buildState(project,idx);
     await commit([
-      { path:ppath(project.id,'project.json'), content:JSON.stringify({ schema:1, id:project.id, name:projectName(project.name || ''), description:clean(project.description || ''), instructions:clean(project.instructions || ''), conversationCount:Object.keys(idx.conversations).length, knownConversationCount:Number(project.count||0), cachedConversationCount:(project.chats||[]).length, indexed:project.indexed===true, bootstrapMetadataOnly:idx.bootstrapMetadataOnly, updatedAt:idx.updatedAt }, null, 2) + '\n' },
-      { path:ppath(project.id,'index.json'), content:JSON.stringify(idx, null, 2) + '\n' },
-      { path:ppath(project.id,'PROJECT_STATE.md'), content:compact }
-    ], 'NiakGPT memory: checkpoint ' + one(project.name || project.id), prioritySync);
-    await saveContext(project.id, compact);
-    return {changed,deferred};
+      {path:ppath(project.id,'project.json'),content:JSON.stringify({
+        schema:1,id:project.id,name:projectName(project.name||''),description:clean(project.description||''),instructions:clean(project.instructions||''),
+        conversationCount:Object.keys(idx.conversations).length,knownConversationCount:Number(project.count||0),cachedConversationCount:(project.chats||[]).length,
+        indexed:project.indexed===true,bootstrapMetadataOnly:idx.bootstrapMetadataOnly,updatedAt:idx.updatedAt
+      },null,2)+'\n'},
+      {path:ppath(project.id,'PROJECT_STATE.md'),content:compact}
+    ],'NiakGPT memory: checkpoint '+one(project.name||project.id),prioritySync);
+    await saveContext(project.id,compact);
+
+    const nextRetryAt=deferred.length?Math.min(...deferred.map(row=>Number(row.nextAt||0)).filter(Boolean)):0;
+    return {changed,deferred:deferred.length,nextRetryAt};
   }
 
   async function deepInventory() {

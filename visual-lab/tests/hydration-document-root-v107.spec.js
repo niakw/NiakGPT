@@ -70,11 +70,11 @@ test('NiakGPT does not mutate HTML before React owns the document root',async()=
               observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true});
 
               const dollar=String.fromCharCode(36);
-              const rootFiber={memoizedState:{isDehydrated:true},stateNode:{current:null}};
+              const rootFiber={tag:3,memoizedState:{isDehydrated:true},stateNode:{current:null},return:null,alternate:null};
               rootFiber.stateNode.current=rootFiber;
               Object.defineProperty(document,'__reactContainer'+dollar+'page',{value:rootFiber,configurable:true});
               for(const node of [document.querySelector('nav'),document.querySelector('main'),document.getElementById('prompt-textarea')]){
-                if(node)Object.defineProperty(node,'__reactFiber'+dollar+'page',{value:{memoizedState:{}},configurable:true});
+                if(node)Object.defineProperty(node,'__reactFiber'+dollar+'page',{value:{tag:5,memoizedState:{},return:rootFiber,alternate:null},configurable:true});
               }
               setTimeout(()=>{
                 rootFiber.memoizedState.isDehydrated=false;
@@ -82,7 +82,7 @@ test('NiakGPT does not mutate HTML before React owns the document root',async()=
               },700);
               setTimeout(()=>{
                 for(const node of [document.documentElement,document.body]){
-                  Object.defineProperty(node,'__reactFiber'+dollar+'page',{value:{memoizedState:{}},configurable:true});
+                  Object.defineProperty(node,'__reactFiber'+dollar+'page',{value:{tag:5,memoizedState:{},return:rootFiber,alternate:null},configurable:true});
                 }
                 window.__documentRootClaimed=true;
                 document.documentElement.dataset.documentRootClaimed='1';

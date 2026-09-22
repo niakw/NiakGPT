@@ -345,7 +345,8 @@ try{
           indexedProjectIds:['g-p-alpha'],
           serverIndexedAt:0
         },
-        [PREFS]:{autoSync:false,injectOnNewChat:true}
+        [PREFS]:{autoSync:false,injectOnNewChat:true},
+        'niakgpt-governance-v085':{seeded:true,manualCoreSelection:false,coreProjectIds:['g-p-alpha'],hiddenProjectIds:[],locks:{}}
       };
       const catalog=[
         {id:'g-p-alpha',name:'Workspace Alpha',conversationCount:1,knownConversationCount:1,indexed:true},
@@ -397,6 +398,7 @@ try{
     await page.addScriptTag({content:coreScript});
     await page.waitForFunction(()=>window.__localData?.['niakgpt-v08-cache']?.projects?.length===4,null,{timeout:4000});
     await page.waitForFunction(()=>Number(window.__localData?.['niakgpt-project-memory-state-v132']?.bootstrapCachedProjects||0)===4,null,{timeout:4000});
+    await page.waitForFunction(()=>window.__localData?.['niakgpt-governance-v085']?.coreProjectIds?.length===4,null,{timeout:4000});
     const recovered=await page.evaluate(()=>{
       const cache=window.__localData['niakgpt-v08-cache'],commits=window.__commits||[];
       const root=commits.flatMap(commit=>commit.files||[]).find(file=>file.path==='PROJECTS.json');
@@ -404,6 +406,8 @@ try{
         ids:(cache.projects||[]).map(p=>p.id),
         serverIndexedAt:Number(cache.serverIndexedAt||0),
         vaultCount:Number(cache.vaultCatalogCount||0),
+        core:[...(window.__localData['niakgpt-governance-v085']?.coreProjectIds||[])],
+        manualCoreSelection:window.__localData['niakgpt-governance-v085']?.manualCoreSelection,
         diag:window.__diag?.['project-memory-catalog']||'',
         root:root?JSON.parse(root.content):null
       };
@@ -411,6 +415,7 @@ try{
     assert(recovered.ids.length===4&&recovered.ids.includes('g-p-delta'),'cold local cache did not recover durable vault Project catalog: '+JSON.stringify(recovered));
     assert(recovered.vaultCount===4,'recovered catalog high-water marker missing');
     assert(recovered.serverIndexedAt===0,'vault recovery falsely claimed a complete current server index');
+    assert(recovered.core.length===4&&recovered.manualCoreSelection===false,'classification governance stayed collapsed at one Project: '+JSON.stringify(recovered));
     assert(recovered.root?.projectCount===4,'cached bootstrap rewrote durable PROJECTS.json from the collapsed one-Project cache');
     assert(recovered.root.projects.every(row=>!('description'in row)&&!('instructions'in row)),'cached Project inventory leaked private Project content');
     await page.close();

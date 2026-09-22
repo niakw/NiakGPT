@@ -1,5 +1,13 @@
 # Architecture de NiakGPT
 
+## Invariant architecture 0.9.117 — une panne de lecture appartient au chat, pas au Project
+
+Un échec transitoire de `/backend-api/conversation/<id>` ne peut plus interrompre tout `syncProject()`. Chaque conversation possède son état de retry local persistant. Après un petit nombre de tentatives immédiates, le chat fautif est différé avec une échéance croissante tandis que les autres conversations continuent. La queue globale ne réveille ce Project qu’à l’échéance utile, ce qui interdit l’ancienne boucle de reprise à 1 s sur le même chat.
+
+Le chemin de stockage est une fonction de l’identité, jamais du titre ni de l’instant : `projects/<project-id>/conversations/<conversation-id>/part-NNN.md`. Une réimportation met donc à jour ces mêmes chemins dans l’arbre Git. L’historique Git conserve naturellement les anciennes révisions, mais l’état courant du coffre ne contient pas de second dossier pour la même conversation.
+
+En priorité, plusieurs conversations réussies peuvent partager un checkpoint GitHub, jusqu’à trois chats et sous plafonds de 22 fichiers / 4 MiB côté batch logique. Le dernier fichier de checkpoint reste l’index Project ; si une écriture se coupe avant lui, la prochaine passe considère le batch comme non validé et réécrit les mêmes chemins, sans duplication logique.
+
 ## Invariant architecture 0.9.116 — un chat durable vaut un checkpoint durable
 
 Le backlog Project Memory ne peut plus utiliser la fin d’un Project comme seule frontière de reprise. Dès qu’un transcript canonique est écrit avec succès, son entrée `complete:true` est persistée dans `projects/<project>/index.json` dans la même écriture logique. Une interruption ultérieure ne doit donc rejouer au pire que la conversation dont l’écriture n’a pas abouti, jamais tout le préfixe déjà validé du Project.

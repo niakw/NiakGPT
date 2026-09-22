@@ -14,6 +14,12 @@
   let cache={projects:[],chats:[],counts:{}},governance={coreProjectIds:[],hiddenProjectIds:[],locks:{}},timer=0,observer=null,root=null,lastForceAt=0,internal=false;
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
+  const cleanProjectName=v=>{
+    const raw=clean(v);if(!raw)return'';
+    let s=raw.replace(/^(?:(?:<\/>|[§€▶◇▣✦◈+◆▤]))+\s*/u,'');
+    s=s.replace(/(?:\s*\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?\s*(?:\[\d+\])?\s*›?)+\s*$/u,'').trim();
+    return s||raw;
+  };
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt',"'":'&#39;','"':'&quot;'}[c]));
   const parseTime=v=>{if(typeof v==='number'&&Number.isFinite(v))return v>1e12?v:v*1000;if(typeof v==='string'){const n=Number(v);if(Number.isFinite(n))return n>1e12?n:n*1000;const d=Date.parse(v);return Number.isFinite(d)?d:0;}return 0;};
@@ -22,8 +28,8 @@
   const colorFor=name=>{let h=0;for(const c of String(name))h=((h<<5)-h+c.charCodeAt(0))|0;return COLORS[Math.abs(h)%COLORS.length];};
   const iconFor=name=>{const s=norm(name);if(/code|dev|tech|web|api|github|program|provider/.test(s))return'</>';if(/legal|jurid|droit|prud|tribunal|justice/.test(s))return'§';if(/finance|argent|budget|banque|credit|compta/.test(s))return'€';if(/film|cinema|movie|serie|anime|video/.test(s))return'▶';if(/design|logo|image|creative|graph/.test(s))return'◇';if(/shop|commerce|store|product|produit|vente/.test(s))return'▣';if(/(^|\s)(ai|ia|gpt)(\s|$)/.test(s))return'✦';return'▤';};
   const isQueue=p=>QUEUE.has(norm(p?.name));
-  const isCanonical=p=>!!p&&String(p.id||'').startsWith('g-p-')&&!p.domOnly&&clean(p.name)&&!isQueue(p);
-  const isLocal=p=>!!p&&clean(p.name)&&!isQueue(p)&&!p.duplicateOf;
+  const isCanonical=p=>!!p&&String(p.id||'').startsWith('g-p-')&&!p.domOnly&&cleanProjectName(p.name)&&!isQueue({...p,name:cleanProjectName(p.name)});
+  const isLocal=p=>!!p&&cleanProjectName(p.name)&&!isQueue({...p,name:cleanProjectName(p.name)})&&!p.duplicateOf;
   const navRoot=()=>{
     const guarded=window.__NIAKGPT_FIND_SIDEBAR_V131__?.();
     if(guarded?.isConnected)return guarded;
@@ -56,7 +62,8 @@
     const nav=navRoot();if(!nav)return[];const map=new Map();
     for(const a of nav.querySelectorAll(PROJECT_SEL)){
       if(a.closest(OWN))continue;const id=pidFromHref(a.getAttribute('href'));if(!id)continue;
-      const name=clean(a.getAttribute('aria-label')||a.querySelector('.truncate span')?.textContent||a.textContent);if(!name)continue;
+      const direct=[...a.querySelectorAll(':scope > span,[class*="truncate" i]')].map(el=>cleanProjectName(el.textContent)).find(Boolean);
+      const name=cleanProjectName(a.getAttribute('aria-label')||direct||a.textContent);if(!name)continue;
       map.set(id,{id,name,href:`/g/${id}/project`,domOnly:false,color:colorFor(name),icon:iconFor(name)});
     }
     return[...map.values()];
@@ -64,6 +71,19 @@
 
   async function readState(){
     try{const raw=await chrome.storage.local.get([CACHE_KEY,GOV_KEY]);cache=raw[CACHE_KEY]&&typeof raw[CACHE_KEY]==='object'?raw[CACHE_KEY]:cache;governance=raw[GOV_KEY]&&typeof raw[GOV_KEY]==='object'?{...governance,...raw[GOV_KEY]}:governance;}catch{}
+  }
+
+  async function sanitizeCachedProjectNames(){
+    const source=Array.isArray(cache.projects)?cache.projects:[];let changed=false;
+    const cleaned=source.map(p=>{
+      if(!p||typeof p!=='object')return p;
+      const before=clean(p.name),after=cleanProjectName(before);
+      if(after&&after!==before){changed=true;return{...p,name:after,color:p.color||colorFor(after),icon:p.icon||iconFor(after)};}
+      return p;
+    });
+    if(!changed)return false;
+    const next={...cache,projects:cleaned,at:Date.now()};
+    try{await chrome.storage.local.set({[CACHE_KEY]:next});cache=next;diag('project-repair','RÉPARÉ · noms Projects canonisés');return true;}catch{return false;}
   }
 
   async function mergeNativeCanonical(found){
@@ -130,6 +150,7 @@
 
   async function reconcile(){
     clearTimeout(timer);timer=0;if(internal)return;await readState();
+    await sanitizeCachedProjectNames();
     const dom=nativeProjects();if(dom.length)await mergeNativeCanonical(dom);
     await readState();await repairGovernance();renderFallback();
   }

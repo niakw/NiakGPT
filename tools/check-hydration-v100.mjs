@@ -28,7 +28,7 @@ const expectedStyles=[
 same(styles,expectedStyles,'post-hydration STYLE_RUNTIME mismatch');
 for(const file of styles)if(!fs.existsSync(file))fail(`missing deferred style ${file}`);
 for(const token of ['chrome.scripting.insertCSS','async function injectStyles','STYLE_INJECTED','const styleFailure=await injectStyles(tabId,frameId)','if(styleFailure){errors.push(styleFailure);bootBlocked=true;}'])need(background,token,'post-hydration style injection contract incomplete');
-for(const token of ['async function probeReactHydration','chrome.scripting.executeScript','world:\'MAIN\'','niakgpt:probe-react-hydration-v107','HOST_OWNER_RX','FIBER_RX','hostOwned','ownerFiber','rootFromFiber','rootFound','rootSource','rootSettled','rootDehydrated','htmlOwned','bodyOwned','documentRootOwned','ownedCount'])need(background,token,'MAIN-world React hydration probe contract incomplete');
+for(const token of ['async function probeReactHydration','chrome.scripting.executeScript','world:\'MAIN\'','niakgpt:probe-react-hydration-v107','HOST_OWNER_RX','FIBER_RX','hostOwned','ownerFiber','rootFromFiber','containerRoot','authoritativeRoot','rootFound','rootSource','rootSettled','rootDehydrated','htmlOwned','bodyOwned','documentRootOwned','ownedCount'])need(background,token,'MAIN-world React hydration probe contract incomplete');
 const packager=read('tools/package-extension.mjs');
 need(packager,"['STYLE_RUNTIME','MAIN_RUNTIME','ISOLATED_RUNTIME','OPTIONAL_RUNTIME']",'package builder must include deferred styles');
 
@@ -104,7 +104,9 @@ for(const file of staticRuntime.slice(1)){
 if(!fs.existsSync('visual-lab/hydration-barrier-v080.mjs'))fail('SSR hydration barrier browser gate missing');
 if(!fs.existsSync('visual-lab/tests/hydration-isolated-world-v106.spec.js'))fail('real MV3 isolated-world hydration gate missing');
 const fiberRootLab=read('visual-lab/tests/hydration-fiber-root-v109.spec.js');
-for(const token of ['__reactFiber','tag:3','isDehydrated:true','isDehydrated=false','react-fiber-root-settled','HYDRATION_FIBER_ROOT_CHECKPOINT PASS'])need(fiberRootLab,token,'fiber-root hydration regression incomplete');
+for(const token of ['__reactFiber','tag:3','staleAlternate','isDehydrated:true','isDehydrated=false','react-fiber-root-settled','HYDRATION_FIBER_ROOT_CHECKPOINT PASS'])need(fiberRootLab,token,'fiber-root hydration regression incomplete');
+const liveWorkflow=read('.github/workflows/live-stability-v129.yml');
+if((liveWorkflow.match(/tests\/hydration-fiber-root-v109\.spec\.js/g)||[]).length<3)fail('fiber-root regression must be tracked and run in both Chromium and Brave');
 const documentRootLab=read('visual-lab/tests/hydration-document-root-v107.spec.js');
 for(const token of ['window.__documentRootClaimed=false','window.__earlyNiakMutation=false','hostRootSettled','documentRootClaimed','react-document-root-settled','HYDRATION_DOCUMENT_ROOT_CHECKPOINT PASS'])need(documentRootLab,token,'document-root hydration regression incomplete');
 const isolatedHydrationLab=read('visual-lab/tests/hydration-isolated-world-v106.spec.js');

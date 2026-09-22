@@ -16,6 +16,7 @@
   const MAX_REF_BACKOFF_MS = 3000;
   const PRIORITY_TREE_INLINE = true;
   const PRIVATE_REPO_VERIFY_TTL_MS = 5 * 60 * 1000;
+  const PROJECT_ARCHIVE_SCAN_CONCURRENCY = 8;
   const WORKER_ERROR_KEY = 'niakgpt-worker-errors-v100';
   const CHATGPT_ORIGIN = 'https://chatgpt.com';
   const CHATGPT_CONVERSATION_RX = /^\/backend-api\/conversation\/[A-Za-z0-9_-]+$/;
@@ -86,6 +87,62 @@
     const raw = clean(value).replace(/^\/+/, '').replace(/\/{2,}/g, '/');
     if (!raw || raw.length > 700 || raw.split('/').some(part => !part || part === '.' || part === '..')) return '';
     return raw;
+  }
+
+  const compactConversationRow = row => {
+    const r=row&&typeof row==='object'?row:{};
+    return {
+      schema:1,id:clean(r.id),title:clean(r.title||'Conversation'),updated:Number(r.updated||0),
+      capturedAt:clean(r.capturedAt||''),parts:Math.max(0,Number(r.parts||0)),messages:Math.max(0,Number(r.messages||0)),
+      canonicalHash:clean(r.canonicalHash||''),bootstrapMetadataOnly:r.bootstrapMetadataOnly===true,
+      historyPartial:r.historyPartial===true,complete:r.complete===true,captureSource:clean(r.captureSource||'')
+    };
+  };
+  const conversationStrength = row => {
+    const r=row&&typeof row==='object'?row:{},parts=Number(r.parts||0),messages=Number(r.messages||0);
+    if(r.complete===true&&parts>0&&messages>0)return 3;
+    if(parts>0&&messages>0)return 2;
+    return clean(r.id)?1:0;
+  };
+  const conversationEpoch = row => Math.max(Number(row?.updated||0),Date.parse(clean(row?.capturedAt||''))||0);
+  function chooseConversationRow(current,incoming){
+    if(!current)return compactConversationRow(incoming);
+    if(!incoming)return compactConversationRow(current);
+    const a=conversationStrength(current),b=conversationStrength(incoming);
+    if(a!==b)return compactConversationRow(b>a?incoming:current);
+    const ae=conversationEpoch(current),be=conversationEpoch(incoming);
+    if(ae!==be)return compactConversationRow(be>ae?incoming:current);
+    const am=Number(current?.messages||0),bm=Number(incoming?.messages||0);
+    return compactConversationRow(bm>=am?incoming:current);
+  }
+  function mergeProjectIndexPayload(current,incoming){
+    const a=current&&typeof current==='object'?current:{},b=incoming&&typeof incoming==='object'?incoming:{};
+    const conversations={};
+    for(const [id,row] of Object.entries(a.conversations&&typeof a.conversations==='object'?a.conversations:{})){
+      if(id)conversations[id]=compactConversationRow({...row,id:row?.id||id});
+    }
+    for(const [id,row] of Object.entries(b.conversations&&typeof b.conversations==='object'?b.conversations:{})){
+      if(id)conversations[id]=chooseConversationRow(conversations[id],{...row,id:row?.id||id});
+    }
+    const at=Date.parse(clean(a.updatedAt||''))||0,bt=Date.parse(clean(b.updatedAt||''))||0;
+    return {
+      ...a,...b,schema:1,
+      projectId:clean(b.projectId||a.projectId),projectName:clean(b.projectName||a.projectName),
+      updatedAt:clean((bt>=at?b.updatedAt:a.updatedAt)||new Date().toISOString()),
+      bootstrapMetadataOnly:Object.values(conversations).every(row=>Number(row.parts||0)===0||Number(row.messages||0)===0),
+      conversations
+    };
+  }
+  function mergeProjectSummaryPayload(current,incoming){
+    const a=current&&typeof current==='object'?current:{},b=incoming&&typeof incoming==='object'?incoming:{};
+    return {
+      ...a,...b,schema:1,
+      conversationCount:Math.max(Number(a.conversationCount||0),Number(b.conversationCount||0)),
+      knownConversationCount:Math.max(Number(a.knownConversationCount||0),Number(b.knownConversationCount||0)),
+      cachedConversationCount:Math.max(Number(a.cachedConversationCount||0),Number(b.cachedConversationCount||0)),
+      indexed:a.indexed===true||b.indexed===true,
+      bootstrapMetadataOnly:a.bootstrapMetadataOnly===false||b.bootstrapMetadataOnly===false?false:(a.bootstrapMetadataOnly===true||b.bootstrapMetadataOnly===true)
+    };
   }
 
   function joinRoot(root, relative) {
@@ -719,10 +776,16 @@
     return { initialized: true, sha: clean(ready?.object?.sha || initialSha), initBranch };
   }
 
-  async function readFileRawWith(token, config, relativePath) {
+  async function readFileRawWith(token, config, relativePath, ref=config.branch) {
     const path = joinRoot(config.root, relativePath);
-    const data = await github(token, `/repos/${config.repo}/contents/${path.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(config.branch)}`);
+    let data = await github(token, `/repos/${config.repo}/contents/${path.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(ref)}`);
     if (Array.isArray(data) || data?.type !== 'file') throw new Error('memory_path_not_file');
+    // GitHub Contents stops embedding base64 payloads once a file grows beyond its inline
+    // response range. Project indexes can cross that threshold on large Projects, so fall
+    // back to the immutable blob endpoint instead of treating a large valid index as absent.
+    if(data.encoding!=='base64'&&clean(data.sha)){
+      data=await github(token,`/repos/${config.repo}/git/blobs/${encodeURIComponent(clean(data.sha))}`);
+    }
     if (data.encoding !== 'base64') throw new Error('unsupported_github_content_encoding');
     const binary = atob(String(data.content || '').replace(/\s+/g, ''));
     const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
@@ -809,6 +872,62 @@
     };
   }
 
+  async function projectArchiveSnapshot(config, projectId, knownArchivedIds=[]) {
+    const token=await tokenForConfig(config);
+    if(!token)throw new Error('github_token_missing');
+    await verifyPrivateRepo(token,config.repo);
+    const pid=clean(projectId);
+    if(!/^g-p-[A-Za-z0-9_-]+$/.test(pid))throw new Error('invalid_project_id');
+    const relativeBase=`projects/${pid}/conversations`,fullBase=joinRoot(config.root,relativeBase);
+    let entries=[];
+    try{
+      const data=await github(token,`/repos/${config.repo}/contents/${fullBase.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(config.branch)}`);
+      if(Array.isArray(data))entries=data;
+    }catch(error){
+      if(Number(error?.status||0)===404)return{projectId:pid,directoryCount:0,recovered:[],missingCount:0};
+      throw error;
+    }
+    const known=new Set((Array.isArray(knownArchivedIds)?knownArchivedIds:[]).map(clean).filter(Boolean));
+    const dirs=entries.filter(item=>item?.type==='dir'&&/^[A-Za-z0-9_-]+$/.test(clean(item?.name)));
+    const missing=dirs.map(item=>clean(item.name)).filter(id=>!known.has(id));
+    const recovered=new Array(missing.length);
+    let cursor=0;
+    const workers=Array.from({length:Math.min(PROJECT_ARCHIVE_SCAN_CONCURRENCY,missing.length)},async()=>{
+      while(true){
+        const i=cursor++;if(i>=missing.length)return;
+        const id=missing[i];
+        try{
+          const file=await readFileRawWith(token,config,`${relativeBase}/${id}/index.json`);
+          const row=JSON.parse(file.content||'null');
+          if(row&&typeof row==='object'&&clean(row.id||id)===id&&Number(row.parts||0)>0&&Number(row.messages||0)>0){
+            recovered[i]=compactConversationRow({...row,id});
+          }
+        }catch{}
+      }
+    });
+    await Promise.all(workers);
+    return {
+      projectId:pid,directoryCount:dirs.length,knownCount:known.size,
+      missingCount:missing.length,recovered:recovered.filter(Boolean)
+    };
+  }
+
+  async function mergeProtectedMemoryWrites(token,config,items,parent){
+    for(const item of items){
+      const relative=clean(item.relative||'');
+      if(/^projects\/g-p-[A-Za-z0-9_-]+\/index\.json$/.test(relative)){
+        let current=null;try{current=JSON.parse((await readFileRawWith(token,config,relative,parent)).content||'null');}catch(error){if(Number(error?.status||0)!==404&&!/github_http_404/.test(String(error?.message||'')))throw error;}
+        let incoming=null;try{incoming=JSON.parse(item.content||'null');}catch{}
+        item.content=JSON.stringify(mergeProjectIndexPayload(current,incoming),null,2)+'\n';
+      }else if(/^projects\/g-p-[A-Za-z0-9_-]+\/project\.json$/.test(relative)){
+        let current=null;try{current=JSON.parse((await readFileRawWith(token,config,relative,parent)).content||'null');}catch(error){if(Number(error?.status||0)!==404&&!/github_http_404/.test(String(error?.message||'')))throw error;}
+        let incoming=null;try{incoming=JSON.parse(item.content||'null');}catch{}
+        item.content=JSON.stringify(mergeProjectSummaryPayload(current,incoming),null,2)+'\n';
+      }
+    }
+    return items;
+  }
+
   async function commitFilesWith(token, config, files, message, retry = 0, priority = false) {
     await verifyPrivateRepo(token, config.repo);
     if (!Array.isArray(files) || !files.length || files.length > MAX_FILES) throw new Error('invalid_memory_file_batch');
@@ -823,7 +942,7 @@
       seen.add(relative);
       total += utf8Bytes(content);
       if (total > MAX_BATCH_BYTES) throw new Error('memory_batch_too_large');
-      normalized.push({ path: joinRoot(config.root, relative), content });
+      normalized.push({ path: joinRoot(config.root, relative), relative, content });
     }
 
     const ref = await getRef(token, config.repo, config.branch);
@@ -832,6 +951,10 @@
     const commit = await github(token, `/repos/${config.repo}/git/commits/${parent}`);
     const baseTree = clean(commit?.tree?.sha);
     if (!baseTree) throw new Error('github_base_tree_missing');
+
+    await mergeProtectedMemoryWrites(token,config,normalized,parent);
+    total=normalized.reduce((sum,item)=>sum+utf8Bytes(item.content),0);
+    if(total>MAX_BATCH_BYTES)throw new Error('memory_batch_too_large');
 
     const createEntry = async item => {
       const blob = await github(token, `/repos/${config.repo}/git/blobs`, {
@@ -1074,6 +1197,11 @@
           if (!config?.enabled) throw new Error('project_memory_not_configured');
           return { ok: true, ...(await projectCatalog(config)) };
         }
+        if (type === 'niakgpt:memory-project-archive-v132') {
+          const config = await readConfig();
+          if (!config?.enabled) throw new Error('project_memory_not_configured');
+          return { ok:true, ...(await projectArchiveSnapshot(config,message.projectId,message.knownArchivedIds)) };
+        }
         if (type === 'niakgpt:memory-commit-v132') {
           const config = await readConfig();
           if (!config?.enabled) throw new Error('project_memory_not_configured');
@@ -1099,6 +1227,11 @@
       MAX_REF_RETRIES,
       PRIORITY_TREE_INLINE,
       PRIVATE_REPO_VERIFY_TTL_MS,
+      PROJECT_ARCHIVE_SCAN_CONCURRENCY,
+      compactConversationRow,
+      mergeProjectIndexPayload,
+      mergeProjectSummaryPayload,
+      projectArchiveSnapshot,
       refRace,
       commitFilesWith,
       initializeEmptyRepo,

@@ -719,15 +719,146 @@
     return { initialized: true, sha: clean(ready?.object?.sha || initialSha), initBranch };
   }
 
-  async function readFileRawWith(token, config, relativePath) {
-    const path = joinRoot(config.root, relativePath);
-    const data = await github(token, `/repos/${config.repo}/contents/${path.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(config.branch)}`);
+  function decodeGithubContent(data) {
     if (Array.isArray(data) || data?.type !== 'file') throw new Error('memory_path_not_file');
     if (data.encoding !== 'base64') throw new Error('unsupported_github_content_encoding');
     const binary = atob(String(data.content || '').replace(/\s+/g, ''));
     const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
-    const content = new TextDecoder().decode(bytes);
-    return { content, sha: data.sha || '' };
+    return { content: new TextDecoder().decode(bytes), sha: data.sha || '' };
+  }
+
+  async function readFileRawAtRef(token, config, relativePath, ref) {
+    const path = joinRoot(config.root, relativePath);
+    const data = await github(token, `/repos/${config.repo}/contents/${path.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(ref || config.branch)}`);
+    return decodeGithubContent(data);
+  }
+
+  function conversationRowRank(row) {
+    if (!row || typeof row !== 'object') return 0;
+    const parts=Number(row.parts||0),messages=Number(row.messages||0);
+    if (row.complete === true && parts > 0 && messages > 0) return 4;
+    if (parts > 0 && messages > 0) return 3;
+    if (row.bootstrapMetadataOnly === true || (parts === 0 && messages === 0)) return 1;
+    return 2;
+  }
+
+  function mergeConversationRow(current, incoming) {
+    if (!current || typeof current !== 'object') return incoming;
+    if (!incoming || typeof incoming !== 'object') return current;
+    const cr=conversationRowRank(current),ir=conversationRowRank(incoming);
+    if (ir > cr) return incoming;
+    if (cr > ir) return current;
+    const cu=Number(current.updated||0),iu=Number(incoming.updated||0);
+    if (iu > cu) return incoming;
+    if (cu > iu) return current;
+    const cc=Date.parse(String(current.capturedAt||''))||0,ic=Date.parse(String(incoming.capturedAt||''))||0;
+    return ic >= cc ? incoming : current;
+  }
+
+  function mergeProjectIndexContent(currentContent, incomingContent) {
+    let current=null,incoming=null;
+    try{current=JSON.parse(String(currentContent||''));}catch{}
+    try{incoming=JSON.parse(String(incomingContent||''));}catch{}
+    if(!incoming||typeof incoming!=='object'||Array.isArray(incoming))return String(incomingContent||'');
+    if(!current||typeof current!=='object'||Array.isArray(current))return JSON.stringify(incoming,null,2)+'\n';
+    const conversations={};
+    for(const [id,row] of Object.entries(current.conversations&&typeof current.conversations==='object'?current.conversations:{}))conversations[id]=row;
+    for(const [id,row] of Object.entries(incoming.conversations&&typeof incoming.conversations==='object'?incoming.conversations:{}))conversations[id]=mergeConversationRow(conversations[id],row);
+    const merged={...current,...incoming,conversations};
+    merged.bootstrapMetadataOnly=!Object.values(conversations).some(row=>conversationRowRank(row)>=3);
+    const currentAt=Date.parse(String(current.updatedAt||''))||0,incomingAt=Date.parse(String(incoming.updatedAt||''))||0;
+    merged.updatedAt=new Date(Math.max(currentAt,incomingAt,Date.now())).toISOString();
+    return JSON.stringify(merged,null,2)+'\n';
+  }
+
+  function mergeProjectMetadataContent(currentContent, incomingContent) {
+    let current=null,incoming=null;
+    try{current=JSON.parse(String(currentContent||''));}catch{}
+    try{incoming=JSON.parse(String(incomingContent||''));}catch{}
+    if(!incoming||typeof incoming!=='object'||Array.isArray(incoming))return String(incomingContent||'');
+    if(!current||typeof current!=='object'||Array.isArray(current))return JSON.stringify(incoming,null,2)+'\n';
+    const merged={...current,...incoming};
+    for(const key of ['conversationCount','knownConversationCount','cachedConversationCount'])merged[key]=Math.max(Number(current[key]||0),Number(incoming[key]||0));
+    if(current.bootstrapMetadataOnly===false||incoming.bootstrapMetadataOnly===false)merged.bootstrapMetadataOnly=false;
+    const currentAt=Date.parse(String(current.updatedAt||''))||0,incomingAt=Date.parse(String(incoming.updatedAt||''))||0;
+    merged.updatedAt=new Date(Math.max(currentAt,incomingAt,Date.now())).toISOString();
+    return JSON.stringify(merged,null,2)+'\n';
+  }
+
+  async function protectProjectMetadataAtRef(token, config, items, parent) {
+    const protectedItems=[];
+    for(const item of items){
+      let content=item.content;
+      const rel=String(item.relative||'');
+      const indexMatch=rel.match(/^projects\/(g-p-[A-Za-z0-9_-]+)\/index\.json$/);
+      const projectMatch=rel.match(/^projects\/(g-p-[A-Za-z0-9_-]+)\/project\.json$/);
+      if(indexMatch||projectMatch){
+        try{
+          const remote=await readFileRawAtRef(token,config,rel,parent);
+          content=indexMatch
+            ? mergeProjectIndexContent(remote.content,content)
+            : mergeProjectMetadataContent(remote.content,content);
+        }catch(error){
+          if(Number(error?.status||0)!==404)throw error;
+        }
+      }
+      protectedItems.push({...item,content});
+    }
+    return protectedItems;
+  }
+
+  async function recoverProjectIndex(config, projectId) {
+    const id=clean(projectId);
+    if(!/^g-p-[A-Za-z0-9_-]+$/.test(id))throw new Error('invalid_project_id');
+    const token=await tokenForConfig(config);
+    if(!token)throw new Error('github_token_missing');
+    await verifyPrivateRepo(token,config.repo);
+    const base=`projects/${id}/conversations`,full=joinRoot(config.root,base);
+    let entries=[];
+    try{
+      const data=await github(token,`/repos/${config.repo}/contents/${full.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(config.branch)}`);
+      if(Array.isArray(data))entries=data;
+    }catch(error){
+      if(Number(error?.status||0)===404)return {projectId:id,discovered:0,recovered:0,index:null};
+      throw error;
+    }
+    const dirs=entries.filter(item=>item?.type==='dir'&&/^[A-Za-z0-9_-]+$/.test(clean(item?.name))).slice(0,1000);
+    let current={schema:1,projectId:id,conversations:{}};
+    try{
+      const raw=await readFileRawWith(token,config,`projects/${id}/index.json`);
+      const parsed=JSON.parse(raw.content||'null');
+      if(parsed&&typeof parsed==='object'&&!Array.isArray(parsed))current=parsed;
+    }catch(error){if(Number(error?.status||0)!==404&&!/memory_path_not_file/.test(String(error?.message||'')))throw error;}
+    if(!current.conversations||typeof current.conversations!=='object')current.conversations={};
+    const before=Object.keys(current.conversations).length;
+    let cursor=0;
+    const workers=Array.from({length:Math.min(8,dirs.length)},async()=>{
+      while(true){
+        const index=cursor++;
+        if(index>=dirs.length)return;
+        const cid=clean(dirs[index]?.name);
+        try{
+          const raw=await readFileRawWith(token,config,`${base}/${cid}/index.json`);
+          const row=JSON.parse(raw.content||'null');
+          if(row&&typeof row==='object'&&!Array.isArray(row))current.conversations[cid]=mergeConversationRow(current.conversations[cid],row);
+        }catch{}
+      }
+    });
+    await Promise.all(workers);
+    current.projectId=id;
+    current.updatedAt=new Date().toISOString();
+    current.bootstrapMetadataOnly=!Object.values(current.conversations).some(row=>conversationRowRank(row)>=3);
+    const after=Object.keys(current.conversations).length;
+    if(after>before){
+      await commitFiles(config,[{path:`projects/${id}/index.json`,content:JSON.stringify(current,null,2)+'\n'}],`NiakGPT memory: recover Project index ${id}`,true);
+    }
+    return {projectId:id,discovered:dirs.length,recovered:Math.max(0,after-before),indexed:after,index:current};
+  }
+
+  async function readFileRawWith(token, config, relativePath) {
+    const path = joinRoot(config.root, relativePath);
+    const data = await github(token, `/repos/${config.repo}/contents/${path.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(config.branch)}`);
+    return decodeGithubContent(data);
   }
 
   async function readFileWith(token, config, relativePath) {
@@ -813,17 +944,14 @@
     await verifyPrivateRepo(token, config.repo);
     if (!Array.isArray(files) || !files.length || files.length > MAX_FILES) throw new Error('invalid_memory_file_batch');
 
-    let total = 0;
-    const normalized = [];
+    const requested = [];
     const seen = new Set();
     for (const item of files) {
       const relative = normalizeRelativePath(item?.path);
       const content = String(item?.content ?? '');
       if (!relative || seen.has(relative)) throw new Error('invalid_or_duplicate_memory_path');
       seen.add(relative);
-      total += utf8Bytes(content);
-      if (total > MAX_BATCH_BYTES) throw new Error('memory_batch_too_large');
-      normalized.push({ path: joinRoot(config.root, relative), content });
+      requested.push({ relative, path: joinRoot(config.root, relative), content });
     }
 
     const ref = await getRef(token, config.repo, config.branch);
@@ -832,6 +960,13 @@
     const commit = await github(token, `/repos/${config.repo}/git/commits/${parent}`);
     const baseTree = clean(commit?.tree?.sha);
     if (!baseTree) throw new Error('github_base_tree_missing');
+
+    const normalized=await protectProjectMetadataAtRef(token,config,requested,parent);
+    let total=0;
+    for(const item of normalized){
+      total+=utf8Bytes(item.content);
+      if(total>MAX_BATCH_BYTES)throw new Error('memory_batch_too_large');
+    }
 
     const createEntry = async item => {
       const blob = await github(token, `/repos/${config.repo}/git/blobs`, {
@@ -1074,6 +1209,11 @@
           if (!config?.enabled) throw new Error('project_memory_not_configured');
           return { ok: true, ...(await projectCatalog(config)) };
         }
+        if (type === 'niakgpt:memory-project-index-recover-v132') {
+          const config = await readConfig();
+          if (!config?.enabled) throw new Error('project_memory_not_configured');
+          return { ok: true, ...(await recoverProjectIndex(config,message.projectId)) };
+        }
         if (type === 'niakgpt:memory-commit-v132') {
           const config = await readConfig();
           if (!config?.enabled) throw new Error('project_memory_not_configured');
@@ -1112,7 +1252,12 @@
       launchManifestRegistrationTab,
       chatgptMemoryGet,
       chatgptMemoryProbe,
-      projectCatalog
+      projectCatalog,
+      recoverProjectIndex,
+      mergeConversationRow,
+      mergeProjectIndexContent,
+      mergeProjectMetadataContent,
+      protectProjectMetadataAtRef
     };
   }
 })();

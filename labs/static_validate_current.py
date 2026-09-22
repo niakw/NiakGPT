@@ -25,7 +25,7 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.112': fail(f"version={version}")
+if version!='0.9.113': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting','identity']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']: fail('host permissions drift')
 
@@ -51,73 +51,51 @@ if static_js!=expected_static: fail(f'static runtime drift: {static_js!r}')
 js_content_scripts=[cs for cs in manifest.get('content_scripts',[]) if cs.get('js')]
 if any(cs.get('run_at')!='document_idle' for cs in js_content_scripts): fail('all NiakGPT JS content scripts must run at document_idle')
 if any(cs.get('run_at')=='document_start' and cs.get('js') for cs in manifest.get('content_scripts',[])): fail('document_start JS forbidden after hydration regression')
-if any(cs.get('css') for cs in manifest.get('content_scripts',[])): fail('static content-script CSS forbidden before hydration gate')
+expected_styles=[
+    'theme-v08.css','polish-v081.css','chronology-v081.css','multitab-v083.css','governance-v085.css','activity-v086.css','control-center-v090.css','project-memory-v132.css','core-v090.css','profiles-v100.css','commands-v100.css','onboarding-v100.css','coach-v100.css','pin-folders-v096.css','sidebar-ux-v119.css','side-panels-v096.css','continuity-v100.css','interruption-guard-v119.css','visual-stability-v101.css','live-fixes-v104.css','sidebar-metadata-v118.css','sidebar-projects-authority-v112.css','project-chat-ux-v110.css','home-layout-v112.css','native-actions-v113.css','sidebar-actions-v123.css','chat-attention-v113.css','matrix-guardian-v112.css','performance-guard-v112.css','sidebar-icons-v114.css','native-da-v112.css','live-stability-v129.css','ux-v131.css','retro-loader-v097.css'
+]
+style_runtime=[file for cs in manifest.get('content_scripts',[]) for file in cs.get('css',[])]
+if style_runtime!=expected_styles: fail(f'field-proven declarative style drift: {style_runtime!r}')
+css_content_scripts=[cs for cs in manifest.get('content_scripts',[]) if cs.get('css')]
+if any(cs.get('run_at')!='document_start' for cs in css_content_scripts): fail('declarative styles must remain at document_start')
+
 hydration_gate=read('boot-gate-v100.js')
-for token in ('waitReactHydrationOwnership(8000)','waitPostReactSchedulerDrain','sameHostIdentity','waitStableHostIdentity(1800,8500)','idleTurn(2200)','schedulerFence','react-structural-confirmed','shell-structural-confirmed','TRUSTED_HYDRATION_EVENTS','trustedHydrationInteraction','__NIAKGPT_HOST_HYDRATED_100__','niakgpt:host-hydrated-v100'):
-    if token not in hydration_gate: fail('boot hydration barrier incomplete '+token)
-if hydration_gate.count('idleTurn(2200)') < 2: fail('React scheduler fence lost one of its two idle turns')
+for token in ('waitComplete(5000)','waitStableHostIdentity(1600,8500)','waitForQuiet(1200,7000)','idleTurn(2200)','waitStableHostIdentity(500,2500)','__NIAKGPT_HOST_HYDRATED_100__','niakgpt:host-hydrated-v100'):
+    if token not in hydration_gate: fail('field-proven 0.9.81/0.9.103 boot barrier incomplete '+token)
+if hydration_gate.count('idleTurn(2200)') < 2: fail('field-proven scheduler fence lost one of its two idle turns')
+for token in ('mainWorldReactProbe','waitReactHydrationOwnership','waitPostReactSchedulerDrain','niakgpt:probe-react-hydration','Object.getOwnPropertyNames','ng100HydrationProof'):
+    if token in hydration_gate: fail('private React boot dependency reintroduced '+token)
+if 'location.reload(' in hydration_gate: fail('boot gate must never reload ChatGPT')
 for file in expected_static[1:]:
     src=read(file)
     for token in ('const init=()=>','window.__NIAKGPT_HOST_HYDRATED_100__',"window.addEventListener('niakgpt:host-hydrated-v100',init,{once:true})"):
         if token not in src: fail('pre-runtime hydration gate incomplete '+file+' '+token)
-if not (ROOT/'visual-lab/hydration-barrier-v080.mjs').exists(): fail('SSR hydration barrier browser gate missing')
-boot_gate=read('boot-gate-v100.js')
-for token in ('mainWorldReactProbe','niakgpt:probe-react-hydration-v107','waitReactHydrationOwnership','waitPostReactSchedulerDrain','sameHostIdentity','schedulerFence','waitTrustedHydratedInteraction','TRUSTED_HYDRATION_EVENTS','trustedHydrationInteraction','react-document-root-settled','react-fiber-root-settled','trusted-interaction-after-host-fault','hydrationFault','hydrationFaultAt','rootFound','rootSource','ng100HydrationProof'):
-    if token not in boot_gate: fail('full-document React hydration fuse incomplete '+token)
-if 'Object.getOwnPropertyNames' in boot_gate: fail('isolated boot gate reads page-world React expandos directly')
-if 'probe.fullDocument===false' in boot_gate or 'main-world-legacy-host' in boot_gate: fail('heuristic hydration bypass reintroduced')
-if 'probe.documentRootOwned===true' in boot_gate or 'confirm.documentRootOwned===true' in boot_gate: fail('HTML/BODY React ownership must stay diagnostic only')
+
+if not (ROOT/'visual-lab/hydration-barrier-v080.mjs').exists(): fail('field-proven scheduler barrier browser gate missing')
 hydration_lab=read('visual-lab/hydration-barrier-v080.mjs')
-for token in ('containerFound','String.fromCharCode(36)','__reactContainer','__reactFiber','isDehydrated:true','isDehydrated=false','hydratedAtReactMarkerOnly','bare React ownership markers incorrectly unlocked','root-dehydration gate','zero pre-hydration DOM mutation'):
-    if token not in hydration_lab: fail('React 418 regression lab incomplete '+token)
-if r"const ownerRx=/^__react(?:Fiber|Props|Container)\$.+/;" not in hydration_lab: fail('hydration lab React owner regex escaping invalid')
-if r"const containerRx=/^__reactContainer\$.+/;" not in hydration_lab: fail('hydration lab React container regex escaping invalid')
+for token in ('MessageChannel',"tick===7","tick===17",'first false-calm scheduler window','late MessagePort hydration settled','stable-node activation'):
+    if token not in hydration_lab: fail('0.9.103 scheduler regression incomplete '+token)
+
+known_good_path=ROOT/'visual-lab/tests/hydration-known-good-v113.spec.js'
+if not known_good_path.exists(): fail('real MV3 known-good hydration regression missing')
+known_good=known_good_path.read_text(encoding='utf-8')
+for token in ('launchPersistentContext','--load-extension','MessageChannel',"tick===7","tick===17",'privateReactKeys:0','HYDRATION_KNOWN_GOOD_V113_CHECKPOINT PASS'):
+    if token not in known_good: fail('real MV3 known-good regression incomplete '+token)
+for token in ('__reactContainer','__reactFiber','memoizedState','isDehydrated'):
+    if token in known_good: fail('known-good regression must not manufacture private React internals '+token)
+
 background=read('background-v100.js')
-style_match=re.search(r"const\s+STYLE_RUNTIME\s*=\s*\[(.*?)\];",background,re.S)
-style_runtime=re.findall(r"['\"]([^'\"]+\.css)['\"]",style_match.group(1)) if style_match else []
-expected_styles=[
-    'theme-v08.css','polish-v081.css','chronology-v081.css','multitab-v083.css','governance-v085.css','activity-v086.css','control-center-v090.css','project-memory-v132.css','core-v090.css','profiles-v100.css','commands-v100.css','onboarding-v100.css','coach-v100.css','pin-folders-v096.css','sidebar-ux-v119.css','side-panels-v096.css','continuity-v100.css','interruption-guard-v119.css','visual-stability-v101.css','live-fixes-v104.css','sidebar-metadata-v118.css','sidebar-projects-authority-v112.css','project-chat-ux-v110.css','home-layout-v112.css','native-actions-v113.css','sidebar-actions-v123.css','chat-attention-v113.css','matrix-guardian-v112.css','performance-guard-v112.css','sidebar-icons-v114.css','native-da-v112.css','live-stability-v129.css','ux-v131.css','retro-loader-v097.css'
-]
-if style_runtime!=expected_styles: fail(f'deferred STYLE_RUNTIME drift: {style_runtime!r}')
-for token in ('chrome.scripting.insertCSS','async function injectStyles','STYLE_INJECTED','const styleFailure=await injectStyles(tabId,frameId)'):
-    if token not in background: fail('post-hydration style injection incomplete '+token)
-for token in ('async function probeReactHydration','chrome.scripting.executeScript',"world:'MAIN'",'niakgpt:probe-react-hydration-v107','HOST_OWNER_RX','FIBER_RX','hostOwned','ownerFiber','rootFromFiber','currentHostRoot','containerRoot','authoritativeRoot','rootFound','rootSource','rootSettled','rootDehydrated','rootHasDehydratedFlag','rootStateKind','settled-client-render','htmlOwned','bodyOwned','documentRootOwned','ownedCount'):
-    if token not in background: fail('MAIN-world React hydration probe incomplete '+token)
-if r"const OWNER_RX=/^__react(?:Fiber|Props|Container)\$.+/;" not in background: fail('MAIN-world React owner regex escaping invalid')
-if r"const HOST_OWNER_RX=/^__react(?:Fiber|Props)\$.+/;" not in background: fail('MAIN-world React host-owner regex escaping invalid')
-if r"const CONTAINER_RX=/^__reactContainer\$.+/;" not in background: fail('MAIN-world React container regex escaping invalid')
-if not (ROOT/'visual-lab/tests/hydration-fiber-root-v109.spec.js').exists(): fail('fiber-root hydration regression missing')
-fiber_root_hydration=read('visual-lab/tests/hydration-fiber-root-v109.spec.js')
-for token in ('__reactFiber','tag:3','staleAlternate','isDehydrated:true','isDehydrated=false','react-fiber-root-settled','HYDRATION_FIBER_ROOT_CHECKPOINT PASS'):
-    if token not in fiber_root_hydration: fail('fiber-root hydration regression incomplete '+token)
-if not (ROOT/'visual-lab/tests/hydration-recovery-v110.spec.js').exists(): fail('post-418 recovery hydration regression missing')
-recovery_hydration=read('visual-lab/tests/hydration-recovery-v110.spec.js')
-for token in ('root.memoizedState={}','HYDRATION_RECOVERY_V110_CHECKPOINT PASS','htmlFiber','bodyFiber','react-fiber-root-settled'):
-    if token not in recovery_hydration: fail('post-418 recovery hydration regression incomplete '+token)
-if not (ROOT/'visual-lab/tests/hydration-scheduler-drain-v111.spec.js').exists(): fail('post-HostRoot late scheduler regression missing')
-scheduler_drain=read('visual-lab/tests/hydration-scheduler-drain-v111.spec.js')
-for token in ('MessageChannel','memoizedState:{}','late MessagePort hydration at HTML','late-1','late-2','HYDRATION_SCHEDULER_DRAIN_V111_CHECKPOINT PASS','react-fiber-root-settled'):
-    if token not in scheduler_drain: fail('post-HostRoot late scheduler regression incomplete '+token)
-if not (ROOT/'visual-lab/tests/hydration-active-spa-v112.spec.js').exists(): fail('active-SPA hydration regression missing')
-active_spa=read('visual-lab/tests/hydration-active-spa-v112.spec.js')
-for token in ('setInterval','dataset.liveTick','recovered HTML hydration mismatch','HYDRATION_ACTIVE_SPA_V112_CHECKPOINT PASS','react-fiber-root-settled'):
-    if token not in active_spa: fail('active-SPA hydration regression incomplete '+token)
-scheduler_fence=hydration_gate[hydration_gate.index('async function waitPostReactSchedulerDrain'):hydration_gate.index('async function waitHydrationStable')]
-if 'waitForQuiet(' in scheduler_fence: fail('active SPA scheduler fence must not require global DOM silence')
-if not (ROOT/'visual-lab/tests/hydration-document-root-v107.spec.js').exists(): fail('document-root hydration regression missing')
-document_root_hydration=read('visual-lab/tests/hydration-document-root-v107.spec.js')
-for token in ('window.__documentRootClaimed=false','window.__earlyNiakMutation=false','hostRootSettled','documentRootClaimed','react-document-root-settled','HYDRATION_DOCUMENT_ROOT_CHECKPOINT PASS'):
-    if token not in document_root_hydration: fail('document-root hydration regression incomplete '+token)
-if not (ROOT/'visual-lab/tests/hydration-isolated-world-v106.spec.js').exists(): fail('real MV3 isolated-world hydration regression missing')
-isolated_hydration=read('visual-lab/tests/hydration-isolated-world-v106.spec.js')
-for token in ('launchPersistentContext','--load-extension','hostRootSettled','legacyDataBuild','legacyRouterContext','react-document-root-settled','HYDRATION_MAIN_WORLD_CHECKPOINT PASS'):
-    if token not in isolated_hydration: fail('isolated-world hydration regression incomplete '+token)
-for file in ('visual-lab/runtime-fixture.html','visual-lab/tests/composer-continuation-runtime-v128.spec.js'):
-    fixture=read(file)
-    for token in ('__reactContainer','__reactFiber','isDehydrated:false'):
-        if token not in fixture: fail('post-hydration MV3 fixture missing settled React proof '+file+' '+token)
+for token in ('STYLE_RUNTIME','chrome.scripting.insertCSS','async function injectStyles','STYLE_INJECTED','async function probeReactHydration','niakgpt:probe-react-hydration',"world:'MAIN'"):
+    if token in background: fail('broken 0.9.104+ hydration authority reintroduced '+token)
+
 packager=read('tools/package-extension.mjs')
-if "['STYLE_RUNTIME','MAIN_RUNTIME','ISOLATED_RUNTIME','OPTIONAL_RUNTIME']" not in packager: fail('package builder missing deferred STYLE_RUNTIME')
+if "['MAIN_RUNTIME','ISOLATED_RUNTIME','OPTIONAL_RUNTIME']" not in packager: fail('package builder must use manifest-driven CSS/runtime contract')
+if "'STYLE_RUNTIME'" in packager: fail('package builder must not depend on deferred STYLE_RUNTIME')
+
+hydration_workflow=read('.github/workflows/live-stability-v129.yml')
+if hydration_workflow.count('tests/hydration-known-good-v113.spec.js') < 3: fail('known-good regression must be tracked and run in Chromium and Brave')
+if 'HYDRATION_KNOWN_GOOD_V113_CHECKPOINT PASS' not in hydration_workflow: fail('Brave fallback must require known-good checkpoint')
+
 sidebar_projects=read('sidebar-projects-v121.js')
 for token in ('safeInsert(parent,node,before=null)','dataset.ng121Retired','mountParentByBox','box.parentElement!==mountedParent','ng121MountPolicy','direct-once','retireStaleBox','placementTarget(root=navRoot(),box=null)','visiblePlacementNode','nativeSectionAfterPrimary','projectLinks(parent).length'):
     if token not in sidebar_projects: fail('sidebar no-reparent contract incomplete '+token)

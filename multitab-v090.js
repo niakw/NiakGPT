@@ -71,8 +71,11 @@
     },30);
   }
   function publishPeerSafety(){
-    const active=[...peers.values()].some(p=>p?.visible&&(p?.conversation||p?.running));
+    const values=[...peers.values()];
+    const active=values.some(p=>p?.visible&&(p?.conversation||p?.running));
+    const busyPeer=values.some(p=>p?.visible&&p?.running);
     if(active)root().dataset.ng90PeerChatActive='1';else delete root().dataset.ng90PeerChatActive;
+    if(busyPeer)root().dataset.ng90PeerBusy='1';else delete root().dataset.ng90PeerBusy;
   }
   function purgePeers(){const now=Date.now();for(const[id,p]of peers)if(now-(p.ts||0)>30000)peers.delete(id);publishPeerSafety();}
 

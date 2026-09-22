@@ -84,9 +84,10 @@ for(const [name,launcher] of Object.entries(selected)){
               }
               if(tick===55){
                 window.__hydratedBeforeReactOwnership=window.__NIAKGPT_HOST_HYDRATED_100__===true;
-                Object.defineProperty(document,'__reactContainer$lab',{value:{},configurable:true});
+                const dollar=String.fromCharCode(36);
+                Object.defineProperty(document,'__reactContainer'+dollar+'lab',{value:{},configurable:true});
                 for(const node of [document.documentElement,document.body,document.querySelector('nav'),document.querySelector('main'),document.getElementById('prompt-textarea')]){
-                  if(node)Object.defineProperty(node,'__reactFiber$lab',{value:{},configurable:true});
+                  if(node)Object.defineProperty(node,'__reactFiber'+dollar+'lab',{value:{},configurable:true});
                 }
                 document.documentElement.dataset.lateHydrationStage='3';
                 return;
@@ -129,102 +130,15 @@ for(const [name,launcher] of Object.entries(selected)){
     assert(stage2.htmlNg.length===0&&stage2.bodyNg.length===0&&stage2.ownNodes===0,name+': NiakGPT mutated React-owned HTML before hydration ownership: '+JSON.stringify(stage2));
 
     await page.waitForFunction(()=>document.documentElement.dataset.lateHydrationStage==='3',null,{timeout:9000});
-    const ownership=await page.evaluate(()=>({
-      hydratedBeforeOwnership:window.__hydratedBeforeReactOwnership===true,
-      root:Object.getOwnPropertyNames(document).some(k=>k.startsWith('__reactContainer
-    await page.waitForFunction(()=>[
-      window.__NIAKGPT_PARALLEL_CONTINUE_128__,
-      window.__NIAKGPT_LONG_RUN_WATCHDOG_129__,
-      window.__NIAKGPT_PIN_INTERACTION_RESCUE_129__,
-      window.__NIAKGPT_PROJECT_MENU_AUGMENT_129__,
-      window.__NIAKGPT_NATIVE_HANDOFF_129__
-    ].every(Boolean),null,{timeout:2500});
-
-    const active=await page.evaluate(()=>({
-      hydrated:window.__NIAKGPT_HOST_HYDRATED_100__===true,
-      nav:document.querySelector('nav')?.dataset.generation||'',
-      main:document.querySelector('main')?.dataset.generation||'',
-      sentinels:[
-        !!window.__NIAKGPT_PARALLEL_CONTINUE_128__,
-        !!window.__NIAKGPT_LONG_RUN_WATCHDOG_129__,
-        !!window.__NIAKGPT_PIN_INTERACTION_RESCUE_129__,
-        !!window.__NIAKGPT_PROJECT_MENU_AUGMENT_129__,
-        !!window.__NIAKGPT_NATIVE_HANDOFF_129__
-      ]
-    }));
-    assert(active.hydrated&&active.nav==='react-2'&&active.main==='react-2',name+': activation did not wait for final host node identities');
-    assert(active.sentinels.every(Boolean),name+': pre-runtime chain did not activate after host stability');
-  }finally{
-    await context.close();
-    await browser.close();
-  }
-}
-
-console.log('hydration-barrier-v080: PASS full-document React ownership + zero pre-hydration DOM mutation + late MessagePort host replacements');
-)),
-      nav:Object.getOwnPropertyNames(document.querySelector('nav')).some(k=>k.startsWith('__reactFiber
-    await page.waitForFunction(()=>[
-      window.__NIAKGPT_PARALLEL_CONTINUE_128__,
-      window.__NIAKGPT_LONG_RUN_WATCHDOG_129__,
-      window.__NIAKGPT_PIN_INTERACTION_RESCUE_129__,
-      window.__NIAKGPT_PROJECT_MENU_AUGMENT_129__,
-      window.__NIAKGPT_NATIVE_HANDOFF_129__
-    ].every(Boolean),null,{timeout:2500});
-
-    const active=await page.evaluate(()=>({
-      hydrated:window.__NIAKGPT_HOST_HYDRATED_100__===true,
-      nav:document.querySelector('nav')?.dataset.generation||'',
-      main:document.querySelector('main')?.dataset.generation||'',
-      sentinels:[
-        !!window.__NIAKGPT_PARALLEL_CONTINUE_128__,
-        !!window.__NIAKGPT_LONG_RUN_WATCHDOG_129__,
-        !!window.__NIAKGPT_PIN_INTERACTION_RESCUE_129__,
-        !!window.__NIAKGPT_PROJECT_MENU_AUGMENT_129__,
-        !!window.__NIAKGPT_NATIVE_HANDOFF_129__
-      ]
-    }));
-    assert(active.hydrated&&active.nav==='react-2'&&active.main==='react-2',name+': activation did not wait for final host node identities');
-    assert(active.sentinels.every(Boolean),name+': pre-runtime chain did not activate after host stability');
-  }finally{
-    await context.close();
-    await browser.close();
-  }
-}
-
-console.log('hydration-barrier-v080: PASS document_idle + late MessagePort host replacements + stable-node activation');
-)),
-      main:Object.getOwnPropertyNames(document.querySelector('main')).some(k=>k.startsWith('__reactFiber
-    await page.waitForFunction(()=>[
-      window.__NIAKGPT_PARALLEL_CONTINUE_128__,
-      window.__NIAKGPT_LONG_RUN_WATCHDOG_129__,
-      window.__NIAKGPT_PIN_INTERACTION_RESCUE_129__,
-      window.__NIAKGPT_PROJECT_MENU_AUGMENT_129__,
-      window.__NIAKGPT_NATIVE_HANDOFF_129__
-    ].every(Boolean),null,{timeout:2500});
-
-    const active=await page.evaluate(()=>({
-      hydrated:window.__NIAKGPT_HOST_HYDRATED_100__===true,
-      nav:document.querySelector('nav')?.dataset.generation||'',
-      main:document.querySelector('main')?.dataset.generation||'',
-      sentinels:[
-        !!window.__NIAKGPT_PARALLEL_CONTINUE_128__,
-        !!window.__NIAKGPT_LONG_RUN_WATCHDOG_129__,
-        !!window.__NIAKGPT_PIN_INTERACTION_RESCUE_129__,
-        !!window.__NIAKGPT_PROJECT_MENU_AUGMENT_129__,
-        !!window.__NIAKGPT_NATIVE_HANDOFF_129__
-      ]
-    }));
-    assert(active.hydrated&&active.nav==='react-2'&&active.main==='react-2',name+': activation did not wait for final host node identities');
-    assert(active.sentinels.every(Boolean),name+': pre-runtime chain did not activate after host stability');
-  }finally{
-    await context.close();
-    await browser.close();
-  }
-}
-
-console.log('hydration-barrier-v080: PASS document_idle + late MessagePort host replacements + stable-node activation');
-))
-    }));
+    const ownership=await page.evaluate(()=>{
+      const dollar=String.fromCharCode(36);
+      return{
+        hydratedBeforeOwnership:window.__hydratedBeforeReactOwnership===true,
+        root:Object.getOwnPropertyNames(document).some(k=>k.startsWith('__reactContainer'+dollar)),
+        nav:Object.getOwnPropertyNames(document.querySelector('nav')).some(k=>k.startsWith('__reactFiber'+dollar)),
+        main:Object.getOwnPropertyNames(document.querySelector('main')).some(k=>k.startsWith('__reactFiber'+dollar))
+      };
+    });
     assert(!ownership.hydratedBeforeOwnership&&ownership.root&&ownership.nav&&ownership.main,name+': React ownership gate did not precede NiakGPT activation: '+JSON.stringify(ownership));
 
     await page.waitForFunction(()=>window.__NIAKGPT_HOST_HYDRATED_100__===true,null,{timeout:12000});
@@ -256,4 +170,4 @@ console.log('hydration-barrier-v080: PASS document_idle + late MessagePort host 
   }
 }
 
-console.log('hydration-barrier-v080: PASS document_idle + late MessagePort host replacements + stable-node activation');
+console.log('hydration-barrier-v080: PASS full-document React ownership + zero pre-hydration DOM mutation + late MessagePort host replacements');

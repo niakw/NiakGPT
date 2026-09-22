@@ -1,3 +1,12 @@
+## 0.9.103 — preuve d’archive depuis un chat actif + placement DOM terrain
+
+Le recheck du coffre privé après 0.9.102 montre NiakVIO à **171 connus / 171 cachés**, mais toujours **0 fichier `conversations/`** et des index à `parts:0/messages:0`. La complétude de l’inventaire n’est donc pas la complétude de l’archive.
+
+1. `tools/project-memory-v132.mjs` vérifie le transport MV3 direct : session ChatGPT éphémère, GET limité à un seul détail de conversation, `credentials: include`, `cache: no-store`, aucune persistance du bearer.
+2. `project-memory-v132.mjs` ouvre une route Project slugguée, absente du cache pour le chat courant, archive les messages visibles depuis le DOM puis archive un chat historique via le worker, sans aucun RPC ChatGPT de la page.
+3. La migration d’une queue pré-0.9.103 ne fait plus confiance à `lastSyncAt` : elle remet tous les Projects dans la queue full-history tant qu’aucun `historyCompletedAt + historyCacheSignature` n’atteste une archive complète.
+4. `field-regressions-v088.mjs` reproduit un titre Chats dans une grande ligne flex horizontale. Le bloc Projects doit être sibling précédent de cette ligne, jamais enfant de la ligne.
+
 ## 0.9.102 — preuve de complétude du coffre, pas seulement d'activité
 
 Le recheck du dépôt privé a compté **316 conversations connues pour 310 seulement cachées**, **0 fichier sous `conversations/`** et **16 noms de Projects pollués sur 17**. Le cas critique était NiakGPT : `indexed=true`, mais `30 connus / 24 cachés`. Cela prouve qu'un simple flag `indexed` ne peut pas servir de preuve de complétude.

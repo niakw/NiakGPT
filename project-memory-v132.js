@@ -567,23 +567,89 @@
       return !force && !!old && old.complete !== false && Number(old.updated || 0) >= updated && Number(old.parts || 0) > 0;
     };
     let completed = chats.filter(complete).length, changed = 0;
+    const deferred=[];
+    let ledger=await chatRetryLedger();
     await state({
       mode:'syncing',projectId:project.id,projectName:project.name,
       chatId:'',chatTitle:'',chatDone:completed,chatTotal:chats.length,
-      prioritySync,projectArchivedBefore:completed
+      prioritySync,projectArchivedBefore:completed,deferredChats:0,retryingChat:false
     });
 
     for (const chat of chats) {
       if (document.hidden) throw new Error('memory_sync_paused_hidden');
       if (syncAuto && !autoOwner()) throw new Error('memory_sync_paused_owner_change');
-      const old = idx.conversations[chat.id], updated = parseTime(chat.updated);
-      if (complete(chat)) continue;
+      const old = idx.conversations[chat.id], updated = parseTime(chat.updated), retryKey=retryEntryKey(project.id,chat.id);
+      if (complete(chat)) {
+        if(ledger[retryKey]){delete ledger[retryKey];await saveChatRetryLedger(ledger);}
+        continue;
+      }
+
+      const prior=ledger[retryKey];
+      if(!force&&Number(prior?.nextAt||0)>Date.now()){
+        deferred.push({projectId:project.id,chatId:chat.id,nextAt:Number(prior.nextAt),error:String(prior.error||'conversation_retry_deferred')});
+        await state({
+          mode:'syncing',projectId:project.id,projectName:project.name,chatId:chat.id,chatTitle:chat.title,
+          chatDone:completed,chatTotal:chats.length,prioritySync,deferredChats:deferred.length,
+          retryingChat:false,lastTransientError:String(prior.error||'conversation_retry_deferred').slice(0,180),
+          nextAttemptAt:Number(prior.nextAt)
+        });
+        continue;
+      }
+
       await state({
         mode:'syncing', projectId:project.id, projectName:project.name,
-        chatId:chat.id, chatTitle:chat.title, chatDone:completed, chatTotal:chats.length, prioritySync
+        chatId:chat.id, chatTitle:chat.title, chatDone:completed, chatTotal:chats.length,
+        prioritySync,deferredChats:deferred.length,retryingChat:false,lastTransientError:''
       });
-      const data = await fetchConversation(chat.id, 0), rows = messages(data);
-      if (!rows.length) continue;
+      const fetched=await fetchConversationResilient(project,chat,{chatDone:completed,chatTotal:chats.length});
+      if(!fetched.ok){
+        const cycles=Math.max(1,Number(prior?.cycles||0)+1),nextAt=Date.now()+retryBackoff(cycles);
+        ledger[retryKey]={
+          projectId:project.id,chatId:chat.id,cycles,nextAt,lastAt:Date.now(),
+          error:String(fetched.error||'conversation_fetch_failed:0:unknown').slice(0,180)
+        };
+        await saveChatRetryLedger(ledger);
+        deferred.push({projectId:project.id,chatId:chat.id,nextAt,error:ledger[retryKey].error});
+        await state({
+          mode:'syncing',projectId:project.id,projectName:project.name,chatId:chat.id,chatTitle:chat.title,
+          chatDone:completed,chatTotal:chats.length,prioritySync,deferredChats:deferred.length,
+          retryingChat:false,lastTransientError:ledger[retryKey].error,nextAttemptAt:nextAt
+        });
+        continue;
+      }
+
+      const data=fetched.data,rows=messages(data);
+      if(!rows.length){
+        const cycles=Math.max(1,Number(prior?.cycles||0)+1),nextAt=Date.now()+retryBackoff(cycles);
+        ledger[retryKey]={
+          projectId:project.id,chatId:chat.id,cycles,nextAt,lastAt:Date.now(),
+          error:'conversation_empty_mapping'
+        };
+        await saveChatRetryLedger(ledger);
+        deferred.push({projectId:project.id,chatId:chat.id,nextAt,error:'conversation_empty_mapping'});
+        continue;
+      }
+
+      const canonicalHash=rowsHash(rows);
+      const canonicalUpdated = Math.max(updated, parseTime(data.update_time)) || Date.now();
+
+      // Existing conversations are never duplicated: the Project/chat ID is the stable path.
+      // If the backend revision has the same canonical content hash, only metadata/index state
+      // advances; otherwise the same part-xxx.md paths are replaced in Git history.
+      if(!force&&old&&old.complete!==false&&Number(old.parts||0)>0&&old.canonicalHash===canonicalHash){
+        const chatIndex={...old,title:one(chat.title||data.title||old.title||'Conversation'),updated:canonicalUpdated,capturedAt:new Date().toISOString(),canonicalHash};
+        idx.conversations[chat.id]=chatIndex;
+        idx.projectId=project.id;idx.projectName=projectName(project.name||'');idx.updatedAt=new Date().toISOString();idx.bootstrapMetadataOnly=false;
+        await commit([
+          {path:ppath(project.id,'conversations/'+safe(chat.id)+'/index.json'),content:JSON.stringify(chatIndex,null,2)+'\n'},
+          {path:ppath(project.id,'index.json'),content:JSON.stringify(idx,null,2)+'\n'}
+        ],'NiakGPT memory: metadata '+one(project.name||project.id)+' / '+one(chat.title||chat.id),prioritySync);
+        if(ledger[retryKey]){delete ledger[retryKey];await saveChatRetryLedger(ledger);}
+        completed++;
+        await state({mode:'syncing',projectId:project.id,projectName:project.name,chatId:chat.id,chatTitle:chat.title,chatDone:completed,chatTotal:chats.length,prioritySync,deferredChats:deferred.length,retryingChat:false,lastTransientError:''});
+        continue;
+      }
+
       const full = transcript(project, chat, rows), chunks = [];
       for (let at = 0; at < full.length; at += CHUNK) chunks.push(full.slice(at, at + CHUNK));
       const base = ppath(project.id, 'conversations/' + safe(chat.id)), files = [];
@@ -594,17 +660,12 @@
           content:'# Superseded\n\nThis chunk is no longer part of the current conversation snapshot. Use Git history for the previous revision.\n'
         });
       }
-      const sig = signals(rows);
-      const canonicalUpdated = Math.max(updated, parseTime(data.update_time)) || Date.now();
       const chatIndex = {
         schema:1,id:chat.id,title:one(chat.title || data.title || 'Conversation'),updated:canonicalUpdated,
-        capturedAt:new Date().toISOString(),parts:chunks.length,messages:rows.length,
-        bootstrapMetadataOnly:false,historyPartial:false,complete:true,captureSource:'backend',signals:sig
+        capturedAt:new Date().toISOString(),parts:chunks.length,messages:rows.length,canonicalHash,
+        bootstrapMetadataOnly:false,historyPartial:false,complete:true,captureSource:'backend',signals:signals(rows)
       };
 
-      // Durable per-chat checkpoint: the Project index is advanced in the same logical write as
-      // the transcript. A pause, navigation, worker restart or GitHub write error therefore
-      // resumes from the last committed conversation instead of replaying the Project from 0%.
       idx.conversations[chat.id] = chatIndex;
       idx.projectId = project.id;
       idx.projectName = projectName(project.name || '');
@@ -615,11 +676,13 @@
         { path: ppath(project.id,'index.json'), content: JSON.stringify(idx, null, 2) + '\n' }
       );
       await commit(files, 'NiakGPT memory: ' + one(project.name || project.id) + ' / ' + one(chat.title || chat.id), prioritySync);
+      if(ledger[retryKey]){delete ledger[retryKey];await saveChatRetryLedger(ledger);}
       changed++;
       completed++;
       await state({
         mode:'syncing', projectId:project.id, projectName:project.name,
-        chatId:chat.id, chatTitle:chat.title, chatDone:completed, chatTotal:chats.length, prioritySync
+        chatId:chat.id, chatTitle:chat.title, chatDone:completed, chatTotal:chats.length,
+        prioritySync,deferredChats:deferred.length,retryingChat:false,lastTransientError:''
       });
       await sleep(prioritySync ? 40 : 300);
     }
@@ -633,7 +696,7 @@
       { path:ppath(project.id,'PROJECT_STATE.md'), content:compact }
     ], 'NiakGPT memory: checkpoint ' + one(project.name || project.id), prioritySync);
     await saveContext(project.id, compact);
-    return changed;
+    return {changed,deferred};
   }
 
   async function deepInventory() {

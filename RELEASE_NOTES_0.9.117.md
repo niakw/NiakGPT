@@ -8,7 +8,7 @@ Deferred retries use increasing delays instead of the previous fast restart loop
 
 ## Faster first transfer
 
-The durable checkpoint remains per conversation. Speedups stay below that safety boundary: transcript chunks are larger (1,000,000 characters instead of 360,000), independent GitHub blobs inside a commit are still uploaded with bounded concurrency, and the private-repository verification is reused for 60 seconds during a bulk transfer. Large conversations therefore require substantially fewer GitHub blob requests without weakening resume semantics.
+The durable checkpoint remains per conversation. Speedups stay below that safety boundary: transcript chunks are larger (1,000,000 characters instead of 360,000), priority writes use GitHub Create Tree with inline file content so they no longer need one `/git/blobs` request per chunk, and private-repository verification is reused for five minutes during a bulk transfer. Large conversations therefore require substantially fewer GitHub requests without weakening resume semantics.
 
 ## No duplicate conversations
 

@@ -30,7 +30,7 @@ for(const [name,launcher] of Object.entries(selected)){
       window.chrome={
         runtime:{
           id:'hydration-lab',
-          getManifest:()=>({version:'0.9.107'}),
+          getManifest:()=>({version:'0.9.108'}),
           sendMessage:async message=>{
             if(message?.type==='niakgpt:probe-react-hydration-v107'){
               const ownerRx=/^__react(?:Fiber|Props|Container)\$.+/;
@@ -47,7 +47,7 @@ for(const [name,launcher] of Object.entries(selected)){
               const needed=Math.min(2,identities.length);
               const htmlOwned=Object.getOwnPropertyNames(document.documentElement).some(key=>hostOwnerRx.test(key));
               const bodyOwned=Object.getOwnPropertyNames(document.body).some(key=>hostOwnerRx.test(key));
-              return {ok:true,fullDocument:true,rootSettled:candidates.some(f=>f?.memoizedState?.isDehydrated===false),htmlOwned,bodyOwned,documentRootOwned:htmlOwned&&bodyOwned,needed,ownedCount:identities.filter(node=>Object.getOwnPropertyNames(node).some(key=>ownerRx.test(key))).length};
+              return {ok:true,containerFound:!!container,rootSettled:candidates.some(f=>f?.memoizedState?.isDehydrated===false),htmlOwned,bodyOwned,documentRootOwned:htmlOwned&&bodyOwned,needed,ownedCount:identities.filter(node=>Object.getOwnPropertyNames(node).some(key=>ownerRx.test(key))).length};
             }
             return {ok:true,errors:[]};
           }
@@ -70,14 +70,13 @@ for(const [name,launcher] of Object.entries(selected)){
     await page.route('https://chatgpt.com/**',route=>route.fulfill({
       status:200,
       contentType:'text/html; charset=utf-8',
-      body:`<!doctype html><html lang="fr" data-build="prod-hydration-lab"><head><title>late scheduler hydration fixture</title></head>
+      body:`<!doctype html><html lang="fr"><head><title>late scheduler hydration fixture</title></head>
       <body>
         <nav data-testid="conversation-sidebar" data-generation="ssr"><a href="/">Nouveau chat</a><div>Projects</div></nav>
         <main data-generation="ssr"><article><div data-message-author-role="assistant">SSR stable</div></article>
           <form><div id="prompt-textarea" contenteditable="true"></div><button aria-label="Envoyer" type="button">Envoyer</button></form>
         </main>
         <script>
-          window.__reactRouterContext={streamController:{closed:true}};
           window.addEventListener('load',()=>{
             const channel=new MessageChannel();
             let tick=0;

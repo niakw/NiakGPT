@@ -44,13 +44,12 @@ test('real MV3 boot reads React hydration from MAIN world without user interacti
         return route.fulfill({
           status:200,
           contentType:'text/html; charset=utf-8',
-          body:`<!doctype html><html lang="fr" data-build="prod-main-world-probe"><head><title>NiakGPT hydration isolation</title></head><body>
+          body:`<!doctype html><html lang="fr"><head><title>NiakGPT hydration isolation</title></head><body>
             <nav aria-label="Historique de chat"><a href="/">Nouveau chat</a><div>Projects</div></nav>
             <main><article><div data-message-author-role="assistant">Fixture</div></article>
               <form><div id="prompt-textarea" data-testid="prompt-textarea" contenteditable="true"></div><button type="button" aria-label="Envoyer">Envoyer</button></form>
             </main>
             <script>
-              window.__reactRouterContext={streamController:{closed:true}};
               const dollar=String.fromCharCode(36);
               const rootFiber={memoizedState:{isDehydrated:true},stateNode:{current:null}};
               rootFiber.stateNode.current=rootFiber;
@@ -61,7 +60,7 @@ test('real MV3 boot reads React hydration from MAIN world without user interacti
               setTimeout(()=>{
                 rootFiber.memoizedState.isDehydrated=false;
                 document.documentElement.dataset.hostRootSettled='1';
-              },900);
+              },6500);
             <\/script>
           </body></html>`
         });
@@ -74,7 +73,20 @@ test('real MV3 boot reads React hydration from MAIN world without user interacti
 
     const page=context.pages()[0]||await context.newPage();
     await page.goto('https://chatgpt.com/c/11111111-1111-4111-8111-111111111111',{waitUntil:'load',timeout:15000});
-    await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.hostRootSettled||''),{timeout:4000}).toBe('1');
+    await page.waitForTimeout(5000);
+    const preSettle=await page.evaluate(()=>({
+      hostRootSettled:document.documentElement.dataset.hostRootSettled||'',
+      proof:document.documentElement.dataset.ng100HydrationProof||'',
+      rail:!!document.getElementById('ng8-rail'),
+      legacyDataBuild:document.documentElement.hasAttribute('data-build'),
+      legacyRouterContext:typeof window.__reactRouterContext!=='undefined'
+    }));
+    expect(preSettle.hostRootSettled).toBe('');
+    expect(preSettle.proof).toBe('');
+    expect(preSettle.rail).toBe(false);
+    expect(preSettle.legacyDataBuild).toBe(false);
+    expect(preSettle.legacyRouterContext).toBe(false);
+    await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.hostRootSettled||''),{timeout:5000}).toBe('1');
 
     // No click/key/touch is performed: production boot must succeed from the service-worker
     // MAIN-world probe, not from the trusted-interaction fallback.

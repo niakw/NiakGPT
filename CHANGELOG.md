@@ -1,3 +1,13 @@
+# NiakGPT 0.9.108 — preuve React positive, aucun bypass heuristique
+
+- **Complément indispensable à 0.9.107** : l’ownership React de `<html>` + `<body>` était bien vérifié sur le chemin full-document, mais un ancien raccourci restait actif lorsque `data-build` et `window.__reactRouterContext` étaient absents.
+- **Cause du faux vert** : le probe MAIN-world calculait `fullDocument` depuis ces deux sentinelles volatiles ; `fullDocument:false` déclenchait `main-world-legacy-host` et autorisait NiakGPT sans vérifier HostRoot, HTML/BODY ou ownership hôte.
+- **Correction de cause racine** : le probe ne renvoie plus `fullDocument`. Le gate exige maintenant simultanément `containerFound`, `rootSettled`, `documentRootOwned` et au moins deux identités hôtes possédées par React, puis reconfirme la même preuve après deux frames.
+- **Régression terrain exacte** : le test MV3 réel retire `data-build` et `window.__reactRouterContext`, maintient le HostRoot à `isDehydrated:true` pendant 6,5 s et exige encore zéro preuve NiakGPT / zéro rail après 5 s, puis un démarrage normal après settlement.
+- **0.9.107 conservée et renforcée** : le test document-root dédié continue d’exiger zéro mutation tant que React ne possède pas explicitement `<html>` et `<body>`.
+- **Fixtures fonctionnelles clarifiées** : les tests post-hydratation simulent désormais explicitement un HostRoot déjà réglé au lieu de dépendre d’un bypass produit.
+- **Le 410 `/backend-api/f/conversation/resume` reste natif ChatGPT** : la route demeure absente et interdite dans le runtime NiakGPT.
+
 # NiakGPT 0.9.107 — ownership HTML/BODY avant toute mutation
 
 - **Régression terrain encore présente après 0.9.106** : ChatGPT remonte toujours `Minified React error #418` avec `args[]=HTML`.

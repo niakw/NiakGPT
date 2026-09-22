@@ -414,25 +414,35 @@
       },null,2)+'\n'
     }];
     for(const project of list){
-      const conversations={};
+      let previous=null;
+      try{const txt=await read(ppath(project.id,'index.json'));if(txt)previous=JSON.parse(txt);}catch{}
+      const conversations=previous&&previous.conversations&&typeof previous.conversations==='object'?{...previous.conversations}:{};
       for(const chat of (project.chats||[])){
         if(!chat?.id)continue;
-        const updated=parseTime(chat.updated||chat.update_time||chat.create_time);
-        conversations[String(chat.id)]={
-          schema:1,id:String(chat.id),title:one(chat.title||'Conversation'),updated,
+        const id=String(chat.id),updated=parseTime(chat.updated||chat.update_time||chat.create_time),old=conversations[id];
+        // Metadata bootstrap must never erase an already archived transcript. Keep the captured
+        // revision untouched so the full-history worker can still detect a newer local update.
+        if(old&&Number(old.parts||0)>0&&Number(old.messages||0)>0){
+          conversations[id]={...old,title:one(chat.title||old.title||'Conversation')};
+          continue;
+        }
+        conversations[id]={
+          schema:1,id,title:one(chat.title||old?.title||'Conversation'),updated,
           capturedAt:generatedAt,parts:0,messages:0,bootstrapMetadataOnly:true,
           signals:{tasks:[],architecture:[],decisions:[],recent:[]}
         };
       }
+      const hasArchive=Object.values(conversations).some(row=>Number(row?.parts||0)>0&&Number(row?.messages||0)>0);
       const idx={
-        schema:1,projectId:project.id,projectName:one(project.name||''),updatedAt:generatedAt,
-        bootstrapMetadataOnly:true,conversations
+        ...(previous&&typeof previous==='object'?previous:{}),
+        schema:1,projectId:project.id,projectName:projectName(project.name||''),updatedAt:generatedAt,
+        bootstrapMetadataOnly:!hasArchive,conversations
       };
       files.push(
         {path:ppath(project.id,'project.json'),content:JSON.stringify({
-          schema:1,id:project.id,name:one(project.name||''),description:clean(project.description||''),instructions:clean(project.instructions||''),
+          schema:1,id:project.id,name:projectName(project.name||''),description:clean(project.description||''),instructions:clean(project.instructions||''),
           conversationCount:Object.keys(conversations).length,knownConversationCount:Number(project.count||0),indexed:project.indexed===true,
-          bootstrapMetadataOnly:true,updatedAt:generatedAt
+          bootstrapMetadataOnly:!hasArchive,updatedAt:generatedAt
         },null,2)+'\n'},
         {path:ppath(project.id,'index.json'),content:JSON.stringify(idx,null,2)+'\n'},
         {path:ppath(project.id,'PROJECT_STATE.md'),content:buildState(project,idx)}

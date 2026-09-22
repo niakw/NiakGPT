@@ -267,7 +267,7 @@ for token in ('memoryBootstrap: memoryBootstrap === true','PROJECT_STATE.md','co
     if token not in memory: fail('Project Memory runtime incomplete '+token)
 bridge=read('page-bridge.js')
 if "d.memoryBootstrap !== true" not in bridge or 'conversation_detail_get_disabled' not in bridge: fail('Project Memory full-history bridge guard incomplete')
-if 'project-memory-v132.css' not in css_runtime: fail('Project Memory UI CSS missing from manifest')
+if 'project-memory-v132.css' not in style_runtime: fail('Project Memory UI CSS missing from deferred STYLE_RUNTIME')
 if not (ROOT/'visual-lab/project-memory-v132.mjs').exists(): fail('Project Memory browser UX gate missing')
 if not (ROOT/'visual-lab/native-chat-zero-background-v087.mjs').exists(): fail('native chat zero-background regression gate missing')
 if not (ROOT/'visual-lab/field-regressions-v088.mjs').exists(): fail('0.9.88 combined field regression gate missing')

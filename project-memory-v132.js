@@ -193,7 +193,7 @@
       // A complete local/server inventory remains the active authority. Vault recovery is a
       // high-water safety net for reinstall/cold-cache collapse, never a reason to resurrect
       // archived Projects over a healthy current index.
-      if (currentCanonical.length >= 4 && Number(current.serverIndexedAt||0) > 0) {
+      if (Number(current.serverIndexedAt||0) > 0) {
         lastCatalogRecoveryAt=Date.now();
         return {ok:true,skipped:'healthy-current',projects:currentCanonical.length};
       }
@@ -208,20 +208,25 @@
       }
       const merge=latest=>{
         const base=latest&&typeof latest==='object'?latest:{};
-        const byId=new Map((Array.isArray(base.projects)?base.projects:[]).filter(p=>p?.id).map(p=>[String(p.id),{...p}]));
+        const existing=new Map((Array.isArray(base.projects)?base.projects:[]).filter(p=>p?.id).map(p=>[String(p.id),{...p}]));
         const counts={...(base.counts||{})};
         const indexed=new Set(Array.isArray(base.indexedProjectIds)?base.indexedProjectIds:[]);
+        const recovered=[],seen=new Set();
         for(const row of catalog){
-          const id=String(row.id),old=byId.get(id)||{},name=projectName(row.name||old.name||'');
+          const id=String(row.id),old=existing.get(id)||{},name=projectName(row.name||old.name||'');
           if(!name)continue;
-          byId.set(id,{...old,id,name,href:`/g/${id}/project`,domOnly:false,vaultRecovered:true});
+          recovered.push({...old,id,name,href:`/g/${id}/project`,domOnly:false,vaultRecovered:true});
+          seen.add(id);
           counts[id]=Math.max(Number(counts[id]||0),Number(row.conversationCount||0),Number(row.knownConversationCount||0));
           if(row.indexed===true)indexed.add(id);
         }
+        // Keep a newly discovered local canonical Project that is not in the older vault yet,
+        // but put the durable catalog itself back in its stable order.
+        for(const [id,row] of existing)if(!seen.has(id))recovered.push(row);
         return {
           ...base,
           schema:Math.max(2,Number(base.schema||0)),
-          projects:[...byId.values()],
+          projects:recovered,
           counts,
           indexedProjectIds:[...indexed],
           vaultCatalogRecoveredAt:Date.now(),
@@ -625,16 +630,29 @@
     if(options.force!==true&&signature&&current.bootstrapCacheSignature===signature&&Number(current.bootstrapCachedAt||0)>0){
       return {ok:true,skipped:true,projects:list.length,files:Number(current.bootstrapCachedFiles||0),signature};
     }
+    const safeProjectRows=list.map(project=>({
+      id:project.id,name:projectName(project.name||''),href:String(project.href||''),
+      knownConversationCount:Number(project.count||0),cachedConversationCount:(project.chats||[]).length,indexed:project.indexed===true
+    }));
     const files=[{
       path:'PROJECTS.json',
       content:JSON.stringify({
         schema:1,kind:'NiakGPTCachedBootstrap',source:'local-cache-only',generatedAt,
-        projectCount:list.length,
-        projects:list.map(project=>({
-          id:project.id,name:projectName(project.name||''),href:String(project.href||''),knownConversationCount:Number(project.count||0),cachedConversationCount:(project.chats||[]).length,indexed:project.indexed===true
-        }))
+        projectCount:list.length,projects:safeProjectRows
       },null,2)+'\n'
     }];
+    // PROJECTS.json is intentionally a live/bootstrap snapshot. Persist a separate high-water
+    // catalog only after a complete current ChatGPT server index has been published locally.
+    // A cold/vault-recovered cache keeps serverIndexedAt=0 and therefore cannot downgrade it.
+    if(Number(raw.serverIndexedAt||0)>0){
+      files.push({
+        path:'PROJECT_CATALOG.json',
+        content:JSON.stringify({
+          schema:1,kind:'NiakGPTProjectCatalog',source:'server-index-authority',generatedAt,
+          serverIndexedAt:Number(raw.serverIndexedAt||0),projectCount:list.length,projects:safeProjectRows
+        },null,2)+'\n'
+      });
+    }
     for(const project of list){
       let previous=null;
       try{const txt=await read(ppath(project.id,'index.json'));if(txt)previous=JSON.parse(txt);}catch{}

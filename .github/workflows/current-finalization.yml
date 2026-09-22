@@ -105,6 +105,9 @@ jobs:
       - name: Project Memory cache bootstrap + deferred history wake
         working-directory: visual-lab
         run: node project-memory-wake-v086.mjs
+      - name: Project catalog recovery + native sidebar authority
+        working-directory: visual-lab
+        run: node project-catalog-recovery-v114.mjs
       - name: Cold-chat Pins remain local/cache-only
         working-directory: visual-lab
         run: node pins-launcher-only-v085.mjs

@@ -837,13 +837,14 @@
 
   async function syncNow(options={}) {
     const force=options.force===true;
-    if(conversationPage()||document.documentElement.dataset.ng90PeerChatActive==='1'){
+    if(conversationPage()||document.documentElement.dataset.ng90PeerBusy==='1'){
       const pending=await primeBootstrapQueue(force);
       try{
         const cached=await writeCachedBootstrap({force});
-        await queuedState(conversationPage()?'conversation':'peer-conversation');
+        const dom=conversationPage()?await captureCurrentDomConversation(force):{ok:true,skipped:'peer-busy'};
+        await queuedState(conversationPage()?'conversation':'peer-busy');
         schedule(backgroundDelay());
-        return {ok:true,cachedOnly:true,historyDeferred:true,projects:cached.projects,files:cached.files,queuedProjects:pending.length};
+        return {ok:true,cachedOnly:true,historyDeferred:true,domCaptured:dom?.captured===true,projects:cached.projects,files:cached.files,queuedProjects:pending.length};
       }catch(error){
         const message='cached_bootstrap_write_failed:'+String(error?.message||error).slice(0,180);
         await state({mode:'error',error:message,queuedProjects:pending.length});
@@ -900,6 +901,7 @@
   });
   document.addEventListener('niakgpt:activity-changed', event => {
     if (event.detail?.active === true || busy(false)) { lastHumanAt=Date.now(); clearTimeout(autoTimer); schedule(backgroundDelay()); return; }
+    scheduleDomCapture(650);
     schedule(backgroundDelay());
   });
   document.addEventListener('niakgpt:tab-role-changed', event => {
@@ -910,8 +912,12 @@
     if(document.hidden)return {ok:true,skipped:'hidden'};
     let pending=[];
     try{pending=await ensureBootstrapQueued();}catch{}
-    if(!pending.length)return {ok:true,skipped:'empty'};
-    try{return await writeCachedBootstrap();}
+    if(!pending.length){scheduleDomCapture(700);return {ok:true,skipped:'empty'};}
+    try{
+      const cached=await writeCachedBootstrap();
+      if(conversationPage())scheduleDomCapture(500);
+      return cached;
+    }
     catch(error){
       const message='cached_bootstrap_write_failed:'+String(error?.message||error).slice(0,180);
       await state({mode:'error',error:message,queuedProjects:pending.length});
@@ -925,10 +931,10 @@
     }
   });
 
-  function route() { clearTimeout(routeTimer); lastHumanAt=Date.now(); routeTimer = setTimeout(()=>{refreshContext();resume();schedule(backgroundDelay());},120); }
+  function route() { clearTimeout(routeTimer); lastHumanAt=Date.now(); routeTimer = setTimeout(()=>{refreshContext();scheduleDomCapture(900);resume();schedule(backgroundDelay());},120); }
   window.addEventListener('popstate',route);
   if (window.navigation && window.navigation.addEventListener) window.navigation.addEventListener('navigatesuccess',route);
-  window.addEventListener('pageshow',() => { lastHumanAt=Date.now(); refreshContext(); resume(); schedule(backgroundDelay()); });
+  window.addEventListener('pageshow',() => { lastHumanAt=Date.now(); refreshContext(); scheduleDomCapture(1200); resume(); schedule(backgroundDelay()); });
 
   prefs().finally(async() => {
     refreshContext();
@@ -942,6 +948,7 @@
       if (conversationPage()) await queuedState('conversation');
       else if(document.documentElement.dataset.ng90PeerChatActive==='1')await queuedState('peer-conversation');
     }
+    scheduleDomCapture(1200);
     resume();
     schedule(backgroundDelay());
     wakeHeartbeat();

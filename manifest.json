@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.109",
-  "description": "NiakGPT : preuve React MAIN-world par conteneur ou chaîne Fiber→HostRoot, zéro mutation pré-hydratation, mémoire Project complète et sidebar stable.",
+  "version": "0.9.110",
+  "description": "NiakGPT : boot React résilient aux recoverable #418, HostRoot courant post-recovery, zéro mutation pré-hydratation.",
   "permissions": [
     "storage",
     "scripting",

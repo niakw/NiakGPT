@@ -626,8 +626,11 @@
     }
     await recoverVaultCatalog(options.force===true);
     const raw=await cache(),list=projects(raw),generatedAt=new Date().toISOString(),signature=cachedBootstrapSignature(list);
+    const authoritative=Number(raw.serverIndexedAt||0)>0;
     let current={};try{current=(await chrome.storage.local.get(STATE_KEY))[STATE_KEY]||{};}catch{}
-    if(options.force!==true&&signature&&current.bootstrapCacheSignature===signature&&Number(current.bootstrapCachedAt||0)>0){
+    const bootstrapCurrent=signature&&current.bootstrapCacheSignature===signature&&Number(current.bootstrapCachedAt||0)>0;
+    const catalogCurrent=!authoritative||(current.projectCatalogSignature===signature&&Number(current.projectCatalogWrittenAt||0)>0);
+    if(options.force!==true&&bootstrapCurrent&&catalogCurrent){
       return {ok:true,skipped:true,projects:list.length,files:Number(current.bootstrapCachedFiles||0),signature};
     }
     const safeProjectRows=list.map(project=>({
@@ -644,7 +647,7 @@
     // PROJECTS.json is intentionally a live/bootstrap snapshot. Persist a separate high-water
     // catalog only after a complete current ChatGPT server index has been published locally.
     // A cold/vault-recovered cache keeps serverIndexedAt=0 and therefore cannot downgrade it.
-    if(Number(raw.serverIndexedAt||0)>0){
+    if(authoritative){
       files.push({
         path:'PROJECT_CATALOG.json',
         content:JSON.stringify({
@@ -689,10 +692,16 @@
       );
     }
     await commit(files,'NiakGPT memory: cached bootstrap inventory');
-    await state({
+    const statePatch={
       bootstrapCachedAt:Date.now(),bootstrapCachedProjects:list.length,bootstrapCachedFiles:files.length,
       bootstrapCacheSignature:signature,bootstrapSource:'local-cache-only',error:''
-    });
+    };
+    if(authoritative){
+      statePatch.projectCatalogWrittenAt=Date.now();
+      statePatch.projectCatalogSignature=signature;
+      statePatch.projectCatalogServerIndexedAt=Number(raw.serverIndexedAt||0);
+    }
+    await state(statePatch);
     document.dispatchEvent(new CustomEvent('niakgpt:project-memory-bootstrap-written',{detail:{projects:list.length,files:files.length,signature}}));
     return {ok:true,projects:list.length,files:files.length,signature};
   }

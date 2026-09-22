@@ -6,7 +6,7 @@
   <p>Projects · long-thread performance · continuity · navigation · focused productivity</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.112-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.113-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,15 +21,15 @@
 NiakGPT is a browser extension that turns the ChatGPT web interface into a more capable **workspace for heavy, project-based use** without replacing ChatGPT itself.
 
 It adds a native-first layer for Projects, navigation, long conversations, continuity, diagnostics and local productivity. Core features run locally in the browser: **no NiakGPT account, no NiakGPT analytics and no NiakGPT server are required**.
-> **Current version: 0.9.112.** React hydration is verified from the page’s **MAIN world**, then NiakGPT waits for **structural host stability** rather than global DOM silence. A settled current HostRoot plus stable `nav/main/composer` identities, idle turns, frames and a final HostRoot/ownership re-check are required; unrelated message/attribute activity no longer blocks the rail forever.
+> **Current version: 0.9.113.** Startup is restored to the field-proven 0.9.81/0.9.103 model after 0.9.104–0.9.112 introduced a single boot dependency on private React internals. JavaScript stays at `document_idle`; the gate waits for stable native host identities, a bounded quiet window, two idle scheduler turns and frames, then starts the runtime without requiring HostRoot/Fiber inspection.
 
 ## Highlights
 
 ### Hydration-safe startup
 
-0.9.112 keeps the zero-touch CSS boundary and makes the late-scheduler fence compatible with a continuously active SPA: **no NiakGPT CSS is declared as a static content script**. All 34 stylesheets are inserted only after the hydration gate succeeds, immediately before the runtime scripts. This prevents early layout/style influence from changing ChatGPT's client render during SSR hydration.
+0.9.113 restores the last field-proven startup boundary instead of adding another React-internal heuristic. NiakGPT styles are again declared by the manifest at `document_start`, exactly as in 0.9.81–0.9.103, while all JavaScript remains at `document_idle`.
 
-NiakGPT JavaScript no longer runs at `document_start`: the bootstrap group starts at `document_idle`, proves the current HostRoot and React-owned host identities, then **still waits for stable host identity, two idle scheduler turns, frames, and a final MAIN-world HostRoot revalidation**, but it no longer requires the entire ChatGPT DOM to become mutation-free. This keeps protection against delayed `MessageChannel`/`MessagePort` host remounts without deadlocking on normal live SPA updates. An explicit `isDehydrated:true` remains a hard block; a recovered current HostRoot without that flag is accepted, but never bypasses the scheduler fence. If private React proof is unavailable, the same deterministic shell/scheduler fence runs before trusted-user fallback.
+The boot gate waits for the ChatGPT shell, stable `nav/main/composer` identities, a 1.2 s quiet window, two bounded idle scheduler turns, frames, and a final host-identity stability check. It does **not** inspect `__reactContainer$…`, `__reactFiber$…`, HostRoot state or `isDehydrated`, and the service worker no longer owns deferred CSS injection. A real unpacked-MV3 regression now verifies that the rail loads after late `MessageChannel` host replacements without manufacturing any private React markers.
 
 ### Projects that behave like part of ChatGPT
 
@@ -206,7 +206,7 @@ A fixture passing does **not** override a contradictory real user screenshot. Se
 | [README.fr.md](README.fr.md) | French README |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Runtime architecture and ownership invariants |
 | [CHANGELOG.md](CHANGELOG.md) | Detailed release history |
-| [RELEASE_NOTES_0.9.112.md](RELEASE_NOTES_0.9.112.md) | Current release summary |
+| [RELEASE_NOTES_0.9.113.md](RELEASE_NOTES_0.9.113.md) | Current release summary |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnosis and recovery |
 | [PRIVACY.md](PRIVACY.md) | Local data and network behavior |
 | [SECURITY.md](SECURITY.md) | Security model and reporting |

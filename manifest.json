@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.112",
-  "description": "NiakGPT : boot React compatible SPA active, HostRoot + stabilité structurelle sans exiger un DOM globalement silencieux.",
+  "version": "0.9.113",
+  "description": "NiakGPT : restauration du boot terrain 0.9.103/0.9.81, CSS déclaratif et barrière scheduler sans dépendance aux internals React.",
   "permissions": [
     "storage",
     "scripting",
@@ -22,6 +22,48 @@
       "matches": [
         "https://chatgpt.com/*"
       ],
+      "css": [
+        "theme-v08.css",
+        "polish-v081.css",
+        "chronology-v081.css",
+        "multitab-v083.css",
+        "governance-v085.css",
+        "activity-v086.css",
+        "control-center-v090.css",
+        "project-memory-v132.css",
+        "core-v090.css",
+        "profiles-v100.css",
+        "commands-v100.css",
+        "onboarding-v100.css",
+        "coach-v100.css",
+        "pin-folders-v096.css",
+        "sidebar-ux-v119.css",
+        "side-panels-v096.css",
+        "continuity-v100.css",
+        "interruption-guard-v119.css",
+        "visual-stability-v101.css",
+        "live-fixes-v104.css",
+        "sidebar-metadata-v118.css",
+        "sidebar-projects-authority-v112.css",
+        "project-chat-ux-v110.css",
+        "home-layout-v112.css",
+        "native-actions-v113.css",
+        "sidebar-actions-v123.css",
+        "chat-attention-v113.css",
+        "matrix-guardian-v112.css",
+        "performance-guard-v112.css",
+        "sidebar-icons-v114.css",
+        "native-da-v112.css",
+        "live-stability-v129.css",
+        "ux-v131.css"
+      ],
+      "run_at": "document_start",
+      "js": []
+    },
+    {
+      "matches": [
+        "https://chatgpt.com/*"
+      ],
       "js": [
         "boot-gate-v100.js",
         "composer-continuation-v128.js",
@@ -31,6 +73,16 @@
         "continuity-native-handoff-v129.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://chatgpt.com/*"
+      ],
+      "css": [
+        "retro-loader-v097.css"
+      ],
+      "run_at": "document_start",
+      "js": []
     }
   ],
   "action": {

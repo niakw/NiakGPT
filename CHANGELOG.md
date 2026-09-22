@@ -1,3 +1,13 @@
+# NiakGPT 0.9.113 — restauration du boot terrain 0.9.103
+
+- **Régression terrain confirmée** : 0.9.112 continue d’afficher React #418 et peut laisser toute l’UI NiakGPT absente.
+- **Frontière de régression retrouvée** : 0.9.103, sur le même ChatGPT de la journée, utilisait encore le bootstrap éprouvé depuis 0.9.81. 0.9.104 a rendu le boot dépendant des internals React ; 0.9.105 a ensuite déplacé tout le CSS derrière ce gate.
+- **Rollback architectural ciblé** : `boot-gate-v100.js` et le chemin d’injection du service worker reviennent au contrat 0.9.103, sans rollback des fonctionnalités Projects, Memory, continuité, UX ou long-thread ajoutées depuis.
+- **CSS déclaratif restauré** : les feuilles de style reviennent dans `manifest.content_scripts` à `document_start`; le service worker ne possède plus `STYLE_RUNTIME` / `insertCSS`.
+- **Aucune dépendance React privée** : suppression de l’autorité `HostRoot/Fiber/isDehydrated` et du probe `world:'MAIN'` pour le boot.
+- **Test de release corrigé** : nouveau test MV3 `hydration-known-good-v113.spec.js`, sans expando React synthétique, avec deux remounts tardifs `MessageChannel`; le rail ne doit apparaître qu’après stabilisation puis doit réellement se monter.
+- **CI anti-régression** : les validateurs interdisent désormais le retour de `STYLE_RUNTIME`, `insertCSS`, du probe React MAIN-world et des dépendances privées dans le gate.
+
 # NiakGPT 0.9.112 — boot fiable sur SPA active après #418
 
 - **Régression 0.9.111 reproduite avant correction** : le nouveau test MV3 démarre avec un HostRoot déjà recovered/settled, déclenche un #418 `HTML`, puis maintient de simples mutations d’attribut toutes les 120 ms. Sur le runtime 0.9.111 inchangé, `ng100HydrationProof` reste vide et le rail ne monte pas après 12 s.

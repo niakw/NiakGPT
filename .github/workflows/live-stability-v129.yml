@@ -26,6 +26,7 @@ on:
       - 'visual-lab/tests/hydration-recovery-v110.spec.js'
       - 'visual-lab/tests/hydration-scheduler-drain-v111.spec.js'
       - 'visual-lab/tests/hydration-active-spa-v112.spec.js'
+      - 'visual-lab/tests/hydration-known-good-v113.spec.js'
       - 'visual-lab/user-reported-v133.mjs'
       - 'labs/static_validate_current.py'
       - 'tools/package-extension.mjs'
@@ -77,7 +78,7 @@ jobs:
         run: npx playwright test tests/bfcache-observer-v131.spec.js --workers=1 --reporter=line
       - name: Focused watchdog / composer residue / remount / Project / continuity gate
         working-directory: visual-lab
-        run: npx playwright test tests/hydration-isolated-world-v106.spec.js tests/hydration-document-root-v107.spec.js tests/hydration-fiber-root-v109.spec.js tests/hydration-recovery-v110.spec.js tests/hydration-scheduler-drain-v111.spec.js tests/hydration-active-spa-v112.spec.js tests/long-run-composer-residue-v131.spec.js tests/live-stability-v129.spec.js --workers=1 --reporter=line
+        run: npx playwright test tests/hydration-known-good-v113.spec.js tests/long-run-composer-residue-v131.spec.js tests/live-stability-v129.spec.js --workers=1 --reporter=line
       - name: User-reported scroll + single Projects authority
         working-directory: visual-lab
         env:
@@ -126,7 +127,7 @@ jobs:
           NIAKGPT_HEADLESS: '1'
         run: |
           set +e
-          npx playwright test tests/hydration-isolated-world-v106.spec.js tests/hydration-document-root-v107.spec.js tests/hydration-fiber-root-v109.spec.js tests/hydration-recovery-v110.spec.js tests/hydration-scheduler-drain-v111.spec.js tests/hydration-active-spa-v112.spec.js tests/long-run-composer-residue-v131.spec.js tests/live-stability-v129.spec.js --workers=1 --reporter=line 2>&1 | tee brave-focused.log
+          npx playwright test tests/hydration-known-good-v113.spec.js tests/long-run-composer-residue-v131.spec.js tests/live-stability-v129.spec.js --workers=1 --reporter=line 2>&1 | tee brave-focused.log
           code=${PIPESTATUS[0]}
           set -e
           if [ "$code" -eq 0 ]; then
@@ -134,12 +135,7 @@ jobs:
           fi
           if grep -Eq '[1-9][0-9]* passed' brave-focused.log \
             && grep -Fq 'Worker teardown timeout of 30000ms exceeded.' brave-focused.log \
-            && grep -Fq 'HYDRATION_MAIN_WORLD_CHECKPOINT PASS' brave-focused.log \
-            && grep -Fq 'HYDRATION_DOCUMENT_ROOT_CHECKPOINT PASS' brave-focused.log \
-            && grep -Fq 'HYDRATION_FIBER_ROOT_CHECKPOINT PASS' brave-focused.log \
-            && grep -Fq 'HYDRATION_RECOVERY_V110_CHECKPOINT PASS' brave-focused.log \
-            && grep -Fq 'HYDRATION_SCHEDULER_DRAIN_V111_CHECKPOINT PASS' brave-focused.log \
-            && grep -Fq 'HYDRATION_ACTIVE_SPA_V112_CHECKPOINT PASS' brave-focused.log \
+            && grep -Fq 'HYDRATION_KNOWN_GOOD_V113_CHECKPOINT PASS' brave-focused.log \
             && grep -Fq 'LIVE_STABILITY_CHECKPOINT native-handoff-full-context PASS' brave-focused.log \
             && ! grep -Eq '(^|[[:space:]])[1-9][0-9]* failed([[:space:]]|$)' brave-focused.log; then
             echo 'Brave functional assertions passed; tolerating Playwright macOS worker teardown-only failure.'

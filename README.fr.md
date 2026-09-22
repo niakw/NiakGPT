@@ -6,7 +6,7 @@
   <p>Projects · performance des longs fils · continuité · navigation · productivité ciblée</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.117-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.118-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,7 +21,7 @@
 NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT en **véritable espace de travail pour un usage intensif et organisé par Projects**, sans remplacer ChatGPT.
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
-> **Version actuelle : 0.9.117.** Project Memory ne laisse plus une conversation temporairement indisponible bloquer tout un gros backlog. Les erreurs HTTP 500/réseau sont retentées brièvement puis différées avec backoff pendant que les chats suivants continuent. Le checkpoint durable reste par chat ; les gros transcripts utilisent moins de chunks, plus gros, les écritures prioritaires injectent directement le contenu dans la requête GitHub Create Tree, et la vérification du caractère privé du dépôt est réutilisée cinq minutes pendant le transfert. Un même ID de conversation est toujours mis à jour au même chemin dans le coffre au lieu d’être dupliqué.
+> **Version actuelle : 0.9.118.** Project Memory sait maintenant reconstruire l’index de reprise d’un Project lorsque les dossiers de conversations durables existent toujours mais que `index.json` a été tronqué ou réécrit par un état obsolète. Les gros index passent par Git blobs lorsque GitHub Contents n’embarque plus leur contenu, l’index Project ne conserve que les métadonnées de reprise, et les écritures concurrentes fusionnent l’union des chats au lieu de pouvoir faire retomber la progression à 0. Les IDs de conversation restent mis à jour en place.
 
 ## Points forts
 
@@ -205,7 +205,7 @@ Une fixture verte ne remplace **jamais** une capture utilisateur réelle qui la 
 | [README.md](README.md) | README anglais |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture runtime et invariants de propriété |
 | [CHANGELOG.md](CHANGELOG.md) | Historique détaillé |
-| [RELEASE_NOTES_0.9.117.md](RELEASE_NOTES_0.9.117.md) | Résumé de la release courante |
+| [RELEASE_NOTES_0.9.118.md](RELEASE_NOTES_0.9.118.md) | Résumé de la release courante |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnostic et reprise |
 | [PRIVACY.md](PRIVACY.md) | Données locales et comportement réseau |
 | [SECURITY.md](SECURITY.md) | Modèle de sécurité et signalement |

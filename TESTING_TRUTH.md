@@ -1,3 +1,13 @@
+## 0.9.102 — preuve de complétude du coffre, pas seulement d'activité
+
+Le recheck du dépôt privé a compté **316 conversations connues pour 310 seulement cachées**, **0 fichier sous `conversations/`** et **16 noms de Projects pollués sur 17**. Le cas critique était NiakGPT : `indexed=true`, mais `30 connus / 24 cachés`. Cela prouve qu'un simple flag `indexed` ne peut pas servir de preuve de complétude.
+
+1. `project-memory-wake-v086.mjs` démarre avec `indexed=true`, `count=2` et un seul chat en cache. Sans la correction, le second chat n'est jamais demandé ; avec la correction, le count-gap force une réparation avant archive.
+2. Le test exige ensuite que le second chat existe dans l'index privé avec `messages>0`, `parts>0` et `complete=true`.
+3. `native-chat-zero-background-v087.mjs` vérifie le chemin réseau complet : un listing Project ordinaire reste bloqué par un peer chat visible, mais le même listing explicitement `memoryBootstrap:true` est autorisé lorsque ce peer est inactif et rebloqué dès `ng90PeerBusy=1`.
+4. Si un count-gap ne se ferme pas, la queue n'est plus supprimée : elle reste en `inventory-incomplete` et se reprogramme.
+5. Le root `PROJECTS.json`, les indexes Project et le cache self-heal doivent tous supprimer les décorations d'UI avant persistance.
+
 ## 0.9.101 — preuve terrain du coffre : écrire n’était pas archiver
 
 Le recheck du dépôt privé a supprimé l’hypothèse « il faut juste attendre ». Les commits `cached bootstrap inventory` continuaient, mais le Project NiakGPT possédait 24 conversations indexées avec `parts=0`, `messages=0`, aucun dossier `conversations/`, et son nom avait dérivé vers une chaîne contenant icône, dates et compteurs NiakGPT.

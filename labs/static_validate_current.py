@@ -25,7 +25,7 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.101': fail(f"version={version}")
+if version!='0.9.102': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting','identity']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']: fail('host permissions drift')
 
@@ -147,6 +147,9 @@ for token in ('ng123-action-menu','ng123-rename-dialog','dataset.ng123Action','d
 metadata=read('sidebar-metadata-v118.js')
 for token in ('cleanProjectName','normalizedProjects','renamed=false'):
     if token not in metadata: fail('canonical Project-name sanitation incomplete '+token)
+selfheal_names=read('project-state-selfheal-v102.js')
+for token in ('cleanProjectName','sanitizeCachedProjectNames','noms Projects canonisés'):
+    if token not in selfheal_names: fail('Project recovery name sanitation incomplete '+token)
 catalog=read('sidebar-projects-v121.js')
 if 'placementAnchorNode' not in catalog or "data-ng112-native-projects" not in catalog:
     fail('v121 must preserve the hidden v112 native Projects host as a placement anchor')
@@ -234,17 +237,17 @@ for token in ('nos\\s+systèmes\\s+effectuent\\s+quelques\\s+vérifications','co
     if token not in interruption: fail('interruption recovery contract incomplete '+token)
 bridge=read('page-bridge.js')
 if "interruption === 'network'" not in bridge or "interruption === 'verify'" not in bridge: fail('RPC interruption pause missing')
-if 'native_conversation_quiet' not in bridge or 'chat-route-guard' not in bridge or 'ng90PeerChatActive' not in bridge or 'memoryPeerSafe' not in bridge or 'peerBusyPage' not in bridge or 'data-ng90-peer-busy' not in bridge: fail('conversation quarantine / Project Memory idle-peer exception missing')
+if 'native_conversation_quiet' not in bridge or 'chat-route-guard' not in bridge or 'ng90PeerChatActive' not in bridge or 'memoryPeerSafe' not in bridge or 'peerBusyPage' not in bridge or 'data-ng90-peer-busy' not in bridge or "projectConversationsRx.test(String(path||''))" not in bridge: fail('conversation quarantine / Project Memory idle-peer inventory exception missing')
 
 server_index=read('server-index-v100.js')
-for token in ('COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement','coldBootstrap','conversationPage()',"navigation.addEventListener('navigatesuccess',routeWake)"):
+for token in ('COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement','coldBootstrap','conversationPage()',"navigation.addEventListener('navigatesuccess',routeWake)",'memoryRepairIds','memoryBootstrap:memoryBootstrap===true','peerBlocked','projectIds'):
     if token not in server_index: fail('cold canonical index recovery incomplete '+token)
 server_bootstrap=read('server-index-bootstrap-v124.js')
 for token in ('COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement(raw)','conversationPage()'):
     if token not in server_bootstrap: fail('cold canonical bootstrap recovery incomplete '+token)
 
 memory=read('project-memory-v132.js')
-for token in ('memoryBootstrap: memoryBootstrap === true','PROJECT_STATE.md','conversations/','sync_already_running','injectOnNewChat','NIAKGPT PROJECT MEMORY — CHECKPOINT RÉCUPÉRÉ','canonicalUpdated','MEMORY_LOCK','CACHE_BOOTSTRAP_LOCK','autoOwner','niakgpt:tab-role-changed','primeBootstrapQueue','ensureBootstrapQueued','writeCachedBootstrap','bootstrapMetadataOnly:true','bootstrapWritten:true','cachedOnly:true,historyDeferred:true','queuedProjects','changes[QUEUE_KEY]','githubLogin','runtime.connect','extension_context_invalidated_reload_required','GITHUB_AUTH_UI_TIMEOUT_MS','setTimeout(heartbeat,20_000)','githubRepositories','githubConnectRepo','githubLogout','captureCurrentDomConversation',"captureSource:'live-dom'",'complete:false','projectName = v =>','peerBusy()'):
+for token in ('memoryBootstrap: memoryBootstrap === true','PROJECT_STATE.md','conversations/','sync_already_running','injectOnNewChat','NIAKGPT PROJECT MEMORY — CHECKPOINT RÉCUPÉRÉ','canonicalUpdated','MEMORY_LOCK','CACHE_BOOTSTRAP_LOCK','autoOwner','niakgpt:tab-role-changed','primeBootstrapQueue','ensureBootstrapQueued','writeCachedBootstrap','bootstrapMetadataOnly:true','bootstrapWritten:true','cachedOnly:true,historyDeferred:true','queuedProjects','changes[QUEUE_KEY]','githubLogin','runtime.connect','extension_context_invalidated_reload_required','GITHUB_AUTH_UI_TIMEOUT_MS','setTimeout(heartbeat,20_000)','githubRepositories','githubConnectRepo','githubLogout','captureCurrentDomConversation',"captureSource:'live-dom'",'complete:false','projectName = v =>','peerBusy()','Number(p.count||0) > (p.chats||[]).length',"name:projectName(project.name||'')"):
     if token not in memory: fail('Project Memory runtime incomplete '+token)
 bridge=read('page-bridge.js')
 if "d.memoryBootstrap !== true" not in bridge or 'conversation_detail_get_disabled' not in bridge: fail('Project Memory full-history bridge guard incomplete')

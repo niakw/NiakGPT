@@ -1,3 +1,13 @@
+# NiakGPT 0.9.102 — Project Memory : inventaire complet, file persistante, noms propres
+
+- **Recheck du coffre privé** : 17 Projects, 316 conversations connues, 310 seulement présentes dans le cache, 0 fichier de conversation archivé et 16 noms de Projects contaminés par icône/date/compteur. Le Project NiakGPT était marqué `indexed:true` malgré `30 connus / 24 cachés`.
+- **Cause supplémentaire trouvée après 0.9.101** : `deepInventory()` assimilait `indexed:true` à « inventaire complet ». Un Project pouvait donc perdre définitivement les chats manquants sans être rescanné.
+- **Complétude réelle** : un Project est désormais incomplet si `knownConversationCount > cachedConversationCount`, même si l'index serveur est marqué fait. Project Memory demande alors une réparation ciblée de la liste de chats.
+- **Réparation sûre à côté d'un peer inactif** : seul le listing `/gizmos/<project>/conversations` explicitement marqué `memoryBootstrap:true` peut passer depuis un onglet hors chat lorsqu'un autre chat est visible mais inactif. Une génération peer referme immédiatement cette exception.
+- **File non destructrice** : si le count-gap persiste après une tentative, la queue Project Memory reste présente avec `pauseReason: inventory-incomplete`; elle n'est plus effacée comme si la synchronisation était terminée.
+- **Noms Projects** : l'inventaire racine `PROJECTS.json`, le cache recovery et les checkpoints utilisent tous la sanitation canonique ; les décorations NiakGPT ne doivent plus redevenir des noms.
+- **Non-régression** : le lab reproduit explicitement `indexed=true / known=2 / cached=1`, exige la découverte du chat manquant, son archivage canonique, la conservation des archives existantes et un `PROJECTS.json` propre.
+
 # NiakGPT 0.9.101 — Project Memory réelle, archives préservées, noms Projects sains
 
 - **Recheck terrain concluant** : le coffre privé continuait bien à écrire, mais le Project NiakGPT restait à 24 conversations métadonnées avec `0 messages / 0 parts` et aucun dossier `conversations/`. Attendre davantage ne pouvait donc pas résoudre le défaut.

@@ -2,7 +2,7 @@
 
 ## Modèle de sécurité
 
-NiakGPT 0.9.83 est une extension Manifest V3 dont le cœur reste local-first. Project Memory v132 ajoute un canal GitHub **optionnel**, réservé à un dépôt privé choisi par l’utilisateur.
+NiakGPT 0.9.102 est une extension Manifest V3 dont le cœur reste local-first. Project Memory v132 ajoute un canal GitHub **optionnel**, réservé à un dépôt privé choisi par l’utilisateur.
 
 L’extension ne demande pas de clé API OpenAI et ne stocke volontairement ni cookie de session ChatGPT ni jeton d’accès ChatGPT dans un serveur NiakGPT externe.
 
@@ -71,13 +71,16 @@ Un profil navigateur compromis peut exposer ces identifiants locaux. Le fallback
 
 Les `GET /backend-api/conversation/{id}` complets restent **bloqués par défaut** dans `page-bridge.js`.
 
-Ils ne sont autorisés que lorsqu’une requête Project Memory porte explicitement `memoryBootstrap: true`. Même dans ce cas :
+Ils ne sont autorisés que lorsqu’une requête Project Memory porte explicitement `memoryBootstrap: true`. Le même marqueur est requis pour la réparation ciblée d’un inventaire Project incomplet. Même dans ce cas :
 
+- le **chat courant** n’est jamais lu par le backend ; sa capture immédiate vient uniquement du DOM visible ;
+- depuis un onglet hors chat, la lecture mémoire peut coexister avec un peer conversation visible uniquement tant que ce peer est inactif ;
 - la requête utilise le broker réseau unique ;
-- aucune récupération n’est lancée pendant une génération ChatGPT ou une vérification ;
+- aucune récupération n’est lancée pendant une génération ChatGPT ou une vérification ; l’apparition de `ng90PeerBusy` annule les GET mémoire en vol ;
 - le circuit breaker/rate-limit reste actif ;
 - le module de synchronisation travaille séquentiellement et reprend sa queue après interruption ;
-- la file de premier bootstrap est persistée avant le travail réseau et est recréée au démarrage si le coffre est connecté mais qu’aucune `lastSyncAt` réussie n’existe.
+- un inventaire `indexed:true` reste considéré incomplet tant que le nombre de chats cachés est inférieur au compteur connu ;
+- la file n’est supprimée qu’après fermeture de ces écarts de complétude.
 
 Cette exception existe uniquement pour créer/actualiser l’archive privée demandée par l’utilisateur.
 

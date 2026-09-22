@@ -8,7 +8,7 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 
 const manifest=JSON.parse(read('manifest.json'));
 if(manifest.manifest_version!==3)fail('manifest_version drift');
-if(manifest.version!=='0.9.101')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.102')fail(`unexpected release ${manifest.version}`);
 same(manifest.permissions,['storage','scripting','identity'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*'],'host scope mismatch');
 const staticRuntime=['boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'];
@@ -63,18 +63,18 @@ for(const token of ["const OPTIONAL_RUNTIME=[","sendResponse({ok:!coreFailed","P
 forbid(background,"item.includes(':project-memory-v132.js:')",'Project Memory must not be a critical coreFailed owner');
 
 const serverIndex=read('server-index-v100.js');
-  for(const token of ['COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement','coldBootstrap','conversationPage()',"navigation.addEventListener('navigatesuccess',routeWake)"])need(serverIndex,token,'cold canonical index recovery incomplete');
+  for(const token of ['COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement','coldBootstrap','conversationPage()',"navigation.addEventListener('navigatesuccess',routeWake)",'memoryRepairIds','memoryBootstrap:memoryBootstrap===true','peerBlocked','projectIds'])need(serverIndex,token,'cold canonical index / Project Memory repair incomplete');
   const serverBootstrap=read('server-index-bootstrap-v124.js');
   for(const token of ['COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement(raw)','conversationPage()'])need(serverBootstrap,token,'cold canonical bootstrap recovery incomplete');
 
 const bridge=read('page-bridge.js');
-need(bridge,'const nativeFetch = window.fetch.bind(window);');need(bridge,'conversation_detail_get_disabled');need(bridge,'d.memoryBootstrap !== true');need(bridge,'project_move_requires_governance');for(const token of ['memoryPeerSafe','peerBusyPage','data-ng90-peer-busy','d.memoryBootstrap === true'])need(bridge,token,'Project Memory idle-peer bridge exception incomplete');forbid(bridge,'window.fetch =');forbid(bridge,'globalThis.fetch =');
+need(bridge,'const nativeFetch = window.fetch.bind(window);');need(bridge,'conversation_detail_get_disabled');need(bridge,'d.memoryBootstrap !== true');need(bridge,'project_move_requires_governance');for(const token of ['memoryPeerSafe','peerBusyPage','data-ng90-peer-busy','d.memoryBootstrap === true','projectConversationsRx.test(String(path||\'\'))'])need(bridge,token,'Project Memory idle-peer bridge/inventory exception incomplete');forbid(bridge,'window.fetch =');forbid(bridge,'globalThis.fetch =');
 
 const memoryBackend=read('project-memory-background-v132.js');
 for(const token of ['memory_repository_must_be_private','meta?.private !== true','chrome.storage.session','niakgpt:memory-connect-v132','chrome.identity.launchWebAuthFlow','app-manifests/','request_oauth_on_install','niakgpt:memory-github-connect-repo-v132','github_repository_not_authorized_for_vault','refresh_token','code_challenge','code_verifier','setup_url: clean(flow.installRedirect)','request_oauth_on_install: false',"cache: init.cache || 'no-store'",'const beforeUpdate = await getRef','MAX_REF_RETRIES = 8','MAX_REF_BACKOFF_MS'])need(memoryBackend,token,'Project Memory backend invariant incomplete');
 if(/force:\s*true/.test(memoryBackend.slice(memoryBackend.indexOf('git/refs/heads'),memoryBackend.indexOf('git/refs/heads')+5000)))fail('Project Memory must never force-push the vault branch');
 const memoryRuntime=read('project-memory-v132.js');
-for(const token of ['PROJECT_STATE.md','canonicalUpdated','prefsReady','function inject(ed)','memoryBootstrap: memoryBootstrap === true','MEMORY_LOCK','CACHE_BOOTSTRAP_LOCK','autoOwner','niakgpt:tab-role-changed','primeBootstrapQueue','ensureBootstrapQueued','writeCachedBootstrap','bootstrapMetadataOnly:true','bootstrapWritten:true','cachedOnly:true,historyDeferred:true','queuedProjects','changes[QUEUE_KEY]','githubLogin','githubRepositories','githubConnectRepo','githubLogout','captureCurrentDomConversation','captureSource:\'live-dom\'','complete:false','projectName = v =>','peerBusy()'])need(memoryRuntime,token,'Project Memory runtime/archive invariant incomplete');
+for(const token of ['PROJECT_STATE.md','canonicalUpdated','prefsReady','function inject(ed)','memoryBootstrap: memoryBootstrap === true','MEMORY_LOCK','CACHE_BOOTSTRAP_LOCK','autoOwner','niakgpt:tab-role-changed','primeBootstrapQueue','ensureBootstrapQueued','writeCachedBootstrap','bootstrapMetadataOnly:true','bootstrapWritten:true','cachedOnly:true,historyDeferred:true','queuedProjects','changes[QUEUE_KEY]','githubLogin','githubRepositories','githubConnectRepo','githubLogout','captureCurrentDomConversation','captureSource:\'live-dom\'','complete:false','projectName = v =>','peerBusy()','Number(p.count||0) > (p.chats||[]).length',"name:projectName(project.name||'')"])need(memoryRuntime,token,'Project Memory runtime/archive invariant incomplete');
 forbid(memoryRuntime,'async function inject(ed)','Project Memory send-time injection must be synchronous');
 
 const gate=read('boot-gate-v100.js');
@@ -140,6 +140,8 @@ for(const token of ['nativeBusy=hasThinking()||hasStop()','id===currentChat()&&A
 
 const metadata=read('sidebar-metadata-v118.js');
 for(const token of ['cleanProjectName','normalizedProjects','renamed=false'])need(metadata,token,'canonical Project-name sanitation incomplete');
+const selfheal=read('project-state-selfheal-v102.js');
+for(const token of ['cleanProjectName','sanitizeCachedProjectNames','noms Projects canonisés'])need(selfheal,token,'Project recovery name sanitation incomplete');
 const catalog=read('sidebar-projects-v121.js');
 need(catalog,'placementAnchorNode','v121 must preserve hidden v112 native Projects host as a stable placement anchor');
 for(const token of ['cleanProjectName',':scope > span,[class*="truncate" i]'])need(catalog,token,'Project label sanitation incomplete');

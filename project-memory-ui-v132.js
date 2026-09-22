@@ -34,7 +34,9 @@
     if (s.mode === 'error') return 'Erreur · ' + String(s.error || 'synchronisation interrompue');
     if (s.mode === 'queued') {
       const count=Number(s.queuedProjects || snapshot?.queue?.pending?.length || 0),cached=Number(s.bootstrapCachedAt||0)>0;
-      if(s.pauseReason==='conversation'||s.pauseReason==='peer-conversation')return (cached?'Coffre écrit · historique protégé pendant la discussion · ':'Coffre connecté · snapshot local en attente · ') + count + ' Project(s)';
+      if(s.pauseReason==='conversation')return (cached?'Coffre écrit · chat courant capturé · historique canonique en attente · ':'Coffre connecté · snapshot local en attente · ') + count + ' Project(s)';
+      if(s.pauseReason==='peer-busy')return (cached?'Coffre écrit · peer ChatGPT actif · reprise différée · ':'Coffre connecté · snapshot local en attente · ') + count + ' Project(s)';
+      if(s.pauseReason==='inventory-incomplete')return (cached?'Coffre écrit · inventaire incomplet · réparation planifiée · ':'Coffre connecté · inventaire incomplet · ') + count + ' Project(s)';
       if(s.pauseReason==='quiet')return (cached?'Coffre écrit · historique différé jusqu’au calme · ':'Coffre connecté · snapshot local en attente · ') + count + ' Project(s)';
       return (cached?'Coffre écrit · historique en attente · ':'Coffre connecté · snapshot local en attente · ') + count + ' Project(s)';
     }
@@ -118,7 +120,7 @@
       const progressText = stateInfo.mode === 'syncing' && Number(stateInfo.chatTotal || 0)
         ? ('Progression · ' + syncPercent(stateInfo) + '% · conversation ' + Number(stateInfo.chatDone || 0) + '/' + Number(stateInfo.chatTotal || 0))
         : queuePending
-          ? ((cachedDetail ? cachedDetail + ' · ' : '') + 'Historique complet en file · ' + queuePending + ' Project(s)' + ((stateInfo.pauseReason==='conversation'||stateInfo.pauseReason==='peer-conversation') ? ' · zéro trafic ChatGPT NiakGPT pendant la discussion' : stateInfo.pauseReason==='quiet' ? ' · reprise après 1 min de calme hors chat' : ''))
+          ? ((cachedDetail ? cachedDetail + ' · ' : '') + 'Historique complet en file · ' + queuePending + ' Project(s)' + (stateInfo.pauseReason==='conversation' ? ' · chat courant : capture DOM uniquement' : stateInfo.pauseReason==='peer-busy' ? ' · génération peer active : réseau mémoire suspendu' : stateInfo.pauseReason==='inventory-incomplete' ? ' · conversations manquantes : réparation ciblée en attente' : stateInfo.pauseReason==='quiet' ? ' · reprise après 1 min de calme' : ''))
           : (Number(stateInfo.lastSyncAt || 0) ? ('Dernière synchro · ' + humanDate(stateInfo.lastSyncAt) + ' · ' + Number(stateInfo.changed || 0) + ' fil(s) modifié(s)') : (cachedDetail || 'Aucune synchronisation enregistrée'));
 
       const viewKey=githubConnected?'github':'login';
@@ -171,9 +173,9 @@
             '<div class="ng132-memory-actions"><button data-ng132-connect>Connecter avec le PAT</button></div>' +
           '</div>' +
         '</details>' +
-        '<label class="ng132-option"><input data-ng132-auto type="checkbox" ' + (prefs.autoSync !== false ? 'checked' : '') + '><span><b>Synchronisation incrémentale</b><small>Pendant une discussion visible, NiakGPT n’émet aucun trafic vers le backend ChatGPT. Hors discussion, l’historique complet reprend après 1 min de calme.</small></span></label>' +
+        '<label class="ng132-option"><input data-ng132-auto type="checkbox" ' + (prefs.autoSync !== false ? 'checked' : '') + '><span><b>Synchronisation incrémentale</b><small>Le chat courant reste sans lecture backend : ses messages visibles sont capturés depuis le DOM. Depuis un onglet hors chat, Project Memory peut compléter l’archive à côté d’un autre chat visible seulement si ce peer est inactif ; toute génération suspend immédiatement ces lectures.</small></span></label>' +
         '<label class="ng132-option"><input data-ng132-inject type="checkbox" ' + (prefs.injectOnNewChat !== false ? 'checked' : '') + '><span><b>Restaurer le checkpoint dans un nouveau fil</b><small>Ajoute une seule fois le contexte compact du Project au premier message du nouveau fil, jamais à chaque prompt.</small></span></label>' +
-        '<div class="ng132-memory-info"><b>Bootstrap des Projects existants</b><span>Dès la connexion, NiakGPT écrit dans GitHub un snapshot depuis son cache local, sans lire le backend ChatGPT. L’historique complet reste ensuite en file et n’est relu que hors discussion, après une fenêtre de calme.</span></div>' +
+        '<div class="ng132-memory-info"><b>Bootstrap des Projects existants</b><span>Dès la connexion, NiakGPT écrit dans GitHub un snapshot depuis son cache local. Si un Project est marqué indexé mais contient moins de chats que son compteur connu, la file reste ouverte et relance une réparation ciblée jusqu’à convergence.</span></div>' +
         '<div class="ng132-memory-info"><b>Historique complet ≠ prompt complet</b><span>Les conversations restent archivées dans GitHub. ChatGPT ne reçoit normalement que PROJECT_STATE.md, borné et mis à jour.</span></div>';
 
       const status = section.querySelector('.ng132-memory-status b');

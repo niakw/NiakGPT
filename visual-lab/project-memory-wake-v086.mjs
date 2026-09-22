@@ -28,7 +28,9 @@ try{
         [CACHE]:{
           projects:[{id:'g-p-one',name:'One',href:'/g/g-p-one/project'}],
           chats:[{id:'11111111-1111-4111-8111-111111111111',title:'First chat',projectId:'g-p-one',updated:Date.now()}],
-          counts:{'g-p-one':1},indexedProjectIds:['g-p-one']
+          // Reproduce the field vault: server indexing claims complete while the cache is
+          // still short one conversation (known=2, cached=1).
+          counts:{'g-p-one':2},indexedProjectIds:['g-p-one']
         },
         [PREFS]:{autoSync:true,injectOnNewChat:true},
         [QUEUE]:{pending:['g-p-one'],force:false,at:Date.now()}
@@ -70,13 +72,23 @@ try{
     await page.evaluate(()=>{
       document.documentElement.dataset.ng8TabRole='worker';
       document.documentElement.dataset.ng8Running='1';
+      document.addEventListener('niakgpt:force-server-index',async()=>{
+        const cache=window.__wakeLocal['niakgpt-v08-cache'];
+        if(cache.chats.some(row=>row.id==='22222222-2222-4222-8222-222222222222'))return;
+        await chrome.storage.local.set({'niakgpt-v08-cache':{
+          ...cache,
+          chats:[...cache.chats,{id:'22222222-2222-4222-8222-222222222222',title:'Second chat',projectId:'g-p-one',updated:Date.now()-1000}]
+        }});
+      });
       document.addEventListener('niakgpt:rpc-request',event=>{
         window.__wakeRpcCalls++;
         const id=event.detail?.id;if(!id)return;
+        const cid=String(event.detail?.path||'').split('/').pop()||'unknown';
+        const title=cid.startsWith('2222')?'Second chat':'First chat';
         setTimeout(()=>document.dispatchEvent(new CustomEvent('niakgpt:rpc-response',{detail:{
           id,ok:true,status:200,data:{
-            title:'First chat',update_time:Date.now()/1000,current_node:'n1',
-            mapping:{n1:{parent:null,message:{author:{role:'user'},create_time:Date.now()/1000,content:{parts:['Wake heartbeat synthetic conversation.']}}}}
+            title,update_time:Date.now()/1000,current_node:'n1',
+            mapping:{n1:{parent:null,message:{author:{role:'user'},create_time:Date.now()/1000,content:{parts:['Wake heartbeat synthetic conversation '+cid]}}}}
           }
         }})),5);
       });
@@ -103,13 +115,20 @@ try{
       wakeBeat:document.documentElement.dataset.ng132WakeBeat||''
     }));
     assert(snapshot.locks>=2,'lock-unavailable attempt was not retried by heartbeat: '+JSON.stringify(snapshot));
-    assert(snapshot.rpc>=1,'persistent Project Memory history did not resume after heartbeat recovery: '+JSON.stringify(snapshot));
+    assert(snapshot.rpc>=2,'indexed-but-incomplete Project inventory did not recover the missing conversation before archival: '+JSON.stringify(snapshot));
     assert(snapshot.commits>cachedCommitCount,'persistent Project Memory queue did not produce a post-idle history commit: '+JSON.stringify(snapshot));
     assert(!snapshot.queue?.pending?.length,'persistent queue was not consumed after heartbeat recovery: '+JSON.stringify(snapshot));
     assert(snapshot.state.mode==='idle','Project Memory did not reach idle after heartbeat recovery: '+JSON.stringify(snapshot));
     assert(!!snapshot.wakeBeat,'heartbeat diagnostic marker was never published: '+JSON.stringify(snapshot));
+    const inventoryProof=await page.evaluate(()=>{
+      const cache=window.__wakeLocal['niakgpt-v08-cache'];
+      const index=JSON.parse(window.__wakeRemote['projects/g-p-one/index.json']||'{}');
+      return{cached:cache.chats.length,known:cache.counts['g-p-one'],second:index.conversations?.['22222222-2222-4222-8222-222222222222']||null};
+    });
+    assert(inventoryProof.cached===2&&inventoryProof.known===2,'deep inventory did not close known/cached gap: '+JSON.stringify(inventoryProof));
+    assert(Number(inventoryProof.second?.messages||0)>0&&inventoryProof.second?.complete===true,'missing conversation was not canonically archived: '+JSON.stringify(inventoryProof.second));
 
-    // Regression 0.9.101: a later cache-only bootstrap (the in-chat path) must preserve the
+    // Regression 0.9.102: a later cache-only bootstrap (the in-chat path) must preserve the
     // archive metadata that the full-history pass just wrote instead of resetting it to 0/0.
     await page.evaluate(async()=>{
       history.pushState({},'', '/g/g-p-one/c/11111111-1111-4111-8111-111111111111');
@@ -142,14 +161,15 @@ try{
       const project=JSON.parse(window.__wakeRemote['projects/g-p-one/project.json']||'{}');
       const part=window.__wakeRemote['projects/g-p-one/conversations/11111111-1111-4111-8111-111111111111/part-001.md']||'';
       const conversationIndex=JSON.parse(window.__wakeRemote['projects/g-p-one/conversations/11111111-1111-4111-8111-111111111111/index.json']||'{}');
-      return{rpc:window.__wakeRpcCalls,index,row,project,part,conversationIndex,marker:document.documentElement.dataset.ng132DomCapture||''};
+      const root=JSON.parse(window.__wakeRemote['PROJECTS.json']||'{}');
+      return{rpc:window.__wakeRpcCalls,index,row,project,part,conversationIndex,rootName:root.projects?.[0]?.name||'',marker:document.documentElement.dataset.ng132DomCapture||''};
     });
     assert(domResult?.domCaptured===true,'manual in-chat sync did not report DOM capture: '+JSON.stringify(domResult));
     assert(domProof.rpc===rpcBeforeDom,'current-chat DOM capture touched ChatGPT RPC: '+JSON.stringify(domProof));
     assert(domProof.row.captureSource==='live-dom'&&domProof.row.complete===false&&domProof.row.historyPartial===true,'DOM capture was not marked partial: '+JSON.stringify(domProof.row));
     assert(domProof.row.messages===2&&domProof.row.parts>=1,'DOM capture did not persist visible messages: '+JSON.stringify(domProof.row));
     assert(domProof.conversationIndex.captureSource==='live-dom'&&domProof.conversationIndex.messages===2,'per-conversation DOM index missing or stale: '+JSON.stringify(domProof.conversationIndex));
-    assert(domProof.project.name==='One'&&domProof.index.projectName==='One','polluted Project name reached private vault: '+JSON.stringify({project:domProof.project.name,index:domProof.index.projectName}));
+    assert(domProof.project.name==='One'&&domProof.index.projectName==='One'&&domProof.rootName==='One','polluted Project name reached private vault/root inventory: '+JSON.stringify({project:domProof.project.name,index:domProof.index.projectName,root:domProof.rootName}));
     assert(domProof.part.includes('Visible user message')&&domProof.part.includes('Visible assistant reply'),'DOM transcript content missing: '+domProof.part);
     assert(domProof.marker.includes(':2'),'DOM capture diagnostic marker missing: '+domProof.marker);
   }finally{await context.close();}

@@ -17,6 +17,7 @@ try{
     const store={
       'niakgpt-v08-cache':{schema:2,projects:[],chats:[],counts:{},indexedProjectIds:[]}
     };
+    window.__nativeZeroStore=store;
     window.__startupRpc=[];
     window.__sessionCalls=0;
     window.__backendCalls=0;
@@ -36,7 +37,9 @@ try{
       },
       runtime:{getManifest:()=>({version:'0.9.88'})}
     };
-    window.addEventListener('niakgpt:rpc-request',event=>{
+    // RPC requests are dispatched on document with the default non-bubbling CustomEvent.
+    // Observe the actual broker surface; a window listener silently misses every real request.
+    document.addEventListener('niakgpt:rpc-request',event=>{
       window.__startupRpc.push({
         path:String(event.detail?.path||''),
         foreground:event.detail?.foreground===true,
@@ -52,6 +55,15 @@ try{
       }
       if(url.includes('/backend-api/')){
         window.__backendCalls++;
+        if(url.includes('/backend-api/gizmos/g-p-abcdefghijklmnop/conversations')){
+          return Promise.resolve(new Response(JSON.stringify({
+            items:[
+              {id:'cached-chat',title:'Cached',update_time:Date.now()/1000},
+              {id:'missing-chat',title:'Recovered missing chat',update_time:(Date.now()-1000)/1000}
+            ],
+            cursor:null
+          }),{status:200,headers:{'Content-Type':'application/json'}}));
+        }
         return Promise.resolve(new Response(JSON.stringify({items:[],projects:[],conversations:[],cursor:null}),{status:200,headers:{'Content-Type':'application/json'}}));
       }
       return Promise.resolve(new Response('{}',{status:200,headers:{'Content-Type':'application/json'}}));
@@ -136,6 +148,45 @@ try{
   snapshot=await page.evaluate(()=>({session:window.__sessionCalls,backend:window.__backendCalls}));
   assert(snapshot.session===1&&snapshot.backend===1,'idle-peer memory exception used unexpected network count: '+JSON.stringify(snapshot));
 
+  // The same narrow exception must let Project Memory repair a known/cached count gap. The
+  // normal server index stays quarantined; only a memoryBootstrap-targeted Project listing may
+  // cross an idle peer conversation.
+  await page.evaluate(async()=>{
+    await chrome.storage.local.set({'niakgpt-v08-cache':{
+      schema:2,
+      projects:[{id:'g-p-abcdefghijklmnop',name:'Memory Project',href:'/g/g-p-abcdefghijklmnop/project',domOnly:false}],
+      chats:[{id:'cached-chat',title:'Cached',projectId:'g-p-abcdefghijklmnop',updated:Date.now()}],
+      counts:{'g-p-abcdefghijklmnop':2},
+      indexedProjectIds:['g-p-abcdefghijklmnop'],
+      projectInventoryAt:Date.now(),
+      serverIndexedAt:Date.now()
+    }});
+    document.dispatchEvent(new CustomEvent('niakgpt:force-server-index',{detail:{
+      source:'project-memory-v132',memoryBootstrap:true,projectIds:['g-p-abcdefghijklmnop']
+    }}));
+  });
+  await page.waitForFunction(()=>{
+    const cache=window.__wakeNever||null;
+    return window.__startupRpc.some(x=>x.memoryBootstrap&&x.path.includes('/gizmos/g-p-abcdefghijklmnop/conversations'));
+  },null,{timeout:3500});
+  await page.waitForFunction(()=>{
+    const cache=window.__nativeZeroStore?.['niakgpt-v08-cache']||{};
+    return Number(cache.counts?.['g-p-abcdefghijklmnop']||0)===2&&
+      (cache.chats||[]).some(row=>row.id==='missing-chat'&&row.projectId==='g-p-abcdefghijklmnop');
+  },null,{timeout:3500});
+  snapshot=await page.evaluate(async()=>{
+    const cache=(await chrome.storage.local.get('niakgpt-v08-cache'))['niakgpt-v08-cache']||{};
+    return{
+      session:window.__sessionCalls,backend:window.__backendCalls,
+      repair:window.__startupRpc.find(x=>x.memoryBootstrap&&x.path.includes('/gizmos/g-p-abcdefghijklmnop/conversations'))||null,
+      count:cache.counts?.['g-p-abcdefghijklmnop']||0,
+      chats:(cache.chats||[]).filter(row=>row.projectId==='g-p-abcdefghijklmnop').map(row=>row.id)
+    };
+  });
+  assert(snapshot.repair?.memoryBootstrap===true,'Project Memory count-gap repair did not mark Project listing as memoryBootstrap: '+JSON.stringify(snapshot));
+  assert(snapshot.count===2&&snapshot.chats.includes('missing-chat'),'targeted Project inventory did not close the known/cached gap: '+JSON.stringify(snapshot));
+  assert(snapshot.session===1&&snapshot.backend===2,'idle-peer inventory repair used unexpected network count: '+JSON.stringify(snapshot));
+
   // If that peer starts generating, the exception closes immediately.
   await page.evaluate(()=>{document.documentElement.dataset.ng90PeerBusy='1';});
   const peerBusyMemory=await rpc({
@@ -146,18 +197,20 @@ try{
   });
   assert(peerBusyMemory.error==='native_conversation_quiet','active peer generation did not quarantine Project Memory: '+JSON.stringify(peerBusyMemory));
   snapshot=await page.evaluate(()=>({session:window.__sessionCalls,backend:window.__backendCalls}));
-  assert(snapshot.session===1&&snapshot.backend===1,'peer-busy blocked request still reached network: '+JSON.stringify(snapshot));
+  assert(snapshot.session===1&&snapshot.backend===2,'peer-busy blocked request still reached network: '+JSON.stringify(snapshot));
 
   // Explicit user foreground hydration remains possible only off-chat, when no visible peer conversation exists.
   await page.evaluate(()=>{delete document.documentElement.dataset.ng90PeerBusy;delete document.documentElement.dataset.ng90PeerChatActive;});
   const foreground=await rpc({
-    path:'/backend-api/gizmos/g-p-abcdefghijklmnop/conversations?limit=20',
+    // Use a distinct opaque cursor so this assertion exercises a fresh foreground network
+    // request instead of legitimately hitting the bridge cache populated by memory repair.
+    path:'/backend-api/gizmos/g-p-abcdefghijklmnop/conversations?limit=20&cursor=foreground-proof',
     method:'GET',
     foreground:true
   });
   assert(foreground.ok===true,'explicit foreground Project read was incorrectly blocked: '+JSON.stringify(foreground));
   snapshot=await page.evaluate(()=>({session:window.__sessionCalls,backend:window.__backendCalls}));
-  assert(snapshot.session===1&&snapshot.backend===2,'foreground read did not add exactly one backend request with cached auth: '+JSON.stringify(snapshot));
+  assert(snapshot.session===1&&snapshot.backend===3,'foreground read did not add exactly one backend request with cached auth: '+JSON.stringify(snapshot));
 
   // A foreground request must still yield instantly to an active native generation.
   await page.evaluate(()=>{document.documentElement.dataset.ng8Running='1';});
@@ -168,9 +221,9 @@ try{
   });
   assert(blockedForeground.error==='native_busy','native generation did not block foreground extension GET: '+JSON.stringify(blockedForeground));
   const finalState=await page.evaluate(()=>({session:window.__sessionCalls,backend:window.__backendCalls}));
-  assert(finalState.session===1&&finalState.backend===2,'native-busy foreground request still reached network: '+JSON.stringify(finalState));
+  assert(finalState.session===1&&finalState.backend===3,'native-busy foreground request still reached network: '+JSON.stringify(finalState));
 }finally{
   await browser.close();
 }
 
-console.log('native-chat-zero-background-v087: PASS current-chat quarantine + idle-peer memory exception + active-peer safety');
+console.log('native-chat-zero-background-v087: PASS current-chat quarantine + targeted idle-peer memory inventory + active-peer safety');

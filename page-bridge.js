@@ -43,7 +43,9 @@
   const peerConversationPage = () => document.documentElement.dataset.ng90PeerChatActive === '1';
   const peerBusyPage = () => document.documentElement.dataset.ng90PeerBusy === '1';
   const memoryPeerSafe = (path='', method='GET', memoryBootstrap=false) =>
-    memoryBootstrap === true && method === 'GET' && conversationRx.test(String(path||'')) && !conversationPage() && !peerBusyPage();
+    memoryBootstrap === true && method === 'GET' &&
+    (conversationRx.test(String(path||'')) || projectConversationsRx.test(String(path||''))) &&
+    !conversationPage() && !peerBusyPage();
   const conversationQuiet = (path='', method='GET', memoryBootstrap=false) =>
     conversationPage() || (peerConversationPage() && !memoryPeerSafe(path,method,memoryBootstrap));
   const baseNativeBusy = () => {

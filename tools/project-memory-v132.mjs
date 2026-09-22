@@ -197,7 +197,7 @@ assert.equal(prePatchAttempts,1,'preflight race still emitted doomed update-ref 
 assert.equal(preResult.sha,preHead);
 
 const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
-assert.equal(manifest.version, '0.9.101');
+assert.equal(manifest.version, '0.9.102');
 assert.deepEqual(manifest.permissions, ['storage','scripting','identity']);
 assert.deepEqual(manifest.host_permissions, ['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']);
 
@@ -298,6 +298,8 @@ assert.match(runtime, /captureCurrentDomConversation/);
 assert.match(runtime, /captureSource:'live-dom'/);
 assert.match(runtime, /complete:false/);
 assert.match(runtime, /old&&Number\(old\.parts\|\|0\)>0&&Number\(old\.messages\|\|0\)>0/);
+assert.match(runtime, /Number\(p\.count\|\|0\) > \(p\.chats\|\|\[\]\)\.length/);
+assert.match(runtime, /name:projectName\(project\.name\|\|''\)/);
 assert.match(runtime, /projectName = v =>/);
 assert.match(runtime, /CACHE_BOOTSTRAP_LOCK/);
 assert.match(runtime, /writeCachedBootstrap/);
@@ -316,8 +318,10 @@ assert.match(ui, /Contexte NiakGPT expiré après une mise à jour/);
 assert.match(ui, /Réessayer ce dépôt/);
 assert.match(ui, /Coffre initialisé · snapshot local en attente/);
 assert.match(ui, /Snapshot local GitHub écrit/);
-assert.match(ui, /zéro trafic ChatGPT NiakGPT pendant la discussion/);
-assert.match(ui, /reprise après 1 min de calme hors chat/);
+assert.match(ui, /chat courant : capture DOM uniquement/);
+assert.match(ui, /génération peer active : réseau mémoire suspendu/);
+assert.match(ui, /conversations manquantes : réparation ciblée en attente/);
+assert.match(ui, /reprise après 1 min de calme/);
 assert.match(ui, /niakgpt:control-center-rendered/);
 assert.match(ui, /schedule\(0\);/);
 assert.match(ui, /token\.value = draft\.token/);

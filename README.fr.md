@@ -6,7 +6,7 @@
   <p>Projects · performance des longs fils · continuité · navigation · productivité ciblée</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.114-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.115-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,7 +21,7 @@
 NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT en **véritable espace de travail pour un usage intensif et organisé par Projects**, sans remplacer ChatGPT.
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
-> **Version actuelle : 0.9.114.** Elle conserve la frontière de démarrage terrain de 0.9.113 et corrige un effondrement du catalogue Projects qui pouvait laisser Project Memory, les Pins et le classement automatique avec un seul Project après cache froid ou réinstallation. Un catalogue privé durable « high-water » restaure désormais l’inventaire canonique complet sans écraser un index serveur ChatGPT courant et sain.
+> **Version actuelle : 0.9.115.** Elle conserve la réparation de catalogue de 0.9.114 et corrige la famine restante du rattrapage Project Memory : lorsque le transport conversation en arrière-plan de l’extension est disponible, l’archivage historique continue à cadence bornée même avec un chat ouvert, sans attendre 60 secondes complètes sans interaction utilisateur.
 
 ## Points forts
 

@@ -400,10 +400,11 @@
       await sleep(300);
     }
 
-    idx.projectId = project.id; idx.projectName = one(project.name || ''); idx.updatedAt = new Date().toISOString();
+    idx.projectId = project.id; idx.projectName = projectName(project.name || ''); idx.updatedAt = new Date().toISOString();
+    idx.bootstrapMetadataOnly = !Object.values(idx.conversations||{}).some(row=>Number(row?.parts||0)>0&&Number(row?.messages||0)>0);
     const compact = buildState(project, idx);
     await commit([
-      { path:ppath(project.id,'project.json'), content:JSON.stringify({ schema:1, id:project.id, name:one(project.name || ''), description:clean(project.description || ''), instructions:clean(project.instructions || ''), conversationCount:Object.keys(idx.conversations).length, updatedAt:idx.updatedAt }, null, 2) + '\n' },
+      { path:ppath(project.id,'project.json'), content:JSON.stringify({ schema:1, id:project.id, name:projectName(project.name || ''), description:clean(project.description || ''), instructions:clean(project.instructions || ''), conversationCount:Object.keys(idx.conversations).length, bootstrapMetadataOnly:idx.bootstrapMetadataOnly, updatedAt:idx.updatedAt }, null, 2) + '\n' },
       { path:ppath(project.id,'index.json'), content:JSON.stringify(idx, null, 2) + '\n' },
       { path:ppath(project.id,'PROJECT_STATE.md'), content:compact }
     ], 'NiakGPT memory: checkpoint ' + one(project.name || project.id));

@@ -33,8 +33,8 @@ for(const [name,launcher] of Object.entries(selected)){
           getManifest:()=>({version:'0.9.106'}),
           sendMessage:async message=>{
             if(message?.type==='niakgpt:probe-react-hydration-v106'){
-              const ownerRx=/^__react(?:Fiber|Props|Container)\\$.+/;
-              const containerRx=/^__reactContainer\\$.+/;
+              const ownerRx=/^__react(?:Fiber|Props|Container)\$.+/;
+              const containerRx=/^__reactContainer\$.+/;
               const identities=[document.querySelector('nav,aside'),document.querySelector('main'),document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')].filter(Boolean);
               let container=null;
               for(const node of [document,document.documentElement,document.body]){

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.117",
-  "description": "NiakGPT : Project Memory isole les erreurs temporaires par conversation, poursuit le backlog et met à jour les chats existants sans duplication.",
+  "version": "0.9.118",
+  "description": "NiakGPT : Project Memory restaure les checkpoints perdus depuis le coffre, fusionne les index de manière monotone et évite de rejouer les conversations déjà archivées.",
   "permissions": [
     "storage",
     "scripting",

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.114",
-  "description": "NiakGPT : catalogue Projects durable, Project Memory auto-réparant et sidebar Projects unifiée sans régression du boot terrain.",
+  "version": "0.9.115",
+  "description": "NiakGPT : Project Memory rattrape l’historique en arrière-plan pendant les chats actifs, sans attendre 60 s d’inactivité lorsque le transport worker est sûr.",
   "permissions": [
     "storage",
     "scripting",

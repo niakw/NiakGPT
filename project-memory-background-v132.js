@@ -1232,6 +1232,7 @@
       mergeProjectIndexPayload,
       mergeProjectSummaryPayload,
       projectArchiveSnapshot,
+      readFileRawWith,
       refRace,
       commitFilesWith,
       initializeEmptyRepo,

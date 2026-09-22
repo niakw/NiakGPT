@@ -215,6 +215,40 @@ assert.equal(preCommitSeq,3,'preflight race did not rebuild until the branch hea
 assert.equal(prePatchAttempts,1,'preflight race still emitted doomed update-ref requests');
 assert.equal(preResult.sha,preHead);
 
+// Cold-cache recovery must rebuild its canonical Project inventory from durable vault
+// directories, without returning private Project instructions/descriptions to the page.
+sessionStore['niakgpt-project-memory-session-token-v132']='synthetic-catalog-token';
+const b64=value=>Buffer.from(JSON.stringify(value),'utf8').toString('base64');
+const catalogRows={
+  'g-p-alpha':{schema:1,id:'g-p-alpha',name:'Workspace Alpha',conversationCount:11,knownConversationCount:12,indexed:true,description:'private description',instructions:'private instructions'},
+  'g-p-beta':{schema:1,id:'g-p-beta',name:'Workspace Beta',conversationCount:7,knownConversationCount:7,indexed:true,description:'private description',instructions:'private instructions'},
+  'g-p-gamma':{schema:1,id:'g-p-gamma',name:'Workspace Gamma',conversationCount:3,knownConversationCount:4,indexed:false,description:'private description',instructions:'private instructions'}
+};
+globalThis.fetch=async(url,init={})=>{
+  const u=new URL(String(url)),path=u.pathname,method=String(init.method||'GET').toUpperCase();
+  const reply=(status,data)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json'}});
+  if(method==='GET'&&path==='/repos/niakw/catalog-memory')return reply(200,{private:true,archived:false,size:1,default_branch:'main'});
+  if(method==='GET'&&path==='/repos/niakw/catalog-memory/contents/.niakgpt-memory/projects')return reply(200,[
+    ...Object.keys(catalogRows).map(name=>({type:'dir',name})),
+    {type:'dir',name:'not-a-project'},
+    {type:'file',name:'README.md'}
+  ]);
+  if(method==='GET'&&path==='/repos/niakw/catalog-memory/contents/.niakgpt-memory/PROJECTS.json')return reply(200,{type:'file',encoding:'base64',content:b64({projects:[{id:'g-p-alpha',name:'Stale Alpha',knownConversationCount:2,indexed:false}]}),sha:'root-catalog'});
+  const match=path.match(/^\/repos\/niakw\/catalog-memory\/contents\/\.niakgpt-memory\/projects\/(g-p-[^/]+)\/project\.json$/);
+  if(method==='GET'&&match&&catalogRows[match[1]])return reply(200,{type:'file',encoding:'base64',content:b64(catalogRows[match[1]]),sha:'project-'+match[1]});
+  return reply(500,{message:'unexpected catalog mock '+method+' '+path});
+};
+const catalog=await memory.projectCatalog({repo:'niakw/catalog-memory',branch:'main',root:'.niakgpt-memory',authMode:'pat'});
+assert.equal(catalog.repoPrivate,true);
+assert.equal(catalog.source,'vault-project-directories');
+assert.equal(catalog.projectCount,3,'vault catalog did not enumerate canonical Project directories');
+assert.deepEqual(catalog.projects.map(row=>row.id),['g-p-alpha','g-p-beta','g-p-gamma']);
+assert.equal(catalog.projects[0].name,'Workspace Alpha','project.json must override stale root-catalog metadata');
+assert.equal(catalog.projects[0].knownConversationCount,12);
+assert.equal(catalog.projects[2].indexed,false);
+assert.equal(catalog.projects.some(row=>Object.hasOwn(row,'instructions')||Object.hasOwn(row,'description')),false,'vault catalog leaked private Project content');
+delete sessionStore['niakgpt-project-memory-session-token-v132'];
+
 const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
 assert.equal(manifest.version, '0.9.113');
 assert.deepEqual(manifest.permissions, ['storage','scripting','identity']);
@@ -262,6 +296,9 @@ assert.match(backend, /grant_type: 'refresh_token'/);
 assert.match(backend, /CHATGPT_CONVERSATION_RX/);
 assert.match(backend, /niakgpt:memory-chatgpt-probe-v132/);
 assert.match(backend, /niakgpt:memory-chatgpt-fetch-v132/);
+assert.match(backend, /niakgpt:memory-catalog-v132/);
+assert.match(backend, /async function projectCatalog\(config\)/);
+assert.match(backend, /source: 'vault-project-directories'/);
 assert.match(backend, /credentials: 'include'/);
 assert.match(backend, /transport: 'extension-background'/);
 assert.doesNotMatch(backend, /chrome\.storage\.(?:local|session)\.set\([^\n]{0,240}chatgptAccessToken/,'ChatGPT access token must remain memory-only');
@@ -337,6 +374,10 @@ assert.match(runtime, /name:projectName\(project\.name\|\|''\)/);
 assert.match(runtime, /projectName = v =>/);
 assert.match(runtime, /CACHE_BOOTSTRAP_LOCK/);
 assert.match(runtime, /writeCachedBootstrap/);
+assert.match(runtime, /async function recoverVaultCatalog\(force=false\)/);
+assert.match(runtime, /await recoverVaultCatalog\(options\.force===true\)/);
+assert.match(runtime, /vaultCatalogRecoveredAt/);
+assert.match(runtime, /niakgpt:memory-catalog-v132/);
 assert.match(runtime, /bootstrapMetadataOnly:true/);
 assert.match(runtime, /bootstrapWritten:true/);
 assert.match(runtime, /cachedOnly:true,historyDeferred:true/);

@@ -150,7 +150,12 @@ try{
     const P='g-p-prioritylab',C3='33333333-3333-4333-8333-333333333333';
     const idx=window.__remote['projects/'+P+'/index.json'];
     if(!idx)return false;
-    try{return JSON.parse(idx).conversations?.[C3]?.complete===true;}catch{return false;}
+    try{
+      const complete=JSON.parse(idx).conversations?.[C3]?.complete===true;
+      const queue=window.__store['niakgpt-project-memory-queue-v132'];
+      const state=window.__store['niakgpt-project-memory-state-v132']||{};
+      return complete&&queue===undefined&&state.mode==='idle'&&state.prioritySync===false;
+    }catch{return false;}
   },null,{timeout:12000});
 
   const result=await page.evaluate(()=>{

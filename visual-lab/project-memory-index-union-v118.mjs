@@ -39,7 +39,7 @@ try{
       ...initial,updatedAt:new Date(now-5000).toISOString(),
       conversations:{...initial.conversations,[ids[2]]:archived(ids[2]),[ids[3]]:archived(ids[3])}
     };
-    const remote={'projects/'+P+'/index.json':JSON.stringify(initial,null,2)+'\n'};
+    const remote={['projects/'+P+'/index.json']:JSON.stringify(initial,null,2)+'\n'};
     const store={
       'niakgpt-v08-cache':cache,
       'niakgpt-project-memory-prefs-v132':{autoSync:false,injectOnNewChat:false},

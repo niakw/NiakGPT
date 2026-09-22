@@ -21,7 +21,7 @@ try{
       'niakgpt-project-memory-state-v132':{},
       'niakgpt-project-memory-queue-v132':{}
     };
-    const remote={'projects/'+P+'/index.json':JSON.stringify({schema:1,projectId:P,projectName:'Workspace',conversations:{}},null,2)+'\n'};
+    const remote={['projects/'+P+'/index.json']:JSON.stringify({schema:1,projectId:P,projectName:'Workspace',conversations:{}},null,2)+'\n'};
     const listeners=[];
     const clone=v=>v===undefined?undefined:structuredClone(v);
     const keysFor=keys=>keys==null?Object.keys(store):typeof keys==='string'?[keys]:Array.isArray(keys)?keys:Object.keys(keys||{});

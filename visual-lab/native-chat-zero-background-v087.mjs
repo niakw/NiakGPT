@@ -52,6 +52,15 @@ try{
       }
       if(url.includes('/backend-api/')){
         window.__backendCalls++;
+        if(url.includes('/backend-api/gizmos/g-p-abcdefghijklmnop/conversations')){
+          return Promise.resolve(new Response(JSON.stringify({
+            items:[
+              {id:'cached-chat',title:'Cached',update_time:Date.now()/1000},
+              {id:'missing-chat',title:'Recovered missing chat',update_time:(Date.now()-1000)/1000}
+            ],
+            cursor:null
+          }),{status:200,headers:{'Content-Type':'application/json'}}));
+        }
         return Promise.resolve(new Response(JSON.stringify({items:[],projects:[],conversations:[],cursor:null}),{status:200,headers:{'Content-Type':'application/json'}}));
       }
       return Promise.resolve(new Response('{}',{status:200,headers:{'Content-Type':'application/json'}}));
@@ -153,12 +162,26 @@ try{
       source:'project-memory-v132',memoryBootstrap:true,projectIds:['g-p-abcdefghijklmnop']
     }}));
   });
-  await page.waitForFunction(()=>window.__startupRpc.some(x=>x.memoryBootstrap&&x.path.includes('/gizmos/g-p-abcdefghijklmnop/conversations')),null,{timeout:3500});
-  snapshot=await page.evaluate(()=>({
-    session:window.__sessionCalls,backend:window.__backendCalls,
-    repair:window.__startupRpc.find(x=>x.memoryBootstrap&&x.path.includes('/gizmos/g-p-abcdefghijklmnop/conversations'))||null
-  }));
+  await page.waitForFunction(()=>{
+    const cache=window.__wakeNever||null;
+    return window.__startupRpc.some(x=>x.memoryBootstrap&&x.path.includes('/gizmos/g-p-abcdefghijklmnop/conversations'));
+  },null,{timeout:3500});
+  await page.waitForFunction(async()=>{
+    const cache=(await chrome.storage.local.get('niakgpt-v08-cache'))['niakgpt-v08-cache']||{};
+    return Number(cache.counts?.['g-p-abcdefghijklmnop']||0)===2&&
+      (cache.chats||[]).some(row=>row.id==='missing-chat'&&row.projectId==='g-p-abcdefghijklmnop');
+  },null,{timeout:3500});
+  snapshot=await page.evaluate(async()=>{
+    const cache=(await chrome.storage.local.get('niakgpt-v08-cache'))['niakgpt-v08-cache']||{};
+    return{
+      session:window.__sessionCalls,backend:window.__backendCalls,
+      repair:window.__startupRpc.find(x=>x.memoryBootstrap&&x.path.includes('/gizmos/g-p-abcdefghijklmnop/conversations'))||null,
+      count:cache.counts?.['g-p-abcdefghijklmnop']||0,
+      chats:(cache.chats||[]).filter(row=>row.projectId==='g-p-abcdefghijklmnop').map(row=>row.id)
+    };
+  });
   assert(snapshot.repair?.memoryBootstrap===true,'Project Memory count-gap repair did not mark Project listing as memoryBootstrap: '+JSON.stringify(snapshot));
+  assert(snapshot.count===2&&snapshot.chats.includes('missing-chat'),'targeted Project inventory did not close the known/cached gap: '+JSON.stringify(snapshot));
   assert(snapshot.session===1&&snapshot.backend===2,'idle-peer inventory repair used unexpected network count: '+JSON.stringify(snapshot));
 
   // If that peer starts generating, the exception closes immediately.

@@ -6,7 +6,7 @@
   <p>Projects · performance des longs fils · continuité · navigation · productivité ciblée</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.111-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.112-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,15 +21,15 @@
 NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT en **véritable espace de travail pour un usage intensif et organisé par Projects**, sans remplacer ChatGPT.
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
-> **Version actuelle : 0.9.111.** L’hydratation React est vérifiée dans le **monde MAIN**, puis NiakGPT laisse réellement se vider le scheduler React tardif avant de toucher la page. Un HostRoot courant « settled » ne suffit plus : identité hôte stable, vraie fenêtre sans mutation, deux passages idle, frames et revalidation finale HostRoot/ownership doivent tous être cohérents.
+> **Version actuelle : 0.9.112.** L’hydratation React est vérifiée dans le **monde MAIN**, puis NiakGPT attend la **stabilité structurelle des nœuds hôtes** au lieu d’exiger le silence global du DOM. HostRoot courant settled, identités `nav/main/composer` stables, passages idle, frames et revalidation finale HostRoot/ownership restent nécessaires ; l’activité normale des messages/attributs ne peut plus bloquer le rail indéfiniment.
 
 ## Points forts
 
 ### Démarrage protégé contre les erreurs d’hydratation
 
-La 0.9.111 conserve la frontière zéro-touch et rétablit la barrière scheduler tardive issue du correctif terrain 0.9.81 : **aucun CSS NiakGPT n’est déclaré comme content script statique**. Les 34 feuilles de style sont injectées uniquement après validation du gate d’hydratation, juste avant le runtime. Cela évite qu’un style NiakGPT puisse influencer le rendu client de ChatGPT pendant l’hydratation SSR.
+La 0.9.112 conserve la frontière zéro-touch et rend la barrière scheduler tardive compatible avec une SPA continuellement active : **aucun CSS NiakGPT n’est déclaré comme content script statique**. Les 34 feuilles de style sont injectées uniquement après validation du gate d’hydratation, juste avant le runtime. Cela évite qu’un style NiakGPT puisse influencer le rendu client de ChatGPT pendant l’hydratation SSR.
 
-Le JavaScript NiakGPT ne s’exécute plus à `document_start` : le bootstrap démarre à `document_idle`, prouve le HostRoot courant et les identités hôtes React, puis **exige encore 1,6 s d’identité hôte stable, une vraie fenêtre de 1,2 s sans mutation, deux tours idle du scheduler, plusieurs frames et une nouvelle preuve MAIN-world du HostRoot**. Cela restaure la protection contre les commits `MessageChannel`/`MessagePort` tardifs que 0.9.110 avait raccourcie. Un `isDehydrated:true` explicite reste bloquant ; un HostRoot récupéré sans ce flag est accepté, mais ne contourne jamais cette barrière scheduler. Si les internals React privés ne sont pas lisibles, la même barrière déterministe du shell s’exécute avant le fallback par interaction utilisateur.
+Le JavaScript NiakGPT ne s’exécute plus à `document_start` : le bootstrap démarre à `document_idle`, prouve le HostRoot courant et les identités hôtes React, puis **exige encore une identité hôte stable, deux tours idle du scheduler, plusieurs frames et une nouvelle preuve MAIN-world du HostRoot**, mais n’exige plus que tout le DOM ChatGPT cesse de muter. Cela protège des remounts tardifs `MessageChannel`/`MessagePort` sans bloquer sur l’activité normale de la SPA. Un `isDehydrated:true` explicite reste bloquant ; un HostRoot récupéré sans ce flag est accepté, mais ne contourne jamais cette barrière scheduler. Si les internals React privés ne sont pas lisibles, la même barrière déterministe du shell s’exécute avant le fallback par interaction utilisateur.
 
 ### Projects intégrés à ChatGPT
 
@@ -205,7 +205,7 @@ Une fixture verte ne remplace **jamais** une capture utilisateur réelle qui la 
 | [README.md](README.md) | README anglais |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture runtime et invariants de propriété |
 | [CHANGELOG.md](CHANGELOG.md) | Historique détaillé |
-| [RELEASE_NOTES_0.9.111.md](RELEASE_NOTES_0.9.111.md) | Résumé de la release courante |
+| [RELEASE_NOTES_0.9.112.md](RELEASE_NOTES_0.9.112.md) | Résumé de la release courante |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnostic et reprise |
 | [PRIVACY.md](PRIVACY.md) | Données locales et comportement réseau |
 | [SECURITY.md](SECURITY.md) | Modèle de sécurité et signalement |

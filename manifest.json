@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.111",
-  "description": "NiakGPT : ordre de boot React durci, HostRoot + drainage scheduler tardif avant toute mutation DOM/CSS.",
+  "version": "0.9.112",
+  "description": "NiakGPT : boot React compatible SPA active, HostRoot + stabilité structurelle sans exiger un DOM globalement silencieux.",
   "permissions": [
     "storage",
     "scripting",

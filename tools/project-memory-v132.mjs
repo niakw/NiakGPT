@@ -125,9 +125,19 @@ globalThis.fetch = async (url, init = {}) => {
     return reply(201,{content:{path:'.niakgpt-memory/niakgpt-memory.json',sha:'blob-empty-1'},commit:{sha:'commit-empty-1'}});
   }
 
+  if (method === 'GET' && path === '/repos/niakw/list-memory') return reply(200,{private:true,archived:false,size:1,default_branch:'main'});
+  if (method === 'GET' && path === '/repos/niakw/list-memory/contents/.niakgpt-memory/projects') return reply(200,[
+    {name:'g-p-one',path:'.niakgpt-memory/projects/g-p-one',type:'dir',sha:'tree-1'},
+    {name:'g-p-two',path:'.niakgpt-memory/projects/g-p-two',type:'dir',sha:'tree-2'}
+  ]);
   if (method === 'GET' && path === '/repos/niakw/public-memory') return reply(200,{private:false,archived:false,size:0,default_branch:'main'});
   return reply(500,{message:'unexpected mock request '+method+' '+path});
 };
+
+const listed = await memory.listDirectoryWith('synthetic-list-token',{repo:'niakw/list-memory',branch:'main',root:'.niakgpt-memory'},'projects');
+assert.equal(listed.repoPrivate,true);
+assert.deepEqual(listed.items.map(item=>item.name),['g-p-one','g-p-two']);
+assert.ok(fetchCalls.some(call=>call.path==='/repos/niakw/list-memory/contents/.niakgpt-memory/projects'&&call.method==='GET'));
 
 const connected = await memory.connect({
   repo:'niakw/empty-memory',

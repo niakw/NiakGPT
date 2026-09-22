@@ -830,17 +830,23 @@
       if(parsed&&typeof parsed==='object'&&!Array.isArray(parsed))current=parsed;
     }catch(error){if(Number(error?.status||0)!==404&&!/memory_path_not_file/.test(String(error?.message||'')))throw error;}
     if(!current.conversations||typeof current.conversations!=='object')current.conversations={};
-    const before=Object.keys(current.conversations).length;
-    let cursor=0;
-    const workers=Array.from({length:Math.min(8,dirs.length)},async()=>{
+    const candidates=dirs.filter(entry=>conversationRowRank(current.conversations[clean(entry?.name)])<3);
+    let cursor=0,recovered=0;
+    const workers=Array.from({length:Math.min(8,candidates.length)},async()=>{
       while(true){
         const index=cursor++;
-        if(index>=dirs.length)return;
-        const cid=clean(dirs[index]?.name);
+        if(index>=candidates.length)return;
+        const cid=clean(candidates[index]?.name);
         try{
+          const before=current.conversations[cid];
+          const beforeRank=conversationRowRank(before);
           const raw=await readFileRawWith(token,config,`${base}/${cid}/index.json`);
           const row=JSON.parse(raw.content||'null');
-          if(row&&typeof row==='object'&&!Array.isArray(row))current.conversations[cid]=mergeConversationRow(current.conversations[cid],row);
+          if(row&&typeof row==='object'&&!Array.isArray(row)){
+            const merged=mergeConversationRow(before,row);
+            current.conversations[cid]=merged;
+            if(conversationRowRank(merged)>beforeRank)recovered++;
+          }
         }catch{}
       }
     });
@@ -849,10 +855,10 @@
     current.updatedAt=new Date().toISOString();
     current.bootstrapMetadataOnly=!Object.values(current.conversations).some(row=>conversationRowRank(row)>=3);
     const after=Object.keys(current.conversations).length;
-    if(after>before){
+    if(recovered>0){
       await commitFiles(config,[{path:`projects/${id}/index.json`,content:JSON.stringify(current,null,2)+'\n'}],`NiakGPT memory: recover Project index ${id}`,true);
     }
-    return {projectId:id,discovered:dirs.length,recovered:Math.max(0,after-before),indexed:after,index:current};
+    return {projectId:id,discovered:dirs.length,candidates:candidates.length,recovered,indexed:after,index:current};
   }
 
   async function readFileRawWith(token, config, relativePath) {

@@ -153,6 +153,7 @@ async function visitExtension(){
 }
 
 test('live chatgpt hydration baseline vs real NiakGPT MV3',async()=>{
+  test.setTimeout(120000);
   fs.mkdirSync(OUT,{recursive:true});
   const baseline=await visitBaseline();
   const extension=await visitExtension();

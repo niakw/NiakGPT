@@ -36,7 +36,9 @@ try{
       },
       runtime:{getManifest:()=>({version:'0.9.88'})}
     };
-    window.addEventListener('niakgpt:rpc-request',event=>{
+    // RPC requests are dispatched on document with the default non-bubbling CustomEvent.
+    // Observe the actual broker surface; a window listener silently misses every real request.
+    document.addEventListener('niakgpt:rpc-request',event=>{
       window.__startupRpc.push({
         path:String(event.detail?.path||''),
         foreground:event.detail?.foreground===true,

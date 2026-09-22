@@ -47,7 +47,7 @@ Le dépôt privé protège l’accès par GitHub ; **Depuis 0.9.83, NiakGPT n’
 
 ## Intégrité du DOM pendant l’hydratation
 
-Les content scripts JavaScript NiakGPT ne sont plus chargés à `document_start` : ils démarrent à `document_idle` puis restent inactifs jusqu’au signal d’hydratation émis par le boot-gate. Le gate vérifie aussi la stabilité d’identité des nœuds hôtes et laisse passer des tours idle du scheduler afin de ne pas confondre une pause DOM avec la fin réelle du travail React. Après démarrage, `#ng8-pins` suit un contrat **direct-once** : il est créé directement à son emplacement final et n’est jamais reparenté vers un autre shell ChatGPT ; un ancien shell est neutralisé sur place puis remplacé par un nouveau bloc dans le shell actif.
+NiakGPT ne déclare plus **aucun JavaScript ni aucune feuille CSS à `document_start`**. Le seul groupe statique JavaScript démarre à `document_idle` et reste inactif jusqu’au signal du boot-gate ; les 34 feuilles CSS sont ensuite injectées par `chrome.scripting.insertCSS()` depuis le service worker, juste avant le runtime. Sur le renderer full-document courant, la présence de clés `__reactContainer$…` / `__reactFiber$…` n’est plus considérée comme suffisante : le HostRoot doit aussi exposer explicitement `memoizedState.isDehydrated === false`. À défaut, NiakGPT reste fermé jusqu’à une interaction native fiable. Après démarrage, `#ng8-pins` suit un contrat **direct-once** : il est créé directement à son emplacement final et n’est jamais reparenté vers un autre shell ChatGPT.
 
 ## Authentification GitHub
 

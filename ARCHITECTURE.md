@@ -1,5 +1,15 @@
 # Architecture de NiakGPT
 
+## Invariant architecture 0.9.115 — le rattrapage historique ne dépend pas de 60 s de silence humain
+
+Le transport historique `extension-background` lit uniquement `/backend-api/conversation/<id>` depuis le service worker et n’utilise ni le bridge MAIN-world ni le DOM de la conversation active. La contrainte de 60 secondes sans interaction utilisateur était donc trop large : elle protégeait correctement les chemins page/RPC, mais affamait aussi le transport worker sûr dès que l’utilisateur continuait à cliquer, écrire ou scroller.
+
+0.9.115 sépare ces deux autorités. Le silence humain reste obligatoire pour les chemins qui peuvent concurrencer la page ChatGPT. En revanche, lorsqu’un chat est ouvert **et** que `backgroundHistoryProbe()` a prouvé le transport worker, Project Memory peut poursuivre son backlog à cadence bornée. Les états réellement dangereux restent bloquants : génération active, interruption réseau/vérification, peer occupé, onglet caché, changement d’owner et rate-limit.
+
+Le rythme reste contrôlé par `BACKGROUND_HISTORY_FETCH_GAP_MS` entre deux lectures conversation et par `ACTIVE_HISTORY_RETRY_MS` lors d’un état temporairement occupé. Aucun polling agressif n’est ajouté et le worker ne lit toujours aucun endpoint large de liste de conversations.
+
+La régression `visual-lab/project-memory-active-catchup-v115.mjs` démarre volontairement juste après une interaction — donc avec `quietFor() << 60 s` — sur un chat actif, avec le transport extension-background disponible. Elle exige qu’un transcript durable soit écrit en moins de huit secondes. Le runtime 0.9.114 échoue ce scénario en restant bloqué derrière le quiet gate.
+
 ## Invariant architecture 0.9.114 — le catalogue Projects durable n’est pas le snapshot live
 
 `PROJECTS.json` reste le snapshot de bootstrap du cache local : il peut être réécrit fréquemment et ne constitue donc pas une autorité historique. `PROJECT_CATALOG.json` devient la borne high-water privée : elle n’est écrite que lorsque `serverIndexedAt > 0` prouve que l’inventaire local provient d’un index serveur ChatGPT courant. Une reconstruction depuis le coffre conserve `serverIndexedAt=0` et n’a donc jamais le droit de rétrograder cette borne.

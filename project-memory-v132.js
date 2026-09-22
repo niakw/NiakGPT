@@ -520,13 +520,26 @@
     if (!idx.conversations || typeof idx.conversations !== 'object') idx.conversations = {};
 
     const chats = project.chats.slice().sort((a,b) => Number(a.updated || 0) - Number(b.updated || 0));
-    let changed = 0;
-    for (let i = 0; i < chats.length; i++) {
+    const complete = chat => {
+      const old=idx.conversations[chat.id],updated=parseTime(chat.updated);
+      return !force && !!old && old.complete !== false && Number(old.updated || 0) >= updated && Number(old.parts || 0) > 0;
+    };
+    let completed = chats.filter(complete).length, changed = 0;
+    await state({
+      mode:'syncing',projectId:project.id,projectName:project.name,
+      chatId:'',chatTitle:'',chatDone:completed,chatTotal:chats.length,
+      prioritySync,projectArchivedBefore:completed
+    });
+
+    for (const chat of chats) {
       if (document.hidden) throw new Error('memory_sync_paused_hidden');
       if (syncAuto && !autoOwner()) throw new Error('memory_sync_paused_owner_change');
-      const chat = chats[i], old = idx.conversations[chat.id], updated = parseTime(chat.updated);
-      if (!force && old && old.complete !== false && Number(old.updated || 0) >= updated && Number(old.parts || 0) > 0) continue;
-      await state({ mode:'syncing', projectId:project.id, projectName:project.name, chatId:chat.id, chatTitle:chat.title, chatDone:i, chatTotal:chats.length });
+      const old = idx.conversations[chat.id], updated = parseTime(chat.updated);
+      if (complete(chat)) continue;
+      await state({
+        mode:'syncing', projectId:project.id, projectName:project.name,
+        chatId:chat.id, chatTitle:chat.title, chatDone:completed, chatTotal:chats.length, prioritySync
+      });
       const data = await fetchConversation(chat.id, 0), rows = messages(data);
       if (!rows.length) continue;
       const full = transcript(project, chat, rows), chunks = [];
@@ -541,13 +554,32 @@
       }
       const sig = signals(rows);
       const canonicalUpdated = Math.max(updated, parseTime(data.update_time)) || Date.now();
-      const chatIndex = { schema:1, id:chat.id, title:one(chat.title || data.title || 'Conversation'), updated:canonicalUpdated, capturedAt:new Date().toISOString(), parts:chunks.length, messages:rows.length, bootstrapMetadataOnly:false, historyPartial:false, complete:true, captureSource:'backend', signals:sig };
-      files.push({ path: base + '/index.json', content: JSON.stringify(chatIndex, null, 2) + '\n' });
-      await commit(files, 'NiakGPT memory: ' + one(project.name || project.id) + ' / ' + one(chat.title || chat.id));
+      const chatIndex = {
+        schema:1,id:chat.id,title:one(chat.title || data.title || 'Conversation'),updated:canonicalUpdated,
+        capturedAt:new Date().toISOString(),parts:chunks.length,messages:rows.length,
+        bootstrapMetadataOnly:false,historyPartial:false,complete:true,captureSource:'backend',signals:sig
+      };
+
+      // Durable per-chat checkpoint: the Project index is advanced in the same logical write as
+      // the transcript. A pause, navigation, worker restart or GitHub write error therefore
+      // resumes from the last committed conversation instead of replaying the Project from 0%.
       idx.conversations[chat.id] = chatIndex;
+      idx.projectId = project.id;
+      idx.projectName = projectName(project.name || '');
+      idx.updatedAt = new Date().toISOString();
+      idx.bootstrapMetadataOnly = false;
+      files.push(
+        { path: base + '/index.json', content: JSON.stringify(chatIndex, null, 2) + '\n' },
+        { path: ppath(project.id,'index.json'), content: JSON.stringify(idx, null, 2) + '\n' }
+      );
+      await commit(files, 'NiakGPT memory: ' + one(project.name || project.id) + ' / ' + one(chat.title || chat.id), prioritySync);
       changed++;
-      await state({ mode:'syncing', projectId:project.id, projectName:project.name, chatId:chat.id, chatTitle:chat.title, chatDone:i+1, chatTotal:chats.length });
-      await sleep(300);
+      completed++;
+      await state({
+        mode:'syncing', projectId:project.id, projectName:project.name,
+        chatId:chat.id, chatTitle:chat.title, chatDone:completed, chatTotal:chats.length, prioritySync
+      });
+      await sleep(prioritySync ? 40 : 300);
     }
 
     idx.projectId = project.id; idx.projectName = projectName(project.name || ''); idx.updatedAt = new Date().toISOString();
@@ -557,7 +589,7 @@
       { path:ppath(project.id,'project.json'), content:JSON.stringify({ schema:1, id:project.id, name:projectName(project.name || ''), description:clean(project.description || ''), instructions:clean(project.instructions || ''), conversationCount:Object.keys(idx.conversations).length, knownConversationCount:Number(project.count||0), cachedConversationCount:(project.chats||[]).length, indexed:project.indexed===true, bootstrapMetadataOnly:idx.bootstrapMetadataOnly, updatedAt:idx.updatedAt }, null, 2) + '\n' },
       { path:ppath(project.id,'index.json'), content:JSON.stringify(idx, null, 2) + '\n' },
       { path:ppath(project.id,'PROJECT_STATE.md'), content:compact }
-    ], 'NiakGPT memory: checkpoint ' + one(project.name || project.id));
+    ], 'NiakGPT memory: checkpoint ' + one(project.name || project.id), prioritySync);
     await saveContext(project.id, compact);
     return changed;
   }

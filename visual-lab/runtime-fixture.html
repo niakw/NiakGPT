@@ -37,6 +37,15 @@
   </section>
 </main>
 <script>
+// This fixture models a ChatGPT page after native React hydration completed.
+// Pre-hydration behavior is covered by the dedicated delayed HostRoot regressions.
+const reactDollar=String.fromCharCode(36);
+const runtimeRootFiber={memoizedState:{isDehydrated:false},stateNode:{current:null}};
+runtimeRootFiber.stateNode.current=runtimeRootFiber;
+Object.defineProperty(document,'__reactContainer'+reactDollar+'runtime',{value:runtimeRootFiber,configurable:true});
+for(const node of [document.documentElement,document.body,document.querySelector('aside[data-testid="conversation-sidebar"]'),document.querySelector('main'),document.getElementById('prompt-textarea')]){
+  if(node)Object.defineProperty(node,'__reactFiber'+reactDollar+'runtime',{value:{memoizedState:{}},configurable:true});
+}
 const CURRENT='11111111-1111-4111-8111-111111111111',TARGET='g-p-bbbbbbbbbbbbbbbb';
 window.labSend=async()=>{
   const content=document.getElementById('lab-content');

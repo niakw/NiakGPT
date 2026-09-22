@@ -6,7 +6,7 @@
   <p>Projects · performance des longs fils · continuité · navigation · productivité ciblée</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.110-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.111-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,15 +21,15 @@
 NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT en **véritable espace de travail pour un usage intensif et organisé par Projects**, sans remplacer ChatGPT.
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
-> **Version actuelle : 0.9.110.** L’hydratation React est vérifiée dans le **monde MAIN**. NiakGPT retrouve le HostRoot courant via le conteneur React ou la chaîne Fiber des nœuds hôtes, bloque uniquement tant que `isDehydrated:true` est explicite et reconnaît le rendu client de récupération post-#418 lorsque ce flag disparaît. L’ownership `<html>/<body>` reste diagnostique ; au moins deux identités hôtes React stables restent requises avant toute mutation DOM/CSS.
+> **Version actuelle : 0.9.111.** L’hydratation React est vérifiée dans le **monde MAIN**, puis NiakGPT laisse réellement se vider le scheduler React tardif avant de toucher la page. Un HostRoot courant « settled » ne suffit plus : identité hôte stable, vraie fenêtre sans mutation, deux passages idle, frames et revalidation finale HostRoot/ownership doivent tous être cohérents.
 
 ## Points forts
 
 ### Démarrage protégé contre les erreurs d’hydratation
 
-La 0.9.110 conserve la frontière zéro-touch et ajoute une seconde voie d’autorité React : **aucun CSS NiakGPT n’est déclaré comme content script statique**. Les 34 feuilles de style sont injectées uniquement après validation du gate d’hydratation, juste avant le runtime. Cela évite qu’un style NiakGPT puisse influencer le rendu client de ChatGPT pendant l’hydratation SSR.
+La 0.9.111 conserve la frontière zéro-touch et rétablit la barrière scheduler tardive issue du correctif terrain 0.9.81 : **aucun CSS NiakGPT n’est déclaré comme content script statique**. Les 34 feuilles de style sont injectées uniquement après validation du gate d’hydratation, juste avant le runtime. Cela évite qu’un style NiakGPT puisse influencer le rendu client de ChatGPT pendant l’hydratation SSR.
 
-Le JavaScript NiakGPT ne s’exécute plus à `document_start` : le bootstrap démarre à `document_idle`, puis attend le HostRoot courant et des identités hôtes React stables. **Un `isDehydrated:true` explicite reste bloquant ; après un mismatch récupérable, un HostRoot courant sans ce flag est reconnu comme rendu client de récupération au lieu de bloquer NiakGPT indéfiniment.** Les expandos `<html>/<body>` restent des diagnostics, pas une condition de boot. Si la preuve MAIN-world est indisponible, le gate reste fermé jusqu’à une interaction native fiable ; cette interaction est mémorisée dès le démarrage afin qu’un clic précoce ne soit plus perdu. Le lab Chromium/Firefox/WebKit conserve volontairement un DOM stable pendant que React continue son travail via `MessageChannel`, et échoue dès qu’un attribut `data-ng*` ou un nœud NiakGPT apparaît avant la propriété React.
+Le JavaScript NiakGPT ne s’exécute plus à `document_start` : le bootstrap démarre à `document_idle`, prouve le HostRoot courant et les identités hôtes React, puis **exige encore 1,6 s d’identité hôte stable, une vraie fenêtre de 1,2 s sans mutation, deux tours idle du scheduler, plusieurs frames et une nouvelle preuve MAIN-world du HostRoot**. Cela restaure la protection contre les commits `MessageChannel`/`MessagePort` tardifs que 0.9.110 avait raccourcie. Un `isDehydrated:true` explicite reste bloquant ; un HostRoot récupéré sans ce flag est accepté, mais ne contourne jamais cette barrière scheduler. Si les internals React privés ne sont pas lisibles, la même barrière déterministe du shell s’exécute avant le fallback par interaction utilisateur.
 
 ### Projects intégrés à ChatGPT
 

@@ -423,7 +423,8 @@
     if (!unresolved().length) return list;
     await state({ mode:'preparing', inventoryPending:unresolved().length, projectDone:0, projectTotal:list.length, error:'' });
     if (!await waitIdle(15000)) return list;
-    document.dispatchEvent(new CustomEvent('niakgpt:force-server-index', { detail:{ source:'project-memory-v132' } }));
+    const missing=unresolved().map(p=>p.id);
+    document.dispatchEvent(new CustomEvent('niakgpt:force-server-index', { detail:{ source:'project-memory-v132',memoryBootstrap:true,projectIds:missing } }));
     // Do not hold the first Project Memory run at 0% for 90 seconds. Give the native index a
     // short bounded window, then persist the inventory already known; later cache/index events
     // schedule another incremental pass for anything discovered afterwards.
@@ -614,6 +615,18 @@
         if (!await waitIdle()) throw new Error(document.hidden?'memory_sync_paused_hidden':(automatic&&!autoOwner()?'memory_sync_paused_owner_change':'memory_sync_idle_timeout'));
         changed += await syncProject(list[i], opt.force === true);
         await state({ mode:'syncing', projectDone:i+1, projectTotal:list.length, projectId:list[i].id, projectName:list[i].name, chatDone:0, chatTotal:0 });
+      }
+      const afterList=projects(await cache());
+      const remainingInventory=afterList.filter(p=>p.count>0&&(!p.indexed||Number(p.count||0)>(p.chats||[]).length)).map(p=>p.id);
+      if(remainingInventory.length){
+        await saveQueue(remainingInventory,opt.force);
+        const pendingState=await state({
+          mode:'queued',projectDone:list.length,projectTotal:list.length,changed,lastSyncAt:Date.now(),
+          queuedProjects:remainingInventory.length,pauseReason:'inventory-incomplete',error:'',nextAttemptAt:Date.now()+120000
+        });
+        schedule(120000);
+        document.dispatchEvent(new CustomEvent('niakgpt:project-memory-partial',{detail:pendingState}));
+        return {ok:true,partial:true,projects:list.length,changed,pendingInventory:remainingInventory.length};
       }
       try { await chrome.storage.local.remove(QUEUE_KEY); } catch {}
       const done = await state({ mode:'idle', projectDone:list.length, projectTotal:list.length, changed, lastSyncAt:Date.now(), error:'',pauseReason:'' });

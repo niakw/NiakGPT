@@ -11,6 +11,44 @@ try{
 const INSTALL_META='niakgpt-install-meta-v100';
 const HARD_ISOLATED_BARRIER='sidebar-metadata-v118.js';
 
+const STYLE_RUNTIME=[
+  'theme-v08.css',
+  'polish-v081.css',
+  'chronology-v081.css',
+  'multitab-v083.css',
+  'governance-v085.css',
+  'activity-v086.css',
+  'control-center-v090.css',
+  'project-memory-v132.css',
+  'core-v090.css',
+  'profiles-v100.css',
+  'commands-v100.css',
+  'onboarding-v100.css',
+  'coach-v100.css',
+  'pin-folders-v096.css',
+  'sidebar-ux-v119.css',
+  'side-panels-v096.css',
+  'continuity-v100.css',
+  'interruption-guard-v119.css',
+  'visual-stability-v101.css',
+  'live-fixes-v104.css',
+  'sidebar-metadata-v118.css',
+  'sidebar-projects-authority-v112.css',
+  'project-chat-ux-v110.css',
+  'home-layout-v112.css',
+  'native-actions-v113.css',
+  'sidebar-actions-v123.css',
+  'chat-attention-v113.css',
+  'matrix-guardian-v112.css',
+  'performance-guard-v112.css',
+  'sidebar-icons-v114.css',
+  'native-da-v112.css',
+  'live-stability-v129.css',
+  'ux-v131.css',
+  'retro-loader-v097.css'
+];
+const STYLE_INJECTED=new Set();
+
 const MAIN_RUNTIME=[
   'page-bridge.js'
 ];
@@ -104,6 +142,18 @@ chrome.runtime.onInstalled.addListener(async details=>{
   }catch(error){console.warn('[NiakGPT lifecycle]',error);}
 });
 
+async function injectStyles(tabId,frameId){
+  const key=`${tabId}:${frameId}`;
+  if(STYLE_INJECTED.has(key))return null;
+  try{
+    await chrome.scripting.insertCSS({target:{tabId,frameIds:[frameId]},files:STYLE_RUNTIME,origin:'AUTHOR'});
+    STYLE_INJECTED.add(key);
+    return null;
+  }catch(error){
+    return `STYLE:${String(error?.message||error||'style_injection_failed').slice(0,220)}`;
+  }
+}
+
 async function injectOne(tabId,frameId,file,world){
   try{
     await chrome.scripting.executeScript({target:{tabId,frameIds:[frameId]},files:[file],world});
@@ -121,7 +171,9 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
   (async()=>{
     const errors=[];
     let bootBlocked=false;
-    for(const file of MAIN_RUNTIME){
+    const styleFailure=await injectStyles(tabId,frameId);
+    if(styleFailure){errors.push(styleFailure);bootBlocked=true;}
+    if(!bootBlocked)for(const file of MAIN_RUNTIME){
       const failure=await injectOne(tabId,frameId,file,'MAIN');
       if(failure){errors.push(failure);bootBlocked=true;break;}
     }

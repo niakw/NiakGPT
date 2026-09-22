@@ -16,6 +16,7 @@ async function runCase({backendThrows=false,optionalFails=false}={}){
     },
     storage:{local:{async get(){return{};},async set(){}}},
     scripting:{
+      async insertCSS(){return[];},
       async executeScript({files}){
         const file=files?.[0]||'';
         injected.push(file);

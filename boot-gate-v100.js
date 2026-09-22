@@ -76,9 +76,27 @@
     ];
   }
   const REACT_OWNER_RX=/^__react(?:Fiber|Props|Container)\$.+/;
+  const REACT_CONTAINER_RX=/^__reactContainer\$.+/;
   function reactOwned(node){
     if(!node)return false;
     try{return Object.getOwnPropertyNames(node).some(key=>REACT_OWNER_RX.test(key));}catch{return false;}
+  }
+  function reactContainerFiber(){
+    for(const node of [document,document.documentElement,document.body]){
+      if(!node)continue;
+      try{
+        const key=Object.getOwnPropertyNames(node).find(name=>REACT_CONTAINER_RX.test(name));
+        if(key&&node[key])return node[key];
+      }catch{}
+    }
+    return null;
+  }
+  function rootHydrationSettled(){
+    const container=reactContainerFiber();
+    if(!container)return false;
+    const current=container?.stateNode?.current||container;
+    const candidates=[container,current,container?.alternate,current?.alternate].filter(Boolean);
+    return candidates.some(fiber=>fiber?.memoizedState&&fiber.memoizedState.isDehydrated===false);
   }
   function currentFullDocumentReactHost(){
     return !!(document.documentElement?.hasAttribute('data-build')||window.__reactRouterContext);
@@ -86,9 +104,8 @@
   function reactHydrationOwned(){
     if(!currentFullDocumentReactHost())return true;
     const identities=hostIdentity().filter(Boolean);
-    const rootOwned=[document,document.documentElement,document.body].some(reactOwned);
     const needed=Math.min(2,identities.length);
-    return rootOwned&&needed>0&&identities.filter(reactOwned).length>=needed;
+    return rootHydrationSettled()&&needed>0&&identities.filter(reactOwned).length>=needed;
   }
   async function waitReactHydrationOwnership(maxWait=16000){
     if(!currentFullDocumentReactHost())return true;
@@ -97,7 +114,7 @@
       if(hydrationFault)return false;
       if(reactHydrationOwned()){
         await nextFrames();
-        if(reactHydrationOwned()){hydrationProof='react-owned';return true;}
+        if(reactHydrationOwned()){hydrationProof='react-root-settled';return true;}
       }
       await sleep(80);
     }

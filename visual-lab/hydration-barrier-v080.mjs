@@ -30,7 +30,7 @@ for(const [name,launcher] of Object.entries(selected)){
       window.chrome={
         runtime:{
           id:'hydration-lab',
-          getManifest:()=>({version:'0.9.83'}),
+          getManifest:()=>({version:'0.9.105'}),
           sendMessage:async()=>({ok:true,errors:[]})
         },
         storage:{
@@ -82,13 +82,22 @@ for(const [name,launcher] of Object.entries(selected)){
                 oldMain.replaceWith(nextMain);
                 document.documentElement.dataset.lateHydrationStage='2';
               }
-              if(tick===55){
-                window.__hydratedBeforeReactOwnership=window.__NIAKGPT_HOST_HYDRATED_100__===true;
+              if(tick===25){
                 const dollar=String.fromCharCode(36);
-                Object.defineProperty(document,'__reactContainer'+dollar+'lab',{value:{},configurable:true});
+                const rootFiber={memoizedState:{isDehydrated:true},stateNode:{current:null}};
+                rootFiber.stateNode.current=rootFiber;
+                Object.defineProperty(document,'__reactContainer'+dollar+'lab',{value:rootFiber,configurable:true});
                 for(const node of [document.documentElement,document.body,document.querySelector('nav'),document.querySelector('main'),document.getElementById('prompt-textarea')]){
-                  if(node)Object.defineProperty(node,'__reactFiber'+dollar+'lab',{value:{},configurable:true});
+                  if(node)Object.defineProperty(node,'__reactFiber'+dollar+'lab',{value:{memoizedState:{}},configurable:true});
                 }
+                window.__hydratedAtReactMarkerOnly=window.__NIAKGPT_HOST_HYDRATED_100__===true;
+                document.documentElement.dataset.lateHydrationStage='markers-only';
+              }
+              if(tick===55){
+                window.__hydratedBeforeReactRootSettled=window.__NIAKGPT_HOST_HYDRATED_100__===true;
+                const dollar=String.fromCharCode(36);
+                const key=Object.getOwnPropertyNames(document).find(k=>k.startsWith('__reactContainer'+dollar));
+                if(key&&document[key]?.memoizedState)document[key].memoizedState.isDehydrated=false;
                 document.documentElement.dataset.lateHydrationStage='3';
                 return;
               }
@@ -129,17 +138,27 @@ for(const [name,launcher] of Object.entries(selected)){
     assert(stage2.hydrated===false&&!stage2.rail,name+': NiakGPT activated before late MessagePort hydration settled');
     assert(stage2.htmlNg.length===0&&stage2.bodyNg.length===0&&stage2.ownNodes===0,name+': NiakGPT mutated React-owned HTML before hydration ownership: '+JSON.stringify(stage2));
 
+    await page.waitForFunction(()=>document.documentElement.dataset.lateHydrationStage==='markers-only',null,{timeout:6000});
+    const markerOnly=await page.evaluate(()=>({
+      hydrated:window.__NIAKGPT_HOST_HYDRATED_100__===true,
+      hydratedAtMarkerOnly:window.__hydratedAtReactMarkerOnly===true,
+      htmlNg:[...document.documentElement.attributes].map(a=>a.name).filter(name=>name.startsWith('data-ng')),
+      ownNodes:document.querySelectorAll('[id^="ng8-"],[id^="ng90-"],[id^="ng100-"],[id^="ng119-"],[id^="ng123-"]').length
+    }));
+    assert(!markerOnly.hydrated&&!markerOnly.hydratedAtMarkerOnly&&markerOnly.htmlNg.length===0&&markerOnly.ownNodes===0,name+': bare React ownership markers incorrectly unlocked NiakGPT before root hydration settled: '+JSON.stringify(markerOnly));
+
     await page.waitForFunction(()=>document.documentElement.dataset.lateHydrationStage==='3',null,{timeout:9000});
     const ownership=await page.evaluate(()=>{
       const dollar=String.fromCharCode(36);
+      const key=Object.getOwnPropertyNames(document).find(k=>k.startsWith('__reactContainer'+dollar));
       return{
-        hydratedBeforeOwnership:window.__hydratedBeforeReactOwnership===true,
-        root:Object.getOwnPropertyNames(document).some(k=>k.startsWith('__reactContainer'+dollar)),
+        hydratedBeforeRootSettled:window.__hydratedBeforeReactRootSettled===true,
+        rootSettled:document[key]?.memoizedState?.isDehydrated===false,
         nav:Object.getOwnPropertyNames(document.querySelector('nav')).some(k=>k.startsWith('__reactFiber'+dollar)),
         main:Object.getOwnPropertyNames(document.querySelector('main')).some(k=>k.startsWith('__reactFiber'+dollar))
       };
     });
-    assert(!ownership.hydratedBeforeOwnership&&ownership.root&&ownership.nav&&ownership.main,name+': React ownership gate did not precede NiakGPT activation: '+JSON.stringify(ownership));
+    assert(!ownership.hydratedBeforeRootSettled&&ownership.rootSettled&&ownership.nav&&ownership.main,name+': React root-dehydration gate did not precede NiakGPT activation: '+JSON.stringify(ownership));
 
     await page.waitForFunction(()=>window.__NIAKGPT_HOST_HYDRATED_100__===true,null,{timeout:12000});
     await page.waitForFunction(()=>[
@@ -170,4 +189,4 @@ for(const [name,launcher] of Object.entries(selected)){
   }
 }
 
-console.log('hydration-barrier-v080: PASS full-document React ownership + zero pre-hydration DOM mutation + late MessagePort host replacements');
+console.log('hydration-barrier-v080: PASS React root isDehydrated=false + bare-marker rejection + zero pre-hydration DOM mutation + late MessagePort host replacements');

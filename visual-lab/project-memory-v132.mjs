@@ -408,6 +408,7 @@ try{
         vaultCount:Number(cache.vaultCatalogCount||0),
         core:[...(window.__localData['niakgpt-governance-v085']?.coreProjectIds||[])],
         manualCoreSelection:window.__localData['niakgpt-governance-v085']?.manualCoreSelection,
+        coldCatalogWrite:commits.flatMap(commit=>commit.files||[]).some(file=>file.path==='PROJECT_CATALOG.json'),
         diag:window.__diag?.['project-memory-catalog']||'',
         root:root?JSON.parse(root.content):null
       };
@@ -415,6 +416,7 @@ try{
     assert(recovered.ids.length===4&&recovered.ids.includes('g-p-delta'),'cold local cache did not recover durable vault Project catalog: '+JSON.stringify(recovered));
     assert(recovered.vaultCount===4,'recovered catalog high-water marker missing');
     assert(recovered.serverIndexedAt===0,'vault recovery falsely claimed a complete current server index');
+    assert(recovered.coldCatalogWrite===false,'cold/vault-recovered cache downgraded the durable Project catalog');
     assert(recovered.core.length===4&&recovered.manualCoreSelection===false,'classification governance stayed collapsed at one Project: '+JSON.stringify(recovered));
     assert(recovered.root?.projectCount===4,'cached bootstrap rewrote durable PROJECTS.json from the collapsed one-Project cache');
     assert(recovered.root.projects.every(row=>!('description'in row)&&!('instructions'in row)),'cached Project inventory leaked private Project content');
@@ -428,6 +430,20 @@ try{
       return{result,count:window.__localData['niakgpt-v08-cache'].projects.length,hasRetired:window.__localData['niakgpt-v08-cache'].projects.some(p=>p.id==='g-p-retired')};
     });
     assert(authoritative.result?.skipped==='healthy-current'&&authoritative.count===4&&!authoritative.hasRetired,'forced vault recovery overrode a healthy current server index: '+JSON.stringify(authoritative));
+
+    // The first bootstrap after a genuine server index must create/update the durable high-water
+    // catalog even when the ordinary bootstrap signature was already written during cold recovery.
+    await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
+    await page.waitForFunction(()=>(window.__commits||[]).flatMap(commit=>commit.files||[]).some(file=>file.path==='PROJECT_CATALOG.json'),null,{timeout:4000});
+    const highWater=await page.evaluate(()=>{
+      const files=(window.__commits||[]).flatMap(commit=>commit.files||[]);
+      const file=[...files].reverse().find(row=>row.path==='PROJECT_CATALOG.json');
+      const state=window.__localData['niakgpt-project-memory-state-v132']||{};
+      return{catalog:file?JSON.parse(file.content):null,state};
+    });
+    assert(highWater.catalog?.kind==='NiakGPTProjectCatalog'&&highWater.catalog?.source==='server-index-authority','server index did not emit a durable Project catalog');
+    assert(highWater.catalog?.projectCount===4&&!highWater.catalog.projects.some(row=>row.id==='g-p-retired'),'durable catalog was polluted by stale vault membership: '+JSON.stringify(highWater.catalog));
+    assert(highWater.state.projectCatalogSignature===highWater.state.bootstrapCacheSignature&&Number(highWater.state.projectCatalogWrittenAt||0)>0,'durable catalog signature was not persisted');
     await page.close();
   }
 

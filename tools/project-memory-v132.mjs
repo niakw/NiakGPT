@@ -246,6 +246,53 @@ const priorityResult2=await memory.commitFilesWith('synthetic-priority-token',pr
 assert.equal(priorityResult2.files,1);
 assert.equal(priorityRepoChecks,1,'private repository verification cache did not remove repeated metadata reads');
 
+const oldRows=Object.fromEntries(Array.from({length:100},(_,i)=>{
+  const id='chat-'+String(i).padStart(3,'0');
+  return [id,{schema:1,id,title:'Archived '+i,updated:1000+i,capturedAt:'2026-09-22T20:00:00.000Z',parts:1,messages:2,canonicalHash:'h'+i,complete:true,bootstrapMetadataOnly:false,captureSource:'backend'}];
+}));
+const collapsedRows={
+  'chat-000':{schema:1,id:'chat-000',title:'metadata only',updated:999999,parts:0,messages:0,bootstrapMetadataOnly:true},
+  'chat-new':{schema:1,id:'chat-new',title:'New archive',updated:999999,capturedAt:'2026-09-22T21:00:00.000Z',parts:1,messages:2,canonicalHash:'new',complete:true,bootstrapMetadataOnly:false,captureSource:'backend'}
+};
+const mergedIndex=JSON.parse(memory.mergeProjectIndexContent(
+  JSON.stringify({schema:1,projectId:'g-p-union',projectName:'Workspace',conversations:oldRows,bootstrapMetadataOnly:false}),
+  JSON.stringify({schema:1,projectId:'g-p-union',projectName:'Workspace',conversations:collapsedRows,bootstrapMetadataOnly:true})
+));
+assert.equal(Object.keys(mergedIndex.conversations).length,101,'collapsed Project index discarded durable conversation rows');
+assert.equal(mergedIndex.conversations['chat-000'].complete,true,'metadata-only row replaced a durable archived row');
+assert.equal(mergedIndex.conversations['chat-new'].complete,true,'new conversation was not unioned into the Project index');
+assert.equal(mergedIndex.bootstrapMetadataOnly,false);
+
+let unionParent='union-parent-1',unionTreeBody=null;
+globalThis.fetch=async(url,init={})=>{
+  const u=new URL(String(url)),path=u.pathname,method=String(init.method||'GET').toUpperCase();
+  const body=init.body?JSON.parse(init.body):null;
+  const reply=(status,data)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json'}});
+  if(method==='GET'&&path==='/repos/niakw/union-memory')return reply(200,{private:true,archived:false,size:1,default_branch:'main'});
+  if(method==='GET'&&path==='/repos/niakw/union-memory/git/ref/heads/main')return reply(200,{object:{sha:unionParent}});
+  if(method==='GET'&&path==='/repos/niakw/union-memory/git/commits/'+unionParent)return reply(200,{tree:{sha:'tree-'+unionParent}});
+  if(method==='GET'&&path==='/repos/niakw/union-memory/contents/.niakgpt-memory/projects/g-p-union/index.json'){
+    assert.equal(u.searchParams.get('ref'),unionParent,'Project index merge did not read the exact commit parent');
+    return reply(200,{type:'file',encoding:'base64',content:Buffer.from(JSON.stringify({schema:1,projectId:'g-p-union',conversations:oldRows}), 'utf8').toString('base64'),sha:'old-index'});
+  }
+  if(method==='POST'&&path==='/repos/niakw/union-memory/git/trees'){unionTreeBody=body;return reply(201,{sha:'union-tree-2'});}
+  if(method==='POST'&&path==='/repos/niakw/union-memory/git/commits')return reply(201,{sha:'union-commit-2'});
+  if(method==='PATCH'&&path==='/repos/niakw/union-memory/git/refs/heads/main'){unionParent=body.sha;return reply(200,{object:{sha:unionParent}});}
+  return reply(500,{message:'unexpected union mock '+method+' '+path});
+};
+const unionResult=await memory.commitFilesWith(
+  'synthetic-union-token',
+  {repo:'niakw/union-memory',branch:'main',root:'.niakgpt-memory'},
+  [{path:'projects/g-p-union/index.json',content:JSON.stringify({schema:1,projectId:'g-p-union',conversations:collapsedRows})+'\n'}],
+  'stale writer union test',
+  0,
+  true
+);
+assert.equal(unionResult.files,1);
+const unionTreeIndex=JSON.parse(unionTreeBody.tree.find(row=>row.path.endsWith('/projects/g-p-union/index.json')).content);
+assert.equal(Object.keys(unionTreeIndex.conversations).length,101,'commit-time Project index protection still allowed last-writer-wins collapse');
+assert.equal(unionTreeIndex.conversations['chat-000'].complete,true,'commit-time Project index protection regressed durable archive state');
+
 // Cold-cache recovery must rebuild its canonical Project inventory from durable vault
 // directories, without returning private Project instructions/descriptions to the page.
 sessionStore['niakgpt-project-memory-session-token-v132']='synthetic-catalog-token';
@@ -283,7 +330,7 @@ assert.equal(catalog.projects.some(row=>Object.hasOwn(row,'instructions')||Objec
 delete sessionStore['niakgpt-project-memory-session-token-v132'];
 
 const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
-assert.equal(manifest.version, '0.9.117');
+assert.equal(manifest.version, '0.9.118');
 assert.deepEqual(manifest.permissions, ['storage','scripting','identity']);
 assert.deepEqual(manifest.host_permissions, ['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']);
 
@@ -331,6 +378,10 @@ assert.match(backend, /niakgpt:memory-chatgpt-probe-v132/);
 assert.match(backend, /niakgpt:memory-chatgpt-fetch-v132/);
 assert.match(backend, /niakgpt:memory-catalog-v132/);
 assert.match(backend, /async function projectCatalog\(config\)/);
+assert.match(backend, /async function recoverProjectIndex\(config, projectId\)/);
+assert.match(backend, /mergeProjectIndexContent/);
+assert.match(backend, /protectProjectMetadataAtRef/);
+assert.match(backend, /niakgpt:memory-project-index-recover-v132/);
 assert.match(backend, /source: 'vault-project-directories'/);
 assert.match(backend, /PROJECT_CATALOG\.json/);
 assert.match(backend, /orderSource:/);

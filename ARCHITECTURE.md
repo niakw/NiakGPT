@@ -10,7 +10,7 @@ Le gate React n’accepte plus la simple présence des clés internes `__reactCo
 
 Le HTML ChatGPT courant est hydraté comme document React complet. Un DOM visuellement stable et deux tours idle ne suffisent pas : React peut continuer à planifier du travail via `MessagePort` sans remplacer les nœuds. `boot-gate-v100.js` exige donc, sur les hôtes `data-build` / React Router actuels, un marqueur React interne sur le root (`__reactContainer$…`) et sur au moins deux nœuds hôtes (`__reactFiber$…` / `__reactProps$…`) avant de poser le moindre attribut/nœud NiakGPT. À défaut, il attend une interaction native fiable plutôt que de deviner un délai.
 
-Le gate enregistre ensuite uniquement après cette preuve `data-ng100-hydration-proof=react-owned|trusted-interaction`. Une erreur d’hydratation React #418 observée avant activation ouvre le fusible `hydrationFault` et empêche le runtime NiakGPT de muter la page.
+Le gate enregistre ensuite uniquement après cette preuve `data-ng100-hydration-proof=react-root-settled|trusted-interaction`. Une erreur d’hydratation React #418 observée avant activation ouvre le fusible `hydrationFault` et empêche le runtime NiakGPT de muter la page.
 
 ## Invariants terrain actuels 0.9.105
 

@@ -909,7 +909,7 @@
     const settings=await prefs();
     if(!settings.autoSync&&initialQueue.priority!==true)return;
     autoTimer = setTimeout(async () => {
-      if (!autoOwner()) return;
+      if (!autoOwner() || syncing) return;
       const allowConversation=conversationPage()&&await backgroundHistoryProbe(false);
       if (conversationPage()&&!allowConversation) { await queuedState('conversation'); return schedule(WAKE_HEARTBEAT_MS); }
       if (peerBusy()) { await queuedState('peer-busy'); return schedule(WAKE_HEARTBEAT_MS); }
@@ -1204,8 +1204,10 @@
     if (area === 'local' && changes[CACHE_KEY]) ensureBootstrapQueued().catch(()=>[]).finally(()=>schedule(backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true)));
     if (area === 'local' && changes[CONTEXT_KEY]) refreshContext();
     if (area === 'local' && changes[QUEUE_KEY]) {
-      if(changes[QUEUE_KEY].newValue?.priority===true)prioritySync=true;
-      if(!priorityKick&&autoOwner())resume();
+      if(changes[QUEUE_KEY].newValue?.priority===true){
+        prioritySync=true;
+        if(!priorityKick&&autoOwner())schedule(0);
+      } else if(autoOwner())resume();
     }
   });
   document.addEventListener('niakgpt:activity-changed', event => {

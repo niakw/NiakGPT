@@ -561,6 +561,29 @@
     if (!idx || typeof idx !== 'object') idx = { schema: 1, projectId: project.id, conversations: {} };
     if (!idx.conversations || typeof idx.conversations !== 'object') idx.conversations = {};
 
+    // A Project index can be smaller than the durable conversation directory set when two
+    // tabs/runtimes wrote stale whole-index snapshots. Before fetching history again, rebuild
+    // the checkpoint from the per-conversation index files already present in the vault.
+    const localKnown=(project.chats||[]).length,currentRows=Object.keys(idx.conversations).length;
+    if(!force&&localKnown>currentRows){
+      await state({
+        mode:'preparing',projectId:project.id,projectName:project.name,projectDone:0,
+        projectTotal:1,indexRepairPending:true,indexRows:currentRows,chatTotal:localKnown,error:''
+      });
+      const recovered=await send({type:'niakgpt:memory-project-index-recover-v132',projectId:project.id});
+      if(recovered?.ok&&recovered.index&&typeof recovered.index==='object'){
+        const recoveredRows=Object.keys(recovered.index.conversations||{}).length;
+        if(recoveredRows>currentRows){
+          idx=recovered.index;
+          await state({
+            mode:'preparing',projectId:project.id,projectName:project.name,indexRepairPending:false,
+            recoveredChats:Number(recovered.recovered||0),vaultConversationDirs:Number(recovered.discovered||0),
+            indexRows:recoveredRows,chatTotal:localKnown,error:''
+          });
+        }
+      }
+    }
+
     const chats = project.chats.slice().sort((a,b) => Number(a.updated || 0) - Number(b.updated || 0));
     const complete = chat => {
       const old=idx.conversations[chat.id],updated=parseTime(chat.updated);

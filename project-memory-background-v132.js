@@ -753,8 +753,12 @@
       .map(item => [clean(item.id), item]));
 
     const projects = [];
+    const rootOrder = new Map((Array.isArray(rootIndex?.projects) ? rootIndex.projects : [])
+      .map((item,index)=>[clean(item?.id),index])
+      .filter(([id])=>/^g-p-[A-Za-z0-9_-]+$/.test(id)));
     const dirs = entries
       .filter(item => item?.type === 'dir' && /^g-p-[A-Za-z0-9_-]+$/.test(clean(item?.name)))
+      .sort((a,b)=>(rootOrder.get(clean(a?.name))??1_000_000)-(rootOrder.get(clean(b?.name))??1_000_000)||clean(a?.name).localeCompare(clean(b?.name)))
       .slice(0, 300);
     for (const entry of dirs) {
       const id = clean(entry.name);

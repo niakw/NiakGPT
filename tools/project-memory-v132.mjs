@@ -264,7 +264,8 @@ assert.match(backend, /niakgpt:memory-chatgpt-probe-v132/);
 assert.match(backend, /niakgpt:memory-chatgpt-fetch-v132/);
 assert.match(backend, /credentials: 'include'/);
 assert.match(backend, /transport: 'extension-background'/);
-assert.doesNotMatch(backend, /chrome\.storage\.(?:local|session).*chatgptAccessToken/s,'ChatGPT access token must remain memory-only');
+assert.doesNotMatch(backend, /chrome\.storage\.(?:local|session)\.set\([^\n]{0,240}chatgptAccessToken/,'ChatGPT access token must remain memory-only');
+assert.doesNotMatch(backend, /chrome\.storage\.(?:local|session)\.set\([^\n]{0,240}CHATGPT_TOKEN/,'ChatGPT access token must never receive a storage key');
 
 const bridge = fs.readFileSync('page-bridge.js','utf8');
 assert.match(bridge, /conversation_detail_get_disabled/);

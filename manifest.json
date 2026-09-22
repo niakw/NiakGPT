@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.115",
-  "description": "NiakGPT : Project Memory rattrape l’historique en arrière-plan pendant les chats actifs, sans attendre 60 s d’inactivité lorsque le transport worker est sûr.",
+  "version": "0.9.116",
+  "description": "NiakGPT : Project Memory ajoute un transfert initial prioritaire, reprend au dernier chat validé et accélère les écritures GitHub sans relire les fils déjà complets.",
   "permissions": [
     "storage",
     "scripting",

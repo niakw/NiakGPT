@@ -14,6 +14,7 @@
   const MAX_BATCH_BYTES = 7 * 1024 * 1024;
   const MAX_REF_RETRIES = 8;
   const MAX_REF_BACKOFF_MS = 3000;
+  const PRIORITY_BLOB_CONCURRENCY = 6;
   const WORKER_ERROR_KEY = 'niakgpt-worker-errors-v100';
   const CHATGPT_ORIGIN = 'https://chatgpt.com';
   const CHATGPT_CONVERSATION_RX = /^\/backend-api\/conversation\/[A-Za-z0-9_-]+$/;
@@ -797,7 +798,7 @@
     };
   }
 
-  async function commitFilesWith(token, config, files, message, retry = 0) {
+  async function commitFilesWith(token, config, files, message, retry = 0, priority = false) {
     await verifyPrivateRepo(token, config.repo);
     if (!Array.isArray(files) || !files.length || files.length > MAX_FILES) throw new Error('invalid_memory_file_batch');
 
@@ -821,15 +822,29 @@
     const baseTree = clean(commit?.tree?.sha);
     if (!baseTree) throw new Error('github_base_tree_missing');
 
-    const treeEntries = [];
-    for (const item of normalized) {
+    const createEntry = async item => {
       const blob = await github(token, `/repos/${config.repo}/git/blobs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: item.content, encoding: 'utf-8' })
       });
       if (!blob?.sha) throw new Error('github_blob_create_failed');
-      treeEntries.push({ path: item.path, mode: '100644', type: 'blob', sha: blob.sha });
+      return { path: item.path, mode: '100644', type: 'blob', sha: blob.sha };
+    };
+    let treeEntries = [];
+    if (priority === true && normalized.length > 1) {
+      treeEntries = new Array(normalized.length);
+      let cursor = 0;
+      const workers = Array.from({length:Math.min(PRIORITY_BLOB_CONCURRENCY,normalized.length)},async()=>{
+        while(true){
+          const index=cursor++;
+          if(index>=normalized.length)return;
+          treeEntries[index]=await createEntry(normalized[index]);
+        }
+      });
+      await Promise.all(workers);
+    } else {
+      for (const item of normalized) treeEntries.push(await createEntry(item));
     }
 
     const tree = await github(token, `/repos/${config.repo}/git/trees`, {
@@ -857,7 +872,7 @@
       if (currentHead === clean(nextCommit?.sha)) return { sha: nextCommit.sha, files: normalized.length, bytes: total };
       if (retry < MAX_REF_RETRIES) {
         await delay(Math.min(MAX_REF_BACKOFF_MS, 80 * (2 ** retry)));
-        return commitFilesWith(token, config, files, message, retry + 1);
+        return commitFilesWith(token, config, files, message, retry + 1, priority);
       }
       const moved = new Error('github_ref_changed_before_update');
       moved.status = 409;
@@ -874,17 +889,17 @@
     } catch (error) {
       if (retry < MAX_REF_RETRIES && refRace(error)) {
         await delay(Math.min(MAX_REF_BACKOFF_MS, 80 * (2 ** retry)));
-        return commitFilesWith(token, config, files, message, retry + 1);
+        return commitFilesWith(token, config, files, message, retry + 1, priority);
       }
       throw error;
     }
     return { sha: nextCommit.sha, files: normalized.length, bytes: total };
   }
 
-  async function commitFiles(config, files, message) {
+  async function commitFiles(config, files, message, priority = false) {
     const token = await tokenForConfig(config);
     if (!token) throw new Error('github_token_missing');
-    return queueCommit(() => commitFilesWith(token, config, files, message));
+    return queueCommit(() => commitFilesWith(token, config, files, message, 0, priority === true));
   }
 
   async function initializeConnection(detail, token, authMode, rememberToken = false) {
@@ -1057,7 +1072,7 @@
         if (type === 'niakgpt:memory-commit-v132') {
           const config = await readConfig();
           if (!config?.enabled) throw new Error('project_memory_not_configured');
-          const result = await commitFiles(config, message.files, message.message);
+          const result = await commitFiles(config, message.files, message.message, message.priority === true);
           return { ok: true, ...result };
         }
         throw new Error('unknown_project_memory_message');
@@ -1077,6 +1092,7 @@
       MAX_FILES,
       MAX_BATCH_BYTES,
       MAX_REF_RETRIES,
+      PRIORITY_BLOB_CONCURRENCY,
       refRace,
       commitFilesWith,
       initializeEmptyRepo,

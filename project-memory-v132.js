@@ -15,11 +15,13 @@
   const CHUNK = 360000;
   const HISTORY_FETCH_GAP_MS = 20000;
   const BACKGROUND_HISTORY_FETCH_GAP_MS = 4000;
+  const PRIORITY_HISTORY_FETCH_GAP_MS = 900;
   const HUMAN_QUIET_MS = 60*1000;
   const ACTIVE_HISTORY_RETRY_MS = 5000;
+  const PRIORITY_RETRY_MS = 1000;
   const WAKE_HEARTBEAT_MS = 30000;
   const GITHUB_AUTH_UI_TIMEOUT_MS = 6*60*1000;
-  let seq = 0, syncing = false, syncAuto = false, autoTimer = 0, wakeTimer = 0, routeTimer = 0, domCaptureTimer = 0, lastHistoryFetchAt = 0, lastHumanAt = Date.now();
+  let seq = 0, syncing = false, syncAuto = false, prioritySync = false, priorityKick = false, autoTimer = 0, wakeTimer = 0, routeTimer = 0, domCaptureTimer = 0, lastHistoryFetchAt = 0, lastHumanAt = Date.now();
   let contextProject = '', contextText = '', backgroundHistoryAvailable = null, backgroundHistoryProbeAt = 0;
   let catalogRecoveryPromise = null, lastCatalogRecoveryAt = 0;
 
@@ -40,9 +42,11 @@
   const remainingQuiet = (floor=1000) => Math.max(floor, HUMAN_QUIET_MS - quietFor() + floor);
   const peerBusy = () => document.documentElement.dataset.ng90PeerBusy === '1';
   const activeHistoryMode = allowConversation => !!allowConversation && conversationPage() && backgroundHistoryAvailable === true;
-  const humanQuietRequired = (background,allowConversation=false) => !!background && !activeHistoryMode(allowConversation);
-  const backgroundDelay = (allowConversation=false) => peerBusy() ? WAKE_HEARTBEAT_MS : (activeHistoryMode(allowConversation) ? ACTIVE_HISTORY_RETRY_MS : remainingQuiet());
-  const retryDelay = allowConversation => activeHistoryMode(allowConversation) ? ACTIVE_HISTORY_RETRY_MS : remainingQuiet();
+  const priorityWorkerMode = priority => priority === true && backgroundHistoryAvailable === true;
+  const humanQuietRequired = (background,allowConversation=false,priority=prioritySync) => !!background && !activeHistoryMode(allowConversation) && !priorityWorkerMode(priority);
+  const backgroundDelay = (allowConversation=false,priority=prioritySync) => peerBusy() ? WAKE_HEARTBEAT_MS : (priorityWorkerMode(priority) ? PRIORITY_RETRY_MS : (activeHistoryMode(allowConversation) ? ACTIVE_HISTORY_RETRY_MS : remainingQuiet()));
+  const retryDelay = (allowConversation,priority=prioritySync) => priorityWorkerMode(priority) ? PRIORITY_RETRY_MS : (activeHistoryMode(allowConversation) ? ACTIVE_HISTORY_RETRY_MS : remainingQuiet());
+  const backgroundHistoryGap = () => prioritySync ? PRIORITY_HISTORY_FETCH_GAP_MS : BACKGROUND_HISTORY_FETCH_GAP_MS;
   const defaults = { autoSync: true, injectOnNewChat: true };
   let prefsCache = Object.assign({}, defaults), prefsReady = false;
 
@@ -90,7 +94,7 @@
     });
   }
 
-  const busy = (background = syncAuto, allowConversation = false) => {
+  const busy = (background = syncAuto, allowConversation = false, priority = prioritySync) => {
     const interruption=String(document.documentElement.dataset.ng119Interruption||'').toLowerCase();
     const bridgePriorityUntil=Math.max(
       Number(document.documentElement.dataset.ng100NativePriorityUntil||0),
@@ -105,12 +109,12 @@
       interruption === 'network' ||
       navigator.onLine === false ||
       Date.now() < bridgePriorityUntil ||
-      (humanQuietRequired(background,allowConversation) && quietFor() < HUMAN_QUIET_MS);
+      (humanQuietRequired(background,allowConversation,priority) && quietFor() < HUMAN_QUIET_MS);
   };
 
-  async function waitIdle(limit, allowConversation=false) {
+  async function waitIdle(limit, allowConversation=false, priority=prioritySync) {
     const start = Date.now(), max = limit || 10 * 60 * 1000;
-    while (busy(syncAuto,allowConversation)) {
+    while (busy(syncAuto,allowConversation,priority)) {
       if ((!allowConversation&&conversationPage()) || document.hidden || (syncAuto && !autoOwner())) return false;
       if (Date.now() - start > max) return false;
       await sleep(1000);
@@ -274,15 +278,24 @@
     return catalogRecoveryPromise;
   }
 
-  async function commit(files, message) {
-    for (let i = 0; i < files.length; i += 14) {
+  async function commit(files, message, priority=prioritySync) {
+    const maxFiles=priority?28:14,maxBytes=priority?5.5*1024*1024:5*1024*1024,batches=[];
+    let batch=[],bytes=0;
+    for(const file of files){
+      const size=new TextEncoder().encode(String(file?.content||'')).byteLength;
+      if(batch.length&&(batch.length>=maxFiles||bytes+size>maxBytes)){batches.push(batch);batch=[];bytes=0;}
+      batch.push(file);bytes+=size;
+    }
+    if(batch.length)batches.push(batch);
+    for (let i = 0; i < batches.length; i++) {
       const r = await send({
         type: 'niakgpt:memory-commit-v132',
-        files: files.slice(i, i + 14),
-        message: message + (files.length > 14 ? ' (' + (Math.floor(i / 14) + 1) + ')' : '')
+        files: batches[i],
+        priority: priority === true,
+        message: message + (batches.length > 1 ? ' (' + (i + 1) + ')' : '')
       });
       if (!r || !r.ok) throw new Error(r && r.error || 'memory_commit_failed');
-      if (i + 14 < files.length) await sleep(250);
+      if (i + 1 < batches.length) await sleep(priority?40:250);
     }
   }
 
@@ -382,7 +395,8 @@
     if(direct){
       if(!await waitIdle(undefined,true))throw new Error('memory_sync_paused_busy');
       const elapsed=Date.now()-lastHistoryFetchAt;
-      if(lastHistoryFetchAt&&elapsed<BACKGROUND_HISTORY_FETCH_GAP_MS)await sleep(BACKGROUND_HISTORY_FETCH_GAP_MS-elapsed);
+      const gap=backgroundHistoryGap();
+      if(lastHistoryFetchAt&&elapsed<gap)await sleep(gap-elapsed);
       if(!await waitIdle(undefined,true))throw new Error('memory_sync_paused_busy');
       lastHistoryFetchAt=Date.now();
       const background=await backgroundHistoryFetch(id);
@@ -488,7 +502,7 @@
 
   function scheduleDomCapture(delay=900) {
     clearTimeout(domCaptureTimer);domCaptureTimer=0;
-    if(!conversationPage()||document.hidden)return;
+    if(prioritySync||!conversationPage()||document.hidden)return;
     domCaptureTimer=setTimeout(()=>{domCaptureTimer=0;captureCurrentDomConversation(false).catch(()=>{});},Math.max(120,Number(delay)||900));
   }
 
@@ -506,13 +520,26 @@
     if (!idx.conversations || typeof idx.conversations !== 'object') idx.conversations = {};
 
     const chats = project.chats.slice().sort((a,b) => Number(a.updated || 0) - Number(b.updated || 0));
-    let changed = 0;
-    for (let i = 0; i < chats.length; i++) {
+    const complete = chat => {
+      const old=idx.conversations[chat.id],updated=parseTime(chat.updated);
+      return !force && !!old && old.complete !== false && Number(old.updated || 0) >= updated && Number(old.parts || 0) > 0;
+    };
+    let completed = chats.filter(complete).length, changed = 0;
+    await state({
+      mode:'syncing',projectId:project.id,projectName:project.name,
+      chatId:'',chatTitle:'',chatDone:completed,chatTotal:chats.length,
+      prioritySync,projectArchivedBefore:completed
+    });
+
+    for (const chat of chats) {
       if (document.hidden) throw new Error('memory_sync_paused_hidden');
       if (syncAuto && !autoOwner()) throw new Error('memory_sync_paused_owner_change');
-      const chat = chats[i], old = idx.conversations[chat.id], updated = parseTime(chat.updated);
-      if (!force && old && old.complete !== false && Number(old.updated || 0) >= updated && Number(old.parts || 0) > 0) continue;
-      await state({ mode:'syncing', projectId:project.id, projectName:project.name, chatId:chat.id, chatTitle:chat.title, chatDone:i, chatTotal:chats.length });
+      const old = idx.conversations[chat.id], updated = parseTime(chat.updated);
+      if (complete(chat)) continue;
+      await state({
+        mode:'syncing', projectId:project.id, projectName:project.name,
+        chatId:chat.id, chatTitle:chat.title, chatDone:completed, chatTotal:chats.length, prioritySync
+      });
       const data = await fetchConversation(chat.id, 0), rows = messages(data);
       if (!rows.length) continue;
       const full = transcript(project, chat, rows), chunks = [];
@@ -527,13 +554,32 @@
       }
       const sig = signals(rows);
       const canonicalUpdated = Math.max(updated, parseTime(data.update_time)) || Date.now();
-      const chatIndex = { schema:1, id:chat.id, title:one(chat.title || data.title || 'Conversation'), updated:canonicalUpdated, capturedAt:new Date().toISOString(), parts:chunks.length, messages:rows.length, bootstrapMetadataOnly:false, historyPartial:false, complete:true, captureSource:'backend', signals:sig };
-      files.push({ path: base + '/index.json', content: JSON.stringify(chatIndex, null, 2) + '\n' });
-      await commit(files, 'NiakGPT memory: ' + one(project.name || project.id) + ' / ' + one(chat.title || chat.id));
+      const chatIndex = {
+        schema:1,id:chat.id,title:one(chat.title || data.title || 'Conversation'),updated:canonicalUpdated,
+        capturedAt:new Date().toISOString(),parts:chunks.length,messages:rows.length,
+        bootstrapMetadataOnly:false,historyPartial:false,complete:true,captureSource:'backend',signals:sig
+      };
+
+      // Durable per-chat checkpoint: the Project index is advanced in the same logical write as
+      // the transcript. A pause, navigation, worker restart or GitHub write error therefore
+      // resumes from the last committed conversation instead of replaying the Project from 0%.
       idx.conversations[chat.id] = chatIndex;
+      idx.projectId = project.id;
+      idx.projectName = projectName(project.name || '');
+      idx.updatedAt = new Date().toISOString();
+      idx.bootstrapMetadataOnly = false;
+      files.push(
+        { path: base + '/index.json', content: JSON.stringify(chatIndex, null, 2) + '\n' },
+        { path: ppath(project.id,'index.json'), content: JSON.stringify(idx, null, 2) + '\n' }
+      );
+      await commit(files, 'NiakGPT memory: ' + one(project.name || project.id) + ' / ' + one(chat.title || chat.id), prioritySync);
       changed++;
-      await state({ mode:'syncing', projectId:project.id, projectName:project.name, chatId:chat.id, chatTitle:chat.title, chatDone:i+1, chatTotal:chats.length });
-      await sleep(300);
+      completed++;
+      await state({
+        mode:'syncing', projectId:project.id, projectName:project.name,
+        chatId:chat.id, chatTitle:chat.title, chatDone:completed, chatTotal:chats.length, prioritySync
+      });
+      await sleep(prioritySync ? 40 : 300);
     }
 
     idx.projectId = project.id; idx.projectName = projectName(project.name || ''); idx.updatedAt = new Date().toISOString();
@@ -543,7 +589,7 @@
       { path:ppath(project.id,'project.json'), content:JSON.stringify({ schema:1, id:project.id, name:projectName(project.name || ''), description:clean(project.description || ''), instructions:clean(project.instructions || ''), conversationCount:Object.keys(idx.conversations).length, knownConversationCount:Number(project.count||0), cachedConversationCount:(project.chats||[]).length, indexed:project.indexed===true, bootstrapMetadataOnly:idx.bootstrapMetadataOnly, updatedAt:idx.updatedAt }, null, 2) + '\n' },
       { path:ppath(project.id,'index.json'), content:JSON.stringify(idx, null, 2) + '\n' },
       { path:ppath(project.id,'PROJECT_STATE.md'), content:compact }
-    ], 'NiakGPT memory: checkpoint ' + one(project.name || project.id));
+    ], 'NiakGPT memory: checkpoint ' + one(project.name || project.id), prioritySync);
     await saveContext(project.id, compact);
     return changed;
   }
@@ -577,15 +623,17 @@
     return list;
   }
 
-  async function saveQueue(ids, force) {
+  async function saveQueue(ids, force, priority=false) {
     const pending=[...new Set((ids||[]).map(String).filter(Boolean))];
-    try { await chrome.storage.local.set({ [QUEUE_KEY]:{ pending, force:force === true, at:Date.now() } }); } catch {}
+    let old={};try{old=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
+    const keepPriority=priority===true||old.priority===true;
+    try { await chrome.storage.local.set({ [QUEUE_KEY]:{ pending, force:force === true, priority:keepPriority, at:Date.now() } }); } catch {}
     return pending;
   }
 
-  async function primeBootstrapQueue(force=false) {
+  async function primeBootstrapQueue(force=false, priority=false) {
     const raw=await cache(),ids=projects(raw).map(p=>p.id);
-    const pending=await saveQueue(ids,force);
+    const pending=await saveQueue(ids,force,priority);
     const current=(await chrome.storage.local.get(STATE_KEY))[STATE_KEY]||{};
     await state({
       mode:pending.length?'queued':'connected',
@@ -593,6 +641,7 @@
       projectTotal:pending.length,
       queuedProjects:pending.length,
       historyQueueSchema:1,
+      prioritySync:priority===true,
       lastSyncAt:Number(current.lastSyncAt||0),
       error:''
     });
@@ -714,7 +763,8 @@
     let q={};
     try { q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{}; } catch {}
     const pending=Array.isArray(q.pending)?q.pending:[];
-    return state({mode:'queued',queuedProjects:pending.length,projectTotal:pending.length,error:'',pauseReason:reason,nextAttemptAt:Date.now()+WAKE_HEARTBEAT_MS});
+    const priority=q.priority===true;
+    return state({mode:'queued',queuedProjects:pending.length,projectTotal:pending.length,prioritySync:priority,error:'',pauseReason:reason,nextAttemptAt:Date.now()+(priority?PRIORITY_RETRY_MS:WAKE_HEARTBEAT_MS)});
   }
 
   const autoOwner = () => {
@@ -737,10 +787,11 @@
         const q=local[QUEUE_KEY]||{},p=Object.assign({},defaults,local[PREFS_KEY]||{});
         const pending=Array.isArray(q.pending)?q.pending:[];
         document.documentElement.dataset.ng132WakeBeat=String(Date.now());
-        if(p.autoSync!==false&&pending.length&&autoOwner()){
+        if((p.autoSync!==false||q.priority===true)&&pending.length&&autoOwner()){
           const allowed=await currentPageHistoryAllowed();
           const activeCatchup=conversationPage()&&backgroundHistoryAvailable===true;
-          if(allowed&&(activeCatchup||quietFor()>=HUMAN_QUIET_MS)) await resume();
+          const priorityCatchup=q.priority===true&&backgroundHistoryAvailable===true;
+          if(allowed&&(priorityCatchup||activeCatchup||quietFor()>=HUMAN_QUIET_MS)) await resume();
         }
       }catch{}
       wakeHeartbeat();
@@ -750,6 +801,7 @@
   async function bootstrap(options) {
     const opt = options || {};
     const automatic = opt.auto === true;
+    const priorityMode = opt.priority === true;
     const allowConversation=conversationPage()&&await backgroundHistoryProbe(false);
     if (conversationPage()&&!allowConversation) {
       await queuedState('conversation');
@@ -760,11 +812,11 @@
       if (automatic) { await queuedState(document.hidden?'hidden':'owner'); schedule(WAKE_HEARTBEAT_MS); }
       return { ok:false, paused:true, error:document.hidden?'memory_sync_paused_hidden':'memory_sync_paused_owner_change' };
     }
-    if (busy(automatic,allowConversation)) {
+    if (busy(automatic,allowConversation,priorityMode)) {
       if (automatic) {
-        const quietBlocked=humanQuietRequired(true,allowConversation)&&quietFor()<HUMAN_QUIET_MS;
+        const quietBlocked=humanQuietRequired(true,allowConversation,priorityMode)&&quietFor()<HUMAN_QUIET_MS;
         await queuedState(quietBlocked?'quiet':'busy');
-        schedule(retryDelay(allowConversation));
+        schedule(retryDelay(allowConversation,priorityMode));
       }
       return { ok:false, paused:true, error:'memory_sync_paused_busy' };
     }
@@ -783,27 +835,29 @@
     if (!st || !st.connected) return { ok:false, error:st && st.configured ? 'github_token_missing' : 'not_connected' };
     syncing = true;
     syncAuto = automatic;
+    prioritySync = priorityMode || prioritySync;
     try {
       let list = await deepInventory();
       list = list.filter(p => p.count > 0 && (!Array.isArray(opt.projectIds) || opt.projectIds.includes(p.id)));
-      await saveQueue(list.map(p => p.id), opt.force);
-      await state({ mode:'syncing', projectDone:0, projectTotal:list.length, chatDone:0, chatTotal:0, error:'' });
+      await saveQueue(list.map(p => p.id), opt.force, prioritySync);
+      await state({ mode:'syncing', projectDone:0, projectTotal:list.length, chatDone:0, chatTotal:0, prioritySync, error:'' });
       let changed = 0;
       for (let i = 0; i < list.length; i++) {
         if (document.hidden) throw new Error('memory_sync_paused_hidden');
         if (automatic && !autoOwner()) throw new Error('memory_sync_paused_owner_change');
-        await saveQueue(list.slice(i).map(p => p.id), opt.force);
+        await saveQueue(list.slice(i).map(p => p.id), opt.force, prioritySync);
         if (!await waitIdle(undefined,allowConversation)) throw new Error(document.hidden?'memory_sync_paused_hidden':(automatic&&!autoOwner()?'memory_sync_paused_owner_change':'memory_sync_idle_timeout'));
         changed += await syncProject(list[i], opt.force === true);
-        await state({ mode:'syncing', projectDone:i+1, projectTotal:list.length, projectId:list[i].id, projectName:list[i].name, chatDone:0, chatTotal:0 });
+        await saveQueue(list.slice(i+1).map(p=>p.id),opt.force,prioritySync);
+        await state({ mode:'syncing', projectDone:i+1, projectTotal:list.length, projectId:list[i].id, projectName:list[i].name, chatDone:0, chatTotal:0, prioritySync });
       }
       const afterList=projects(await cache());
       const remainingInventory=afterList.filter(p=>p.count>0&&(!p.indexed||Number(p.count||0)>(p.chats||[]).length)).map(p=>p.id);
       if(remainingInventory.length){
-        await saveQueue(remainingInventory,opt.force);
+        await saveQueue(remainingInventory,opt.force,prioritySync);
         const pendingState=await state({
           mode:'queued',projectDone:list.length,projectTotal:list.length,changed,lastSyncAt:Date.now(),
-          queuedProjects:remainingInventory.length,pauseReason:'inventory-incomplete',error:'',nextAttemptAt:Date.now()+120000
+          queuedProjects:remainingInventory.length,prioritySync,pauseReason:'inventory-incomplete',error:'',nextAttemptAt:Date.now()+120000
         });
         schedule(120000);
         document.dispatchEvent(new CustomEvent('niakgpt:project-memory-partial',{detail:pendingState}));
@@ -811,7 +865,7 @@
       }
       try { await chrome.storage.local.remove(QUEUE_KEY); } catch {}
       const historyCacheSignature=cachedBootstrapSignature(projects(await cache()));
-      const done = await state({ mode:'idle', projectDone:list.length, projectTotal:list.length, changed, lastSyncAt:Date.now(), historyCompletedAt:Date.now(), historyCacheSignature, error:'',pauseReason:'' });
+      const done = await state({ mode:'idle', projectDone:list.length, projectTotal:list.length, changed, lastSyncAt:Date.now(), historyCompletedAt:Date.now(), historyCacheSignature, prioritySync:false, error:'',pauseReason:'' });
       document.dispatchEvent(new CustomEvent('niakgpt:project-memory-synced', { detail:done }));
       return { ok:true, projects:list.length, changed };
     } catch (error) {
@@ -819,7 +873,7 @@
       if(/^memory_sync_paused_(?:conversation|hidden|owner_change|busy|rate_limit|network)$/.test(message)){
         const reason=message.replace('memory_sync_paused_','');
         await queuedState(reason);
-        schedule(reason==='rate_limit'||reason==='network'?120000:(reason==='conversation'?WAKE_HEARTBEAT_MS:retryDelay(allowConversation)));
+        schedule(reason==='rate_limit'||reason==='network'?120000:(reason==='conversation'?WAKE_HEARTBEAT_MS:retryDelay(allowConversation,prioritySync)));
         return {ok:false,paused:true,error:message};
       }
       await state({ mode:'error', error:message.slice(0,260) });
@@ -828,8 +882,9 @@
       syncing = false; syncAuto = false;
       try{
         const q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};
-        if(Array.isArray(q.pending)&&q.pending.length) schedule(backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true));
-      }catch{}
+        if(Array.isArray(q.pending)&&q.pending.length) schedule(backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true,q.priority===true));
+        else prioritySync=false;
+      }catch{prioritySync=false;}
     }
   }
 
@@ -837,28 +892,33 @@
     if (syncing || !autoOwner()) return;
     try {
       const q = (await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY], p = await prefs();
-      if (!q?.pending?.length || !p.autoSync) return;
+      if (!q?.pending?.length || (!p.autoSync && q.priority!==true)) return;
       const allowConversation=conversationPage()&&await backgroundHistoryProbe(false);
       if (conversationPage()&&!allowConversation) { await queuedState('conversation'); schedule(WAKE_HEARTBEAT_MS); return; }
       if (peerBusy()) { await queuedState('peer-busy'); schedule(WAKE_HEARTBEAT_MS); return; }
-      if (busy(true,allowConversation)) { schedule(retryDelay(allowConversation)); return; }
-      bootstrap({ force:q.force, projectIds:q.pending, auto:true });
+      const priority=q.priority===true;
+      if (busy(true,allowConversation,priority)) { schedule(retryDelay(allowConversation,priority)); return; }
+      bootstrap({ force:q.force, projectIds:q.pending, auto:true, priority });
     } catch {}
   }
 
   async function schedule(delay) {
     clearTimeout(autoTimer);
-    if (!autoOwner() || !(await prefs()).autoSync) return;
+    if (!autoOwner()) return;
+    let initialQueue={};try{initialQueue=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
+    const settings=await prefs();
+    if(!settings.autoSync&&initialQueue.priority!==true)return;
     autoTimer = setTimeout(async () => {
-      if (!autoOwner()) return;
+      if (!autoOwner() || syncing) return;
       const allowConversation=conversationPage()&&await backgroundHistoryProbe(false);
       if (conversationPage()&&!allowConversation) { await queuedState('conversation'); return schedule(WAKE_HEARTBEAT_MS); }
       if (peerBusy()) { await queuedState('peer-busy'); return schedule(WAKE_HEARTBEAT_MS); }
-      if (busy(true,allowConversation)) return schedule(retryDelay(allowConversation));
+      let q={};try{q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
+      const priority=q.priority===true;
+      if (busy(true,allowConversation,priority)) return schedule(retryDelay(allowConversation,priority));
       const st = await send({ type:'niakgpt:memory-status-v132' });
       if (!st?.connected) return;
-      let q={};try{q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
-      bootstrap({ force:q.force===true, projectIds:Array.isArray(q.pending)&&q.pending.length?q.pending:undefined, auto:true });
+      bootstrap({ force:q.force===true, projectIds:Array.isArray(q.pending)&&q.pending.length?q.pending:undefined, auto:true, priority });
     }, delay ?? backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true));
   }
 
@@ -1036,8 +1096,31 @@
     return Object.assign({}, remote, {
       state:local[STATE_KEY] || {},
       prefs:Object.assign({},defaults,local[PREFS_KEY] || {}),
-      queue:{pending:Array.isArray(queue.pending)?queue.pending.slice():[],force:queue.force===true,at:Number(queue.at||0)}
+      queue:{pending:Array.isArray(queue.pending)?queue.pending.slice():[],force:queue.force===true,priority:queue.priority===true,at:Number(queue.at||0)}
     });
+  }
+
+  async function syncPriorityNow() {
+    const remote=await send({type:'niakgpt:memory-status-v132'});
+    if(!remote?.connected)return {ok:false,error:remote?.configured?'github_token_missing':'not_connected'};
+    let pending=[];
+    priorityKick=true;
+    try{
+      let q={};try{q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
+      pending=Array.isArray(q.pending)&&q.pending.length
+        ? await saveQueue(q.pending,false,true)
+        : await primeBootstrapQueue(false,true);
+      prioritySync=true;
+      await state({mode:'queued',prioritySync:true,priorityStartedAt:Date.now(),queuedProjects:pending.length,projectTotal:pending.length,pauseReason:'priority',error:''});
+    } finally {
+      priorityKick=false;
+    }
+    if(syncing)return {ok:true,priority:true,joined:true,queuedProjects:pending.length};
+    // Explicit priority is a long-lived queue mode, not a long UI call. Let the normal
+    // owner/lock scheduler start it once; this avoids a manual bootstrap racing the
+    // storage-change resume path and keeps the settings button responsive.
+    schedule(0);
+    return {ok:true,priority:true,started:true,queuedProjects:pending.length};
   }
 
   async function syncNow(options={}) {
@@ -1084,6 +1167,7 @@
     disconnect,
     status,
     syncNow,
+    syncPriorityNow,
     getPrefs:prefs,
     setPrefs,
     refreshContext,
@@ -1119,7 +1203,12 @@
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes[CACHE_KEY]) ensureBootstrapQueued().catch(()=>[]).finally(()=>schedule(backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true)));
     if (area === 'local' && changes[CONTEXT_KEY]) refreshContext();
-    if (area === 'local' && changes[QUEUE_KEY] && autoOwner()) resume();
+    if (area === 'local' && changes[QUEUE_KEY]) {
+      if(changes[QUEUE_KEY].newValue?.priority===true){
+        prioritySync=true;
+        if(!priorityKick&&autoOwner())schedule(0);
+      } else if(autoOwner())resume();
+    }
   });
   document.addEventListener('niakgpt:activity-changed', event => {
     const allowConversation=conversationPage()&&backgroundHistoryAvailable===true;

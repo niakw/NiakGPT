@@ -29,11 +29,12 @@
     if (s.mode === 'syncing') {
       const p = syncPercent(s);
       const chat = s.chatTitle ? ' · ' + s.chatTitle + (Number(s.chatTotal||0) ? ' (' + Number(s.chatDone||0) + '/' + Number(s.chatTotal||0) + ')' : '') : '';
-      return 'Synchronisation ' + p + '% · ' + (s.projectName || s.projectId || 'Project') + chat;
+      return (s.prioritySync ? 'Transfert prioritaire ' : 'Synchronisation ') + p + '% · ' + (s.projectName || s.projectId || 'Project') + chat;
     }
     if (s.mode === 'error') return 'Erreur · ' + String(s.error || 'synchronisation interrompue');
     if (s.mode === 'queued') {
       const count=Number(s.queuedProjects || snapshot?.queue?.pending?.length || 0),cached=Number(s.bootstrapCachedAt||0)>0;
+      if(s.prioritySync||snapshot?.queue?.priority===true)return 'Transfert prioritaire en attente · ' + count + ' Project(s) · reprise automatique au dernier chat validé';
       if(s.pauseReason==='conversation')return (cached?'Coffre écrit · chat courant capturé · historique canonique en attente · ':'Coffre connecté · snapshot local en attente · ') + count + ' Project(s)';
       if(s.pauseReason==='peer-busy')return (cached?'Coffre écrit · peer ChatGPT actif · reprise différée · ':'Coffre connecté · snapshot local en attente · ') + count + ' Project(s)';
       if(s.pauseReason==='inventory-incomplete')return (cached?'Coffre écrit · inventaire incomplet · réparation planifiée · ':'Coffre connecté · inventaire incomplet · ') + count + ' Project(s)';
@@ -134,8 +135,9 @@
           if(strong)strong.textContent=statusText(snapshot);
           if(small)small.textContent=progressText;
         }
-        const sync=section.querySelector('[data-ng132-sync]'),force=section.querySelector('[data-ng132-force]'),disconnect=section.querySelector('[data-ng132-disconnect]');
+        const sync=section.querySelector('[data-ng132-sync]'),priority=section.querySelector('[data-ng132-priority]'),force=section.querySelector('[data-ng132-force]'),disconnect=section.querySelector('[data-ng132-disconnect]');
         if(sync)sync.disabled=!connected;
+        if(priority){priority.disabled=!connected;priority.textContent=(stateInfo.prioritySync||snapshot.queue?.priority===true)?'Synchro prioritaire active':'Forcer la synchro des chats';}
         if(force)force.disabled=!connected;
         if(disconnect)disconnect.disabled=!configured;
         const useRepo=section.querySelector('[data-ng132-use-repo]');
@@ -155,10 +157,12 @@
         '</div>' +
         githubBlock +
         '<div class="ng132-memory-actions ng132-sync-actions">' +
+          '<button class="ng132-primary" data-ng132-priority ' + (!connected ? 'disabled' : '') + '>' + ((stateInfo.prioritySync||snapshot.queue?.priority===true) ? 'Synchro prioritaire active' : 'Forcer la synchro des chats') + '</button>' +
           '<button data-ng132-sync ' + (!connected ? 'disabled' : '') + '>Synchroniser maintenant</button>' +
-          '<button data-ng132-force ' + (!connected ? 'disabled' : '') + '>Reprendre tout l’historique</button>' +
+          '<button data-ng132-force ' + (!connected ? 'disabled' : '') + '>Reconstruire tout l’historique</button>' +
           '<button data-ng132-disconnect ' + (!configured ? 'disabled' : '') + '>Déconnecter le coffre</button>' +
         '</div>' +
+        '<div class="ng132-memory-info"><b>Transfert initial prioritaire</b><span>Traite uniquement les chats encore absents ou incomplets, reprend au dernier chat durablement validé après une pause/erreur, réduit les délais entre lectures et accélère les écritures GitHub. Les protections génération, réseau, vérification et rate-limit restent actives.</span></div>' +
         '<details class="ng132-advanced">' +
           '<summary>Avancé · PAT manuel</summary>' +
           '<div class="ng132-advanced-body">' +
@@ -173,7 +177,7 @@
             '<div class="ng132-memory-actions"><button data-ng132-connect>Connecter avec le PAT</button></div>' +
           '</div>' +
         '</details>' +
-        '<label class="ng132-option"><input data-ng132-auto type="checkbox" ' + (prefs.autoSync !== false ? 'checked' : '') + '><span><b>Synchronisation incrémentale</b><small>Le chat courant est capturé immédiatement depuis le DOM. Après 1 min de calme, l’historique complet peut continuer via le worker d’extension isolé, sans passer par le broker réseau de la page ; toute génération ou activité native suspend la reprise.</small></span></label>' +
+        '<label class="ng132-option"><input data-ng132-auto type="checkbox" ' + (prefs.autoSync !== false ? 'checked' : '') + '><span><b>Synchronisation incrémentale</b><small>Le chat courant est capturé immédiatement depuis le DOM. Quand le transport worker isolé est disponible, l’historique peut rattraper sa file à cadence bornée ; les chemins qui dépendent de la page conservent leur fenêtre de calme.</small></span></label>' +
         '<label class="ng132-option"><input data-ng132-inject type="checkbox" ' + (prefs.injectOnNewChat !== false ? 'checked' : '') + '><span><b>Restaurer le checkpoint dans un nouveau fil</b><small>Ajoute une seule fois le contexte compact du Project au premier message du nouveau fil, jamais à chaque prompt.</small></span></label>' +
         '<div class="ng132-memory-info"><b>Bootstrap des Projects existants</b><span>Dès la connexion, NiakGPT écrit dans GitHub un snapshot depuis son cache local. Si un Project est marqué indexé mais contient moins de chats que son compteur connu, la file reste ouverte et relance une réparation ciblée jusqu’à convergence.</span></div>' +
         '<div class="ng132-memory-info"><b>Historique complet ≠ prompt complet</b><span>Les conversations restent archivées dans GitHub. ChatGPT ne reçoit normalement que PROJECT_STATE.md, borné et mis à jour.</span></div>';
@@ -306,6 +310,16 @@
         token.value = '';
         status.textContent='Coffre écrit · ' + Number(result.bootstrapFiles || 0) + ' fichier(s) · historique en file';
         schedule(50,true);
+      };
+
+      section.querySelector('[data-ng132-priority]').onclick = async () => {
+        const button=section.querySelector('[data-ng132-priority]');
+        button.disabled=true;
+        button.textContent='Démarrage prioritaire…';
+        const result=await memory.syncPriorityNow();
+        if(!result?.ok){setFailure('Synchronisation prioritaire impossible',result);button.disabled=false;button.textContent='Forcer la synchro des chats';}
+        else status.textContent=result.joined?'Mode prioritaire appliqué à la synchro en cours':'Transfert prioritaire démarré · reprise au dernier chat validé';
+        schedule(50);
       };
 
       section.querySelector('[data-ng132-sync]').onclick = async () => {

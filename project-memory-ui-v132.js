@@ -29,9 +29,9 @@
     if (s.mode === 'syncing') {
       const p = syncPercent(s);
       const chat = s.chatTitle ? ' · ' + s.chatTitle + (Number(s.chatTotal||0) ? ' (' + Number(s.chatDone||0) + '/' + Number(s.chatTotal||0) + ')' : '') : '';
-      const deferred=Number(s.deferredChats||0);
+      const deferred=Number(s.deferredChats||0),recovered=Number(s.archiveRecovered||0);
       const retry=s.retryingChat ? ' · tentative ' + Number(s.retryAttempt||1) + '/' + Number(s.retryLimit||1) : '';
-      return (s.prioritySync ? 'Transfert prioritaire ' : 'Synchronisation ') + p + '% · ' + (s.projectName || s.projectId || 'Project') + chat + retry + (deferred?' · '+deferred+' chat(s) différé(s)':'');
+      return (s.prioritySync ? 'Transfert prioritaire ' : 'Synchronisation ') + p + '% · ' + (s.projectName || s.projectId || 'Project') + chat + retry + (recovered?' · reprise restaurée: '+recovered+' archive(s)':'') + (deferred?' · '+deferred+' chat(s) différé(s)':'');
     }
     if (s.mode === 'error') return 'Erreur · ' + String(s.error || 'synchronisation interrompue');
     if (s.mode === 'queued') {

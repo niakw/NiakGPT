@@ -79,7 +79,7 @@ test('real MV3 boot reads React hydration from MAIN world without user interacti
     // No click/key/touch is performed: production boot must succeed from the service-worker
     // MAIN-world probe, not from the trusted-interaction fallback.
     await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.ng100HydrationProof||''),{timeout:15000})
-      .toMatch(/^react-main-world-settled/);
+      .toMatch(/^react-document-root-settled/);
     await expect(page.locator('#ng8-rail')).toBeAttached({timeout:10000});
 
     const state=await page.evaluate(()=>({
@@ -90,7 +90,7 @@ test('real MV3 boot reads React hydration from MAIN world without user interacti
     }));
     expect(state.pageContainer).toBe(true);
     expect(state.pageNavFiber).toBe(true);
-    expect(state.proof).toMatch(/^react-main-world-settled/);
+    expect(state.proof).toMatch(/^react-document-root-settled/);
     expect(state.rail).toBe(true);
     console.log('HYDRATION_MAIN_WORLD_CHECKPOINT PASS');
   }finally{

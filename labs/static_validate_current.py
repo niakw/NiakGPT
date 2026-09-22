@@ -343,7 +343,7 @@ parallel_workflow=read('.github/workflows/parallel-continuation-v128.yml')
 for token in ('parallel-continue-v128.mjs','composer-continuation-runtime-v128.spec.js','chromium, firefox, webkit','parallel-continuation-v128'):
     if token not in parallel_workflow: fail('Parallel continuation workflow missing '+token)
 live_workflow=read('.github/workflows/live-stability-v129.yml')
-for token in ('live-stability-v129.spec.js','long-run-composer-residue-v131.spec.js','3 passed','Brave stable','chromium'):
+for token in ('live-stability-v129.spec.js','long-run-composer-residue-v131.spec.js','hydration-isolated-world-v106.spec.js','HYDRATION_MAIN_WORLD_CHECKPOINT PASS','[1-9][0-9]* passed','Brave stable','chromium'):
     if token not in live_workflow: fail('Live stability workflow missing '+token)
 ux_workflow=read('.github/workflows/ux-integral-v131.yml')
 for token in ('ux-integral-v131.mjs','chromium, firefox, webkit','screenshot UX','mcr.microsoft.com/playwright:v1.62.1-noble'):

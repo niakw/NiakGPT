@@ -1,3 +1,13 @@
+# NiakGPT 0.9.111 — ordre de boot React et drainage scheduler tardif
+
+- **Régression terrain confirmée après 0.9.110** : le même `Minified React error #418` sur `HTML`, avec une longue chaîne `MessagePort`, reste observable et le rail droit NiakGPT ne se monte toujours pas.
+- **Cause racine** : 0.9.110 a conservé la preuve HostRoot mais a raccourci la barrière temporelle historique de 0.9.81 à une courte stabilité/quiet window. Un HostRoot peut paraître settled alors que React possède encore des commits différés dans son scheduler.
+- **Correction d’architecture** : une preuve HostRoot positive est suivie de 1,6 s d’identité `nav/main/composer` stable, d’une vraie fenêtre sans mutation de 1,2 s, de deux tours idle, de frames, puis d’une comparaison stricte des identités hôtes et d’une nouvelle preuve MAIN-world du HostRoot courant.
+- **Quiet window réelle** : `waitForQuiet()` observe désormais aussi les mutations d’attributs et distingue une vraie période calme d’un simple timeout maximal ; un timeout ne vaut plus preuve de stabilité.
+- **Fallback ordonné** : si les internals React privés sont indisponibles, le même drainage scheduler/shell est tenté avant le fallback par interaction native trusted.
+- **Régression MV3 dédiée** : `hydration-scheduler-drain-v111.spec.js` démarre avec un HostRoot déjà settled, puis injecte encore des commits tardifs via `MessageChannel`, dont un #418 `HTML`, et exige zéro mutation NiakGPT avant la fin réelle du scheduler.
+- **Chromium + Brave stable** : la nouvelle régression est branchée dans les deux jobs Live Stability avec le checkpoint `HYDRATION_SCHEDULER_DRAIN_V111_CHECKPOINT PASS`.
+
 # NiakGPT 0.9.110 — récupération React #418 sans blocage permanent
 
 - **Régression terrain confirmée après 0.9.109** : réinstallation effectuée, `Minified React error #418` toujours visible et rail NiakGPT toujours absent.

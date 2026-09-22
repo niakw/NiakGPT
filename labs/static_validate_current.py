@@ -25,7 +25,7 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.110': fail(f"version={version}")
+if version!='0.9.111': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting','identity']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']: fail('host permissions drift')
 
@@ -53,15 +53,16 @@ if any(cs.get('run_at')!='document_idle' for cs in js_content_scripts): fail('al
 if any(cs.get('run_at')=='document_start' and cs.get('js') for cs in manifest.get('content_scripts',[])): fail('document_start JS forbidden after hydration regression')
 if any(cs.get('css') for cs in manifest.get('content_scripts',[])): fail('static content-script CSS forbidden before hydration gate')
 hydration_gate=read('boot-gate-v100.js')
-for token in ('waitReactHydrationOwnership(8000)','waitStableHostIdentity(500,2500)','waitForQuiet(hydrationFault?900:500,hydrationFault?3200:2200)','TRUSTED_HYDRATION_EVENTS','trustedHydrationInteraction','__NIAKGPT_HOST_HYDRATED_100__','niakgpt:host-hydrated-v100'):
+for token in ('waitReactHydrationOwnership(8000)','waitPostReactSchedulerDrain','sameHostIdentity','waitStableHostIdentity(1600,8500)','waitForQuiet(1200,7000)','idleTurn(2200)','schedulerFence','react-confirmed','shell-confirmed','TRUSTED_HYDRATION_EVENTS','trustedHydrationInteraction','__NIAKGPT_HOST_HYDRATED_100__','niakgpt:host-hydrated-v100'):
     if token not in hydration_gate: fail('boot hydration barrier incomplete '+token)
+if hydration_gate.count('idleTurn(2200)') < 2: fail('React scheduler fence lost one of its two idle turns')
 for file in expected_static[1:]:
     src=read(file)
     for token in ('const init=()=>','window.__NIAKGPT_HOST_HYDRATED_100__',"window.addEventListener('niakgpt:host-hydrated-v100',init,{once:true})"):
         if token not in src: fail('pre-runtime hydration gate incomplete '+file+' '+token)
 if not (ROOT/'visual-lab/hydration-barrier-v080.mjs').exists(): fail('SSR hydration barrier browser gate missing')
 boot_gate=read('boot-gate-v100.js')
-for token in ('mainWorldReactProbe','niakgpt:probe-react-hydration-v107','waitReactHydrationOwnership','waitTrustedHydratedInteraction','TRUSTED_HYDRATION_EVENTS','trustedHydrationInteraction','react-document-root-settled','react-fiber-root-settled','trusted-interaction-after-host-fault','hydrationFault','hydrationFaultAt','rootFound','rootSource','ng100HydrationProof'):
+for token in ('mainWorldReactProbe','niakgpt:probe-react-hydration-v107','waitReactHydrationOwnership','waitPostReactSchedulerDrain','sameHostIdentity','schedulerFence','waitTrustedHydratedInteraction','TRUSTED_HYDRATION_EVENTS','trustedHydrationInteraction','react-document-root-settled','react-fiber-root-settled','trusted-interaction-after-host-fault','hydrationFault','hydrationFaultAt','rootFound','rootSource','ng100HydrationProof'):
     if token not in boot_gate: fail('full-document React hydration fuse incomplete '+token)
 if 'Object.getOwnPropertyNames' in boot_gate: fail('isolated boot gate reads page-world React expandos directly')
 if 'probe.fullDocument===false' in boot_gate or 'main-world-legacy-host' in boot_gate: fail('heuristic hydration bypass reintroduced')
@@ -93,6 +94,10 @@ if not (ROOT/'visual-lab/tests/hydration-recovery-v110.spec.js').exists(): fail(
 recovery_hydration=read('visual-lab/tests/hydration-recovery-v110.spec.js')
 for token in ('root.memoizedState={}','HYDRATION_RECOVERY_V110_CHECKPOINT PASS','htmlFiber','bodyFiber','react-fiber-root-settled'):
     if token not in recovery_hydration: fail('post-418 recovery hydration regression incomplete '+token)
+if not (ROOT/'visual-lab/tests/hydration-scheduler-drain-v111.spec.js').exists(): fail('post-HostRoot late scheduler regression missing')
+scheduler_drain=read('visual-lab/tests/hydration-scheduler-drain-v111.spec.js')
+for token in ('MessageChannel','memoizedState:{}','late MessagePort hydration at HTML','late-1','late-2','HYDRATION_SCHEDULER_DRAIN_V111_CHECKPOINT PASS','react-fiber-root-settled'):
+    if token not in scheduler_drain: fail('post-HostRoot late scheduler regression incomplete '+token)
 if not (ROOT/'visual-lab/tests/hydration-document-root-v107.spec.js').exists(): fail('document-root hydration regression missing')
 document_root_hydration=read('visual-lab/tests/hydration-document-root-v107.spec.js')
 for token in ('window.__documentRootClaimed=false','window.__earlyNiakMutation=false','hostRootSettled','documentRootClaimed','react-document-root-settled','HYDRATION_DOCUMENT_ROOT_CHECKPOINT PASS'):
@@ -366,14 +371,15 @@ if live_stability.count('tests/hydration-isolated-world-v106.spec.js') < 2: fail
 if live_stability.count('tests/hydration-document-root-v107.spec.js') < 2: fail('document-root hydration regression must execute in Chromium and Brave stability jobs')
 if live_stability.count('tests/hydration-fiber-root-v109.spec.js') < 3: fail('fiber-root hydration regression must be tracked and execute in Chromium and Brave stability jobs')
 if live_stability.count('tests/hydration-recovery-v110.spec.js') < 3: fail('post-418 recovery regression must be tracked and execute in Chromium and Brave stability jobs')
-for token in ('background-v100.js','hydration-isolated-world-v106.spec.js','hydration-document-root-v107.spec.js','hydration-fiber-root-v109.spec.js','hydration-recovery-v110.spec.js','HYDRATION_MAIN_WORLD_CHECKPOINT PASS','HYDRATION_DOCUMENT_ROOT_CHECKPOINT PASS','HYDRATION_FIBER_ROOT_CHECKPOINT PASS','HYDRATION_RECOVERY_V110_CHECKPOINT PASS','conversation-scroll-guard-v133.js','project-state-selfheal-v102.js','user-reported-v133.mjs','User-reported scroll + single Projects authority in Brave stable','/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'):
+if live_stability.count('tests/hydration-scheduler-drain-v111.spec.js') < 3: fail('late scheduler drain regression must be tracked and execute in Chromium and Brave stability jobs')
+for token in ('background-v100.js','hydration-isolated-world-v106.spec.js','hydration-document-root-v107.spec.js','hydration-fiber-root-v109.spec.js','hydration-recovery-v110.spec.js','hydration-scheduler-drain-v111.spec.js','HYDRATION_MAIN_WORLD_CHECKPOINT PASS','HYDRATION_DOCUMENT_ROOT_CHECKPOINT PASS','HYDRATION_FIBER_ROOT_CHECKPOINT PASS','HYDRATION_RECOVERY_V110_CHECKPOINT PASS','HYDRATION_SCHEDULER_DRAIN_V111_CHECKPOINT PASS','conversation-scroll-guard-v133.js','project-state-selfheal-v102.js','user-reported-v133.mjs','User-reported scroll + single Projects authority in Brave stable','/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'):
     if token not in live_stability: fail('Brave macOS field gate missing '+token)
 if re.search(r'^\s*npx playwright install --with-deps\b',workflow,re.M): fail('Linux Finalization reintroduced apt --with-deps')
 parallel_workflow=read('.github/workflows/parallel-continuation-v128.yml')
 for token in ('parallel-continue-v128.mjs','composer-continuation-runtime-v128.spec.js','chromium, firefox, webkit','parallel-continuation-v128'):
     if token not in parallel_workflow: fail('Parallel continuation workflow missing '+token)
 live_workflow=read('.github/workflows/live-stability-v129.yml')
-for token in ('live-stability-v129.spec.js','long-run-composer-residue-v131.spec.js','hydration-isolated-world-v106.spec.js','hydration-document-root-v107.spec.js','hydration-fiber-root-v109.spec.js','hydration-recovery-v110.spec.js','HYDRATION_MAIN_WORLD_CHECKPOINT PASS','HYDRATION_DOCUMENT_ROOT_CHECKPOINT PASS','HYDRATION_FIBER_ROOT_CHECKPOINT PASS','HYDRATION_RECOVERY_V110_CHECKPOINT PASS','[1-9][0-9]* passed','Brave stable','chromium'):
+for token in ('live-stability-v129.spec.js','long-run-composer-residue-v131.spec.js','hydration-isolated-world-v106.spec.js','hydration-document-root-v107.spec.js','hydration-fiber-root-v109.spec.js','hydration-recovery-v110.spec.js','hydration-scheduler-drain-v111.spec.js','HYDRATION_MAIN_WORLD_CHECKPOINT PASS','HYDRATION_DOCUMENT_ROOT_CHECKPOINT PASS','HYDRATION_FIBER_ROOT_CHECKPOINT PASS','HYDRATION_RECOVERY_V110_CHECKPOINT PASS','HYDRATION_SCHEDULER_DRAIN_V111_CHECKPOINT PASS','[1-9][0-9]* passed','Brave stable','chromium'):
     if token not in live_workflow: fail('Live stability workflow missing '+token)
 ux_workflow=read('.github/workflows/ux-integral-v131.yml')
 for token in ('ux-integral-v131.mjs','chromium, firefox, webkit','screenshot UX','mcr.microsoft.com/playwright:v1.62.1-noble'):

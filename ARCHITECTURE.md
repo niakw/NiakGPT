@@ -1,5 +1,15 @@
 # Architecture de NiakGPT
 
+## Invariant ordre React 0.9.111 — HostRoot settled + scheduler réellement drainé
+
+Le retour terrain de 0.9.110 a remis en évidence une course déjà rencontrée en 0.9.81 : React peut exposer un HostRoot courant apparemment stabilisé tout en conservant des commits différés dans son scheduler `MessageChannel` / `MessagePort`. La preuve HostRoot est donc **nécessaire mais plus suffisante à elle seule**.
+
+Après une première preuve MAIN-world positive, `boot-gate-v100.js` impose désormais une barrière post-React déterministe : identité `nav/main/composer` stable pendant 1,6 s, vraie fenêtre de 1,2 s sans mutation (attributs compris), deux passages `requestIdleCallback` bornés, frames, pause inter-frame, puis comparaison stricte des mêmes identités hôtes. Le gate relit ensuite le HostRoot courant dans le monde MAIN et exige encore `rootFound && rootSettled && !rootDehydrated` avec les identités hôtes toujours possédées par React.
+
+Toute mutation pendant la fenêtre calme invalide la tentative. Tout remount de `nav/main/composer` invalide l’identité. Le gate peut recommencer plusieurs tours bornés mais n’utilise ni polling agressif ni temporisation seule comme preuve. Si les internals React privés deviennent indisponibles, la même barrière scheduler/shell est exigée avant tout fallback par interaction utilisateur trusted.
+
+La régression `hydration-scheduler-drain-v111.spec.js` charge l’extension MV3 réelle avec un HostRoot déjà « settled », puis déclenche encore deux remplacements hôtes tardifs via `MessageChannel`, dont un #418 `HTML`. Elle interdit tout `data-ng*`, rail ou runtime NiakGPT jusqu’à la fin de ces commits et exige ensuite le montage réel de `#ng8-rail`.
+
 ## Invariant hydratation React 0.9.110 — récupération #418 sans deadlock
 
 Le gate lit le **HostRoot courant** dans le monde MAIN. Un `memoizedState.isDehydrated === true` explicite interdit toujours toute mutation NiakGPT. En revanche, après un mismatch React récupérable (#418), React peut basculer vers un rendu client où le HostRoot courant ne porte plus du tout la clé `isDehydrated`; cet état est désormais considéré comme **post-hydratation récupéré**, et non comme une attente infinie.
@@ -30,11 +40,11 @@ Le gate enregistre ensuite uniquement après cette preuve `data-ng100-hydration-
 - **Privacy fail-closed sur l’arbre public.** La CI parcourt tous les fichiers texte suivis par Git et refuse les marqueurs privés connus, les e-mails non synthétiques, les chemins utilisateur locaux et les secrets/tokens plausibles.
 
 
-NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.110 privilégie cinq propriétés : **faible coût runtime**, **priorité absolue au flux natif ChatGPT**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
+NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.111 privilégie cinq propriétés : **faible coût runtime**, **priorité absolue au flux natif ChatGPT**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
 
 ## Périmètre
 
-Le manifest 0.9.110 déclare :
+Le manifest 0.9.111 déclare :
 
 ```text
 https://chatgpt.com/*

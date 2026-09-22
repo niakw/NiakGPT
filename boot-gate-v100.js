@@ -10,7 +10,7 @@
   const PIN_OPEN_KEY='niakgpt-open-pin-folder-v096';
   const SHELL_IDS=new Set(['ng8-rail','ng8-panel','ng8-status']);
   const shellRefs=new Map();
-  let safeToMutate=false,shellObserver=null,shuttingDown=false,hydrationFault=false,hydrationFaultAt=0,hydrationProof='legacy-host',lastHydrationProbe=null,trustedHydrationInteraction=false,gateOpenedAt=0;
+  let safeToMutate=false,shellObserver=null,shuttingDown=false,hydrationFault=false,hydrationFaultAt=0,hydrationProof='legacy-host',lastHydrationProbe=null,trustedHydrationInteraction=false,gateOpenedAt=0,schedulerFence='pending';
   const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   const message=value=>String(value?.message||value?.reason?.message||value?.reason||value||'Erreur inconnue')
     .replace(/github_pat_[A-Za-z0-9_]+/g,'[redacted]')
@@ -55,8 +55,8 @@
       if(!document.documentElement){resolve();return;}
       let done=false,last=performance.now();const start=last;
       const observer=new MutationObserver(()=>{last=performance.now();});
-      observer.observe(document.documentElement,{childList:true,subtree:true,characterData:true});
-      const tick=()=>{if(done)return;const now=performance.now();if(now-last>=quietMs||now-start>=maxWait){done=true;observer.disconnect();resolve();return;}setTimeout(tick,80);};
+      observer.observe(document.documentElement,{childList:true,subtree:true,characterData:true,attributes:true});
+      const tick=()=>{if(done)return;const now=performance.now(),quiet=now-last>=quietMs;if(quiet||now-start>=maxWait){done=true;observer.disconnect();resolve(quiet);return;}setTimeout(tick,80);};
       setTimeout(tick,80);
     });
   }
@@ -115,7 +115,7 @@
     }
     try{
       const p=lastHydrationProbe||{};
-      const diag={at:Date.now(),ok:!!p.ok,containerFound:!!p.containerFound,rootFound:!!p.rootFound,rootSource:String(p.rootSource||''),rootSettled:!!p.rootSettled,rootDehydrated:!!p.rootDehydrated,rootHasDehydratedFlag:!!p.rootHasDehydratedFlag,rootStateKind:String(p.rootStateKind||''),documentRootOwned:!!p.documentRootOwned,htmlOwned:!!p.htmlOwned,bodyOwned:!!p.bodyOwned,needed:Number(p.needed||0),ownedCount:Number(p.ownedCount||0),hydrationFault,hydrationFaultAt,trustedHydrationInteraction,gateOpenedAt,error:String(p.error||'').slice(0,160)};
+      const diag={at:Date.now(),ok:!!p.ok,containerFound:!!p.containerFound,rootFound:!!p.rootFound,rootSource:String(p.rootSource||''),rootSettled:!!p.rootSettled,rootDehydrated:!!p.rootDehydrated,rootHasDehydratedFlag:!!p.rootHasDehydratedFlag,rootStateKind:String(p.rootStateKind||''),documentRootOwned:!!p.documentRootOwned,htmlOwned:!!p.htmlOwned,bodyOwned:!!p.bodyOwned,needed:Number(p.needed||0),ownedCount:Number(p.ownedCount||0),hydrationFault,hydrationFaultAt,trustedHydrationInteraction,gateOpenedAt,schedulerFence,error:String(p.error||'').slice(0,160)};
       sessionStorage.setItem('niakgpt-hydration-probe-v109',JSON.stringify(diag));
       console.warn('[NiakGPT hydration blocked]',diag);
     }catch{}
@@ -143,27 +143,54 @@
       const enough=next.filter(Boolean).length>=2;
       const same=enough&&refs.length===next.length&&next.every((node,index)=>node===refs[index]);
       if(!same){refs=next;stableSince=performance.now();continue;}
-      if(performance.now()-stableSince>=stableMs)return true;
+      if(performance.now()-stableSince>=stableMs)return next;
     }
+    return null;
+  }
+  function sameHostIdentity(before,after){
+    return Array.isArray(before)&&Array.isArray(after)&&before.length===after.length&&after.filter(Boolean).length>=2&&after.every((node,index)=>node===before[index]);
+  }
+  async function waitPostReactSchedulerDrain({requireReact=true}={}){
+    // React can keep reconciling through MessageChannel/MessagePort after a false quiet
+    // window. A positive HostRoot proof is therefore necessary but not sufficient.
+    for(let round=0;round<4;round++){
+      const stable=await waitStableHostIdentity(1600,8500);
+      if(!stable)continue;
+      const quiet=await waitForQuiet(1200,7000);
+      if(!quiet)continue;
+      await idleTurn(2200);
+      await idleTurn(2200);
+      await nextFrames();
+      await sleep(220);
+      await nextFrames();
+      const finalIdentity=hostIdentity();
+      if(!sameHostIdentity(stable,finalIdentity))continue;
+      if(!requireReact){schedulerFence='shell-confirmed';return true;}
+      const confirm=await mainWorldReactProbe();
+      lastHydrationProbe=confirm;
+      const needed=Math.max(0,Number(confirm?.needed||0));
+      const ownedCount=Math.max(0,Number(confirm?.ownedCount||0));
+      if(confirm?.ok&&confirm.rootFound===true&&confirm.rootSettled===true&&confirm.rootDehydrated!==true&&needed>0&&ownedCount>=needed){
+        schedulerFence='react-confirmed';
+        return true;
+      }
+    }
+    schedulerFence='unstable';
     return false;
   }
   async function waitHydrationStable(){
     await waitComplete(5000);
-    // Probe the current HostRoot first instead of stacking long sequential quiet/idle waits.
-    // A recoverable #418 may replace the dehydrated SSR root with a client-rendered current
-    // root whose memoizedState no longer contains isDehydrated at all.
+    // 0.9.110 proved the current HostRoot, but then opened after a short calm window.
+    // Re-apply the 0.9.81 late-scheduler fence *after* the React proof and revalidate the
+    // authoritative current root once all delayed native work has drained.
     const owned=await waitReactHydrationOwnership(8000);
-    if(owned){
-      await waitStableHostIdentity(500,2500);
-      await waitForQuiet(hydrationFault?900:500,hydrationFault?3200:2200);
-      await nextFrames();
+    if(owned&&await waitPostReactSchedulerDrain({requireReact:true}))return;
+    // React private attachment points can change. If the MAIN-world proof is unavailable,
+    // retain the deterministic shell/scheduler fence before using trusted interaction.
+    if(await waitPostReactSchedulerDrain({requireReact:false})){
+      hydrationProof=hydrationFault?'scheduler-shell-settled-after-host-fault':'scheduler-shell-settled-no-react-proof';
       return;
     }
-    // If the MAIN-world proof is unavailable, require a stable native shell and a real
-    // interaction. The interaction latch starts at content-script evaluation, so an early
-    // user click/keypress is not lost while the React probe is still running.
-    await waitStableHostIdentity(700,3500);
-    await waitForQuiet(hydrationFault?1000:600,hydrationFault?4000:2600);
     await waitTrustedHydratedInteraction();
     hydrationProof=hydrationFault?'trusted-interaction-after-host-fault':'trusted-interaction';
     await nextFrames();

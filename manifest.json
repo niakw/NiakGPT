@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.110",
-  "description": "NiakGPT : boot React résilient aux recoverable #418, HostRoot courant post-recovery, zéro mutation pré-hydratation.",
+  "version": "0.9.111",
+  "description": "NiakGPT : ordre de boot React durci, HostRoot + drainage scheduler tardif avant toute mutation DOM/CSS.",
   "permissions": [
     "storage",
     "scripting",

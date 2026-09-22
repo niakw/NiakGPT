@@ -6,7 +6,7 @@
   <p>Projects · long-thread performance · continuity · navigation · focused productivity</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.110-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.111-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,15 +21,15 @@
 NiakGPT is a browser extension that turns the ChatGPT web interface into a more capable **workspace for heavy, project-based use** without replacing ChatGPT itself.
 
 It adds a native-first layer for Projects, navigation, long conversations, continuity, diagnostics and local productivity. Core features run locally in the browser: **no NiakGPT account, no NiakGPT analytics and no NiakGPT server are required**.
-> **Current version: 0.9.110.** React hydration is verified from the page’s **MAIN world**. NiakGPT resolves the current HostRoot from the React container or host Fiber chain, treats only an explicit `isDehydrated:true` as still blocked, and accepts React's post-#418 client-render recovery where that flag disappears. HTML/BODY ownership is diagnostic only; at least two stable React-owned host identities are still required before DOM/CSS mutation.
+> **Current version: 0.9.111.** React hydration is verified from the page’s **MAIN world**, then NiakGPT drains the late React scheduler before it mutates the page. A settled current HostRoot is no longer sufficient by itself: stable host identity, a real quiet window, two idle turns, frames, and a final HostRoot/ownership re-check must all agree.
 
 ## Highlights
 
 ### Hydration-safe startup
 
-0.9.110 keeps the zero-touch CSS boundary and adds a second React authority path: **no NiakGPT CSS is declared as a static content script**. All 34 stylesheets are inserted only after the hydration gate succeeds, immediately before the runtime scripts. This prevents early layout/style influence from changing ChatGPT's client render during SSR hydration.
+0.9.111 keeps the zero-touch CSS boundary and restores the late-scheduler fence that existed after the 0.9.81 field fix: **no NiakGPT CSS is declared as a static content script**. All 34 stylesheets are inserted only after the hydration gate succeeds, immediately before the runtime scripts. This prevents early layout/style influence from changing ChatGPT's client render during SSR hydration.
 
-NiakGPT JavaScript no longer runs at `document_start`: the bootstrap group starts at `document_idle`, then waits for the current HostRoot and stable React-owned host identities. **An explicit `isDehydrated:true` remains a hard block; after a recoverable hydration mismatch, a current HostRoot with no dehydration flag is treated as client-render recovery rather than a permanent failure.** HTML/BODY expandos are retained as diagnostics, not as a boot requirement. If MAIN-world proof is unavailable, the gate fails closed until a trusted native user interaction; interactions are latched from startup so an early click is not lost. A Chromium/Firefox/WebKit lab now keeps the DOM visually stable while React continues scheduling work through `MessageChannel`, and fails if NiakGPT writes any `data-ng*` attribute or custom node before React ownership.
+NiakGPT JavaScript no longer runs at `document_start`: the bootstrap group starts at `document_idle`, proves the current HostRoot and React-owned host identities, then **still waits for 1.6 s of stable host identity, a genuine 1.2 s mutation-free window, two idle scheduler turns, frames, and a final MAIN-world HostRoot revalidation**. This restores the protection against delayed `MessageChannel`/`MessagePort` commits that 0.9.110 accidentally shortened. An explicit `isDehydrated:true` remains a hard block; a recovered current HostRoot without that flag is accepted, but never bypasses the scheduler fence. If private React proof is unavailable, the same deterministic shell/scheduler fence runs before trusted-user fallback.
 
 ### Projects that behave like part of ChatGPT
 
@@ -206,7 +206,7 @@ A fixture passing does **not** override a contradictory real user screenshot. Se
 | [README.fr.md](README.fr.md) | French README |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Runtime architecture and ownership invariants |
 | [CHANGELOG.md](CHANGELOG.md) | Detailed release history |
-| [RELEASE_NOTES_0.9.110.md](RELEASE_NOTES_0.9.110.md) | Current release summary |
+| [RELEASE_NOTES_0.9.111.md](RELEASE_NOTES_0.9.111.md) | Current release summary |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnosis and recovery |
 | [PRIVACY.md](PRIVACY.md) | Local data and network behavior |
 | [SECURITY.md](SECURITY.md) | Security model and reporting |

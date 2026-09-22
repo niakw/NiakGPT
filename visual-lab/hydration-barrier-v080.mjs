@@ -30,7 +30,7 @@ for(const [name,launcher] of Object.entries(selected)){
       window.chrome={
         runtime:{
           id:'hydration-lab',
-          getManifest:()=>({version:'0.9.110'}),
+          getManifest:()=>({version:'0.9.111'}),
           sendMessage:async message=>{
             if(message?.type==='niakgpt:probe-react-hydration-v107'){
               const ownerRx=/^__react(?:Fiber|Props|Container)\$.+/;

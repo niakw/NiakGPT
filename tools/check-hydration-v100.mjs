@@ -8,7 +8,7 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 
 const manifest=JSON.parse(read('manifest.json'));
 if(manifest.manifest_version!==3)fail('manifest_version drift');
-if(manifest.version!=='0.9.110')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.111')fail(`unexpected release ${manifest.version}`);
 same(manifest.permissions,['storage','scripting','identity'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*'],'host scope mismatch');
 const staticRuntime=['boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'];
@@ -88,7 +88,8 @@ for(const token of ['PROJECT_STATE.md','canonicalUpdated','prefsReady','function
 forbid(memoryRuntime,'async function inject(ed)','Project Memory send-time injection must be synchronous');
 
 const gate=read('boot-gate-v100.js');
-for(const token of ['waitDomInteractive','waitForChatShell','restorePendingContinuity','guardUpdateOnboarding','injectRuntime','for(const delay of [0,240,720])','safeToMutate=!!document.body','mainWorldReactProbe','niakgpt:probe-react-hydration-v107','waitReactHydrationOwnership','waitTrustedHydratedInteraction','TRUSTED_HYDRATION_EVENTS','trustedHydrationInteraction','react-document-root-settled','react-fiber-root-settled','trusted-interaction-after-host-fault','hydrationFault','hydrationFaultAt','rootFound','rootSource','ng100HydrationProof','__NIAKGPT_HOST_HYDRATED_100__','niakgpt:host-hydrated-v100'])need(gate,token,'late-scheduler/full-document React hydration bootstrap contract incomplete');
+for(const token of ['waitDomInteractive','waitForChatShell','restorePendingContinuity','guardUpdateOnboarding','injectRuntime','for(const delay of [0,240,720])','safeToMutate=!!document.body','mainWorldReactProbe','niakgpt:probe-react-hydration-v107','waitReactHydrationOwnership','waitPostReactSchedulerDrain','sameHostIdentity','waitStableHostIdentity(1600,8500)','waitForQuiet(1200,7000)','idleTurn(2200)','schedulerFence','react-confirmed','shell-confirmed','waitTrustedHydratedInteraction','TRUSTED_HYDRATION_EVENTS','trustedHydrationInteraction','react-document-root-settled','react-fiber-root-settled','trusted-interaction-after-host-fault','hydrationFault','hydrationFaultAt','rootFound','rootSource','ng100HydrationProof','__NIAKGPT_HOST_HYDRATED_100__','niakgpt:host-hydrated-v100'])need(gate,token,'late-scheduler/full-document React hydration bootstrap contract incomplete');
+if((gate.match(/idleTurn\(2200\)/g)||[]).length<2)fail('React scheduler fence must retain two idle turns after HostRoot proof');
 forbid(gate,'probe.fullDocument===false','heuristic fullDocument bypass must never unlock hydration');
 forbid(gate,'main-world-legacy-host','legacy host hydration bypass must never return');
 forbid(gate,'probe.documentRootOwned===true','HTML/BODY React ownership must remain diagnostic, not a boot requirement');
@@ -109,9 +110,13 @@ const fiberRootLab=read('visual-lab/tests/hydration-fiber-root-v109.spec.js');
 for(const token of ['__reactFiber','tag:3','staleAlternate','isDehydrated:true','isDehydrated=false','react-fiber-root-settled','HYDRATION_FIBER_ROOT_CHECKPOINT PASS'])need(fiberRootLab,token,'fiber-root hydration regression incomplete');
 const recoveryLab=read('visual-lab/tests/hydration-recovery-v110.spec.js');
 for(const token of ['root.memoizedState={}','HYDRATION_RECOVERY_V110_CHECKPOINT PASS','htmlFiber','bodyFiber','react-fiber-root-settled'])need(recoveryLab,token,'post-418 client-render recovery regression incomplete');
+const schedulerDrainLab=read('visual-lab/tests/hydration-scheduler-drain-v111.spec.js');
+for(const token of ['MessageChannel','memoizedState:{}','late MessagePort hydration at HTML','late-1','late-2','HYDRATION_SCHEDULER_DRAIN_V111_CHECKPOINT PASS','react-fiber-root-settled'])need(schedulerDrainLab,token,'post-HostRoot late scheduler regression incomplete');
 const hydrationWorkflow=read('.github/workflows/live-stability-v129.yml');
 if((hydrationWorkflow.match(/tests\/hydration-fiber-root-v109\.spec\.js/g)||[]).length<3)fail('fiber-root regression must be tracked and run in both Chromium and Brave');
 if((hydrationWorkflow.match(/tests\/hydration-recovery-v110\.spec\.js/g)||[]).length<3)fail('post-418 recovery regression must be tracked and run in both Chromium and Brave');
+if((hydrationWorkflow.match(/tests\/hydration-scheduler-drain-v111\.spec\.js/g)||[]).length<3)fail('late scheduler drain regression must be tracked and run in both Chromium and Brave');
+need(hydrationWorkflow,'HYDRATION_SCHEDULER_DRAIN_V111_CHECKPOINT PASS','Brave fallback must require the late scheduler drain checkpoint');
 const documentRootLab=read('visual-lab/tests/hydration-document-root-v107.spec.js');
 for(const token of ['window.__documentRootClaimed=false','window.__earlyNiakMutation=false','hostRootSettled','documentRootClaimed','react-document-root-settled','HYDRATION_DOCUMENT_ROOT_CHECKPOINT PASS'])need(documentRootLab,token,'document-root hydration regression incomplete');
 const isolatedHydrationLab=read('visual-lab/tests/hydration-isolated-world-v106.spec.js');

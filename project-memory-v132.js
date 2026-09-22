@@ -181,6 +181,118 @@
     throw new Error(r && r.error || 'memory_read_failed');
   }
 
+  async function list(path) {
+    const r = await send({ type: 'niakgpt:memory-list-v132', path });
+    if (r && r.ok) return Array.isArray(r.items) ? r.items : [];
+    if (/404|not_found/i.test(String(r && r.error || ''))) return [];
+    throw new Error(r && r.error || 'memory_list_failed');
+  }
+
+  const canonicalProjectId = value => {
+    const id=one(value);
+    return /^g-p-[A-Za-z0-9_-]+$/.test(id)?id:'';
+  };
+
+  function vaultCatalogRow(input, fallbackId='') {
+    if(!input||typeof input!=='object')return null;
+    const id=canonicalProjectId(input.id||input.projectId||fallbackId);
+    if(!id)return null;
+    const name=projectName(input.name||input.projectName||'')||id;
+    const known=Math.max(0,Number(input.knownConversationCount??input.conversationCount??0)||0);
+    const cached=Math.max(0,Number(input.cachedConversationCount??input.conversationCount??0)||0);
+    return {
+      id,name,
+      href:String(input.href||`/g/${id}/project`),
+      description:clean(input.description||''),
+      instructions:clean(input.instructions||''),
+      knownConversationCount:known,
+      cachedConversationCount:cached,
+      indexed:input.indexed===true,
+      updatedAt:String(input.updatedAt||input.generatedAt||'')
+    };
+  }
+
+  async function vaultProjectCatalog(localIds=new Set()) {
+    const byId=new Map();
+    try{
+      const txt=await read('PROJECTS.json');
+      if(txt){
+        const root=JSON.parse(txt);
+        for(const raw of (Array.isArray(root?.projects)?root.projects:[])){
+          const row=vaultCatalogRow(raw);
+          if(row)byId.set(row.id,row);
+        }
+      }
+    }catch{}
+    let dirs=[];
+    try{dirs=(await list('projects')).filter(item=>item?.type==='dir'&&canonicalProjectId(item?.name));}catch{}
+    for(const item of dirs){
+      const id=canonicalProjectId(item.name);if(!id)continue;
+      let row=byId.get(id)||vaultCatalogRow({id},id);
+      if(!localIds.has(id)||!row?.name||row.name===id){
+        try{
+          const txt=await read(ppath(id,'project.json'));
+          if(txt){
+            const detail=vaultCatalogRow(JSON.parse(txt),id);
+            if(detail)row={...row,...detail,id};
+          }
+        }catch{}
+      }
+      if(row)byId.set(id,row);
+    }
+    return [...byId.values()].sort((a,b)=>a.name.localeCompare(b.name,'fr'));
+  }
+
+  async function recoverVaultCatalog(options={}) {
+    let raw=await cache(),localCanonical=new Set((raw.projects||[]).map(p=>canonicalProjectId(p?.id)).filter(Boolean));
+    let st={};try{st=(await chrome.storage.local.get(STATE_KEY))[STATE_KEY]||{};}catch{}
+    const expected=Math.max(0,Number(st.vaultCatalogProjectCount||0));
+    if(options.force!==true&&expected&&localCanonical.size>=expected)return{ok:true,skipped:true,projects:localCanonical.size};
+    const remote=await vaultProjectCatalog(localCanonical);
+    if(!remote.length)return{ok:true,skipped:true,projects:localCanonical.size};
+    const missing=remote.filter(row=>!localCanonical.has(row.id));
+    const bus=window.__NIAKGPT_CACHE_BUS__;
+    const merge=latest=>{
+      latest=latest&&typeof latest==='object'?latest:{};
+      const byId=new Map((latest.projects||[]).filter(p=>p?.id).map(p=>[String(p.id),{...p}]));
+      const counts={...(latest.counts||{})};let changed=false;
+      for(const row of remote){
+        const old=byId.get(row.id)||null,oldName=projectName(old?.name||'');
+        const next={
+          ...(old||{}),
+          id:row.id,
+          name:oldName||row.name,
+          href:String(old?.href||row.href||`/g/${row.id}/project`),
+          description:clean(old?.description||row.description||''),
+          instructions:clean(old?.instructions||row.instructions||''),
+          domOnly:false,
+          memoryRecovered:old?old.memoryRecovered===true:true
+        };
+        if(!old||JSON.stringify(old)!==JSON.stringify(next)){byId.set(row.id,next);changed=true;}
+        const recoveredCount=Math.max(Number(row.knownConversationCount||0),Number(row.cachedConversationCount||0));
+        if(recoveredCount>(Number(counts[row.id])||0)){counts[row.id]=recoveredCount;changed=true;}
+      }
+      if(!changed)return latest;
+      return {...latest,projects:[...byId.values()],counts,vaultCatalogRecoveredAt:Date.now(),at:Date.now()};
+    };
+    if(bus?.update)raw=await bus.update(merge);
+    else{raw=merge(raw);await chrome.storage.local.set({[CACHE_KEY]:raw});}
+    const recoveredCount=(raw.projects||[]).filter(p=>canonicalProjectId(p?.id)).length;
+    await state({
+      vaultCatalogRecoveredAt:Date.now(),
+      vaultCatalogProjectCount:Math.max(remote.length,recoveredCount),
+      vaultCatalogRecoveredMissing:missing.length,
+      error:''
+    });
+    if(missing.length){
+      window.__NIAKGPT_DIAGNOSTICS__?.set('memory-catalog',`RÉPARÉ · ${recoveredCount} Projects canoniques · ${missing.length} restauré(s) depuis le coffre`);
+      document.dispatchEvent(new CustomEvent('niakgpt:vault-project-catalog-recovered',{detail:{projects:recoveredCount,restored:missing.length}}));
+      document.dispatchEvent(new CustomEvent('niakgpt:sidebar-projects-reconcile',{detail:{source:'project-memory-v132-vault-recovery'}}));
+      document.dispatchEvent(new CustomEvent('niakgpt:force-server-index',{detail:{source:'project-memory-v132-vault-recovery'}}));
+    }
+    return{ok:true,projects:recoveredCount,restored:missing.length};
+  }
+
   async function commit(files, message) {
     for (let i = 0; i < files.length; i += 14) {
       const r = await send({
@@ -536,6 +648,22 @@
       return navigator.locks.request(CACHE_BOOTSTRAP_LOCK,{mode:'exclusive'},()=>writeCachedBootstrap(Object.assign({},options,{__lockHeld:true})));
     }
     const raw=await cache(),list=projects(raw),generatedAt=new Date().toISOString(),signature=cachedBootstrapSignature(list);
+    const localIds=new Set(list.map(project=>canonicalProjectId(project?.id)).filter(Boolean));
+    let remoteCatalog=[];try{remoteCatalog=await vaultProjectCatalog(localIds);}catch{}
+    const manifestMap=new Map(remoteCatalog.map(row=>[row.id,{...row}]));
+    for(const project of list){
+      const id=canonicalProjectId(project?.id);if(!id)continue;
+      const old=manifestMap.get(id)||{};
+      manifestMap.set(id,{
+        ...old,id,
+        name:projectName(project.name||old.name||'')||id,
+        href:String(project.href||old.href||`/g/${id}/project`),
+        knownConversationCount:Math.max(Number(old.knownConversationCount||0),Number(project.count||0)),
+        cachedConversationCount:Math.max(Number(old.cachedConversationCount||0),(project.chats||[]).length),
+        indexed:project.indexed===true||old.indexed===true
+      });
+    }
+    const manifestProjects=[...manifestMap.values()].sort((a,b)=>String(a.name||a.id).localeCompare(String(b.name||b.id),'fr'));
     let current={};try{current=(await chrome.storage.local.get(STATE_KEY))[STATE_KEY]||{};}catch{}
     if(options.force!==true&&signature&&current.bootstrapCacheSignature===signature&&Number(current.bootstrapCachedAt||0)>0){
       return {ok:true,skipped:true,projects:list.length,files:Number(current.bootstrapCachedFiles||0),signature};
@@ -543,10 +671,17 @@
     const files=[{
       path:'PROJECTS.json',
       content:JSON.stringify({
-        schema:1,kind:'NiakGPTCachedBootstrap',source:'local-cache-only',generatedAt,
-        projectCount:list.length,
-        projects:list.map(project=>({
-          id:project.id,name:projectName(project.name||''),href:String(project.href||''),knownConversationCount:Number(project.count||0),cachedConversationCount:(project.chats||[]).length,indexed:project.indexed===true
+        schema:1,kind:'NiakGPTCachedBootstrap',
+        source:manifestProjects.length>list.length?'local-cache+vault-retained':'local-cache-only',
+        generatedAt,
+        projectCount:manifestProjects.length,
+        localProjectCount:list.length,
+        retainedProjectCount:Math.max(0,manifestProjects.length-list.length),
+        projects:manifestProjects.map(project=>({
+          id:project.id,name:projectName(project.name||''),href:String(project.href||''),
+          knownConversationCount:Number(project.knownConversationCount||0),
+          cachedConversationCount:Number(project.cachedConversationCount||0),
+          indexed:project.indexed===true
         }))
       },null,2)+'\n'
     }];
@@ -587,11 +722,12 @@
     }
     await commit(files,'NiakGPT memory: cached bootstrap inventory');
     await state({
-      bootstrapCachedAt:Date.now(),bootstrapCachedProjects:list.length,bootstrapCachedFiles:files.length,
-      bootstrapCacheSignature:signature,bootstrapSource:'local-cache-only',error:''
+      bootstrapCachedAt:Date.now(),bootstrapCachedProjects:manifestProjects.length,bootstrapCachedFiles:files.length,
+      bootstrapLocalProjects:list.length,bootstrapRetainedProjects:Math.max(0,manifestProjects.length-list.length),
+      bootstrapCacheSignature:signature,bootstrapSource:manifestProjects.length>list.length?'local-cache+vault-retained':'local-cache-only',error:''
     });
-    document.dispatchEvent(new CustomEvent('niakgpt:project-memory-bootstrap-written',{detail:{projects:list.length,files:files.length,signature}}));
-    return {ok:true,projects:list.length,files:files.length,signature};
+    document.dispatchEvent(new CustomEvent('niakgpt:project-memory-bootstrap-written',{detail:{projects:manifestProjects.length,localProjects:list.length,files:files.length,signature}}));
+    return {ok:true,projects:manifestProjects.length,localProjects:list.length,files:files.length,signature};
   }
 
   async function queuedState(reason='') {
@@ -790,6 +926,7 @@
   async function connect(options) {
     const r = await send(Object.assign({ type:'niakgpt:memory-connect-v132' }, options || {}));
     if (r && r.ok) {
+      await recoverVaultCatalog({force:true}).catch(()=>null);
       const pending=await primeBootstrapQueue(false);
       let cached;
       try{cached=await writeCachedBootstrap({force:true});}
@@ -869,6 +1006,7 @@
   async function githubConnectRepo(options) {
     const r = await send(Object.assign({ type:'niakgpt:memory-github-connect-repo-v132' }, options || {}));
     if (r && r.ok) {
+      await recoverVaultCatalog({force:true}).catch(()=>null);
       const pending=await primeBootstrapQueue(false);
       let cached;
       try{cached=await writeCachedBootstrap({force:true});}
@@ -917,6 +1055,7 @@
 
   async function syncNow(options={}) {
     const force=options.force===true;
+    await recoverVaultCatalog().catch(()=>null);
     if(document.documentElement.dataset.ng90PeerBusy==='1'){
       const pending=await primeBootstrapQueue(force);
       try{
@@ -961,7 +1100,8 @@
     syncNow,
     getPrefs:prefs,
     setPrefs,
-    refreshContext
+    refreshContext,
+    recoverVaultCatalog
   };
 
   document.addEventListener('click', event => {
@@ -1035,6 +1175,7 @@
 
   prefs().finally(async() => {
     refreshContext();
+    await recoverVaultCatalog().catch(()=>null);
     let pending=[],bootstrapFailed=false;
     try{pending=await ensureBootstrapQueued();}catch{}
     if(pending.length&&!document.hidden){

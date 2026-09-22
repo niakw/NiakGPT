@@ -1103,21 +1103,24 @@
   async function syncPriorityNow() {
     const remote=await send({type:'niakgpt:memory-status-v132'});
     if(!remote?.connected)return {ok:false,error:remote?.configured?'github_token_missing':'not_connected'};
+    let pending=[];
     priorityKick=true;
     try{
       let q={};try{q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
-      const pending=Array.isArray(q.pending)&&q.pending.length
+      pending=Array.isArray(q.pending)&&q.pending.length
         ? await saveQueue(q.pending,false,true)
         : await primeBootstrapQueue(false,true);
       prioritySync=true;
       await state({mode:'queued',prioritySync:true,priorityStartedAt:Date.now(),queuedProjects:pending.length,projectTotal:pending.length,pauseReason:'priority',error:''});
-      if(syncing)return {ok:true,priority:true,joined:true,queuedProjects:pending.length};
-      const result=await bootstrap({force:false,projectIds:pending,auto:false,priority:true});
-      if(result?.paused||result?.error==='memory_sync_owned_by_other_tab') schedule(PRIORITY_RETRY_MS);
-      return {...result,priority:true,queuedProjects:pending.length};
     } finally {
       priorityKick=false;
     }
+    if(syncing)return {ok:true,priority:true,joined:true,queuedProjects:pending.length};
+    // Explicit priority is a long-lived queue mode, not a long UI call. Let the normal
+    // owner/lock scheduler start it once; this avoids a manual bootstrap racing the
+    // storage-change resume path and keeps the settings button responsive.
+    schedule(0);
+    return {ok:true,priority:true,started:true,queuedProjects:pending.length};
   }
 
   async function syncNow(options={}) {

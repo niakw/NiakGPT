@@ -336,6 +336,7 @@ project_switch=read('.github/workflows/project-switch-user-journey-v130.yml')
 for token in ('sidebar-projects-authority-v112.js','project-state-selfheal-v102.js','reclassify-v101.js','reclassify-deep-v112.js','ux-v131.js','visual-lab/user-reported-v133.mjs'):
     if token not in project_switch: fail('Project-switch journey trigger coverage incomplete '+token)
 live_stability=read('.github/workflows/live-stability-v129.yml')
+if live_stability.count('tests/hydration-isolated-world-v106.spec.js') < 2: fail('MAIN-world hydration regression must execute in Chromium and Brave stability jobs')
 for token in ('background-v100.js','hydration-isolated-world-v106.spec.js','HYDRATION_MAIN_WORLD_CHECKPOINT PASS','conversation-scroll-guard-v133.js','project-state-selfheal-v102.js','user-reported-v133.mjs','User-reported scroll + single Projects authority in Brave stable','/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'):
     if token not in live_stability: fail('Brave macOS field gate missing '+token)
 if re.search(r'^\s*npx playwright install --with-deps\b',workflow,re.M): fail('Linux Finalization reintroduced apt --with-deps')

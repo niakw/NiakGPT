@@ -8,7 +8,7 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 
 const manifest=JSON.parse(read('manifest.json'));
 if(manifest.manifest_version!==3)fail('manifest_version drift');
-if(manifest.version!=='0.9.103')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.104')fail(`unexpected release ${manifest.version}`);
 same(manifest.permissions,['storage','scripting','identity'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*'],'host scope mismatch');
 const staticRuntime=['boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'];
@@ -78,7 +78,7 @@ for(const token of ['PROJECT_STATE.md','canonicalUpdated','prefsReady','function
 forbid(memoryRuntime,'async function inject(ed)','Project Memory send-time injection must be synchronous');
 
 const gate=read('boot-gate-v100.js');
-for(const token of ['waitDomInteractive','waitForChatShell','restorePendingContinuity','guardUpdateOnboarding','injectRuntime','for(const delay of [0,240,720])','safeToMutate=!!document.body','waitForQuiet(1200,7000)','waitStableHostIdentity(1600,8500)','idleTurn(2200)','requestIdleCallback','__NIAKGPT_HOST_HYDRATED_100__','niakgpt:host-hydrated-v100'])need(gate,token,'late-scheduler hydration bootstrap contract incomplete');
+for(const token of ['waitDomInteractive','waitForChatShell','restorePendingContinuity','guardUpdateOnboarding','injectRuntime','for(const delay of [0,240,720])','safeToMutate=!!document.body','waitForQuiet(1200,7000)','waitStableHostIdentity(1600,8500)','idleTurn(2200)','requestIdleCallback','reactHydrationOwned','waitReactHydrationOwnership','waitTrustedHydratedInteraction','REACT_OWNER_RX','data-build','hydrationFault','ng100HydrationProof','__NIAKGPT_HOST_HYDRATED_100__','niakgpt:host-hydrated-v100'])need(gate,token,'late-scheduler/full-document React hydration bootstrap contract incomplete');
 forbid(gate,'location.reload(','boot gate must never reload ChatGPT');
 const hydrationEvent='niakgpt:host-hydrated-v100';
 for(const file of staticRuntime.slice(1)){
@@ -90,7 +90,7 @@ for(const file of staticRuntime.slice(1)){
 }
 if(!fs.existsSync('visual-lab/hydration-barrier-v080.mjs'))fail('SSR hydration barrier browser gate missing');
 const hydrationLab=read('visual-lab/hydration-barrier-v080.mjs');
-for(const token of ["const BOOT='boot-gate-v100.js'",'manifestOrderedSource','MessageChannel','lateHydrationStage','first false-calm scheduler window','late MessagePort hydration settled','document_idle + late MessagePort host replacements + stable-node activation'])need(hydrationLab,token,'late-scheduler hydration lab incomplete');
+for(const token of ["const BOOT='boot-gate-v100.js'",'manifestOrderedSource','MessageChannel','data-build="prod-hydration-lab"','__reactRouterContext','__reactContainer$lab','__reactFiber$lab','hydratedBeforeReactOwnership','zero pre-hydration DOM mutation','full-document React ownership','first false-calm scheduler window','late MessagePort hydration settled'])need(hydrationLab,token,'full-document React hydration lab incomplete');
 
 
 const parallel=read('composer-continuation-v128.js');

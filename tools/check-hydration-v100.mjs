@@ -105,8 +105,8 @@ if(!fs.existsSync('visual-lab/hydration-barrier-v080.mjs'))fail('SSR hydration b
 if(!fs.existsSync('visual-lab/tests/hydration-isolated-world-v106.spec.js'))fail('real MV3 isolated-world hydration gate missing');
 const fiberRootLab=read('visual-lab/tests/hydration-fiber-root-v109.spec.js');
 for(const token of ['__reactFiber','tag:3','staleAlternate','isDehydrated:true','isDehydrated=false','react-fiber-root-settled','HYDRATION_FIBER_ROOT_CHECKPOINT PASS'])need(fiberRootLab,token,'fiber-root hydration regression incomplete');
-const liveWorkflow=read('.github/workflows/live-stability-v129.yml');
-if((liveWorkflow.match(/tests\/hydration-fiber-root-v109\.spec\.js/g)||[]).length<3)fail('fiber-root regression must be tracked and run in both Chromium and Brave');
+const hydrationWorkflow=read('.github/workflows/live-stability-v129.yml');
+if((hydrationWorkflow.match(/tests\/hydration-fiber-root-v109\.spec\.js/g)||[]).length<3)fail('fiber-root regression must be tracked and run in both Chromium and Brave');
 const documentRootLab=read('visual-lab/tests/hydration-document-root-v107.spec.js');
 for(const token of ['window.__documentRootClaimed=false','window.__earlyNiakMutation=false','hostRootSettled','documentRootClaimed','react-document-root-settled','HYDRATION_DOCUMENT_ROOT_CHECKPOINT PASS'])need(documentRootLab,token,'document-root hydration regression incomplete');
 const isolatedHydrationLab=read('visual-lab/tests/hydration-isolated-world-v106.spec.js');

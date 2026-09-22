@@ -1,3 +1,12 @@
+# NiakGPT 0.9.107 — preuve React stricte sur le ChatGPT réel
+
+- **Régression terrain 0.9.106 confirmée** : un `RecoverableError: Minified React error #418` restait observable et la sidebar droite pouvait ne pas revenir dans le profil réel.
+- **Cause racine** : le probe MAIN-world renvoyait `fullDocument:false` quand ChatGPT n’exposait plus les sentinelles volatiles `data-build` / `window.__reactRouterContext`. Le gate interprétait alors ce cas comme « legacy host » et déverrouillait NiakGPT sans attendre `isDehydrated === false`.
+- **Correction d’architecture** : seule une preuve React positive autorise maintenant le runtime : conteneur React réel trouvé, HostRoot explicitement non déshydraté, puis seconde confirmation MAIN-world avec au moins deux identités hôtes possédées par React.
+- **Faux vert supprimé** : la régression MV3 ne fournit plus les deux sentinelles et maintient volontairement le HostRoot en `isDehydrated:true` pendant 6,5 s. Elle exige zéro preuve NiakGPT et zéro `#ng8-rail` avant le basculement.
+- **Fail closed conservé** : si la preuve React n’arrive pas, aucune mutation DOM/CSS n’est autorisée ; le fallback d’interaction native reste uniquement une issue tardive.
+- **Route 410 inchangée** : `/backend-api/f/conversation/resume` reste une route native ChatGPT et demeure absente du runtime NiakGPT.
+
 # NiakGPT 0.9.106 — probe React MAIN-world + reprise fiable de la sidebar
 
 - **Régression terrain après 0.9.105** : la sidebar NiakGPT pouvait rester absente alors que ChatGPT lui-même continuait à fonctionner.

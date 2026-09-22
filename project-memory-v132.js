@@ -20,7 +20,7 @@
   const HUMAN_QUIET_MS = 60*1000;
   const ACTIVE_HISTORY_RETRY_MS = 5000;
   const PRIORITY_RETRY_MS = 1000;
-  const CHAT_FETCH_RETRIES_PRIORITY = 3;
+  const CHAT_FETCH_RETRIES_PRIORITY = 2;
   const CHAT_FETCH_RETRIES_NORMAL = 2;
   const PRIORITY_CHAT_BATCH = 3;
   const PRIORITY_CHAT_BATCH_FILES = 22;
@@ -707,7 +707,7 @@
     await saveContext(project.id,compact);
 
     const nextRetryAt=deferred.length?Math.min(...deferred.map(row=>Number(row.nextAt||0)).filter(Boolean)):0;
-    return {changed,deferred:deferred.length,nextRetryAt};
+    return {changed,deferred,nextRetryAt};
   }
 
   async function deepInventory() {
@@ -1249,7 +1249,10 @@
     return Object.assign({}, remote, {
       state:local[STATE_KEY] || {},
       prefs:Object.assign({},defaults,local[PREFS_KEY] || {}),
-      queue:{pending:Array.isArray(queue.pending)?queue.pending.slice():[],force:queue.force===true,priority:queue.priority===true,at:Number(queue.at||0)}
+      queue:{
+        pending:Array.isArray(queue.pending)?queue.pending.slice():[],force:queue.force===true,priority:queue.priority===true,
+        retryAt:Number(queue.retryAt||0),deferredChats:Number(queue.deferredChats||0),at:Number(queue.at||0)
+      }
     });
   }
 

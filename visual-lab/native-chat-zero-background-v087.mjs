@@ -202,7 +202,9 @@ try{
   // Explicit user foreground hydration remains possible only off-chat, when no visible peer conversation exists.
   await page.evaluate(()=>{delete document.documentElement.dataset.ng90PeerBusy;delete document.documentElement.dataset.ng90PeerChatActive;});
   const foreground=await rpc({
-    path:'/backend-api/gizmos/g-p-abcdefghijklmnop/conversations?limit=20',
+    // Use a distinct opaque cursor so this assertion exercises a fresh foreground network
+    // request instead of legitimately hitting the bridge cache populated by memory repair.
+    path:'/backend-api/gizmos/g-p-abcdefghijklmnop/conversations?limit=20&cursor=foreground-proof',
     method:'GET',
     foreground:true
   });

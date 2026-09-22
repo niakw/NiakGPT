@@ -7,7 +7,7 @@
   const PROJECT='a[href*="/g/g-p-"]';
   const CHAT='a[href*="/c/"]';
   const PRIMARY=/^(?:\/?$|\/new(?:\/|$)|\/search(?:\/|$)|\/library(?:\/|$)|\/images?(?:\/|$)|\/apps?(?:\/|$)|\/codex(?:\/|$))/i;
-  const SIDEBAR_CANDIDATE='[data-testid="conversation-sidebar"],[data-testid*="sidebar" i],nav,aside';
+  const SIDEBAR_CANDIDATE='nav[aria-label*="Historique de chat" i],nav[aria-label*="Chat history" i],[data-testid="conversation-sidebar"],[data-testid*="sidebar" i],nav,aside';
   let timer=0,observer=null;
   const projectScrollGuard={list:null,top:0,dir:0,until:0,repairing:false,seq:0};
 
@@ -20,7 +20,8 @@
     const r=el.getBoundingClientRect();if(r.width<140||r.height<240)return-Infinity;
     let n=0,tid=String(el.getAttribute('data-testid')||'').toLowerCase(),aria=String(el.getAttribute('aria-label')||'').toLowerCase();
     if(tid==='conversation-sidebar')n+=160;else if(tid.includes('sidebar'))n+=90;
-    if(/sidebar|conversations|historique|history|navigation/.test(aria))n+=35;
+    if(/^(?:historique de chat|chat history)$/.test(aria))n+=180;
+    else if(/sidebar|conversations|historique|history|navigation/.test(aria))n+=35;
     if(r.left<=24)n+=80;else if(r.left<=72)n+=36;else if(innerWidth>760)n-=115;
     if(r.width>=220&&r.width<=420)n+=55;else if(r.width>=180)n+=18;else n-=55;
     if(r.right<Math.min(innerWidth*.42,620))n+=24;else n-=35;

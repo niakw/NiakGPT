@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {test,expect,chromium} from '@playwright/test';
+import {execFileSync} from 'node:child_process';
 
 const ROOT=path.resolve('..');
 const EXECUTABLE=String(process.env.NIAKGPT_EXECUTABLE_PATH||'').trim();
@@ -10,6 +11,16 @@ const OUT=path.join(ROOT,'visual-lab','artifacts','live-chatgpt-v109');
 const TARGET='https://chatgpt.com/';
 
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function closePersistent(context){
+  const braveMac=!!EXECUTABLE&&process.platform==='darwin';
+  if(!braveMac){await context.close().catch(()=>{});return;}
+  for(const signal of ['-TERM','-KILL']){
+    try{execFileSync('/usr/bin/pkill',[signal,'-f','Brave Browser'],{stdio:'ignore'});}catch{}
+    await sleep(signal==='-TERM'?350:120);
+    if(!context.browser()?.isConnected())break;
+  }
+  await Promise.race([context.close().catch(()=>{}),sleep(1500)]);
+}
 const launchBase=()=>({
   headless:true,
   ...(EXECUTABLE?{executablePath:EXECUTABLE}:{channel:'chromium'}),
@@ -125,7 +136,7 @@ async function visitExtension(){
       bucket.snapshots.push(await snapshot(page,label).catch(e=>({label,error:String(e)})));
     }
   }finally{
-    await context.close().catch(()=>{});
+    await closePersistent(context);
     fs.rmSync(dir,{recursive:true,force:true});
   }
   return bucket;

@@ -354,7 +354,7 @@ try{
         {id:'g-p-gamma',name:'Workspace Gamma',conversationCount:3,knownConversationCount:4,indexed:true},
         {id:'g-p-delta',name:'Workspace Delta',conversationCount:2,knownConversationCount:2,indexed:true}
       ];
-      const listeners=[];window.__localData=localData;window.__commits=[];
+      const listeners=[];window.__localData=localData;window.__commits=[];window.__catalog=catalog;
       const clone=value=>value===undefined?undefined:structuredClone(value);
       window.chrome={
         runtime:{
@@ -418,6 +418,16 @@ try{
     assert(recovered.core.length===4&&recovered.manualCoreSelection===false,'classification governance stayed collapsed at one Project: '+JSON.stringify(recovered));
     assert(recovered.root?.projectCount===4,'cached bootstrap rewrote durable PROJECTS.json from the collapsed one-Project cache');
     assert(recovered.root.projects.every(row=>!('description'in row)&&!('instructions'in row)),'cached Project inventory leaked private Project content');
+
+    // A complete current server index must remain authoritative even when recovery is forced
+    // (for example by a reconnect/sync button) and the durable vault contains an older extra Project.
+    const authoritative=await page.evaluate(async()=>{
+      window.__localData['niakgpt-v08-cache'].serverIndexedAt=Date.now();
+      window.__catalog.push({id:'g-p-retired',name:'Workspace Retired',conversationCount:9,knownConversationCount:9,indexed:true});
+      const result=await window.__NIAKGPT_PROJECT_MEMORY__.recoverVaultCatalog(true);
+      return{result,count:window.__localData['niakgpt-v08-cache'].projects.length,hasRetired:window.__localData['niakgpt-v08-cache'].projects.some(p=>p.id==='g-p-retired')};
+    });
+    assert(authoritative.result?.skipped==='healthy-current'&&authoritative.count===4&&!authoritative.hasRetired,'forced vault recovery overrode a healthy current server index: '+JSON.stringify(authoritative));
     await page.close();
   }
 

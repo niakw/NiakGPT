@@ -1,3 +1,12 @@
+# NiakGPT 0.9.115 — Project Memory rattrape enfin l’historique pendant l’usage actif
+
+- **Défaut terrain confirmé** : le coffre connaît plus de 300 conversations mais seuls quelques transcripts complets existent sous `conversations/`. Le catalogue est désormais durable, mais l’archivage historique reste affamé pendant l’usage normal.
+- **Cause racine** : le gate `HUMAN_QUIET_MS = 60 s` s’appliquait aussi au transport `extension-background`, pourtant isolé du DOM/bridge. Chaque clic, touche, molette ou navigation repoussait donc le worker avant qu’il puisse vider sa file.
+- **Séparation des chemins** : le quiet gate reste requis pour les chemins page/RPC ; il est levé uniquement pour un chat ouvert quand le probe worker background est positif.
+- **Sécurité conservée** : génération active, peer occupé, interruption réseau/vérification, onglet caché, perte d’owner et 429 continuent de suspendre le rattrapage.
+- **Cadence bornée** : pas de polling agressif ; les lectures historiques restent espacées et les reprises occupées utilisent un retry de 5 s.
+- **Non-régression dédiée** : `project-memory-active-catchup-v115.mjs` exige une archive durable en moins de 8 s alors que les 60 s de silence ne sont pas atteintes.
+
 # NiakGPT 0.9.114 — catalogue Projects durable et auto-réparation du cache froid
 
 - **Cause racine du « 1 Project »** : `PROJECTS.json` était un snapshot live réécrit depuis le cache local. Après cache froid/réinstallation, un inventaire local réduit à un seul Project pouvait donc écraser le catalogue privé complet et rendre la panne auto-entretenue.

@@ -1,3 +1,13 @@
+# NiakGPT 0.9.116 — transfert initial Project Memory prioritaire et reprise exacte
+
+- **Cause racine du retour à 0 %** : le transcript de chaque chat était commité immédiatement, mais l’index Project `projects/<id>/index.json` n’était persisté qu’après la fin complète du Project. Une pause ou une erreur GitHub au milieu d’un gros Project faisait donc perdre le checkpoint de tous les chats réussis depuis le dernier checkpoint Project.
+- **Checkpoint durable par chat** : chaque conversation canonique réussie met désormais à jour son propre `index.json` **et** l’index du Project dans la même écriture logique. Une reprise relit cet index et saute les chats déjà `complete:true` et à jour.
+- **Bouton dédié** : le Centre de contrôle ajoute **Forcer la synchro des chats**. Ce mode ne signifie pas « tout relire » : il promeut la file existante et traite seulement les fils absents/incomplets.
+- **Priorité bornée** : en mode premier transfert, l’intervalle entre lectures conversation passe à 900 ms, les retries occupés à 1 s et les pauses inter-batchs sont réduites. Les générations ChatGPT, vérifications, incidents réseau, onglets non propriétaires et 429 restent bloquants.
+- **Écritures GitHub accélérées** : les fichiers indépendants d’un même commit peuvent créer leurs blobs avec une concurrence bornée à 6 ; l’ordre des commits et la mise à jour de branche restent strictement sérialisés par `queueCommit` et sans force-push.
+- **Mode persistant jusqu’à convergence** : la priorité est stockée dans la file locale, survit aux pauses/retries et fonctionne même si la synchro incrémentale automatique est désactivée. Une synchro déjà en cours peut être promue sans repartir du début.
+- **Non-régression** : `project-memory-priority-sync-v116.mjs` démarre avec un chat déjà archivé, provoque une erreur d’écriture sur un chat ultérieur, puis exige que le chat checkpointé ne soit pas relu lors de la reprise et que la file se ferme seulement après convergence.
+
 # NiakGPT 0.9.115 — Project Memory rattrape enfin l’historique pendant l’usage actif
 
 - **Défaut terrain confirmé** : le coffre connaît plus de 300 conversations mais seuls quelques transcripts complets existent sous `conversations/`. Le catalogue est désormais durable, mais l’archivage historique reste affamé pendant l’usage normal.

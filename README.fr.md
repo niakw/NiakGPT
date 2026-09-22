@@ -21,7 +21,7 @@
 NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT en **véritable espace de travail pour un usage intensif et organisé par Projects**, sans remplacer ChatGPT.
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
-> **Version actuelle : 0.9.105.** Le démarrage attend désormais une vraie preuve de propriété React sur le rendu full-document de ChatGPT avant que NiakGPT puisse toucher `<html>`, `<body>` ou la sidebar. Les correctifs Project Memory et Projects/Chats de la 0.9.103 restent conservés.
+> **Version actuelle : 0.9.105.** Le démarrage laisse désormais **DOM et CSS totalement intacts** tant que le HostRoot React de ChatGPT n’annonce pas explicitement `isDehydrated=false` ; de simples clés internes React ne suffisent plus. Les correctifs Project Memory et Projects/Chats restent conservés.
 
 ## Points forts
 
@@ -29,7 +29,7 @@ Elle ajoute une couche native-first pour les Projects, la navigation, les longue
 
 La 0.9.105 supprime la dernière surface précoce : **aucun CSS NiakGPT n’est plus déclaré comme content script statique**. Les 34 feuilles de style sont injectées uniquement après validation du gate d’hydratation, juste avant le runtime. Cela évite qu’un style NiakGPT puisse influencer le rendu client de ChatGPT pendant l’hydratation SSR.
 
-Le JavaScript NiakGPT ne s’exécute plus à `document_start` : le bootstrap démarre à `document_idle`, puis attend stabilité des nœuds, calme DOM, scheduler idle **et marqueurs de propriété React sur le document ChatGPT et ses nœuds hôtes** avant toute mutation. Si ces marqueurs ne sont pas disponibles, le gate reste fermé jusqu’à une interaction native fiable. Le lab Chromium/Firefox/WebKit conserve volontairement un DOM stable pendant que React continue son travail via `MessageChannel`, et échoue dès qu’un attribut `data-ng*` ou un nœud NiakGPT apparaît avant la propriété React.
+Le JavaScript NiakGPT ne s’exécute plus à `document_start` : le bootstrap démarre à `document_idle`, puis attend stabilité des nœuds, calme DOM, scheduler idle, propriété React **et HostRoot explicitement sorti de l’état déshydraté (`memoizedState.isDehydrated === false`)** avant toute mutation. Si ces marqueurs ne sont pas disponibles, le gate reste fermé jusqu’à une interaction native fiable. Le lab Chromium/Firefox/WebKit conserve volontairement un DOM stable pendant que React continue son travail via `MessageChannel`, et échoue dès qu’un attribut `data-ng*` ou un nœud NiakGPT apparaît avant la propriété React.
 
 ### Projects intégrés à ChatGPT
 

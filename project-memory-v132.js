@@ -21,7 +21,7 @@
   const PRIORITY_RETRY_MS = 1000;
   const WAKE_HEARTBEAT_MS = 30000;
   const GITHUB_AUTH_UI_TIMEOUT_MS = 6*60*1000;
-  let seq = 0, syncing = false, syncAuto = false, prioritySync = false, autoTimer = 0, wakeTimer = 0, routeTimer = 0, domCaptureTimer = 0, lastHistoryFetchAt = 0, lastHumanAt = Date.now();
+  let seq = 0, syncing = false, syncAuto = false, prioritySync = false, priorityKick = false, autoTimer = 0, wakeTimer = 0, routeTimer = 0, domCaptureTimer = 0, lastHistoryFetchAt = 0, lastHumanAt = Date.now();
   let contextProject = '', contextText = '', backgroundHistoryAvailable = null, backgroundHistoryProbeAt = 0;
   let catalogRecoveryPromise = null, lastCatalogRecoveryAt = 0;
 
@@ -1103,16 +1103,21 @@
   async function syncPriorityNow() {
     const remote=await send({type:'niakgpt:memory-status-v132'});
     if(!remote?.connected)return {ok:false,error:remote?.configured?'github_token_missing':'not_connected'};
-    let q={};try{q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
-    const pending=Array.isArray(q.pending)&&q.pending.length
-      ? await saveQueue(q.pending,false,true)
-      : await primeBootstrapQueue(false,true);
-    prioritySync=true;
-    await state({mode:'queued',prioritySync:true,priorityStartedAt:Date.now(),queuedProjects:pending.length,projectTotal:pending.length,pauseReason:'priority',error:''});
-    if(syncing)return {ok:true,priority:true,joined:true,queuedProjects:pending.length};
-    const result=await bootstrap({force:false,projectIds:pending,auto:false,priority:true});
-    if(result?.paused||result?.error==='memory_sync_owned_by_other_tab') schedule(PRIORITY_RETRY_MS);
-    return {...result,priority:true,queuedProjects:pending.length};
+    priorityKick=true;
+    try{
+      let q={};try{q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
+      const pending=Array.isArray(q.pending)&&q.pending.length
+        ? await saveQueue(q.pending,false,true)
+        : await primeBootstrapQueue(false,true);
+      prioritySync=true;
+      await state({mode:'queued',prioritySync:true,priorityStartedAt:Date.now(),queuedProjects:pending.length,projectTotal:pending.length,pauseReason:'priority',error:''});
+      if(syncing)return {ok:true,priority:true,joined:true,queuedProjects:pending.length};
+      const result=await bootstrap({force:false,projectIds:pending,auto:false,priority:true});
+      if(result?.paused||result?.error==='memory_sync_owned_by_other_tab') schedule(PRIORITY_RETRY_MS);
+      return {...result,priority:true,queuedProjects:pending.length};
+    } finally {
+      priorityKick=false;
+    }
   }
 
   async function syncNow(options={}) {
@@ -1197,7 +1202,7 @@
     if (area === 'local' && changes[CONTEXT_KEY]) refreshContext();
     if (area === 'local' && changes[QUEUE_KEY]) {
       if(changes[QUEUE_KEY].newValue?.priority===true)prioritySync=true;
-      if(autoOwner())resume();
+      if(!priorityKick&&autoOwner())resume();
     }
   });
   document.addEventListener('niakgpt:activity-changed', event => {

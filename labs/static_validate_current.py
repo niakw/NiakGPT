@@ -25,7 +25,7 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.105': fail(f"version={version}")
+if version!='0.9.106': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting','identity']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']: fail('host permissions drift')
 
@@ -61,8 +61,9 @@ for file in expected_static[1:]:
         if token not in src: fail('pre-runtime hydration gate incomplete '+file+' '+token)
 if not (ROOT/'visual-lab/hydration-barrier-v080.mjs').exists(): fail('SSR hydration barrier browser gate missing')
 boot_gate=read('boot-gate-v100.js')
-for token in ('reactHydrationOwned','rootHydrationSettled','reactContainerFiber','isDehydrated===false','waitReactHydrationOwnership','waitTrustedHydratedInteraction','REACT_OWNER_RX','REACT_CONTAINER_RX','data-build','hydrationFault','ng100HydrationProof'):
+for token in ('mainWorldReactProbe','niakgpt:probe-react-hydration-v106','waitReactHydrationOwnership','waitTrustedHydratedInteraction','react-main-world-settled','trusted-interaction-after-host-fault','hydrationFault','ng100HydrationProof'):
     if token not in boot_gate: fail('full-document React hydration fuse incomplete '+token)
+if 'Object.getOwnPropertyNames' in boot_gate: fail('isolated boot gate reads page-world React expandos directly')
 hydration_lab=read('visual-lab/hydration-barrier-v080.mjs')
 for token in ('prod-hydration-lab','__reactRouterContext','String.fromCharCode(36)','__reactContainer','__reactFiber','isDehydrated:true','isDehydrated=false','hydratedAtReactMarkerOnly','bare React ownership markers incorrectly unlocked','root-dehydration gate','zero pre-hydration DOM mutation'):
     if token not in hydration_lab: fail('React 418 regression lab incomplete '+token)
@@ -75,6 +76,12 @@ expected_styles=[
 if style_runtime!=expected_styles: fail(f'deferred STYLE_RUNTIME drift: {style_runtime!r}')
 for token in ('chrome.scripting.insertCSS','async function injectStyles','STYLE_INJECTED','const styleFailure=await injectStyles(tabId,frameId)'):
     if token not in background: fail('post-hydration style injection incomplete '+token)
+for token in ('async function probeReactHydration','chrome.scripting.executeScript',"world:'MAIN'",'niakgpt:probe-react-hydration-v106','rootSettled','ownedCount'):
+    if token not in background: fail('MAIN-world React hydration probe incomplete '+token)
+if not (ROOT/'visual-lab/tests/hydration-isolated-world-v106.spec.js').exists(): fail('real MV3 isolated-world hydration regression missing')
+isolated_hydration=read('visual-lab/tests/hydration-isolated-world-v106.spec.js')
+for token in ('launchPersistentContext','--load-extension','hostRootSettled','react-main-world-settled','HYDRATION_MAIN_WORLD_CHECKPOINT PASS'):
+    if token not in isolated_hydration: fail('isolated-world hydration regression incomplete '+token)
 packager=read('tools/package-extension.mjs')
 if "['STYLE_RUNTIME','MAIN_RUNTIME','ISOLATED_RUNTIME','OPTIONAL_RUNTIME']" not in packager: fail('package builder missing deferred STYLE_RUNTIME')
 sidebar_projects=read('sidebar-projects-v121.js')
@@ -319,7 +326,7 @@ for token in ('nativeLimitControl','CONTINUITÉ NIAKGPT','markCurrentOut','write
 for gate in (
     'visual-lab/sidebar-session-ux-v123.mjs','visual-lab/tests/sidebar-human-ux-v123.spec.js',
     'visual-lab/parallel-continue-v128.mjs','visual-lab/tests/composer-continuation-runtime-v128.spec.js',
-    'visual-lab/tests/live-stability-v129.spec.js','visual-lab/tests/long-run-composer-residue-v131.spec.js','visual-lab/ux-integral-v131.mjs'
+    'visual-lab/tests/live-stability-v129.spec.js','visual-lab/tests/long-run-composer-residue-v131.spec.js','visual-lab/tests/hydration-isolated-world-v106.spec.js','visual-lab/ux-integral-v131.mjs'
 ):
     if not (ROOT/gate).exists(): fail('current browser-fixture UX gate missing '+gate)
 workflow=read('.github/workflows/current-finalization.yml')
@@ -329,7 +336,7 @@ project_switch=read('.github/workflows/project-switch-user-journey-v130.yml')
 for token in ('sidebar-projects-authority-v112.js','project-state-selfheal-v102.js','reclassify-v101.js','reclassify-deep-v112.js','ux-v131.js','visual-lab/user-reported-v133.mjs'):
     if token not in project_switch: fail('Project-switch journey trigger coverage incomplete '+token)
 live_stability=read('.github/workflows/live-stability-v129.yml')
-for token in ('conversation-scroll-guard-v133.js','project-state-selfheal-v102.js','user-reported-v133.mjs','User-reported scroll + single Projects authority in Brave stable','/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'):
+for token in ('background-v100.js','hydration-isolated-world-v106.spec.js','HYDRATION_MAIN_WORLD_CHECKPOINT PASS','conversation-scroll-guard-v133.js','project-state-selfheal-v102.js','user-reported-v133.mjs','User-reported scroll + single Projects authority in Brave stable','/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'):
     if token not in live_stability: fail('Brave macOS field gate missing '+token)
 if re.search(r'^\s*npx playwright install --with-deps\b',workflow,re.M): fail('Linux Finalization reintroduced apt --with-deps')
 parallel_workflow=read('.github/workflows/parallel-continuation-v128.yml')

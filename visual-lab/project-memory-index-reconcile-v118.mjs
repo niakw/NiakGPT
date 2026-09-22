@@ -15,10 +15,10 @@ try{
     const ids=['11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333','44444444-4444-4444-8444-444444444444'];
     const now=Date.now();
     const rows=[
-      {id:ids[0],title:'Archived A',projectId:P,updated:1000},
-      {id:ids[1],title:'Archived B',projectId:P,updated:2000},
-      {id:ids[2],title:'Archived C',projectId:P,updated:3000},
-      {id:ids[3],title:'Missing D',projectId:P,updated:4000}
+      {id:ids[0],title:'Archived A',projectId:P,updated:now-4000},
+      {id:ids[1],title:'Archived B',projectId:P,updated:now-3000},
+      {id:ids[2],title:'Archived C',projectId:P,updated:now-2000},
+      {id:ids[3],title:'Missing D',projectId:P,updated:now-1000}
     ];
     const archived=(id,title,updated)=>({
       schema:1,id,title,updated,capturedAt:new Date(now-5000+updated).toISOString(),parts:1,messages:2,
@@ -38,14 +38,14 @@ try{
     const remote={};
     remote['projects/'+P+'/index.json']=JSON.stringify({
       schema:1,projectId:P,projectName:'Workspace',updatedAt:new Date(now-4000).toISOString(),
-      bootstrapMetadataOnly:false,conversations:{[ids[0]]:archived(ids[0],'Archived A',1000)}
+      bootstrapMetadataOnly:false,conversations:{[ids[0]]:archived(ids[0],'Archived A',now-4000)}
     },null,2)+'\n';
     remote['projects/'+P+'/conversations/'+ids[0]+'/index.json']=JSON.stringify(archived(ids[0],'Archived A',1000),null,2)+'\n';
     remote['projects/'+P+'/conversations/'+ids[0]+'/part-001.md']='# archived A\n';
 
     const recovered=[
-      archived(ids[1],'Archived B',2000),
-      archived(ids[2],'Archived C',3000)
+      archived(ids[1],'Archived B',now-3000),
+      archived(ids[2],'Archived C',now-2000)
     ];
     const listeners=[];
     const clone=v=>v===undefined?undefined:structuredClone(v);
@@ -80,7 +80,7 @@ try{
             window.__reconcileFetches.push(id);
             const title=id===ids[3]?'Missing D':'unexpected';
             return reply({ok:true,status:200,data:{
-              id,title,update_time:4,current_node:'n2',
+              id,title,update_time:(now-1000)/1000,current_node:'n2',
               mapping:{
                 n1:{id:'n1',parent:null,message:{author:{role:'user'},create_time:1,content:{parts:['hello '+title]}}},
                 n2:{id:'n2',parent:'n1',message:{author:{role:'assistant'},create_time:2,content:{parts:['answer '+title]}}}

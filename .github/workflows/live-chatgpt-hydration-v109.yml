@@ -1,0 +1,90 @@
+name: NiakGPT Live ChatGPT Hydration v109
+
+on:
+  pull_request:
+    paths:
+      - 'visual-lab/tests/live-chatgpt-hydration-v109.spec.js'
+      - '.github/workflows/live-chatgpt-hydration-v109.yml'
+      - 'manifest.json'
+      - 'boot-gate-v100.js'
+      - 'background-v100.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: niakgpt-live-chatgpt-v109-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  chromium-live:
+    name: live chatgpt · chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      options: --ipc=host
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      HOME: /root
+      NIAKGPT_BROWSER_LABEL: chromium-live
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: visual-lab/package-lock.json
+      - name: Install lab dependencies
+        working-directory: visual-lab
+        run: npm ci --no-audit --no-fund
+      - name: Compare live ChatGPT without and with NiakGPT
+        working-directory: visual-lab
+        run: npx playwright test tests/live-chatgpt-hydration-v109.spec.js --workers=1 --reporter=line
+      - name: Upload live hydration evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: live-chatgpt-hydration-v109-chromium
+          path: visual-lab/artifacts/live-chatgpt-v109
+          if-no-files-found: warn
+          retention-days: 7
+
+  brave-live:
+    name: live chatgpt · macOS Brave stable
+    runs-on: macos-latest
+    timeout-minutes: 15
+    env:
+      NIAKGPT_BROWSER_LABEL: brave-live
+      NIAKGPT_EXECUTABLE_PATH: /Applications/Brave Browser.app/Contents/MacOS/Brave Browser
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: visual-lab/package-lock.json
+      - name: Install lab dependencies
+        working-directory: visual-lab
+        run: npm ci --no-audit --no-fund
+      - name: Install Brave stable
+        run: |
+          brew install --cask brave-browser
+          test -x "$NIAKGPT_EXECUTABLE_PATH"
+          "$NIAKGPT_EXECUTABLE_PATH" --version
+      - name: Compare live ChatGPT without and with NiakGPT
+        working-directory: visual-lab
+        run: npx playwright test tests/live-chatgpt-hydration-v109.spec.js --workers=1 --reporter=line
+      - name: Upload live hydration evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: live-chatgpt-hydration-v109-brave
+          path: visual-lab/artifacts/live-chatgpt-v109
+          if-no-files-found: warn
+          retention-days: 7

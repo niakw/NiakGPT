@@ -28,7 +28,7 @@ const expectedStyles=[
 same(styles,expectedStyles,'post-hydration STYLE_RUNTIME mismatch');
 for(const file of styles)if(!fs.existsSync(file))fail(`missing deferred style ${file}`);
 for(const token of ['chrome.scripting.insertCSS','async function injectStyles','STYLE_INJECTED','const styleFailure=await injectStyles(tabId,frameId)','if(styleFailure){errors.push(styleFailure);bootBlocked=true;}'])need(background,token,'post-hydration style injection contract incomplete');
-for(const token of ['async function probeReactHydration','chrome.scripting.executeScript','world:\'MAIN\'','niakgpt:probe-react-hydration-v107','rootSettled','htmlOwned','bodyOwned','documentRootOwned','ownedCount'])need(background,token,'MAIN-world React hydration probe contract incomplete');
+for(const token of ['async function probeReactHydration','chrome.scripting.executeScript','world:\'MAIN\'','niakgpt:probe-react-hydration-v107','HOST_OWNER_RX','hostOwned','rootSettled','htmlOwned','bodyOwned','documentRootOwned','ownedCount'])need(background,token,'MAIN-world React hydration probe contract incomplete');
 const packager=read('tools/package-extension.mjs');
 need(packager,"['STYLE_RUNTIME','MAIN_RUNTIME','ISOLATED_RUNTIME','OPTIONAL_RUNTIME']",'package builder must include deferred styles');
 

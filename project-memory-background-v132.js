@@ -743,17 +743,28 @@
     }
     if (!Array.isArray(entries)) throw new Error('memory_projects_path_not_directory');
 
-    let rootIndex = null;
+    let durableIndex = null, rootIndex = null;
+    try {
+      const durable = await readFileRawWith(token, config, 'PROJECT_CATALOG.json');
+      durableIndex = JSON.parse(durable.content || 'null');
+    } catch {}
     try {
       const root = await readFileRawWith(token, config, 'PROJECTS.json');
       rootIndex = JSON.parse(root.content || 'null');
     } catch {}
-    const rootById = new Map((Array.isArray(rootIndex?.projects) ? rootIndex.projects : [])
+    const durableRows = Array.isArray(durableIndex?.projects) ? durableIndex.projects : [];
+    const rootRows = Array.isArray(rootIndex?.projects) ? rootIndex.projects : [];
+    // PROJECTS.json is a live bootstrap snapshot and older runtimes may overwrite it from a
+    // collapsed local cache. PROJECT_CATALOG.json is the durable high-water ordering source;
+    // directory/project.json existence still proves membership and supplies current safe metadata.
+    const orderRows = durableRows.length >= 2 ? durableRows : rootRows;
+    const metadataRows = [...rootRows, ...durableRows];
+    const rootById = new Map(metadataRows
       .filter(item => /^g-p-[A-Za-z0-9_-]+$/.test(clean(item?.id)))
       .map(item => [clean(item.id), item]));
 
     const projects = [];
-    const rootOrder = new Map((Array.isArray(rootIndex?.projects) ? rootIndex.projects : [])
+    const rootOrder = new Map(orderRows
       .map((item,index)=>[clean(item?.id),index])
       .filter(([id])=>/^g-p-[A-Za-z0-9_-]+$/.test(id)));
     const dirs = entries
@@ -779,7 +790,11 @@
         indexed: detail?.indexed === true || rootRow?.indexed === true
       });
     }
-    return { projects, projectCount: projects.length, repoPrivate: meta.private === true, source: 'vault-project-directories' };
+    return {
+      projects, projectCount: projects.length, repoPrivate: meta.private === true,
+      source: 'vault-project-directories',
+      orderSource: durableRows.length >= 2 ? 'PROJECT_CATALOG.json' : (rootRows.length ? 'PROJECTS.json' : 'directory')
+    };
   }
 
   async function commitFilesWith(token, config, files, message, retry = 0) {

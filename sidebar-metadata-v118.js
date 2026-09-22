@@ -17,6 +17,12 @@
     const s=norm(v).replace(/^dernier(?:e)?\s+(?:echange|activité|activite)\s*:?\s*/,'');
     return /^(?:aujourd'hui|aujourdhui|hier|today|yesterday|\d{1,2}:\d{2}|\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?(?:\s+[·-]?\s*\d{1,2}:\d{2})?)$/.test(s);
   };
+  const cleanProjectName=v=>{
+    const raw=String(v||'').replace(/\s+/g,' ').trim();if(!raw)return'';
+    let s=raw.replace(/^(?:(?:<\/>|[§€▶◇▣✦◈+◆▤]))+\s*/u,'');
+    s=s.replace(/(?:\s*\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?\s*(?:\[\d+\])?\s*›?)+\s*$/u,'').trim();
+    return s||raw;
+  };
   const sidebarRoot=()=>document.querySelector('[data-testid="conversation-sidebar"],[data-testid="sidebar"]')||document.querySelector('nav');
   const outsideOwn=el=>!!el&&!el.closest(OWN);
   function rawCacheSnapshot(){
@@ -29,7 +35,7 @@
     if(!projectId){const chatId=cidFromHref(link?.getAttribute?.('href')||'');projectId=String((raw.chats||[]).find(c=>String(c?.id||'')===chatId)?.projectId||'');}
     if(!projectId.startsWith('g-p-'))return false;
     const project=(raw.projects||[]).find(p=>String(p?.id||'')===projectId);
-    return !!project&&norm(project.name)===norm(badge?.textContent);
+    return !!project&&norm(cleanProjectName(project.name))===norm(cleanProjectName(badge?.textContent));
   }
 
   function replaceDateNode(node){
@@ -54,8 +60,16 @@
   function cleanCache(raw){
     if(!raw||typeof raw!=='object')return null;
     const projects=Array.isArray(raw.projects)?raw.projects:[],badIds=new Set(projects.filter(p=>{const id=String(p?.id||'');const canonical=id.startsWith('g-p-');return p?.domOnly&&isDateLike(p?.name)&&!canonical;}).map(p=>String(p.id||'')).filter(Boolean));
-    if(!badIds.size)return null;
-    const cleanedProjects=projects.filter(p=>!badIds.has(String(p?.id||''))),recoveries=[];
+    let renamed=false;
+    const normalizedProjects=projects.map(p=>{
+      const id=String(p?.id||''),rawName=String(p?.name||'').replace(/\s+/g,' ').trim();
+      if(!id.startsWith('g-p-'))return p;
+      const nextName=cleanProjectName(rawName);
+      if(nextName&&nextName!==rawName){renamed=true;return{...p,name:nextName};}
+      return p;
+    });
+    if(!badIds.size&&!renamed)return null;
+    const cleanedProjects=normalizedProjects.filter(p=>!badIds.has(String(p?.id||''))),recoveries=[];
     const cleanedChats=(Array.isArray(raw.chats)?raw.chats:[]).map(c=>{
       if(!badIds.has(String(c?.projectId||'')))return c;
       const recovered=pidFromHref(c?.href||''),next={...c,projectId:recovered||''};if(recovered)recoveries.push(next);return next;

@@ -132,11 +132,15 @@ Project Memory sépare volontairement **le transport GitHub** de **la logique Pr
 
 `project-memory-ui-v132.js` ne possède aucun transport. Il expose d’abord « Se connecter avec GitHub », puis le compte et les dépôts privés réellement autorisés ; le PAT manuel est relégué dans une section avancée. Il lance un rendu initial à son injection et écoute `niakgpt:control-center-rendered`, afin que Project Memory apparaisse même si le Centre de contrôle était déjà ouvert avant l’arrivée de l’OPTIONAL_RUNTIME. Il affiche la file persistante, la dernière synchro et la dernière erreur. Un échec conserve les valeurs utiles et ne remonte jamais comme erreur du runtime critique.
 
-### Lecture complète d’un fil
+### Capture visible et lecture complète d’un fil
 
 Le contrat historique « pas de GET conversation complet en fonctionnement normal » reste vrai.
 
-`page-bridge.js` n’autorise `GET /backend-api/conversation/{id}` que si la requête porte explicitement `memoryBootstrap: true`. Cette exception reste dans le broker unique, respecte `nativeBusy`, les gaps réseau et le circuit breaker 429. Elle sert uniquement à la copie privée activée par l’utilisateur.
+Quand un chat Project est déjà affiché, `project-memory-v132.js` sérialise directement les blocs `[data-message-author-role]` visibles vers le coffre privé. Cette capture ne passe pas par `page-bridge.js` et n’émet donc **aucun trafic backend ChatGPT**. Elle est marquée `captureSource: live-dom`, `historyPartial: true`, `complete: false` : elle constitue une sauvegarde utile immédiatement, mais ne prétend pas prouver que les parties virtualisées/non rendues ont été capturées.
+
+Pour l’archive canonique, `page-bridge.js` n’autorise `GET /backend-api/conversation/{id}` que si la requête porte explicitement `memoryBootstrap: true`. Le chat courant reste toujours quarantiné. Depuis un onglet hors chat, cette lecture mémoire peut coexister avec une conversation **visible mais inactive** dans un autre onglet ; `multitab-v090.js` distingue désormais `ng90PeerChatActive` de `ng90PeerBusy`. Dès qu’un peer génère, l’exception se ferme et les GET NiakGPT en vol sont annulés. Tous les autres modules restent bloqués par la présence du peer chat.
+
+Le bootstrap cache GitHub fusionne l’index distant existant : une entrée ayant déjà `parts>0` et `messages>0` n’est jamais rétrogradée vers `0/0`. Une capture DOM partielle reste en revanche éligible à la synchronisation canonique suivante.
 
 ### Stockage canonique
 
@@ -195,6 +199,7 @@ Le module metadata peut :
 - convertir une date de sidebar en élément `<time>` ;
 - supprimer un faux badge Project qui est en réalité une date ;
 - supprimer du cache un pseudo-Project `domOnly` dont le nom est une date ;
+- nettoyer un nom Project canonique pollué par les décorations NiakGPT (icône, date, compteur) ;
 - réparer l’affectation d’un chat depuis son `href` canonique ;
 - exposer aux abonnés du cache bus une vue nettoyée.
 

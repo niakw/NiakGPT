@@ -25,7 +25,7 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.116': fail(f"version={version}")
+if version!='0.9.117': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting','identity']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']: fail('host permissions drift')
 
@@ -264,7 +264,7 @@ for token in ('↳ Suite en parallèle','LEGACY_HEADER','waiting','thinking','ex
 if 'setInterval(' in parallel: fail('parallel continuation must remain event-driven')
 
 memory_bg=read('project-memory-background-v132.js')
-for token in ('memory_repository_must_be_private','verifiedPrivateAt','chrome.storage.session','niakgpt:memory-connect-v132','niakgpt:memory-commit-v132','git/refs/heads','initializeEmptyRepo',"method: 'PUT'",'github_initial_content_commit_failed','chrome.identity.launchWebAuthFlow','launchManifestRegistrationTab','chrome.tabs.create','github_auth_url_invalid_scheme','chrome.runtime.onConnect.addListener','app-manifests/','request_oauth_on_install','niakgpt:memory-github-connect-repo-v132','github_repository_not_authorized_for_vault','refresh_token','code_challenge','code_verifier','setup_url: clean(flow.installRedirect)','request_oauth_on_install: false','MAX_REF_RETRIES = 8','MAX_REF_BACKOFF_MS','PRIORITY_BLOB_CONCURRENCY = 6',"cache: init.cache || 'no-store'",'const beforeUpdate = await getRef','queueCommit','refRace','message.priority === true'):
+for token in ('memory_repository_must_be_private','verifiedPrivateAt','chrome.storage.session','niakgpt:memory-connect-v132','niakgpt:memory-commit-v132','git/refs/heads','initializeEmptyRepo',"method: 'PUT'",'github_initial_content_commit_failed','chrome.identity.launchWebAuthFlow','launchManifestRegistrationTab','chrome.tabs.create','github_auth_url_invalid_scheme','chrome.runtime.onConnect.addListener','app-manifests/','request_oauth_on_install','niakgpt:memory-github-connect-repo-v132','github_repository_not_authorized_for_vault','refresh_token','code_challenge','code_verifier','setup_url: clean(flow.installRedirect)','request_oauth_on_install: false','MAX_REF_RETRIES = 8','MAX_REF_BACKOFF_MS','PRIORITY_TREE_INLINE = true','PRIVATE_REPO_VERIFY_TTL_MS = 5 * 60 * 1000',"cache: init.cache || 'no-store'",'const beforeUpdate = await getRef','queueCommit','refRace','message.priority === true',"content:item.content"):
     if token not in memory_bg: fail('Project Memory backend incomplete '+token)
 if 'force: true' in memory_bg[memory_bg.find('git/refs/heads'):memory_bg.find('git/refs/heads')+5000]: fail('Project Memory must never force-push the vault branch')
 interruption=read('interruption-guard-v119.js')
@@ -282,10 +282,10 @@ for token in ('COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement(raw)','convers
     if token not in server_bootstrap: fail('cold canonical bootstrap recovery incomplete '+token)
 
 memory=read('project-memory-v132.js')
-for token in ('memoryBootstrap: memoryBootstrap === true','PROJECT_STATE.md','conversations/','sync_already_running','injectOnNewChat','NIAKGPT PROJECT MEMORY — CHECKPOINT RÉCUPÉRÉ','canonicalUpdated','MEMORY_LOCK','CACHE_BOOTSTRAP_LOCK','autoOwner','niakgpt:tab-role-changed','primeBootstrapQueue','ensureBootstrapQueued','writeCachedBootstrap','bootstrapMetadataOnly:true','bootstrapWritten:true','cachedOnly:true,historyDeferred:true','queuedProjects','changes[QUEUE_KEY]','githubLogin','runtime.connect','extension_context_invalidated_reload_required','GITHUB_AUTH_UI_TIMEOUT_MS','setTimeout(heartbeat,20_000)','githubRepositories','githubConnectRepo','githubLogout','captureCurrentDomConversation',"captureSource:'live-dom'",'complete:false','projectName = v =>','peerBusy()','ACTIVE_HISTORY_RETRY_MS = 5000','PRIORITY_HISTORY_FETCH_GAP_MS = 900','PRIORITY_RETRY_MS = 1000','activeHistoryMode','priorityWorkerMode','humanQuietRequired','retryDelay','syncPriorityNow','prioritySync','priorityKick','projectArchivedBefore','Number(p.count||0) > (p.chats||[]).length',"name:projectName(project.name||'')"):
+for token in ('memoryBootstrap: memoryBootstrap === true','PROJECT_STATE.md','conversations/','sync_already_running','injectOnNewChat','NIAKGPT PROJECT MEMORY — CHECKPOINT RÉCUPÉRÉ','canonicalUpdated','MEMORY_LOCK','CACHE_BOOTSTRAP_LOCK','autoOwner','niakgpt:tab-role-changed','primeBootstrapQueue','ensureBootstrapQueued','writeCachedBootstrap','bootstrapMetadataOnly:true','bootstrapWritten:true','cachedOnly:true,historyDeferred:true','queuedProjects','changes[QUEUE_KEY]','githubLogin','runtime.connect','extension_context_invalidated_reload_required','GITHUB_AUTH_UI_TIMEOUT_MS','setTimeout(heartbeat,20_000)','githubRepositories','githubConnectRepo','githubLogout','captureCurrentDomConversation',"captureSource:'live-dom'",'complete:false','projectName = v =>','peerBusy()','ACTIVE_HISTORY_RETRY_MS = 5000','PRIORITY_HISTORY_FETCH_GAP_MS = 900','PRIORITY_RETRY_MS = 1000','CHAT_FETCH_RETRIES_PRIORITY = 2','CHUNK = 1000000','canonicalHash','activeHistoryMode','priorityWorkerMode','humanQuietRequired','retryDelay','syncPriorityNow','prioritySync','priorityKick','projectArchivedBefore','chatRetryLedger','fetchConversationResilient','chat-fetch-retry','queueWait','Number(p.count||0) > (p.chats||[]).length',"name:projectName(project.name||'')"):
     if token not in memory: fail('Project Memory runtime incomplete '+token)
 memory_ui=read('project-memory-ui-v132.js')
-for token in ('Forcer la synchro des chats','Transfert initial prioritaire','data-ng132-priority','syncPriorityNow'):
+for token in ('Forcer la synchro des chats','Transfert initial prioritaire','data-ng132-priority','syncPriorityNow','chat(s) temporairement indisponible(s)','mise à jour remplace sa révision Git'):
     if token not in memory_ui: fail('Project Memory priority UI incomplete '+token)
 bridge=read('page-bridge.js')
 if "d.memoryBootstrap !== true" not in bridge or 'conversation_detail_get_disabled' not in bridge: fail('Project Memory full-history bridge guard incomplete')
@@ -293,6 +293,7 @@ if 'project-memory-v132.css' not in style_runtime: fail('Project Memory UI CSS m
 if not (ROOT/'visual-lab/project-memory-v132.mjs').exists(): fail('Project Memory browser UX gate missing')
 if not (ROOT/'visual-lab/project-memory-active-catchup-v115.mjs').exists(): fail('Project Memory active-chat catch-up gate missing')
 if not (ROOT/'visual-lab/project-memory-priority-sync-v116.mjs').exists(): fail('Project Memory priority first-transfer gate missing')
+if not (ROOT/'visual-lab/project-memory-transient-fetch-v117.mjs').exists(): fail('Project Memory transient-fetch isolation gate missing')
 if not (ROOT/'visual-lab/native-chat-zero-background-v087.mjs').exists(): fail('native chat zero-background regression gate missing')
 if not (ROOT/'visual-lab/field-regressions-v088.mjs').exists(): fail('0.9.88 combined field regression gate missing')
 if not (ROOT/'visual-lab/user-reported-v133.mjs').exists(): fail('0.9.93 user-reported regression gate missing')

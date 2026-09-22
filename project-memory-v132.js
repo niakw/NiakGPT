@@ -9,16 +9,20 @@
   const STATE_KEY = 'niakgpt-project-memory-state-v132';
   const CONTEXT_KEY = 'niakgpt-project-memory-context-v132';
   const QUEUE_KEY = 'niakgpt-project-memory-queue-v132';
+  const RETRY_KEY = 'niakgpt-project-memory-chat-retry-v117';
   const MEMORY_LOCK = 'niakgpt-project-memory-sync-v132';
   const CACHE_BOOTSTRAP_LOCK = 'niakgpt-project-memory-cache-bootstrap-v088';
   const MAX_STATE = 18000;
-  const CHUNK = 360000;
+  const CHUNK = 1000000;
   const HISTORY_FETCH_GAP_MS = 20000;
   const BACKGROUND_HISTORY_FETCH_GAP_MS = 4000;
   const PRIORITY_HISTORY_FETCH_GAP_MS = 900;
   const HUMAN_QUIET_MS = 60*1000;
   const ACTIVE_HISTORY_RETRY_MS = 5000;
   const PRIORITY_RETRY_MS = 1000;
+  const CHAT_FETCH_RETRIES_PRIORITY = 2;
+  const CHAT_FETCH_RETRIES_NORMAL = 2;
+  const CHAT_RETRY_BACKOFF_MS = [45_000,120_000,300_000,900_000,1_800_000];
   const WAKE_HEARTBEAT_MS = 30000;
   const GITHUB_AUTH_UI_TIMEOUT_MS = 6*60*1000;
   let seq = 0, syncing = false, syncAuto = false, prioritySync = false, priorityKick = false, autoTimer = 0, wakeTimer = 0, routeTimer = 0, domCaptureTimer = 0, lastHistoryFetchAt = 0, lastHumanAt = Date.now();
@@ -47,6 +51,8 @@
   const backgroundDelay = (allowConversation=false,priority=prioritySync) => peerBusy() ? WAKE_HEARTBEAT_MS : (priorityWorkerMode(priority) ? PRIORITY_RETRY_MS : (activeHistoryMode(allowConversation) ? ACTIVE_HISTORY_RETRY_MS : remainingQuiet()));
   const retryDelay = (allowConversation,priority=prioritySync) => priorityWorkerMode(priority) ? PRIORITY_RETRY_MS : (activeHistoryMode(allowConversation) ? ACTIVE_HISTORY_RETRY_MS : remainingQuiet());
   const backgroundHistoryGap = () => prioritySync ? PRIORITY_HISTORY_FETCH_GAP_MS : BACKGROUND_HISTORY_FETCH_GAP_MS;
+  const queueWait = q => Math.max(0,Number(q?.retryAt||0)-Date.now());
+  const transientConversationFailure = error => /^conversation_fetch_failed:/.test(String(error?.message||error||''));
   const defaults = { autoSync: true, injectOnNewChat: true };
   let prefsCache = Object.assign({}, defaults), prefsReady = false;
 
@@ -148,6 +154,42 @@
 
   async function cache() {
     try { return (await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY] || {}; } catch { return {}; }
+  }
+
+  async function chatRetryLedger() {
+    try {
+      const raw=(await chrome.storage.local.get(RETRY_KEY))[RETRY_KEY];
+      return raw&&typeof raw==='object'&&!Array.isArray(raw)?{...raw}:{};
+    } catch { return {}; }
+  }
+
+  async function saveChatRetryLedger(ledger) {
+    const rows=ledger&&typeof ledger==='object'?ledger:{};
+    if(Object.keys(rows).length)await chrome.storage.local.set({[RETRY_KEY]:rows});
+    else await chrome.storage.local.remove(RETRY_KEY);
+  }
+
+  const retryEntryKey = (projectId,chatId) => String(projectId||'')+'::'+String(chatId||'');
+  const retryBackoff = cycles => CHAT_RETRY_BACKOFF_MS[Math.min(CHAT_RETRY_BACKOFF_MS.length-1,Math.max(0,Number(cycles||1)-1))];
+
+  async function fetchConversationResilient(project,chat,progress={}) {
+    const limit=prioritySync?CHAT_FETCH_RETRIES_PRIORITY:CHAT_FETCH_RETRIES_NORMAL;
+    let lastError=null;
+    for(let attempt=0;attempt<limit;attempt++){
+      try{return {ok:true,data:await fetchConversation(chat.id,attempt)};}
+      catch(error){
+        if(!transientConversationFailure(error))throw error;
+        lastError=error;
+        if(attempt+1>=limit)break;
+        await state({
+          mode:'syncing',projectId:project.id,projectName:project.name,chatId:chat.id,chatTitle:chat.title,
+          chatDone:Number(progress.chatDone||0),chatTotal:Number(progress.chatTotal||0),prioritySync,
+          retryingChat:true,retryAttempt:attempt+2,retryLimit:limit,lastTransientError:String(error?.message||error).slice(0,180)
+        });
+        await sleep(prioritySync?(attempt===0?1200:3500):4000);
+      }
+    }
+    return {ok:false,deferred:true,error:String(lastError?.message||lastError||'conversation_fetch_failed:0:unknown')};
   }
 
   function projects(raw) {
@@ -525,73 +567,149 @@
       return !force && !!old && old.complete !== false && Number(old.updated || 0) >= updated && Number(old.parts || 0) > 0;
     };
     let completed = chats.filter(complete).length, changed = 0;
+    const deferred=[];
+    let ledger=await chatRetryLedger();
+    const persistLedger=async()=>saveChatRetryLedger(ledger);
+
     await state({
       mode:'syncing',projectId:project.id,projectName:project.name,
       chatId:'',chatTitle:'',chatDone:completed,chatTotal:chats.length,
-      prioritySync,projectArchivedBefore:completed
+      prioritySync,projectArchivedBefore:completed,deferredChats:0,retryingChat:false,lastTransientError:''
     });
 
     for (const chat of chats) {
       if (document.hidden) throw new Error('memory_sync_paused_hidden');
       if (syncAuto && !autoOwner()) throw new Error('memory_sync_paused_owner_change');
-      const old = idx.conversations[chat.id], updated = parseTime(chat.updated);
-      if (complete(chat)) continue;
-      await state({
-        mode:'syncing', projectId:project.id, projectName:project.name,
-        chatId:chat.id, chatTitle:chat.title, chatDone:completed, chatTotal:chats.length, prioritySync
-      });
-      const data = await fetchConversation(chat.id, 0), rows = messages(data);
-      if (!rows.length) continue;
-      const full = transcript(project, chat, rows), chunks = [];
-      for (let at = 0; at < full.length; at += CHUNK) chunks.push(full.slice(at, at + CHUNK));
-      const base = ppath(project.id, 'conversations/' + safe(chat.id)), files = [];
-      chunks.forEach((text, part) => files.push({ path: base + '/part-' + String(part + 1).padStart(3,'0') + '.md', content:text }));
-      for (let stale = chunks.length; stale < Number(old && old.parts || 0); stale++) {
-        files.push({
-          path: base + '/part-' + String(stale + 1).padStart(3,'0') + '.md',
-          content:'# Superseded\n\nThis chunk is no longer part of the current conversation snapshot. Use Git history for the previous revision.\n'
-        });
+
+      const old=idx.conversations[chat.id],updated=parseTime(chat.updated),retryKey=retryEntryKey(project.id,chat.id);
+      if (complete(chat)) {
+        if(ledger[retryKey]){delete ledger[retryKey];await persistLedger();}
+        continue;
       }
-      const sig = signals(rows);
-      const canonicalUpdated = Math.max(updated, parseTime(data.update_time)) || Date.now();
-      const chatIndex = {
-        schema:1,id:chat.id,title:one(chat.title || data.title || 'Conversation'),updated:canonicalUpdated,
-        capturedAt:new Date().toISOString(),parts:chunks.length,messages:rows.length,
-        bootstrapMetadataOnly:false,historyPartial:false,complete:true,captureSource:'backend',signals:sig
+
+      const prior=ledger[retryKey];
+      if(!force&&Number(prior?.nextAt||0)>Date.now()){
+        deferred.push({projectId:project.id,chatId:chat.id,nextAt:Number(prior.nextAt),error:String(prior.error||'conversation_retry_deferred')});
+        await state({
+          mode:'syncing',projectId:project.id,projectName:project.name,chatId:chat.id,chatTitle:chat.title,
+          chatDone:completed,chatTotal:chats.length,prioritySync,deferredChats:deferred.length,
+          retryingChat:false,lastTransientError:String(prior.error||'conversation_retry_deferred').slice(0,180),
+          nextAttemptAt:Number(prior.nextAt)
+        });
+        continue;
+      }
+
+      await state({
+        mode:'syncing',projectId:project.id,projectName:project.name,
+        chatId:chat.id,chatTitle:chat.title,chatDone:completed,chatTotal:chats.length,
+        prioritySync,deferredChats:deferred.length,retryingChat:false,lastTransientError:''
+      });
+
+      const fetched=await fetchConversationResilient(project,chat,{chatDone:completed,chatTotal:chats.length});
+      if(!fetched.ok){
+        const cycles=Math.max(1,Number(prior?.cycles||0)+1),nextAt=Date.now()+retryBackoff(cycles);
+        ledger[retryKey]={
+          projectId:project.id,chatId:chat.id,cycles,nextAt,lastAt:Date.now(),
+          error:String(fetched.error||'conversation_fetch_failed:0:unknown').slice(0,180)
+        };
+        await persistLedger();
+        deferred.push({projectId:project.id,chatId:chat.id,nextAt,error:ledger[retryKey].error});
+        await state({
+          mode:'syncing',projectId:project.id,projectName:project.name,chatId:chat.id,chatTitle:chat.title,
+          chatDone:completed,chatTotal:chats.length,prioritySync,deferredChats:deferred.length,
+          retryingChat:false,lastTransientError:ledger[retryKey].error,nextAttemptAt:nextAt
+        });
+        continue;
+      }
+
+      const data=fetched.data,rows=messages(data);
+      if(!rows.length){
+        const cycles=Math.max(1,Number(prior?.cycles||0)+1),nextAt=Date.now()+retryBackoff(cycles);
+        ledger[retryKey]={projectId:project.id,chatId:chat.id,cycles,nextAt,lastAt:Date.now(),error:'conversation_empty'};
+        await persistLedger();
+        deferred.push({projectId:project.id,chatId:chat.id,nextAt,error:'conversation_empty'});
+        continue;
+      }
+
+      const canonicalUpdated=Math.max(updated,parseTime(data.update_time))||Date.now();
+      const canonicalHash=rowsHash(rows);
+
+      // One canonical directory per conversation ID. Existing conversations are updated at the
+      // same Git paths; no timestamp/suffix folder is ever created. If content is unchanged and
+      // only metadata advanced, update just the two index files and leave transcript parts intact.
+      if(!force&&old&&old.complete!==false&&Number(old.parts||0)>0&&old.canonicalHash===canonicalHash){
+        const chatIndex={
+          ...old,title:one(chat.title||data.title||old.title||'Conversation'),updated:canonicalUpdated,
+          capturedAt:new Date().toISOString(),canonicalHash
+        };
+        idx.conversations[chat.id]=chatIndex;
+        idx.projectId=project.id;idx.projectName=projectName(project.name||'');idx.updatedAt=new Date().toISOString();idx.bootstrapMetadataOnly=false;
+        await commit([
+          {path:ppath(project.id,'conversations/'+safe(chat.id)+'/index.json'),content:JSON.stringify(chatIndex,null,2)+'\n'},
+          {path:ppath(project.id,'index.json'),content:JSON.stringify(idx,null,2)+'\n'}
+        ],'NiakGPT memory: metadata '+one(project.name||project.id)+' / '+one(chat.title||chat.id),prioritySync);
+        if(ledger[retryKey]){delete ledger[retryKey];await persistLedger();}
+        completed++;
+        await state({
+          mode:'syncing',projectId:project.id,projectName:project.name,chatId:chat.id,chatTitle:chat.title,
+          chatDone:completed,chatTotal:chats.length,prioritySync,deferredChats:deferred.length,
+          retryingChat:false,lastTransientError:''
+        });
+        continue;
+      }
+
+      const full=transcript(project,chat,rows),chunks=[];
+      for(let at=0;at<full.length;at+=CHUNK)chunks.push(full.slice(at,at+CHUNK));
+      const base=ppath(project.id,'conversations/'+safe(chat.id)),files=[];
+      chunks.forEach((text,part)=>files.push({path:base+'/part-'+String(part+1).padStart(3,'0')+'.md',content:text}));
+      for(let stale=chunks.length;stale<Number(old&&old.parts||0);stale++)files.push({
+        path:base+'/part-'+String(stale+1).padStart(3,'0')+'.md',
+        content:'# Superseded\n\nThis chunk is no longer part of the current conversation snapshot. Use Git history for the previous revision.\n'
+      });
+
+      const chatIndex={
+        schema:1,id:chat.id,title:one(chat.title||data.title||'Conversation'),updated:canonicalUpdated,
+        capturedAt:new Date().toISOString(),parts:chunks.length,messages:rows.length,canonicalHash,
+        bootstrapMetadataOnly:false,historyPartial:false,complete:true,captureSource:'backend',signals:signals(rows)
       };
 
-      // Durable per-chat checkpoint: the Project index is advanced in the same logical write as
-      // the transcript. A pause, navigation, worker restart or GitHub write error therefore
-      // resumes from the last committed conversation instead of replaying the Project from 0%.
-      idx.conversations[chat.id] = chatIndex;
-      idx.projectId = project.id;
-      idx.projectName = projectName(project.name || '');
-      idx.updatedAt = new Date().toISOString();
-      idx.bootstrapMetadataOnly = false;
+      idx.conversations[chat.id]=chatIndex;
+      idx.projectId=project.id;idx.projectName=projectName(project.name||'');idx.updatedAt=new Date().toISOString();idx.bootstrapMetadataOnly=false;
       files.push(
-        { path: base + '/index.json', content: JSON.stringify(chatIndex, null, 2) + '\n' },
-        { path: ppath(project.id,'index.json'), content: JSON.stringify(idx, null, 2) + '\n' }
+        {path:base+'/index.json',content:JSON.stringify(chatIndex,null,2)+'\n'},
+        {path:ppath(project.id,'index.json'),content:JSON.stringify(idx,null,2)+'\n'}
       );
-      await commit(files, 'NiakGPT memory: ' + one(project.name || project.id) + ' / ' + one(chat.title || chat.id), prioritySync);
-      changed++;
-      completed++;
+
+      // Per-chat durable checkpoint stays authoritative. Speedups happen below the commit
+      // boundary (larger transcript chunks, inline Git tree content and cached private-repo verification),
+      // so a later failure never forces a previously committed chat to be fetched again.
+      await commit(files,'NiakGPT memory: '+one(project.name||project.id)+' / '+one(chat.title||chat.id),prioritySync);
+      if(ledger[retryKey]){delete ledger[retryKey];await persistLedger();}
+      changed++;completed++;
       await state({
-        mode:'syncing', projectId:project.id, projectName:project.name,
-        chatId:chat.id, chatTitle:chat.title, chatDone:completed, chatTotal:chats.length, prioritySync
+        mode:'syncing',projectId:project.id,projectName:project.name,chatId:chat.id,chatTitle:chat.title,
+        chatDone:completed,chatTotal:chats.length,prioritySync,deferredChats:deferred.length,
+        retryingChat:false,retryAttempt:0,retryLimit:0,lastTransientError:''
       });
-      await sleep(prioritySync ? 40 : 300);
+      await sleep(prioritySync?40:300);
     }
 
-    idx.projectId = project.id; idx.projectName = projectName(project.name || ''); idx.updatedAt = new Date().toISOString();
-    idx.bootstrapMetadataOnly = !Object.values(idx.conversations||{}).some(row=>Number(row?.parts||0)>0&&Number(row?.messages||0)>0);
-    const compact = buildState(project, idx);
+    idx.projectId=project.id;idx.projectName=projectName(project.name||'');idx.updatedAt=new Date().toISOString();
+    idx.bootstrapMetadataOnly=!Object.values(idx.conversations||{}).some(row=>Number(row?.parts||0)>0&&Number(row?.messages||0)>0);
+    const compact=buildState(project,idx);
     await commit([
-      { path:ppath(project.id,'project.json'), content:JSON.stringify({ schema:1, id:project.id, name:projectName(project.name || ''), description:clean(project.description || ''), instructions:clean(project.instructions || ''), conversationCount:Object.keys(idx.conversations).length, knownConversationCount:Number(project.count||0), cachedConversationCount:(project.chats||[]).length, indexed:project.indexed===true, bootstrapMetadataOnly:idx.bootstrapMetadataOnly, updatedAt:idx.updatedAt }, null, 2) + '\n' },
-      { path:ppath(project.id,'index.json'), content:JSON.stringify(idx, null, 2) + '\n' },
-      { path:ppath(project.id,'PROJECT_STATE.md'), content:compact }
-    ], 'NiakGPT memory: checkpoint ' + one(project.name || project.id), prioritySync);
-    await saveContext(project.id, compact);
-    return changed;
+      {path:ppath(project.id,'project.json'),content:JSON.stringify({
+        schema:1,id:project.id,name:projectName(project.name||''),description:clean(project.description||''),instructions:clean(project.instructions||''),
+        conversationCount:Object.keys(idx.conversations).length,knownConversationCount:Number(project.count||0),cachedConversationCount:(project.chats||[]).length,
+        indexed:project.indexed===true,bootstrapMetadataOnly:idx.bootstrapMetadataOnly,updatedAt:idx.updatedAt
+      },null,2)+'\n'},
+      {path:ppath(project.id,'index.json'),content:JSON.stringify(idx,null,2)+'\n'},
+      {path:ppath(project.id,'PROJECT_STATE.md'),content:compact}
+    ],'NiakGPT memory: checkpoint '+one(project.name||project.id),prioritySync);
+    await saveContext(project.id,compact);
+
+    const nextRetryAt=deferred.length?Math.min(...deferred.map(row=>Number(row.nextAt||0)).filter(Boolean)):0;
+    return {changed,deferred,nextRetryAt};
   }
 
   async function deepInventory() {
@@ -623,11 +741,17 @@
     return list;
   }
 
-  async function saveQueue(ids, force, priority=false) {
+  async function saveQueue(ids, force, priority=false, extras={}) {
     const pending=[...new Set((ids||[]).map(String).filter(Boolean))];
     let old={};try{old=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
     const keepPriority=priority===true||old.priority===true;
-    try { await chrome.storage.local.set({ [QUEUE_KEY]:{ pending, force:force === true, priority:keepPriority, at:Date.now() } }); } catch {}
+    const retryAt=Math.max(0,Number(extras.retryAt||0));
+    const deferredChats=Math.max(0,Number(extras.deferredChats||0));
+    try {
+      await chrome.storage.local.set({[QUEUE_KEY]:{
+        pending,force:force===true,priority:keepPriority,retryAt,deferredChats,at:Date.now()
+      }});
+    } catch {}
     return pending;
   }
 
@@ -764,7 +888,12 @@
     try { q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{}; } catch {}
     const pending=Array.isArray(q.pending)?q.pending:[];
     const priority=q.priority===true;
-    return state({mode:'queued',queuedProjects:pending.length,projectTotal:pending.length,prioritySync:priority,error:'',pauseReason:reason,nextAttemptAt:Date.now()+(priority?PRIORITY_RETRY_MS:WAKE_HEARTBEAT_MS)});
+    const retryAt=Math.max(0,Number(q.retryAt||0));
+    return state({
+      mode:'queued',queuedProjects:pending.length,projectTotal:pending.length,prioritySync:priority,error:'',
+      pauseReason:reason,deferredChats:Number(q.deferredChats||0),
+      nextAttemptAt:retryAt||Date.now()+(priority?PRIORITY_RETRY_MS:WAKE_HEARTBEAT_MS)
+    });
   }
 
   const autoOwner = () => {
@@ -788,10 +917,14 @@
         const pending=Array.isArray(q.pending)?q.pending:[];
         document.documentElement.dataset.ng132WakeBeat=String(Date.now());
         if((p.autoSync!==false||q.priority===true)&&pending.length&&autoOwner()){
-          const allowed=await currentPageHistoryAllowed();
-          const activeCatchup=conversationPage()&&backgroundHistoryAvailable===true;
-          const priorityCatchup=q.priority===true&&backgroundHistoryAvailable===true;
-          if(allowed&&(priorityCatchup||activeCatchup||quietFor()>=HUMAN_QUIET_MS)) await resume();
+          const wait=queueWait(q);
+          if(wait>0) schedule(wait);
+          else {
+            const allowed=await currentPageHistoryAllowed();
+            const activeCatchup=conversationPage()&&backgroundHistoryAvailable===true;
+            const priorityCatchup=q.priority===true&&backgroundHistoryAvailable===true;
+            if(allowed&&(priorityCatchup||activeCatchup||quietFor()>=HUMAN_QUIET_MS)) await resume();
+          }
         }
       }catch{}
       wakeHeartbeat();
@@ -840,32 +973,47 @@
       let list = await deepInventory();
       list = list.filter(p => p.count > 0 && (!Array.isArray(opt.projectIds) || opt.projectIds.includes(p.id)));
       await saveQueue(list.map(p => p.id), opt.force, prioritySync);
-      await state({ mode:'syncing', projectDone:0, projectTotal:list.length, chatDone:0, chatTotal:0, prioritySync, error:'' });
+      await state({ mode:'syncing', projectDone:0, projectTotal:list.length, chatDone:0, chatTotal:0, prioritySync, deferredChats:0, error:'' });
       let changed = 0;
+      const deferred=[];
       for (let i = 0; i < list.length; i++) {
         if (document.hidden) throw new Error('memory_sync_paused_hidden');
         if (automatic && !autoOwner()) throw new Error('memory_sync_paused_owner_change');
         await saveQueue(list.slice(i).map(p => p.id), opt.force, prioritySync);
         if (!await waitIdle(undefined,allowConversation)) throw new Error(document.hidden?'memory_sync_paused_hidden':(automatic&&!autoOwner()?'memory_sync_paused_owner_change':'memory_sync_idle_timeout'));
-        changed += await syncProject(list[i], opt.force === true);
-        await saveQueue(list.slice(i+1).map(p=>p.id),opt.force,prioritySync);
-        await state({ mode:'syncing', projectDone:i+1, projectTotal:list.length, projectId:list[i].id, projectName:list[i].name, chatDone:0, chatTotal:0, prioritySync });
+        const result=await syncProject(list[i], opt.force === true);
+        changed+=Number(result?.changed||0);
+        if(Array.isArray(result?.deferred)&&result.deferred.length)deferred.push(...result.deferred);
+        const retryProjects=[...new Set(deferred.map(row=>row.projectId))];
+        await saveQueue([...retryProjects,...list.slice(i+1).map(p=>p.id)],opt.force,prioritySync);
+        await state({
+          mode:'syncing',projectDone:i+1,projectTotal:list.length,projectId:list[i].id,projectName:list[i].name,
+          chatDone:0,chatTotal:0,prioritySync,deferredChats:deferred.length
+        });
       }
       const afterList=projects(await cache());
       const remainingInventory=afterList.filter(p=>p.count>0&&(!p.indexed||Number(p.count||0)>(p.chats||[]).length)).map(p=>p.id);
-      if(remainingInventory.length){
-        await saveQueue(remainingInventory,opt.force,prioritySync);
+      const retryProjects=[...new Set(deferred.map(row=>row.projectId))];
+      const pendingProjects=[...new Set([...retryProjects,...remainingInventory])];
+      if(pendingProjects.length){
+        const now=Date.now();
+        const retryAt=deferred.length
+          ? Math.max(now+1000,Math.min(...deferred.map(row=>Number(row.nextAt||now+CHAT_RETRY_BACKOFF_MS[0]))))
+          : now+120000;
+        await saveQueue(pendingProjects,opt.force,prioritySync,{retryAt,deferredChats:deferred.length});
+        const reason=deferred.length?'chat-fetch-retry':'inventory-incomplete';
         const pendingState=await state({
           mode:'queued',projectDone:list.length,projectTotal:list.length,changed,lastSyncAt:Date.now(),
-          queuedProjects:remainingInventory.length,prioritySync,pauseReason:'inventory-incomplete',error:'',nextAttemptAt:Date.now()+120000
+          queuedProjects:pendingProjects.length,prioritySync,pauseReason:reason,error:'',
+          deferredChats:deferred.length,lastTransientError:deferred.at?.(-1)?.error||'',nextAttemptAt:retryAt
         });
-        schedule(120000);
+        schedule(Math.max(1000,retryAt-Date.now()));
         document.dispatchEvent(new CustomEvent('niakgpt:project-memory-partial',{detail:pendingState}));
-        return {ok:true,partial:true,projects:list.length,changed,pendingInventory:remainingInventory.length};
+        return {ok:true,partial:true,projects:list.length,changed,pendingInventory:remainingInventory.length,deferredChats:deferred.length};
       }
       try { await chrome.storage.local.remove(QUEUE_KEY); } catch {}
       const historyCacheSignature=cachedBootstrapSignature(projects(await cache()));
-      const done = await state({ mode:'idle', projectDone:list.length, projectTotal:list.length, changed, lastSyncAt:Date.now(), historyCompletedAt:Date.now(), historyCacheSignature, prioritySync:false, error:'',pauseReason:'' });
+      const done = await state({ mode:'idle', projectDone:list.length, projectTotal:list.length, changed, lastSyncAt:Date.now(), historyCompletedAt:Date.now(), historyCacheSignature, prioritySync:false, deferredChats:0, lastTransientError:'', error:'',pauseReason:'' });
       document.dispatchEvent(new CustomEvent('niakgpt:project-memory-synced', { detail:done }));
       return { ok:true, projects:list.length, changed };
     } catch (error) {
@@ -882,8 +1030,10 @@
       syncing = false; syncAuto = false;
       try{
         const q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};
-        if(Array.isArray(q.pending)&&q.pending.length) schedule(backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true,q.priority===true));
-        else prioritySync=false;
+        if(Array.isArray(q.pending)&&q.pending.length){
+          const delay=Math.max(backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true,q.priority===true),queueWait(q));
+          schedule(delay);
+        } else prioritySync=false;
       }catch{prioritySync=false;}
     }
   }
@@ -893,6 +1043,8 @@
     try {
       const q = (await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY], p = await prefs();
       if (!q?.pending?.length || (!p.autoSync && q.priority!==true)) return;
+      const wait=queueWait(q);
+      if(wait>0){schedule(wait);return;}
       const allowConversation=conversationPage()&&await backgroundHistoryProbe(false);
       if (conversationPage()&&!allowConversation) { await queuedState('conversation'); schedule(WAKE_HEARTBEAT_MS); return; }
       if (peerBusy()) { await queuedState('peer-busy'); schedule(WAKE_HEARTBEAT_MS); return; }
@@ -908,18 +1060,21 @@
     let initialQueue={};try{initialQueue=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
     const settings=await prefs();
     if(!settings.autoSync&&initialQueue.priority!==true)return;
+    const initialDelay=Math.max(Number(delay ?? backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true)),queueWait(initialQueue));
     autoTimer = setTimeout(async () => {
       if (!autoOwner() || syncing) return;
+      let q={};try{q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
+      const wait=queueWait(q);
+      if(wait>0)return schedule(wait);
       const allowConversation=conversationPage()&&await backgroundHistoryProbe(false);
       if (conversationPage()&&!allowConversation) { await queuedState('conversation'); return schedule(WAKE_HEARTBEAT_MS); }
       if (peerBusy()) { await queuedState('peer-busy'); return schedule(WAKE_HEARTBEAT_MS); }
-      let q={};try{q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
       const priority=q.priority===true;
       if (busy(true,allowConversation,priority)) return schedule(retryDelay(allowConversation,priority));
       const st = await send({ type:'niakgpt:memory-status-v132' });
       if (!st?.connected) return;
       bootstrap({ force:q.force===true, projectIds:Array.isArray(q.pending)&&q.pending.length?q.pending:undefined, auto:true, priority });
-    }, delay ?? backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true));
+    }, initialDelay);
   }
 
   function currentPid() {
@@ -1096,7 +1251,10 @@
     return Object.assign({}, remote, {
       state:local[STATE_KEY] || {},
       prefs:Object.assign({},defaults,local[PREFS_KEY] || {}),
-      queue:{pending:Array.isArray(queue.pending)?queue.pending.slice():[],force:queue.force===true,priority:queue.priority===true,at:Number(queue.at||0)}
+      queue:{
+        pending:Array.isArray(queue.pending)?queue.pending.slice():[],force:queue.force===true,priority:queue.priority===true,
+        retryAt:Number(queue.retryAt||0),deferredChats:Number(queue.deferredChats||0),at:Number(queue.at||0)
+      }
     });
   }
 

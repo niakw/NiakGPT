@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.116",
-  "description": "NiakGPT : Project Memory ajoute un transfert initial prioritaire, reprend au dernier chat validé et accélère les écritures GitHub sans relire les fils déjà complets.",
+  "version": "0.9.117",
+  "description": "NiakGPT : Project Memory isole les erreurs temporaires par conversation, poursuit le backlog et met à jour les chats existants sans duplication.",
   "permissions": [
     "storage",
     "scripting",

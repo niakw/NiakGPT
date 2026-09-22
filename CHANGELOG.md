@@ -1,3 +1,13 @@
+# NiakGPT 0.9.117 — une conversation en erreur ne bloque plus le transfert
+
+- **Boucle terrain reproduite** : un chat renvoyant alternativement `chatgpt_memory_http_500` et `Failed to fetch` faisait sortir `syncProject()`, plaçait Project Memory en erreur puis relançait le même Project presque immédiatement. Le compteur restait donc bloqué sur le même chat malgré des centaines de conversations encore à transférer.
+- **Isolation par conversation** : les échecs transitoires `conversation_fetch_failed:*` sont désormais retentés de façon bornée, puis enregistrés dans un ledger local avec une échéance de retry. Le transfert poursuit immédiatement les chats suivants du Project puis les autres Projects.
+- **Backoff persistant** : le chat différé est réessayé après 45 s, puis 2 min, 5 min, 15 min et 30 min au maximum, sans boucle à 1 s. La queue conserve `retryAt` et le nombre de chats différés à travers les reprises.
+- **Débit amélioré sans sacrifier la reprise** : le checkpoint distant reste par conversation. Les transcripts sont découpés par blocs de 1 000 000 caractères au lieu de 360 000 ; en mode prioritaire, le contenu des fichiers est envoyé directement à GitHub via `Create Tree`, ce qui supprime un POST `/git/blobs` par chunk ; la vérification du caractère privé du dépôt est réutilisée 5 minutes. Cela réduit fortement les appels GitHub sur les très gros fils sans rejouer un chat déjà validé.
+- **Pas de doublon** : le chemin canonique reste `projects/<project-id>/conversations/<conversation-id>/...`. Une conversation déjà présente est mise à jour aux mêmes chemins Git ; elle n’obtient pas un second dossier. Les chats `complete:true` et à jour restent totalement sautés.
+- **UX** : l’interface distingue maintenant les retries en cours et les chats différés ; un 500/réseau transitoire n’est plus présenté comme une erreur fatale du Project.
+- **Non-régression** : `project-memory-transient-fetch-v117.mjs` injecte successivement un 500 puis `Failed to fetch` sur un chat, exige que les chats suivants soient archivés malgré l’échec, vérifie l’absence de boucle immédiate, puis libère le retry et exige une convergence sans refetch des chats déjà importés. Le test 0.9.116 continue parallèlement d’exiger qu’un chat déjà checkpointé ne soit jamais rejoué après une erreur d’écriture ultérieure.
+
 # NiakGPT 0.9.116 — transfert initial Project Memory prioritaire et reprise exacte
 
 - **Cause racine du retour à 0 %** : le transcript de chaque chat était commité immédiatement, mais l’index Project `projects/<id>/index.json` n’était persisté qu’après la fin complète du Project. Une pause ou une erreur GitHub au milieu d’un gros Project faisait donc perdre le checkpoint de tous les chats réussis depuis le dernier checkpoint Project.

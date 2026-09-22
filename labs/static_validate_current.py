@@ -78,9 +78,10 @@ expected_styles=[
 if style_runtime!=expected_styles: fail(f'deferred STYLE_RUNTIME drift: {style_runtime!r}')
 for token in ('chrome.scripting.insertCSS','async function injectStyles','STYLE_INJECTED','const styleFailure=await injectStyles(tabId,frameId)'):
     if token not in background: fail('post-hydration style injection incomplete '+token)
-for token in ('async function probeReactHydration','chrome.scripting.executeScript',"world:'MAIN'",'niakgpt:probe-react-hydration-v107','rootSettled','htmlOwned','bodyOwned','documentRootOwned','ownedCount'):
+for token in ('async function probeReactHydration','chrome.scripting.executeScript',"world:'MAIN'",'niakgpt:probe-react-hydration-v107','HOST_OWNER_RX','hostOwned','rootSettled','htmlOwned','bodyOwned','documentRootOwned','ownedCount'):
     if token not in background: fail('MAIN-world React hydration probe incomplete '+token)
 if r"const OWNER_RX=/^__react(?:Fiber|Props|Container)\$.+/;" not in background: fail('MAIN-world React owner regex escaping invalid')
+if r"const HOST_OWNER_RX=/^__react(?:Fiber|Props)\$.+/;" not in background: fail('MAIN-world React host-owner regex escaping invalid')
 if r"const CONTAINER_RX=/^__reactContainer\$.+/;" not in background: fail('MAIN-world React container regex escaping invalid')
 if not (ROOT/'visual-lab/tests/hydration-document-root-v107.spec.js').exists(): fail('document-root hydration regression missing')
 document_root_hydration=read('visual-lab/tests/hydration-document-root-v107.spec.js')

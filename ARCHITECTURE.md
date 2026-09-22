@@ -4,7 +4,7 @@
 
 Le manifest ne déclare plus aucune feuille CSS dans `content_scripts`. `background-v100.js` possède l’unique `STYLE_RUNTIME` et appelle `chrome.scripting.insertCSS()` seulement après réception de `niakgpt:inject-runtime-v100`, donc après le gate d’hydratation. Les styles et le JavaScript NiakGPT partagent désormais la même frontière temporelle : **rien de NiakGPT ne peut influencer le DOM ou sa mise en page avant la preuve d’hydratation**.
 
-Le gate React ne lit plus les clés internes `__reactContainer$…` / `__reactFiber$…` depuis le monde isolé du content script. Le service worker exécute un probe sans mutation dans le monde `MAIN`, vérifie la propriété React des nœuds hôtes, exige que le HostRoot expose explicitement `memoizedState.isDehydrated === false` **et exige l’ownership React explicite de `document.documentElement` et `document.body`**. Si cette preuve n’est pas disponible, le fallback reste l’interaction native fiable.
+Le gate React ne lit plus les clés internes `__reactContainer$…` / `__reactFiber$…` depuis le monde isolé du content script. Le service worker exécute un probe sans mutation dans le monde `MAIN`, exige un vrai conteneur React, vérifie la propriété React des nœuds hôtes, exige que le HostRoot expose explicitement `memoizedState.isDehydrated === false` **et exige l’ownership React explicite de `document.documentElement` et `document.body`**. Les sentinelles volatiles `data-build` / `window.__reactRouterContext` ne constituent plus aucune voie de déverrouillage. Si cette preuve n’est pas disponible, le fallback reste l’interaction native fiable.
 
 ## Invariant hydratation React 0.9.108 — aucune mutation avant propriété de la racine document
 

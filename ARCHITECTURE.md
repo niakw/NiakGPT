@@ -1,6 +1,12 @@
 # Architecture de NiakGPT
 
-## Invariants terrain actuels 0.9.103
+## Invariant hydratation React 0.9.104 — aucune mutation avant propriété hôte
+
+Le HTML ChatGPT courant est hydraté comme document React complet. Un DOM visuellement stable et deux tours idle ne suffisent pas : React peut continuer à planifier du travail via `MessagePort` sans remplacer les nœuds. `boot-gate-v100.js` exige donc, sur les hôtes `data-build` / React Router actuels, un marqueur React interne sur le root (`__reactContainer$…`) et sur au moins deux nœuds hôtes (`__reactFiber$…` / `__reactProps$…`) avant de poser le moindre attribut/nœud NiakGPT. À défaut, il attend une interaction native fiable plutôt que de deviner un délai.
+
+Le gate enregistre ensuite uniquement après cette preuve `data-ng100-hydration-proof=react-owned|trusted-interaction`. Une erreur d’hydratation React #418 observée avant activation ouvre le fusible `hydrationFault` et empêche le runtime NiakGPT de muter la page.
+
+## Invariants terrain actuels 0.9.104
 
 - **Chat courant = zéro lecture via le broker réseau de la page.** La conversation affichée est sauvegardée immédiatement depuis le DOM visible. Après une minute de calme, le service worker MV3 peut compléter l’historique avec un GET strictement borné à `/backend-api/conversation/{id}` ; son jeton ChatGPT est éphémère et mémoire-only.
 - **Peer chat = quarantaine ordinaire, exception mémoire bornée.** Depuis un onglet hors chat, seuls les GET `memoryBootstrap:true` de Project Memory (conversation complète ou inventaire ciblé d’un Project incomplet) peuvent traverser un peer visible mais inactif. `ng90PeerBusy`, génération, vérification ou incident réseau referment l’exception et annulent les GET en vol.

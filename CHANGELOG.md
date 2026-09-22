@@ -1,3 +1,13 @@
+# NiakGPT 0.9.114 — catalogue Projects restauré et sidebar unique
+
+- **Cause terrain confirmée** : le coffre privé contenait encore les dossiers de 17 Projects, mais `PROJECTS.json` avait été réécrit à partir d’un cache local ne connaissant plus que NiakGPT. Le bootstrap « local-cache-only » pouvait donc réduire l’inventaire canonique du coffre.
+- **Récupération depuis le coffre** : Project Memory liste désormais `projects/` dans le dépôt privé et relit les `project.json` manquants lorsque le cache local a perdu des identités canoniques.
+- **Anti-rétrécissement** : `writeCachedBootstrap()` écrit l’union cache local + inventaire conservé dans le coffre ; un cache partiel ne peut plus remplacer un catalogue plus complet par un seul Project.
+- **Autorité conservée** : les Projects restaurés récupèrent ID, nom, contexte et compteurs, mais NiakGPT ne forge pas `indexedProjectIds` ni `serverIndexedAt`; l’index ChatGPT reste l’autorité de fraîcheur.
+- **Sidebar réelle** : les surfaces Projects natives dont les lignes sont des boutons sans href canonique sont maintenant reconnues et masquées comme un bloc, sans masquer Chats.
+- **Placement** : le catalogue NiakGPT normalise la section Chats comme ancre top-level et reste au-dessus d’elle.
+- **Non-régression dédiée** : `visual-lab/project-catalog-recovery-v114.mjs` couvre coffre réduit, restauration locale, bootstrap anti-shrink, Projects natifs sans href et placement avant Chats.
+
 # NiakGPT 0.9.113 — restauration du boot terrain 0.9.103
 
 - **Régression terrain confirmée** : 0.9.112 continue d’afficher React #418 et peut laisser toute l’UI NiakGPT absente.

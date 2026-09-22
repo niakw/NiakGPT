@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.106",
-  "description": "NiakGPT : hydratation React vérifiée dans le monde MAIN, styles différés, mémoire Project complète et sidebar stable.",
+  "version": "0.9.107",
+  "description": "NiakGPT : hydratation React vérifiée jusqu’à la racine HTML/BODY dans le monde MAIN, styles différés, mémoire Project complète et sidebar stable.",
   "permissions": [
     "storage",
     "scripting",

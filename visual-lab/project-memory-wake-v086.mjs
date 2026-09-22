@@ -109,11 +109,11 @@ try{
     assert(snapshot.state.mode==='idle','Project Memory did not reach idle after heartbeat recovery: '+JSON.stringify(snapshot));
     assert(!!snapshot.wakeBeat,'heartbeat diagnostic marker was never published: '+JSON.stringify(snapshot));
 
-    // Regression 0.9.101: a later cache-only bootstrap must preserve the archive metadata that
-    // the full-history pass just wrote instead of resetting every conversation to 0/0.
+    // Regression 0.9.101: a later cache-only bootstrap (the in-chat path) must preserve the
+    // archive metadata that the full-history pass just wrote instead of resetting it to 0/0.
     await page.evaluate(async()=>{
-      const api=window.__NIAKGPT_PROJECT_MEMORY__;
-      await api.syncNow({force:false});
+      history.pushState({},'', '/g/g-p-one/c/11111111-1111-4111-8111-111111111111');
+      await window.__NIAKGPT_PROJECT_MEMORY__.syncNow({force:false});
     });
     let archive=await page.evaluate(()=>{
       const raw=window.__wakeRemote['projects/g-p-one/index.json'];
@@ -130,7 +130,6 @@ try{
     await page.evaluate(()=>{
       const cache=window.__wakeLocal['niakgpt-v08-cache'];
       cache.projects[0].name='▤▤One21/09 [1]›';
-      history.pushState({},'', '/g/g-p-one/c/11111111-1111-4111-8111-111111111111');
       const main=document.querySelector('main');main.innerHTML='';
       const u=document.createElement('div');u.dataset.messageAuthorRole='user';u.textContent='Visible user message';
       const a=document.createElement('div');a.dataset.messageAuthorRole='assistant';a.textContent='Visible assistant reply';

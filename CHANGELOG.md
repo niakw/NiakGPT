@@ -1,6 +1,6 @@
 # NiakGPT 0.9.118 — un index Project ne peut plus régresser
 
-- **Défaut terrain confirmé** : le coffre NiakVIO contenait 89 répertoires de conversations durables alors que `projects/<id>/index.json` n’en référençait plus que 5. Le transfert croyait donc que presque tout était absent et réécrivait les mêmes conversations depuis le début.
+- **Défaut terrain confirmé** : un gros coffre terrain contenait 89 répertoires de conversations durables alors que `projects/<id>/index.json` n’en référençait plus que 5. Le transfert croyait donc que presque tout était absent et réécrivait les mêmes conversations depuis le début.
 - **Cause racine** : plusieurs producteurs (historique, bootstrap, capture live/anciens runtimes) construisaient chacun un index Project complet à partir de leur propre snapshot. Les commits GitHub étaient sérialisés, mais le payload pouvait déjà être obsolète : un writer tardif pouvait donc remplacer un index riche par un index pauvre sans conflit Git.
 - **Union monotone côté service worker** : juste avant chaque commit, `projects/<id>/index.json` est relu sur le SHA parent exact et fusionné avec le payload entrant. Une ligne `complete:true` avec transcript ne peut plus être remplacée par une simple ligne de bootstrap ou un snapshot partiel.
 - **Auto-réparation du coffre** : lorsqu’un Project local connaît plus de chats que son index distant, NiakGPT énumère les répertoires `conversations/<id>`, relit leurs `index.json` avec concurrence bornée et reconstruit le checkpoint Project avant tout nouveau fetch ChatGPT.

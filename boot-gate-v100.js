@@ -10,7 +10,7 @@
   const PIN_OPEN_KEY='niakgpt-open-pin-folder-v096';
   const SHELL_IDS=new Set(['ng8-rail','ng8-panel','ng8-status']);
   const shellRefs=new Map();
-  let safeToMutate=false,shellObserver=null,shuttingDown=false,hydrationFault=false;
+  let safeToMutate=false,shellObserver=null,shuttingDown=false,hydrationFault=false,hydrationProof='legacy-host';
   const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   const message=value=>String(value?.message||value?.reason?.message||value?.reason||value||'Erreur inconnue')
     .replace(/github_pat_[A-Za-z0-9_]+/g,'[redacted]')
@@ -81,7 +81,7 @@
     try{return Object.getOwnPropertyNames(node).some(key=>REACT_OWNER_RX.test(key));}catch{return false;}
   }
   function currentFullDocumentReactHost(){
-    return !!(document.documentElement?.hasAttribute('data-build')&&window.__reactRouterContext);
+    return !!(document.documentElement?.hasAttribute('data-build')||window.__reactRouterContext);
   }
   function reactHydrationOwned(){
     if(!currentFullDocumentReactHost())return true;
@@ -97,7 +97,7 @@
       if(hydrationFault)return false;
       if(reactHydrationOwned()){
         await nextFrames();
-        if(reactHydrationOwned())return true;
+        if(reactHydrationOwned()){hydrationProof='react-owned';return true;}
       }
       await sleep(80);
     }
@@ -144,6 +144,7 @@
         // wait for a real host interaction, which React can only receive after hydration, instead
         // of mutating <html>, <body> or the sidebar during a scheduler false-calm window.
         await waitTrustedHydratedInteraction();
+        hydrationProof='trusted-interaction';
         await nextFrames();
         await waitForQuiet(500,2200);
       }
@@ -246,6 +247,7 @@
     await waitDomInteractive();await waitForChatShell();await waitHydrationStable();
     if(hydrationFault)return;
     safeToMutate=!!document.body;
+    if(safeToMutate)document.documentElement.dataset.ng100HydrationProof=hydrationProof;
     window.__NIAKGPT_HOST_HYDRATED_100__=true;
     window.dispatchEvent(new Event('niakgpt:host-hydrated-v100'));
     installShellRetention();

@@ -1,5 +1,15 @@
 # Architecture de NiakGPT
 
+## Invariant architecture 0.9.116 — un chat durable vaut un checkpoint durable
+
+Le backlog Project Memory ne peut plus utiliser la fin d’un Project comme seule frontière de reprise. Dès qu’un transcript canonique est écrit avec succès, son entrée `complete:true` est persistée dans `projects/<project>/index.json` dans la même écriture logique. Une interruption ultérieure ne doit donc rejouer au pire que la conversation dont l’écriture n’a pas abouti, jamais tout le préfixe déjà validé du Project.
+
+Le mode utilisateur **Forcer la synchro des chats** est une promotion de priorité, pas un `force:true` destructif. Il conserve le filtre incrémental, réutilise la queue déjà restante lorsqu’elle existe, saute les chats complets et maintient son drapeau de priorité à travers pauses et retries jusqu’à convergence. Une synchro déjà active peut être promue via le changement de queue sans redémarrer sa progression.
+
+La priorité augmente uniquement le débit des chemins déjà isolés : lecture conversation background à 900 ms minimum, retry occupé à 1 s, batching front plus large sous plafond octets et création de blobs GitHub avec concurrence bornée à 6. La branche GitHub reste une ressource sérialisée : `queueCommit`, relecture du ref, détection des races et update non forcé restent inchangés. Les gardes génération, peer occupé, vérification, réseau, visibilité/owner et rate-limit restent supérieures à la priorité.
+
+La régression `visual-lab/project-memory-priority-sync-v116.mjs` couvre le scénario de panne : un premier chat est déjà durable, le suivant réussit, le troisième subit une erreur d’écriture, puis la reprise doit repartir du troisième sans relire le second et finir avec une queue vide.
+
 ## Invariant architecture 0.9.115 — le rattrapage historique ne dépend pas de 60 s de silence humain
 
 Le transport historique `extension-background` lit uniquement `/backend-api/conversation/<id>` depuis le service worker et n’utilise ni le bridge MAIN-world ni le DOM de la conversation active. La contrainte de 60 secondes sans interaction utilisateur était donc trop large : elle protégeait correctement les chemins page/RPC, mais affamait aussi le transport worker sûr dès que l’utilisateur continuait à cliquer, écrire ou scroller.

@@ -2,11 +2,27 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test, expect, chromium } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
 
 const ROOT=path.resolve('..');
 const VERSION=JSON.parse(fs.readFileSync(path.join(ROOT,'manifest.json'),'utf8')).version;
 const EXECUTABLE=String(process.env.NIAKGPT_EXECUTABLE_PATH||'').trim();
 const HEADLESS=String(process.env.NIAKGPT_HEADLESS||'1')!=='0';
+
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+async function closePersistentContext(context){
+  const braveMac=!!EXECUTABLE&&process.platform==='darwin';
+  if(!braveMac){await context.close().catch(()=>{});return;}
+  // Playwright can hang while closing a persistent Brave profile on macOS even
+  // after every functional assertion passed. Terminate the isolated CI Brave
+  // process first, then let Playwright observe the disconnect.
+  for(const signal of ['-TERM','-KILL']){
+    try{execFileSync('/usr/bin/pkill',[signal,'-f','Brave Browser'],{stdio:'ignore'});}catch{}
+    await sleep(signal==='-TERM'?350:120);
+    if(!context.browser()?.isConnected())break;
+  }
+  await Promise.race([context.close().catch(()=>{}),sleep(1500)]);
+}
 
 test('real MV3 boot reads React hydration from MAIN world without user interaction',async()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'niakgpt-hydration-main-world-'));
@@ -78,7 +94,7 @@ test('real MV3 boot reads React hydration from MAIN world without user interacti
     expect(state.rail).toBe(true);
     console.log('HYDRATION_MAIN_WORLD_CHECKPOINT PASS');
   }finally{
-    await context.close();
+    await closePersistentContext(context);
     fs.rmSync(dir,{recursive:true,force:true});
   }
 });

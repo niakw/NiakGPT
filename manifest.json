@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.100",
-  "description": "NiakGPT : sidebar Projects pleine largeur, reprise SPA fiable et mémoire GitHub privée.",
+  "version": "0.9.101",
+  "description": "NiakGPT : Project Memory archive les conversations réelles sans perturber ChatGPT et répare les noms Projects.",
   "permissions": [
     "storage",
     "scripting",

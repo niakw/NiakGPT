@@ -1,3 +1,13 @@
+## 0.9.101 — preuve terrain du coffre : écrire n’était pas archiver
+
+Le recheck du dépôt privé a supprimé l’hypothèse « il faut juste attendre ». Les commits `cached bootstrap inventory` continuaient, mais le Project NiakGPT possédait 24 conversations indexées avec `parts=0`, `messages=0`, aucun dossier `conversations/`, et son nom avait dérivé vers une chaîne contenant icône, dates et compteurs NiakGPT.
+
+1. Le scénario Project Memory conserve maintenant un faux coffre distant au fil des commits. Après une vraie archive, un nouveau bootstrap cache doit laisser `parts/messages > 0` et `bootstrapMetadataOnly=false`.
+2. Sur une route de conversation, le lab place deux messages visibles dans le DOM et appelle la synchronisation. Il exige un `part-001.md` contenant les deux textes et **aucune augmentation du compteur RPC ChatGPT**.
+3. Cette capture DOM est explicitement partielle (`complete=false`, `historyPartial=true`, `captureSource=live-dom`) : le worker backend hors chat reste donc autorisé à la remplacer par la version canonique.
+4. Le test bridge conserve la quarantaine absolue du chat courant et de tout trafic ordinaire. Depuis une page hors chat, seul un GET conversation marqué `memoryBootstrap:true` peut passer à côté d’un peer visible mais inactif ; `ng90PeerBusy=1` referme immédiatement cette exception.
+5. La sanitation reproduit le libellé pollué `▤▤One21/09 [1]›` et exige `One` dans `project.json` et `index.json`.
+
 ## 0.9.100 — géométrie terrain réelle + réveil SPA déterministe
 
 La capture terrain a été transformée en scénario rouge plutôt qu’en correctif CSS supposé. Le fixture monte d’abord v121 dans un `nav` sémantique qui n’occupe que la colonne droite d’un shell gauche générique : avant v131, le test exige explicitement le défaut (< 60 % de la largeur) afin de prouver que le scénario reproduit bien le bug.

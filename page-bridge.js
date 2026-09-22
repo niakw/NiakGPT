@@ -41,7 +41,11 @@
   const cacheKey = (path, method) => `${method}:${path}`;
   const conversationPage = () => /(?:^|\/)c\/[A-Za-z0-9_-]+(?:$|[/?#])/.test(String(location.pathname || ''));
   const peerConversationPage = () => document.documentElement.dataset.ng90PeerChatActive === '1';
-  const conversationQuiet = () => conversationPage() || peerConversationPage();
+  const peerBusyPage = () => document.documentElement.dataset.ng90PeerBusy === '1';
+  const memoryPeerSafe = (path='', method='GET', memoryBootstrap=false) =>
+    memoryBootstrap === true && method === 'GET' && conversationRx.test(String(path||'')) && !conversationPage() && !peerBusyPage();
+  const conversationQuiet = (path='', method='GET', memoryBootstrap=false) =>
+    conversationPage() || (peerConversationPage() && !memoryPeerSafe(path,method,memoryBootstrap));
   const baseNativeBusy = () => {
     const interruption=String(document.documentElement.dataset.ng119Interruption||'').toLowerCase();
     return document.documentElement.dataset.ng8Running === '1' ||
@@ -160,9 +164,9 @@
     }
   }
 
-  async function getAccessToken(force = false, foreground = false, path = '') {
+  async function getAccessToken(force = false, foreground = false, path = '', method = 'GET', memoryBootstrap = false) {
     if (!force && cachedToken && Date.now() - tokenAt < 120000) return cachedToken;
-    if (conversationQuiet()) return '';
+    if (conversationQuiet(path,method,memoryBootstrap)) return '';
     if (foreground ? baseNativeBusy() : nativeBusy(path)) return '';
     const controller=new AbortController();activeGetControllers.add(controller);
     try {
@@ -230,15 +234,16 @@
     return fetchRequest(path, method, body, token);
   }
 
-  async function backendFetchCore(path, method, body, forceToken = false, foreground = false) {
-    // 0.9.88 field invariant: a visible conversation in this tab or another visible ChatGPT
-    // tab quarantines ALL NiakGPT ChatGPT-backend traffic, including foreground drawer reads
-    // and governance mutations. Native ChatGPT actions do not use this broker and remain intact.
-    const requestBusy=()=>conversationQuiet() || (foreground ? baseNativeBusy() : nativeBusy(path));
-    if (conversationQuiet()) return conversationQuietResult();
+  async function backendFetchCore(path, method, body, forceToken = false, foreground = false, memoryBootstrap = false) {
+    // Normal NiakGPT traffic stays quarantined whenever a visible conversation exists. The only
+    // exception is Project Memory reading one full conversation from an off-chat tab while every
+    // visible peer conversation is idle. If a peer starts generating, active GETs are aborted.
+    const quiet=()=>conversationQuiet(path,method,memoryBootstrap);
+    const requestBusy=()=>quiet() || (foreground ? baseNativeBusy() : nativeBusy(path));
+    if (quiet()) return conversationQuietResult();
     if (requestBusy()) return nativeBusyResult();
-    const token = await getAccessToken(forceToken, foreground, path);
-    if (!token) return conversationQuiet() ? conversationQuietResult() : { ok:false, status:401, data:null, error:'auth_session_missing', transport:'auth' };
+    const token = await getAccessToken(forceToken, foreground, path, method, memoryBootstrap);
+    if (!token) return quiet() ? conversationQuietResult() : { ok:false, status:401, data:null, error:'auth_session_missing', transport:'auth' };
 
     const originalPath = path;
     let effectivePath = method === 'GET' ? normalizeProjectConversationPath(path, 'safe') : path;
@@ -249,7 +254,7 @@
     const gap = gapFor(effectivePath, method);
     const wait = Math.max(0, lastNetworkAt + gap - now());
     if (wait) await sleep(wait);
-    if (conversationQuiet()) return conversationQuietResult();
+    if (quiet()) return conversationQuietResult();
     if (requestBusy()) return nativeBusyResult();
     const afterWaitCircuit = syntheticRateLimit();
     if (afterWaitCircuit) return afterWaitCircuit;
@@ -259,7 +264,7 @@
 
     if (result.status === 401 && !forceToken) {
       cachedToken = '';
-      return backendFetchCore(originalPath, method, body, true, foreground);
+      return backendFetchCore(originalPath, method, body, true, foreground, memoryBootstrap);
     }
 
     if (method === 'GET' && projectConversationsRx.test(originalPath) && result.status === 422) {
@@ -268,13 +273,13 @@
         const retryCircuit=syntheticRateLimit();
         if(retryCircuit)return retryCircuit;
         const retryWait=Math.max(0,lastNetworkAt+gapFor(noLimitPath,method)-now());if(retryWait)await sleep(retryWait);
-        if(conversationQuiet())return conversationQuietResult();
+        if(quiet())return conversationQuietResult();
         if(requestBusy())return nativeBusyResult();
         lastNetworkAt=now();
         const retry = await requestSingleTransport(noLimitPath, method, body, token);
         if (retry.status === 401 && !forceToken) {
           cachedToken = '';
-          return backendFetchCore(originalPath, method, body, true, foreground);
+          return backendFetchCore(originalPath, method, body, true, foreground, memoryBootstrap);
         }
         result = retry;
         effectivePath = noLimitPath;
@@ -305,19 +310,19 @@
     return run;
   }
 
-  function backendFetch(path, method, body, foreground = false) {
+  function backendFetch(path, method, body, foreground = false, memoryBootstrap = false) {
     const normalized = method === 'GET' ? normalizeProjectConversationPath(path,'safe') : path;
     const key=cacheKey(normalized,method);
     if(method==='GET'){
       const cached=cachedSuccess(key);if(cached)return Promise.resolve(cached);
       const pending=inflightGets.get(key);if(pending)return pending;
-      const promise=enqueueNetwork(()=>backendFetchCore(path,method,body,false,foreground)).then(result=>{
+      const promise=enqueueNetwork(()=>backendFetchCore(path,method,body,false,foreground,memoryBootstrap)).then(result=>{
         if(result?.ok)rememberSuccess(key,result,normalized);
         return result;
       }).finally(()=>inflightGets.delete(key));
       inflightGets.set(key,promise);return promise;
     }
-    return enqueueNetwork(()=>backendFetchCore(path,method,body,false,foreground)).then(result=>{
+    return enqueueNetwork(()=>backendFetchCore(path,method,body,false,foreground,memoryBootstrap)).then(result=>{
       if(result?.ok)invalidateAfterMutation(path);
       return result;
     });
@@ -344,8 +349,9 @@
   const nativeGuardObserver = new MutationObserver(records => {
     if (records.some(r => ['data-ng8-running','data-ng86-activity','data-ng105-verification','data-ng119-interruption'].includes(r.attributeName))) refreshNativePriority('native-state');
     if (records.some(r => r.attributeName === 'data-ng90-peer-chat-active') && conversationQuiet()) abortOwnGets('peer-conversation-quarantine');
+    if (records.some(r => r.attributeName === 'data-ng90-peer-busy') && peerBusyPage()) abortOwnGets('peer-generation-quarantine');
   });
-  nativeGuardObserver.observe(document.documentElement,{attributes:true,attributeFilter:['data-ng8-running','data-ng86-activity','data-ng105-verification','data-ng119-interruption','data-ng90-peer-chat-active']});
+  nativeGuardObserver.observe(document.documentElement,{attributes:true,attributeFilter:['data-ng8-running','data-ng86-activity','data-ng105-verification','data-ng119-interruption','data-ng90-peer-chat-active','data-ng90-peer-busy']});
   const enforceConversationQuiet = () => { if (conversationQuiet()) abortOwnGets('conversation-quarantine'); };
   window.addEventListener('popstate',enforceConversationQuiet);
   if(window.navigation?.addEventListener)window.navigation.addEventListener('navigatesuccess',enforceConversationQuiet);
@@ -370,7 +376,7 @@
     // emits ZERO ChatGPT-backend traffic. This includes foreground reads and NiakGPT mutations.
     // GitHub Project Memory writes are unaffected because they run in the extension service worker
     // against api.github.com, not through this ChatGPT broker.
-    if (conversationQuiet()) {
+    if (conversationQuiet(path,method,d.memoryBootstrap === true)) {
       document.dispatchEvent(new CustomEvent(RES,{detail:{id,...conversationQuietResult()}}));
       return;
     }
@@ -399,7 +405,7 @@
       if(!validProjectCreate(d.body)){document.dispatchEvent(new CustomEvent(RES,{detail:{id,ok:false,status:400,data:null,error:'invalid_project_create_payload',transport:'governance-guard'}}));return;}
     }
 
-    const result = await backendFetch(path, method, d.body, d.foreground === true);
+    const result = await backendFetch(path, method, d.body, d.foreground === true, d.memoryBootstrap === true);
     document.dispatchEvent(new CustomEvent(RES, { detail:{ id, ...result } }));
   });
 })();

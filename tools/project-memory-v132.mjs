@@ -197,7 +197,7 @@ assert.equal(prePatchAttempts,1,'preflight race still emitted doomed update-ref 
 assert.equal(preResult.sha,preHead);
 
 const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
-assert.equal(manifest.version, '0.9.100');
+assert.equal(manifest.version, '0.9.101');
 assert.deepEqual(manifest.permissions, ['storage','scripting','identity']);
 assert.deepEqual(manifest.host_permissions, ['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']);
 
@@ -249,8 +249,11 @@ assert.match(bridge, /fetch_aborted_native_priority/);
 assert.match(bridge, /native_conversation_quiet/);
 assert.match(bridge, /chat-route-guard/);
 assert.match(bridge, /ng90PeerChatActive/);
-assert.match(bridge, /const conversationQuiet = \(\) => conversationPage\(\) \|\| peerConversationPage\(\)/);
-assert.match(bridge, /if \(conversationQuiet\(\)\) \{\s*document\.dispatchEvent/s);
+assert.match(bridge, /memoryPeerSafe/);
+assert.match(bridge, /peerBusyPage/);
+assert.match(bridge, /data-ng90-peer-busy/);
+assert.match(bridge, /d\.memoryBootstrap === true/);
+assert.match(bridge, /conversationQuiet\(path,method,d\.memoryBootstrap === true\)/);
 assert.match(bridge, /return fetchRequest\(path, method, body, token\)/);
 assert.doesNotMatch(bridge, /transport:'fetch\+xhr'/);
 
@@ -288,8 +291,14 @@ assert.match(runtime, /ensureBootstrapQueued/);
 assert.match(runtime, /queuedProjects/);
 assert.match(runtime, /changes\[QUEUE_KEY\]/);
 assert.match(runtime, /conversationPage/);
-assert.match(runtime, /ng90PeerChatActive/);
+assert.match(runtime, /ng90PeerBusy/);
+assert.match(runtime, /peerBusy/);
 assert.match(runtime, /memory_sync_paused_conversation/);
+assert.match(runtime, /captureCurrentDomConversation/);
+assert.match(runtime, /captureSource:'live-dom'/);
+assert.match(runtime, /complete:false/);
+assert.match(runtime, /old&&Number\(old\.parts\|\|0\)>0&&Number\(old\.messages\|\|0\)>0/);
+assert.match(runtime, /projectName = v =>/);
 assert.match(runtime, /CACHE_BOOTSTRAP_LOCK/);
 assert.match(runtime, /writeCachedBootstrap/);
 assert.match(runtime, /bootstrapMetadataOnly:true/);

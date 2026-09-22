@@ -6,7 +6,7 @@
   <p>Projects · long-thread performance · continuity · navigation · focused productivity</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.100-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.101-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,7 +21,7 @@
 NiakGPT is a browser extension that turns the ChatGPT web interface into a more capable **workspace for heavy, project-based use** without replacing ChatGPT itself.
 
 It adds a native-first layer for Projects, navigation, long conversations, continuity, diagnostics and local productivity. Core features run locally in the browser: **no NiakGPT account, no NiakGPT analytics and no NiakGPT server are required**.
-> **Current version: 0.9.100.** Field geometry now promotes an unlabelled enclosing left-sidebar shell when ChatGPT exposes only a narrow nested `nav/aside`, preventing Projects from landing in the right half of the sidebar. Canonical indexing plus shallow/deep classification also wake explicitly on SPA navigation after leaving a conversation.
+> **Current version: 0.9.101.** Project Memory now preserves real archived transcripts, captures the currently rendered Project chat directly from the DOM with zero ChatGPT backend traffic, and can finish background history from an off-chat tab beside an idle peer conversation. Polluted Project labels are normalized before they reach cache or the private vault.
 
 ## Highlights
 

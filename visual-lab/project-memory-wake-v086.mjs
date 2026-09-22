@@ -16,7 +16,7 @@ try{
   const page=await context.newPage();
   try{
     await page.addInitScript(()=>{
-      window.__wakeLockCalls=0;window.__wakeCommitCalls=0;window.__wakeRpcCalls=0;
+      window.__wakeLockCalls=0;window.__wakeCommitCalls=0;window.__wakeRpcCalls=0;window.__wakeRemote={};window.__wakeCommittedFiles=[];
       Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});
       Object.defineProperty(navigator,'locks',{configurable:true,value:{request:async(_name,_opts,fn)=>{
         window.__wakeLockCalls++;
@@ -40,8 +40,18 @@ try{
           lastError:null,
           sendMessage(message,cb){
             if(message.type==='niakgpt:memory-status-v132')return cb({ok:true,connected:true,configured:true,tokenAvailable:true,config:{repo:'synthetic/private-vault',branch:'main',root:'.niakgpt-memory',authMode:'github-app'}});
-            if(message.type==='niakgpt:memory-read-v132')return cb({ok:false,error:'github_http_404:not_found'});
-            if(message.type==='niakgpt:memory-commit-v132'){window.__wakeCommitCalls++;return cb({ok:true,sha:'wake-'+window.__wakeCommitCalls});}
+            if(message.type==='niakgpt:memory-read-v132'){
+              const content=window.__wakeRemote[String(message.path||'')];
+              return content===undefined?cb({ok:false,error:'github_http_404:not_found'}):cb({ok:true,content});
+            }
+            if(message.type==='niakgpt:memory-commit-v132'){
+              window.__wakeCommitCalls++;
+              for(const file of (message.files||[])){
+                window.__wakeRemote[String(file.path||'')]=String(file.content||'');
+                window.__wakeCommittedFiles.push({path:String(file.path||''),content:String(file.content||'')});
+              }
+              return cb({ok:true,sha:'wake-'+window.__wakeCommitCalls});
+            }
             cb({ok:false,error:'unexpected:'+message.type});
           }
         },
@@ -98,7 +108,51 @@ try{
     assert(!snapshot.queue?.pending?.length,'persistent queue was not consumed after heartbeat recovery: '+JSON.stringify(snapshot));
     assert(snapshot.state.mode==='idle','Project Memory did not reach idle after heartbeat recovery: '+JSON.stringify(snapshot));
     assert(!!snapshot.wakeBeat,'heartbeat diagnostic marker was never published: '+JSON.stringify(snapshot));
+
+    // Regression 0.9.101: a later cache-only bootstrap (the in-chat path) must preserve the
+    // archive metadata that the full-history pass just wrote instead of resetting it to 0/0.
+    await page.evaluate(async()=>{
+      history.pushState({},'', '/g/g-p-one/c/11111111-1111-4111-8111-111111111111');
+      await window.__NIAKGPT_PROJECT_MEMORY__.syncNow({force:false});
+    });
+    let archive=await page.evaluate(()=>{
+      const raw=window.__wakeRemote['projects/g-p-one/index.json'];
+      const idx=raw?JSON.parse(raw):null,row=idx?.conversations?.['11111111-1111-4111-8111-111111111111'];
+      return{topBootstrap:idx?.bootstrapMetadataOnly,row};
+    });
+    assert(Number(archive.row?.parts||0)>0&&Number(archive.row?.messages||0)>0,'cache bootstrap erased archived transcript metadata: '+JSON.stringify(archive));
+    assert(archive.topBootstrap===false,'mixed/full archive was mislabeled metadata-only: '+JSON.stringify(archive));
+
+    // Current-chat archival no longer needs a ChatGPT RPC: serialize the already-rendered DOM
+    // straight to the private GitHub vault, normalize polluted Project UI text, and leave it
+    // marked partial so the later off-chat backend pass can replace it canonically.
+    const rpcBeforeDom=await page.evaluate(()=>window.__wakeRpcCalls);
+    await page.evaluate(()=>{
+      const cache=window.__wakeLocal['niakgpt-v08-cache'];
+      cache.projects[0].name='▤▤One21/09 [1]›';
+      const main=document.querySelector('main');main.innerHTML='';
+      const u=document.createElement('div');u.dataset.messageAuthorRole='user';u.textContent='Visible user message';
+      const a=document.createElement('div');a.dataset.messageAuthorRole='assistant';a.textContent='Visible assistant reply';
+      main.append(u,a);
+    });
+    const domResult=await page.evaluate(()=>window.__NIAKGPT_PROJECT_MEMORY__.syncNow({force:true}));
+    const domProof=await page.evaluate(()=>{
+      const index=JSON.parse(window.__wakeRemote['projects/g-p-one/index.json']||'{}');
+      const row=index.conversations?.['11111111-1111-4111-8111-111111111111']||{};
+      const project=JSON.parse(window.__wakeRemote['projects/g-p-one/project.json']||'{}');
+      const part=window.__wakeRemote['projects/g-p-one/conversations/11111111-1111-4111-8111-111111111111/part-001.md']||'';
+      const conversationIndex=JSON.parse(window.__wakeRemote['projects/g-p-one/conversations/11111111-1111-4111-8111-111111111111/index.json']||'{}');
+      return{rpc:window.__wakeRpcCalls,index,row,project,part,conversationIndex,marker:document.documentElement.dataset.ng132DomCapture||''};
+    });
+    assert(domResult?.domCaptured===true,'manual in-chat sync did not report DOM capture: '+JSON.stringify(domResult));
+    assert(domProof.rpc===rpcBeforeDom,'current-chat DOM capture touched ChatGPT RPC: '+JSON.stringify(domProof));
+    assert(domProof.row.captureSource==='live-dom'&&domProof.row.complete===false&&domProof.row.historyPartial===true,'DOM capture was not marked partial: '+JSON.stringify(domProof.row));
+    assert(domProof.row.messages===2&&domProof.row.parts>=1,'DOM capture did not persist visible messages: '+JSON.stringify(domProof.row));
+    assert(domProof.conversationIndex.captureSource==='live-dom'&&domProof.conversationIndex.messages===2,'per-conversation DOM index missing or stale: '+JSON.stringify(domProof.conversationIndex));
+    assert(domProof.project.name==='One'&&domProof.index.projectName==='One','polluted Project name reached private vault: '+JSON.stringify({project:domProof.project.name,index:domProof.index.projectName}));
+    assert(domProof.part.includes('Visible user message')&&domProof.part.includes('Visible assistant reply'),'DOM transcript content missing: '+domProof.part);
+    assert(domProof.marker.includes(':2'),'DOM capture diagnostic marker missing: '+domProof.marker);
   }finally{await context.close();}
 }finally{await browser.close();}
 
-console.log('project-memory-wake-v086: PASS immediate cache-only GitHub bootstrap + zero busy ChatGPT RPC + queued history self-wake after idle');
+console.log('project-memory-wake-v086: PASS bootstrap preservation + queued backend archive + zero-RPC live DOM archive');

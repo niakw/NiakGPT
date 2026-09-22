@@ -22,6 +22,12 @@
   const sessionOrder=new Map(),mountParentByBox=new WeakMap(),mountTargetByBox=new WeakMap();let sessionSeq=0;
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
+  const cleanProjectName=v=>{
+    const raw=clean(v);if(!raw)return'';
+    let s=raw.replace(/^(?:(?:<\/>|[§€▶◇▣✦◈+◆▤]))+\s*/u,'');
+    s=s.replace(/(?:\s*\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?\s*(?:\[\d+\])?\s*›?)+\s*$/u,'').trim();
+    return s||raw;
+  };
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const normalizePid=v=>{const s=clean(v),m=s.match(/^g-p-([A-Za-z0-9]+)(?:-.+)?$/);return m?`g-p-${m[1]}`:s;};
   const pidFromHref=h=>normalizePid(String(h||'').match(PROJECT_RX)?.[1]||'');
@@ -65,7 +71,8 @@
       }
       const projectMatch=pathname.match(/^\/g\/(g-p-[^/]+)\/(?:project)?\/?$/i);
       if(!projectMatch)continue;
-      const id=normalizePid(projectMatch[1]),name=clean(a.getAttribute('aria-label')||a.textContent);
+      const direct=[...a.querySelectorAll(':scope > span,[class*="truncate" i]')].map(el=>cleanProjectName(el.textContent)).find(name=>name&&/[\p{L}\p{N}]/u.test(name)&&!projectLabel(name)&&!/^(?:afficher|voir) plus$|^show more$/i.test(name));
+      const id=normalizePid(projectMatch[1]),name=cleanProjectName(a.getAttribute('aria-label')||direct||a.textContent);
       if(!id.startsWith('g-p-')||!name||name.length>180||projectLabel(name)||/^(?:afficher|voir) plus$|^show more$/i.test(name))continue;
       projects.set(id,{id,name,href:managedHref(pathname,id),domOnly:true,nativeDom:true});
     }
@@ -79,7 +86,12 @@
     for(const p of snapshot.projects||[]){
       const old=projectMap.get(p.id);
       if(!old){projectMap.set(p.id,p);changed=true;}
-      else if((!clean(old.name)||old.domOnly===true)&&clean(p.name)&&clean(old.name)!==clean(p.name)){projectMap.set(p.id,{...old,...p});changed=true;}
+      else{
+        const oldRaw=clean(old.name),oldClean=cleanProjectName(oldRaw),nextName=cleanProjectName(p.name);
+        const dirty=!!oldRaw&&oldClean!==oldRaw;
+        if((!oldRaw||old.domOnly===true||dirty)&&nextName&&oldClean!==nextName){projectMap.set(p.id,{...old,...p,name:nextName});changed=true;}
+        else if(dirty){projectMap.set(p.id,{...old,name:oldClean});changed=true;}
+      }
     }
     for(const row of snapshot.chats||[]){
       const id=String(row.id||''),old=chatMap.get(id);
@@ -146,7 +158,7 @@
   function cachedProjectNames(){
     const names=new Set();
     for(const p of cache.projects||[]){
-      const name=norm(p?.name);
+      const name=norm(cleanProjectName(p?.name));
       if(name&&!QUEUE.has(name)&&name.length<=180)names.add(name);
     }
     return names;

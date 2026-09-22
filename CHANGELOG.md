@@ -1,3 +1,12 @@
+# NiakGPT 0.9.101 — Project Memory réelle, archives préservées, noms Projects sains
+
+- **Recheck terrain concluant** : le coffre privé continuait bien à écrire, mais le Project NiakGPT restait à 24 conversations métadonnées avec `0 messages / 0 parts` et aucun dossier `conversations/`. Attendre davantage ne pouvait donc pas résoudre le défaut.
+- **Archive du chat courant sans backend ChatGPT** : Project Memory sérialise désormais les messages déjà rendus dans le DOM d’un chat Project vers le coffre GitHub privé. Aucun GET ChatGPT n’est nécessaire pour cette capture ; elle est marquée `complete:false` / `historyPartial:true` afin qu’une synchronisation canonique ultérieure puisse la remplacer.
+- **Bootstrap non destructif** : `writeCachedBootstrap()` fusionne l’index distant existant et ne remet plus une archive réelle à `parts:0/messages:0`. Les signaux et métadonnées d’archive déjà présentes sont conservés.
+- **Historique de fond réellement réveillable** : un onglet hors chat peut terminer une lecture Project Memory à côté d’une conversation visible mais inactive. Une génération sur ce peer ferme immédiatement l’exception et annule les GET NiakGPT en cours. Tous les autres modules restent sous la quarantaine de conversation.
+- **Noms Projects réparés** : les décorations NiakGPT (icône, date, compteur) ne peuvent plus contaminer le nom canonique. La sanitation agit à l’extraction DOM, sur le cache existant et avant sérialisation dans le coffre.
+- **Non-régression** : les labs exigent une capture DOM avec contenu réel et zéro RPC ChatGPT, la conservation d’une archive lors d’un bootstrap métadonnées, l’exception mémoire uniquement pour un peer inactif, et le blocage immédiat dès qu’un peer génère.
+
 # NiakGPT 0.9.100 — shell sidebar terrain + reprise SPA déterministe
 
 - **Bloc Projects demi-largeur reproduit** : un nouveau scénario navigateur reproduit le cas où le vrai shell gauche est un `div` non étiqueté tandis qu’un `nav` interne n’occupe qu’une colonne. Avant correction, `#ng8-pins` restait monté dans cette colonne droite.

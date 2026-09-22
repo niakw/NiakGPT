@@ -510,8 +510,12 @@
     if(!remote?.connected)return[];
     let local={};try{local=await chrome.storage.local.get([STATE_KEY,QUEUE_KEY]);}catch{}
     const st=local[STATE_KEY]||{},q=local[QUEUE_KEY]||{};
-    if(Number(st.lastSyncAt||0)>0)return Array.isArray(q.pending)?q.pending:[];
     if(Array.isArray(q.pending)&&q.pending.length)return q.pending;
+    const currentList=projects(await cache()),signature=cachedBootstrapSignature(currentList);
+    // 0.9.102 could have lastSyncAt set while every remote conversation still contained
+    // parts=0/messages=0. Only a full-history completion tied to the current cache signature
+    // is proof that the persistent queue may stay empty.
+    if(Number(st.historyCompletedAt||0)>0&&String(st.historyCacheSignature||'')===signature)return[];
     return primeBootstrapQueue(false);
   }
 
@@ -680,7 +684,8 @@
         return {ok:true,partial:true,projects:list.length,changed,pendingInventory:remainingInventory.length};
       }
       try { await chrome.storage.local.remove(QUEUE_KEY); } catch {}
-      const done = await state({ mode:'idle', projectDone:list.length, projectTotal:list.length, changed, lastSyncAt:Date.now(), error:'',pauseReason:'' });
+      const historyCacheSignature=cachedBootstrapSignature(projects(await cache()));
+      const done = await state({ mode:'idle', projectDone:list.length, projectTotal:list.length, changed, lastSyncAt:Date.now(), historyCompletedAt:Date.now(), historyCacheSignature, error:'',pauseReason:'' });
       document.dispatchEvent(new CustomEvent('niakgpt:project-memory-synced', { detail:done }));
       return { ok:true, projects:list.length, changed };
     } catch (error) {
@@ -984,7 +989,7 @@
   document.addEventListener('touchstart',noteHuman,{capture:true,passive:true});
 
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes[CACHE_KEY]) schedule(backgroundDelay());
+    if (area === 'local' && changes[CACHE_KEY]) ensureBootstrapQueued().catch(()=>[]).finally(()=>schedule(backgroundDelay()));
     if (area === 'local' && changes[CONTEXT_KEY]) refreshContext();
     if (area === 'local' && changes[QUEUE_KEY] && autoOwner()) resume();
   });

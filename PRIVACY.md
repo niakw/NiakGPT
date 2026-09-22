@@ -1,6 +1,6 @@
 # Confidentialité — NiakGPT
 
-NiakGPT 0.9.103 conserve un **cœur local-first** et Project Memory v132, une synchronisation GitHub privée **optionnelle et explicitement activée par l’utilisateur**.
+NiakGPT 0.9.104 conserve un **cœur local-first** et Project Memory v132, une synchronisation GitHub privée **optionnelle et explicitement activée par l’utilisateur**.
 
 ## Résumé
 

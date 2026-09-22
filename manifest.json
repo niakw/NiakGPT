@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.113",
-  "description": "NiakGPT : restauration du boot terrain 0.9.103/0.9.81, CSS déclaratif et barrière scheduler sans dépendance aux internals React.",
+  "version": "0.9.114",
+  "description": "NiakGPT : catalogue Projects restauré depuis le coffre privé, sidebar Projects unique et bootstrap mémoire anti-rétrécissement.",
   "permissions": [
     "storage",
     "scripting",

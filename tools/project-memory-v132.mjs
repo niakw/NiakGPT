@@ -48,6 +48,25 @@ globalThis.chrome = {
 };
 const memory = require('../project-memory-background-v132.js');
 
+const chatgptCalls=[];
+globalThis.fetch=async(url,init={})=>{
+  const u=new URL(String(url)),method=String(init.method||'GET').toUpperCase();
+  chatgptCalls.push({url:u.href,method,credentials:init.credentials,cache:init.cache,authorization:init.headers?.Authorization||''});
+  if(u.origin==='https://chatgpt.com'&&u.pathname==='/api/auth/session')return new Response(JSON.stringify({accessToken:'synthetic-chatgpt-access'}),{status:200,headers:{'content-type':'application/json'}});
+  if(u.origin==='https://chatgpt.com'&&u.pathname==='/backend-api/conversation/lab-chat')return new Response(JSON.stringify({current_node:'n1',mapping:{n1:{id:'n1',parent:null,message:{author:{role:'assistant'},content:{parts:['archived from background']}}}}}),{status:200,headers:{'content-type':'application/json'}});
+  return new Response(JSON.stringify({message:'unexpected direct memory request'}),{status:500,headers:{'content-type':'application/json'}});
+};
+const directProbe=await memory.chatgptMemoryProbe();
+assert.equal(directProbe.ok,true,'background ChatGPT session probe failed');
+const directConversation=await memory.chatgptMemoryGet('/backend-api/conversation/lab-chat');
+assert.equal(directConversation.ok,true,'background conversation fetch failed');
+assert.equal(directConversation.transport,'extension-background');
+assert.equal(chatgptCalls.filter(call=>call.url.endsWith('/api/auth/session')).length,1,'background transport did not cache its ephemeral ChatGPT session token');
+assert.equal(chatgptCalls.at(-1).credentials,'include');
+assert.equal(chatgptCalls.at(-1).cache,'no-store');
+assert.equal(chatgptCalls.at(-1).authorization,'Bearer synthetic-chatgpt-access');
+await assert.rejects(()=>memory.chatgptMemoryGet('/backend-api/conversations?offset=0'),/chatgpt_memory_path_not_allowed/,'background memory transport accepted a broad ChatGPT endpoint');
+
 assert.equal(memory.normalizeRepo('niakw/private-memory'), 'niakw/private-memory');
 assert.equal(memory.normalizeRepo('https://github.com/niakw/private-memory.git'), 'niakw/private-memory');
 assert.equal(memory.normalizeRepo('git@github.com:niakw/private-memory.git'), 'niakw/private-memory');
@@ -197,7 +216,7 @@ assert.equal(prePatchAttempts,1,'preflight race still emitted doomed update-ref 
 assert.equal(preResult.sha,preHead);
 
 const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
-assert.equal(manifest.version, '0.9.102');
+assert.equal(manifest.version, '0.9.103');
 assert.deepEqual(manifest.permissions, ['storage','scripting','identity']);
 assert.deepEqual(manifest.host_permissions, ['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']);
 
@@ -240,6 +259,12 @@ assert.match(backend, /default_permissions: \{ contents: 'write', metadata: 'rea
 assert.match(backend, /niakgpt:memory-github-connect-repo-v132/);
 assert.match(backend, /github_repository_not_authorized_for_vault/);
 assert.match(backend, /grant_type: 'refresh_token'/);
+assert.match(backend, /CHATGPT_CONVERSATION_RX/);
+assert.match(backend, /niakgpt:memory-chatgpt-probe-v132/);
+assert.match(backend, /niakgpt:memory-chatgpt-fetch-v132/);
+assert.match(backend, /credentials: 'include'/);
+assert.match(backend, /transport: 'extension-background'/);
+assert.doesNotMatch(backend, /chrome\.storage\.(?:local|session).*chatgptAccessToken/s,'ChatGPT access token must remain memory-only');
 
 const bridge = fs.readFileSync('page-bridge.js','utf8');
 assert.match(bridge, /conversation_detail_get_disabled/);
@@ -295,6 +320,11 @@ assert.match(runtime, /ng90PeerBusy/);
 assert.match(runtime, /peerBusy/);
 assert.match(runtime, /memory_sync_paused_conversation/);
 assert.match(runtime, /captureCurrentDomConversation/);
+assert.match(runtime, /backgroundHistoryProbe/);
+assert.match(runtime, /backgroundHistoryFetch/);
+assert.match(runtime, /BACKGROUND_HISTORY_FETCH_GAP_MS = 4000/);
+assert.match(runtime, /function normalizePid\(value\)/);
+assert.match(runtime, /return m \? normalizePid\(m\[1\]\) : ''/);
 assert.match(runtime, /captureSource:'live-dom'/);
 assert.match(runtime, /complete:false/);
 assert.match(runtime, /old&&Number\(old\.parts\|\|0\)>0&&Number\(old\.messages\|\|0\)>0/);

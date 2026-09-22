@@ -499,6 +499,7 @@
       projectDone:0,
       projectTotal:pending.length,
       queuedProjects:pending.length,
+      historyQueueSchema:1,
       lastSyncAt:Number(current.lastSyncAt||0),
       error:''
     });
@@ -510,7 +511,8 @@
     if(!remote?.connected)return[];
     let local={};try{local=await chrome.storage.local.get([STATE_KEY,QUEUE_KEY]);}catch{}
     const st=local[STATE_KEY]||{},q=local[QUEUE_KEY]||{};
-    if(Array.isArray(q.pending)&&q.pending.length)return q.pending;
+    const existingPending=Array.isArray(q.pending)?q.pending:[];
+    if(existingPending.length&&Number(st.historyQueueSchema||0)>=1)return existingPending;
     const currentList=projects(await cache()),signature=cachedBootstrapSignature(currentList);
     // 0.9.102 could have lastSyncAt set while every remote conversation still contained
     // parts=0/messages=0. Only a full-history completion tied to the current cache signature

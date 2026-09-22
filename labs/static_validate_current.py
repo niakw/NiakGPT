@@ -237,10 +237,10 @@ for token in ('nos\\s+systèmes\\s+effectuent\\s+quelques\\s+vérifications','co
     if token not in interruption: fail('interruption recovery contract incomplete '+token)
 bridge=read('page-bridge.js')
 if "interruption === 'network'" not in bridge or "interruption === 'verify'" not in bridge: fail('RPC interruption pause missing')
-if 'native_conversation_quiet' not in bridge or 'chat-route-guard' not in bridge or 'ng90PeerChatActive' not in bridge or 'memoryPeerSafe' not in bridge or 'peerBusyPage' not in bridge or 'data-ng90-peer-busy' not in bridge: fail('conversation quarantine / Project Memory idle-peer exception missing')
+if 'native_conversation_quiet' not in bridge or 'chat-route-guard' not in bridge or 'ng90PeerChatActive' not in bridge or 'memoryPeerSafe' not in bridge or 'peerBusyPage' not in bridge or 'data-ng90-peer-busy' not in bridge or "projectConversationsRx.test(String(path||''))" not in bridge: fail('conversation quarantine / Project Memory idle-peer inventory exception missing')
 
 server_index=read('server-index-v100.js')
-for token in ('COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement','coldBootstrap','conversationPage()',"navigation.addEventListener('navigatesuccess',routeWake)"):
+for token in ('COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement','coldBootstrap','conversationPage()',"navigation.addEventListener('navigatesuccess',routeWake)",'memoryRepairIds','memoryBootstrap:memoryBootstrap===true','peerBlocked','projectIds'):
     if token not in server_index: fail('cold canonical index recovery incomplete '+token)
 server_bootstrap=read('server-index-bootstrap-v124.js')
 for token in ('COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement(raw)','conversationPage()'):

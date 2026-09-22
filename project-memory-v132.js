@@ -848,7 +848,8 @@
         await saveQueue(list.slice(i).map(p => p.id), opt.force, prioritySync);
         if (!await waitIdle(undefined,allowConversation)) throw new Error(document.hidden?'memory_sync_paused_hidden':(automatic&&!autoOwner()?'memory_sync_paused_owner_change':'memory_sync_idle_timeout'));
         changed += await syncProject(list[i], opt.force === true);
-        await state({ mode:'syncing', projectDone:i+1, projectTotal:list.length, projectId:list[i].id, projectName:list[i].name, chatDone:0, chatTotal:0 });
+        await saveQueue(list.slice(i+1).map(p=>p.id),opt.force,prioritySync);
+        await state({ mode:'syncing', projectDone:i+1, projectTotal:list.length, projectId:list[i].id, projectName:list[i].name, chatDone:0, chatTotal:0, prioritySync });
       }
       const afterList=projects(await cache());
       const remainingInventory=afterList.filter(p=>p.count>0&&(!p.indexed||Number(p.count||0)>(p.chats||[]).length)).map(p=>p.id);
@@ -1102,12 +1103,15 @@
   async function syncPriorityNow() {
     const remote=await send({type:'niakgpt:memory-status-v132'});
     if(!remote?.connected)return {ok:false,error:remote?.configured?'github_token_missing':'not_connected'};
-    const pending=await primeBootstrapQueue(false,true);
+    let q={};try{q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
+    const pending=Array.isArray(q.pending)&&q.pending.length
+      ? await saveQueue(q.pending,false,true)
+      : await primeBootstrapQueue(false,true);
     prioritySync=true;
     await state({mode:'queued',prioritySync:true,priorityStartedAt:Date.now(),queuedProjects:pending.length,projectTotal:pending.length,pauseReason:'priority',error:''});
     if(syncing)return {ok:true,priority:true,joined:true,queuedProjects:pending.length};
     const result=await bootstrap({force:false,projectIds:pending,auto:false,priority:true});
-    if(result?.paused) schedule(PRIORITY_RETRY_MS);
+    if(result?.paused||result?.error==='memory_sync_owned_by_other_tab') schedule(PRIORITY_RETRY_MS);
     return {...result,priority:true,queuedProjects:pending.length};
   }
 
@@ -1191,7 +1195,10 @@
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes[CACHE_KEY]) ensureBootstrapQueued().catch(()=>[]).finally(()=>schedule(backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true)));
     if (area === 'local' && changes[CONTEXT_KEY]) refreshContext();
-    if (area === 'local' && changes[QUEUE_KEY] && autoOwner()) resume();
+    if (area === 'local' && changes[QUEUE_KEY]) {
+      if(changes[QUEUE_KEY].newValue?.priority===true)prioritySync=true;
+      if(autoOwner())resume();
+    }
   });
   document.addEventListener('niakgpt:activity-changed', event => {
     const allowConversation=conversationPage()&&backgroundHistoryAvailable===true;

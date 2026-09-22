@@ -233,7 +233,7 @@ globalThis.fetch=async(url,init={})=>{
     {type:'dir',name:'not-a-project'},
     {type:'file',name:'README.md'}
   ]);
-  if(method==='GET'&&path==='/repos/niakw/catalog-memory/contents/.niakgpt-memory/PROJECTS.json')return reply(200,{type:'file',encoding:'base64',content:b64({projects:[{id:'g-p-alpha',name:'Stale Alpha',knownConversationCount:2,indexed:false}]}),sha:'root-catalog'});
+  if(method==='GET'&&path==='/repos/niakw/catalog-memory/contents/.niakgpt-memory/PROJECTS.json')return reply(200,{type:'file',encoding:'base64',content:b64({projects:[{id:'g-p-gamma',name:'Workspace Gamma',knownConversationCount:4,indexed:false},{id:'g-p-alpha',name:'Stale Alpha',knownConversationCount:2,indexed:false}]}),sha:'root-catalog'});
   const match=path.match(/^\/repos\/niakw\/catalog-memory\/contents\/\.niakgpt-memory\/projects\/(g-p-[^/]+)\/project\.json$/);
   if(method==='GET'&&match&&catalogRows[match[1]])return reply(200,{type:'file',encoding:'base64',content:b64(catalogRows[match[1]]),sha:'project-'+match[1]});
   return reply(500,{message:'unexpected catalog mock '+method+' '+path});
@@ -242,10 +242,10 @@ const catalog=await memory.projectCatalog({repo:'niakw/catalog-memory',branch:'m
 assert.equal(catalog.repoPrivate,true);
 assert.equal(catalog.source,'vault-project-directories');
 assert.equal(catalog.projectCount,3,'vault catalog did not enumerate canonical Project directories');
-assert.deepEqual(catalog.projects.map(row=>row.id),['g-p-alpha','g-p-beta','g-p-gamma']);
-assert.equal(catalog.projects[0].name,'Workspace Alpha','project.json must override stale root-catalog metadata');
-assert.equal(catalog.projects[0].knownConversationCount,12);
-assert.equal(catalog.projects[2].indexed,false);
+assert.deepEqual(catalog.projects.map(row=>row.id),['g-p-gamma','g-p-alpha','g-p-beta'],'vault catalog did not preserve durable root ordering before appending missing directories');
+assert.equal(catalog.projects[1].name,'Workspace Alpha','project.json must override stale root-catalog metadata');
+assert.equal(catalog.projects[1].knownConversationCount,12);
+assert.equal(catalog.projects[0].indexed,false);
 assert.equal(catalog.projects.some(row=>Object.hasOwn(row,'instructions')||Object.hasOwn(row,'description')),false,'vault catalog leaked private Project content');
 delete sessionStore['niakgpt-project-memory-session-token-v132'];
 

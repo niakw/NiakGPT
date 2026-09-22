@@ -1,18 +1,24 @@
 # Architecture de NiakGPT
 
-## Invariant styles 0.9.109 — zéro influence avant hydratation
+## Invariant hydratation React 0.9.110 — récupération #418 sans deadlock
+
+Le gate lit le **HostRoot courant** dans le monde MAIN. Un `memoizedState.isDehydrated === true` explicite interdit toujours toute mutation NiakGPT. En revanche, après un mismatch React récupérable (#418), React peut basculer vers un rendu client où le HostRoot courant ne porte plus du tout la clé `isDehydrated`; cet état est désormais considéré comme **post-hydratation récupéré**, et non comme une attente infinie.
+
+L’ownership React de `<html>` et `<body>` reste enregistré pour le diagnostic, mais n’est plus une condition de démarrage. Le gate exige toujours un HostRoot courant, au moins deux identités hôtes React (`nav/aside`, `main`, composer), une seconde confirmation après frames, puis une fenêtre de stabilité. Si le probe MAIN-world ne peut rien prouver, une interaction utilisateur **réelle** reste le fallback, avec un latch actif dès le chargement du content script afin qu’une interaction précoce ne soit pas perdue.
+
+## Invariant styles 0.9.110 — zéro influence avant hydratation
 
 Le manifest ne déclare plus aucune feuille CSS dans `content_scripts`. `background-v100.js` possède l’unique `STYLE_RUNTIME` et appelle `chrome.scripting.insertCSS()` seulement après réception de `niakgpt:inject-runtime-v100`, donc après le gate d’hydratation. Les styles et le JavaScript NiakGPT partagent désormais la même frontière temporelle : **rien de NiakGPT ne peut influencer le DOM ou sa mise en page avant la preuve d’hydratation**.
 
-Le gate React ne lit plus les clés internes `__reactContainer$…` / `__reactFiber$…` depuis le monde isolé du content script. Le service worker exécute un probe sans mutation dans le monde `MAIN` et retrouve le HostRoot soit via `__reactContainer$…`, soit en remontant `.return` depuis les `__reactFiber$…` attachés à `<html>`, `<body>` et aux nœuds hôtes ChatGPT. Il exige ensuite `memoizedState.isDehydrated === false`, l’ownership React explicite de `document.documentElement` et `document.body`, puis une seconde confirmation. Les sentinelles volatiles `data-build` / `window.__reactRouterContext` ne constituent aucune voie de déverrouillage.
+Le gate React ne lit plus les clés internes `__reactContainer$…` / `__reactFiber$…` depuis le monde isolé du content script. Le service worker exécute un probe sans mutation dans le monde `MAIN` et retrouve le HostRoot courant soit via `__reactContainer$…`, soit en remontant `.return` depuis les `__reactFiber$…` des nœuds hôtes ChatGPT. Un `isDehydrated:true` explicite reste bloquant ; l’absence de ce flag sur le HostRoot courant après recovery est acceptée comme rendu client stabilisé. Les marqueurs de `<html>` et `<body>` sont conservés pour le diagnostic mais ne déverrouillent ni ne bloquent à eux seuls. Une seconde confirmation HostRoot + identités hôtes est toujours requise. Les sentinelles volatiles `data-build` / `window.__reactRouterContext` ne constituent aucune voie de déverrouillage.
 
-## Invariant hydratation React 0.9.109 — aucune mutation avant propriété de la racine document
+## Invariant hydratation React 0.9.110 — aucune mutation avant propriété de la racine document
 
-Le HTML ChatGPT courant est hydraté comme document React complet. Un DOM visuellement stable et deux tours idle ne suffisent pas : React peut continuer à planifier du travail via `MessagePort` sans remplacer les nœuds. `boot-gate-v100.js` demande donc au service worker un probe `chrome.scripting.executeScript(..., world:'MAIN')` qui vérifie un marqueur React interne sur le root (`__reactContainer$…`), sur `<html>`, sur `<body>` et sur au moins deux nœuds hôtes (`__reactFiber$…` / `__reactProps$…`) avant de poser le moindre attribut/nœud NiakGPT. Le content script isolé n’inspecte jamais directement ces expandos. À défaut de preuve, il attend une interaction native fiable plutôt que de deviner un délai.
+Un DOM visuellement stable ne suffit pas : React peut encore hydrater ou récupérer un mismatch. `boot-gate-v100.js` demande donc au service worker un probe `chrome.scripting.executeScript(..., world:'MAIN')` qui vérifie le HostRoot courant et au moins deux nœuds hôtes React (`__reactFiber$…` / `__reactProps$…`) avant de poser le moindre attribut/nœud NiakGPT. Les expandos éventuels de `<html>` et `<body>` sont observés uniquement pour le diagnostic. Le content script isolé n’inspecte jamais directement ces internals. À défaut de preuve MAIN-world, il exige une surface native stable puis une interaction utilisateur réellement trusted, sans délai arbitraire de déverrouillage.
 
 Le gate enregistre ensuite uniquement après cette preuve `data-ng100-hydration-proof=react-document-root-settled|trusted-interaction`. Une erreur d’hydratation React #418 observée avant activation reste mémorisée comme signal hôte, mais ne condamne plus définitivement NiakGPT : un HostRoot ensuite stabilisé dans le monde MAIN, ou à défaut une interaction native fiable, peut autoriser le démarrage sans mutation précoce.
 
-## Invariants terrain actuels 0.9.109
+## Invariants terrain actuels 0.9.110
 
 - **Chat courant = zéro lecture via le broker réseau de la page.** La conversation affichée est sauvegardée immédiatement depuis le DOM visible. Après une minute de calme, le service worker MV3 peut compléter l’historique avec un GET strictement borné à `/backend-api/conversation/{id}` ; son jeton ChatGPT est éphémère et mémoire-only.
 - **Peer chat = quarantaine ordinaire, exception mémoire bornée.** Depuis un onglet hors chat, seuls les GET `memoryBootstrap:true` de Project Memory (conversation complète ou inventaire ciblé d’un Project incomplet) peuvent traverser un peer visible mais inactif. `ng90PeerBusy`, génération, vérification ou incident réseau referment l’exception et annulent les GET en vol.
@@ -24,11 +30,11 @@ Le gate enregistre ensuite uniquement après cette preuve `data-ng100-hydration-
 - **Privacy fail-closed sur l’arbre public.** La CI parcourt tous les fichiers texte suivis par Git et refuse les marqueurs privés connus, les e-mails non synthétiques, les chemins utilisateur locaux et les secrets/tokens plausibles.
 
 
-NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.109 privilégie cinq propriétés : **faible coût runtime**, **priorité absolue au flux natif ChatGPT**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
+NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.110 privilégie cinq propriétés : **faible coût runtime**, **priorité absolue au flux natif ChatGPT**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
 
 ## Périmètre
 
-Le manifest 0.9.109 déclare :
+Le manifest 0.9.110 déclare :
 
 ```text
 https://chatgpt.com/*

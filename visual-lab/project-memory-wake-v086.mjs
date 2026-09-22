@@ -128,7 +128,7 @@ try{
     assert(inventoryProof.cached===2&&inventoryProof.known===2,'deep inventory did not close known/cached gap: '+JSON.stringify(inventoryProof));
     assert(Number(inventoryProof.second?.messages||0)>0&&inventoryProof.second?.complete===true,'missing conversation was not canonically archived: '+JSON.stringify(inventoryProof.second));
 
-    // Regression 0.9.101: a later cache-only bootstrap (the in-chat path) must preserve the
+    // Regression 0.9.102: a later cache-only bootstrap (the in-chat path) must preserve the
     // archive metadata that the full-history pass just wrote instead of resetting it to 0/0.
     await page.evaluate(async()=>{
       history.pushState({},'', '/g/g-p-one/c/11111111-1111-4111-8111-111111111111');

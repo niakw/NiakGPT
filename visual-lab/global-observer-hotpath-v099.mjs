@@ -22,7 +22,7 @@ try{
       async status(){window.__hotQueries.status++;return{connected:false,configured:false,github:{authenticated:false,repositories:[]},prefs:{autoSync:true,injectOnNewChat:true},state:{}};},
       async startGitHub(){},async listRepositories(){return[];},async configure(){},async disconnect(){},async setPrefs(){},async syncNow(){}
     };
-    window.chrome={runtime:{id:'lab',getManifest:()=>({version:'0.9.101'})}};
+    window.chrome={runtime:{id:'lab',getManifest:()=>({version:'0.9.102'})}};
     window.__NIAKGPT_DIAGNOSTICS__={set(){}};
   });
   const html=`<!doctype html><html><body>

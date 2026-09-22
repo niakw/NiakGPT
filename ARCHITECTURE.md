@@ -1,10 +1,12 @@
 # Architecture de NiakGPT
 
-## Invariants terrain 0.9.88
+## Invariants terrain actuels 0.9.102
 
-- **Conversation visible = zéro trafic backend ChatGPT NiakGPT.** `page-bridge.js` bloque GET/PATCH/POST/DELETE appartenant à NiakGPT avant `/api/auth/session` dès que la route courante ou un pair visible est une conversation. Les actions natives ChatGPT ne passent pas par ce broker.
+- **Chat courant = zéro lecture backend Project Memory.** La conversation affichée est sauvegardée depuis le DOM visible ; elle n’est jamais relue via `GET /backend-api/conversation/{id}` dans cet onglet.
+- **Peer chat = quarantaine ordinaire, exception mémoire bornée.** Depuis un onglet hors chat, seuls les GET `memoryBootstrap:true` de Project Memory (conversation complète ou inventaire ciblé d’un Project incomplet) peuvent traverser un peer visible mais inactif. `ng90PeerBusy`, génération, vérification ou incident réseau referment l’exception et annulent les GET en vol.
+- **Complétude = identité + compte.** `indexed:true` ne suffit pas : si `knownConversationCount > cachedConversationCount`, Project Memory conserve la queue et réclame une réparation ciblée.
 - **Pins hors du sous-arbre Projects natif.** `sidebar-projects-v121.js` remonte jusqu’au host Projects complet puis monte `#ng8-pins` comme sibling précédent ; `sidebar-projects-authority-v112.js` masque ensuite ce sibling natif déterministe.
-- **GitHub découplé des lectures ChatGPT.** Project Memory écrit immédiatement `PROJECTS.json` et les checkpoints metadata-only depuis le cache local. Les payloads complets de conversation restent en file et ne sont lus que hors discussion, après au moins une minute de calme, avec 20 s entre lectures complètes.
+- **GitHub découplé des lectures ChatGPT.** Project Memory écrit immédiatement `PROJECTS.json` et les checkpoints depuis le cache local ; les payloads complets sont archivés de façon opportuniste et séquentielle. Un chat courant peut être capturé depuis le DOM sans lecture backend.
 - **Cache local ≠ autorité Project canonique.** Des entrées locales/dom-only peuvent alimenter un fallback Pins, mais elles ne suffisent jamais à masquer la surface Projects native ni à inventer des `coreProjectIds`. Le passage à l’autorité NiakGPT n’a lieu qu’après présence d’identités canoniques `g-p-*`.
 - **Remount sidebar = recréation, pas disparition silencieuse.** La suppression externe de `#ng8-pins` est traitée comme un événement de cycle de vie même pendant un epoch interne. v131 demande explicitement une réconciliation quand la sidebar active existe mais que le bloc Pins manque, puis le self-heal repeuple le fallback local sans lecture backend ChatGPT.
 - **Privacy fail-closed sur l’arbre public.** La CI parcourt tous les fichiers texte suivis par Git et refuse les marqueurs privés connus, les e-mails non synthétiques, les chemins utilisateur locaux et les secrets/tokens plausibles.
@@ -38,13 +40,15 @@ Jusqu’au signal final, `composer-continuation-v128.js`, `long-run-watchdog-v12
 Le gate `visual-lab/hydration-barrier-v080.mjs` reproduit maintenant deux remplacements tardifs du shell via `MessageChannel`, après de fausses périodes de calme, et exige que NiakGPT reste inactif jusqu’à la stabilité finale sur Chromium, Firefox et WebKit.
 
 
-## Invariant Project Memory 0.9.88 — coffre écrit immédiatement, historique opportuniste
+## Invariant Project Memory 0.9.102 — coffre écrit immédiatement, archive opportuniste et complète
 
-`project-memory-v132.js` conserve une file persistante et un heartbeat local de secours de 30 s. La connexion au coffre écrit immédiatement un snapshot depuis le cache local sans lecture ChatGPT. L’historique complet n’est jamais lu tant qu’une conversation visible existe ; hors discussion, l’auto-sync exige une minute de calme et espace les lectures complètes d’au moins 20 s. Les sorties `busy`, `hidden`, changement de propriétaire ou lock indisponible réarment la file sans contourner ces barrières.
+`project-memory-v132.js` conserve une file persistante et un heartbeat local de secours de 30 s. La connexion au coffre écrit immédiatement un snapshot depuis le cache local. Sur le chat courant, les messages visibles sont archivés directement depuis le DOM avec `complete:false` ; un passage backend ultérieur peut remplacer cette version partielle. Hors chat, la synchro canonique reste séquentielle, espacée et suspendue dès que ChatGPT devient occupé.
 
-## Invariant réseau 0.9.88 — zéro trafic NiakGPT pendant une discussion
+La complétude est contrôlée par le compteur connu : un Project `indexed:true` mais `known > cached` déclenche `niakgpt:force-server-index` en mode `memoryBootstrap` ciblé. Si l’écart persiste, la queue reste en `inventory-incomplete` au lieu d’être supprimée.
 
-`page-bridge.js` refuse avant réseau **toute requête backend ChatGPT appartenant à NiakGPT** lorsqu’un onglet visible est sur une route de conversation, y compris si la conversation active se trouve dans un autre onglet/fenêtre via `BroadcastChannel`. La règle couvre les GET background et foreground ainsi que les PATCH/POST/DELETE NiakGPT. Les actions natives de ChatGPT ne passent pas par ce broker. Hors chat, `server-index-v100.js` attend toujours deux minutes sans activité et `server-index-bootstrap-v124.js` reste borné ; les lectures Project foreground ne redeviennent possibles qu’en l’absence de conversation visible et d’état natif busy/vérification/réseau.
+## Invariant réseau 0.9.102 — exception mémoire minimale
+
+`page-bridge.js` continue de bloquer le trafic NiakGPT ordinaire dès qu’une conversation visible existe. La seule exception cross-tab est un GET Project Memory explicitement marqué `memoryBootstrap:true`, exécuté depuis un onglet hors chat à côté d’un peer visible mais inactif. Elle couvre uniquement le détail d’une conversation et l’inventaire `/gizmos/<project>/conversations` nécessaire à la fermeture d’un count-gap. Une génération ou `ng90PeerBusy` annule immédiatement ces lectures.
 
 ## Invariant Pins 0.9.87 — le launcher Projects suffit
 

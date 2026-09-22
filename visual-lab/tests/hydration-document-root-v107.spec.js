@@ -26,7 +26,7 @@ async function closePersistentContext(context){
   await Promise.race([context.close().catch(()=>{}),sleep(1500)]);
 }
 
-test('NiakGPT does not mutate HTML before React owns the document root',async()=>{
+test('NiakGPT waits for HostRoot settlement without requiring HTML/BODY React expandos',async()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'niakgpt-document-root-hydration-'));
   const launchOptions={
     headless:HEADLESS,
@@ -57,7 +57,7 @@ test('NiakGPT does not mutate HTML before React owns the document root',async()=
               window.__earlyNiakMutation=false;
               const niakNode=node=>node instanceof Element && (/^ng/i.test(node.id||'') || [...node.attributes].some(a=>/^data-ng/i.test(a.name)));
               const observer=new MutationObserver(records=>{
-                if(window.__documentRootClaimed)return;
+                if(document.documentElement.dataset.hostRootSettled==='1')return;
                 for(const record of records){
                   if(record.type==='attributes'){
                     const name=String(record.attributeName||'');
@@ -104,39 +104,51 @@ test('NiakGPT does not mutate HTML before React owns the document root',async()=
 
     const page=context.pages()[0]||await context.newPage();
     await page.goto('https://chatgpt.com/c/22222222-2222-4222-8222-222222222222',{waitUntil:'load',timeout:15000});
-    await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.hostRootSettled||''),{timeout:3000}).toBe('1');
+    await page.waitForTimeout(300);
+    const beforeSettle=await page.evaluate(()=>({
+      settled:document.documentElement.dataset.hostRootSettled||'',
+      early:window.__earlyNiakMutation===true,
+      proof:document.documentElement.dataset.ng100HydrationProof||'',
+      rail:!!document.getElementById('ng8-rail')
+    }));
+    expect(beforeSettle.settled).toBe('');
+    expect(beforeSettle.early).toBe(false);
+    expect(beforeSettle.proof).toBe('');
+    expect(beforeSettle.rail).toBe(false);
 
-    await page.waitForTimeout(4300);
-    const beforeClaim=await page.evaluate(()=>({
+    await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.hostRootSettled||''),{timeout:3000}).toBe('1');
+    await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.ng100HydrationProof||''),{timeout:6000})
+      .toMatch(/^react-document-root-settled/);
+    await expect(page.locator('#ng8-rail')).toBeAttached({timeout:6000});
+
+    const afterSettle=await page.evaluate(()=>({
       claimed:window.__documentRootClaimed===true,
       early:window.__earlyNiakMutation===true,
       proof:document.documentElement.dataset.ng100HydrationProof||'',
       rail:!!document.getElementById('ng8-rail'),
-      ready:document.body.classList.contains('ng8-ready')
+      htmlFiber:Object.getOwnPropertyNames(document.documentElement).some(k=>k.startsWith('__reactFiber
+    console.log('HYDRATION_DOCUMENT_ROOT_CHECKPOINT PASS');
+  }finally{
+    await closePersistentContext(context);
+    await removeProfile(dir);
+  }
+});
+)),
+      bodyFiber:Object.getOwnPropertyNames(document.body).some(k=>k.startsWith('__reactFiber
+    console.log('HYDRATION_DOCUMENT_ROOT_CHECKPOINT PASS');
+  }finally{
+    await closePersistentContext(context);
+    await removeProfile(dir);
+  }
+});
+))
     }));
-    expect(beforeClaim.claimed).toBe(false);
-    expect(beforeClaim.early).toBe(false);
-    expect(beforeClaim.proof).toBe('');
-    expect(beforeClaim.rail).toBe(false);
-    expect(beforeClaim.ready).toBe(false);
-
-    await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.documentRootClaimed||''),{timeout:5000}).toBe('1');
-    await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.ng100HydrationProof||''),{timeout:12000})
-      .toMatch(/^react-document-root-settled/);
-    await expect(page.locator('#ng8-rail')).toBeAttached({timeout:10000});
-
-    const afterClaim=await page.evaluate(()=>({
-      early:window.__earlyNiakMutation===true,
-      proof:document.documentElement.dataset.ng100HydrationProof||'',
-      rail:!!document.getElementById('ng8-rail'),
-      htmlFiber:Object.getOwnPropertyNames(document.documentElement).some(k=>k.startsWith('__reactFiber$')),
-      bodyFiber:Object.getOwnPropertyNames(document.body).some(k=>k.startsWith('__reactFiber$'))
-    }));
-    expect(afterClaim.early).toBe(false);
-    expect(afterClaim.htmlFiber).toBe(true);
-    expect(afterClaim.bodyFiber).toBe(true);
-    expect(afterClaim.proof).toMatch(/^react-document-root-settled/);
-    expect(afterClaim.rail).toBe(true);
+    expect(afterSettle.claimed).toBe(false);
+    expect(afterSettle.early).toBe(false);
+    expect(afterSettle.htmlFiber).toBe(false);
+    expect(afterSettle.bodyFiber).toBe(false);
+    expect(afterSettle.proof).toMatch(/^react-document-root-settled/);
+    expect(afterSettle.rail).toBe(true);
     console.log('HYDRATION_DOCUMENT_ROOT_CHECKPOINT PASS');
   }finally{
     await closePersistentContext(context);

@@ -21,6 +21,16 @@ async function closePersistent(context){
   }
   await Promise.race([context.close().catch(()=>{}),sleep(1500)]);
 }
+async function closeBrowser(browser){
+  const braveMac=!!EXECUTABLE&&process.platform==='darwin';
+  if(!braveMac){await browser.close().catch(()=>{});return;}
+  for(const signal of ['-TERM','-KILL']){
+    try{execFileSync('/usr/bin/pkill',[signal,'-f','Brave Browser'],{stdio:'ignore'});}catch{}
+    await sleep(signal==='-TERM'?350:120);
+    if(!browser.isConnected())break;
+  }
+  await Promise.race([browser.close().catch(()=>{}),sleep(1500)]);
+}
 const launchBase=()=>({
   headless:true,
   ...(EXECUTABLE?{executablePath:EXECUTABLE}:{channel:'chromium'}),
@@ -106,7 +116,7 @@ async function visitBaseline(){
     }
   }finally{
     await context.close().catch(()=>{});
-    await browser.close().catch(()=>{});
+    await closeBrowser(browser);
   }
   return bucket;
 }

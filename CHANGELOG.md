@@ -1,3 +1,13 @@
+# NiakGPT 0.9.110 — récupération React #418 sans blocage permanent
+
+- **Régression terrain confirmée après 0.9.109** : réinstallation effectuée, `Minified React error #418` toujours visible et rail NiakGPT toujours absent.
+- **Cause racine du deadlock NiakGPT** : le gate exigeait `memoizedState.isDehydrated === false` au sens littéral. Après un #418 récupérable, React peut abandonner l’hydratation SSR et rendre côté client ; le HostRoot courant peut alors ne plus exposer du tout `isDehydrated`. 0.9.109 interprétait cet état récupéré comme « pas encore hydraté » et pouvait rester fermé indéfiniment.
+- **Deuxième contrainte trop stricte supprimée** : l’ownership React de `<html>` + `<body>` reste diagnostique mais n’est plus nécessaire pour démarrer. Le HostRoot courant + au moins deux identités hôtes React stables font autorité.
+- **Current-root normalization** : le probe normalise systématiquement `stateNode.current` avant d’évaluer l’état d’hydratation afin de ne pas suivre un alternate obsolète.
+- **Fallback utilisateur fiabilisé** : l’interaction native est mémorisée dès l’évaluation du content script ; un clic/keypress intervenu pendant les probes n’est plus perdu.
+- **Régression MV3 dédiée** : `hydration-recovery-v110.spec.js` simule `isDehydrated:true` puis un rendu client avec `memoizedState={}`, sans expando React sur `<html>/<body>`, et exige zéro mutation avant recovery puis le montage réel du rail.
+- **Chromium + Brave stable** : la nouvelle régression est exécutée dans les deux jobs Live Stability avec `HYDRATION_RECOVERY_V110_CHECKPOINT PASS`.
+
 # NiakGPT 0.9.109 — résolution HostRoot par chaîne Fiber réelle
 
 - **Régression terrain persistante** : après 0.9.108, l’utilisateur observe encore le #418 React et surtout l’absence de la sidebar NiakGPT dans son ChatGPT authentifié.

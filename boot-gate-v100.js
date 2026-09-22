@@ -10,7 +10,7 @@
   const PIN_OPEN_KEY='niakgpt-open-pin-folder-v096';
   const SHELL_IDS=new Set(['ng8-rail','ng8-panel','ng8-status']);
   const shellRefs=new Map();
-  let safeToMutate=false,shellObserver=null,shuttingDown=false,hydrationFault=false,hydrationProof='legacy-host',lastHydrationProbe=null;
+  let safeToMutate=false,shellObserver=null,shuttingDown=false,hydrationFault=false,hydrationFaultAt=0,hydrationProof='legacy-host',lastHydrationProbe=null,trustedHydrationInteraction=false,gateOpenedAt=0;
   const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   const message=value=>String(value?.message||value?.reason?.message||value?.reason||value||'Erreur inconnue')
     .replace(/github_pat_[A-Za-z0-9_]+/g,'[redacted]')
@@ -18,10 +18,14 @@
     .replace(/([?&](?:code|token|access_token|client_secret)=)[^&\s]+/gi,'$1[redacted]')
     .replace(/\s+/g,' ').slice(0,260);
   const clean=v=>String(v??'').replace(/\r/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+  const TRUSTED_HYDRATION_EVENTS=['pointerdown','keydown','touchstart'];
+  const latchTrustedHydrationInteraction=event=>{if(event?.isTrusted===true)trustedHydrationInteraction=true;};
+  for(const type of TRUSTED_HYDRATION_EVENTS)window.addEventListener(type,latchTrustedHydrationInteraction,true);
+  const releaseTrustedHydrationLatch=()=>{for(const type of TRUSTED_HYDRATION_EVENTS)window.removeEventListener(type,latchTrustedHydrationInteraction,true);};
 
   function remember(kind,value){
     const detail=message(value);
-    if(/(?:Minified React error #418|hydration failed|hydration mismatch)/i.test(detail))hydrationFault=true;
+    if(/(?:Minified React error #418|hydration failed|hydration mismatch)/i.test(detail)){hydrationFault=true;hydrationFaultAt=Date.now();}
     const line=`${kind}: ${detail}`;
     if(!captured.includes(line))captured.unshift(line);
     captured.splice(10);
@@ -92,13 +96,13 @@
       if(probe.ok){
         const needed=Math.max(0,Number(probe.needed||0));
         const ownedCount=Math.max(0,Number(probe.ownedCount||0));
-        if(probe.rootFound===true&&probe.rootSettled===true&&probe.rootDehydrated!==true&&probe.documentRootOwned===true&&needed>0&&ownedCount>=needed){
+        if(probe.rootFound===true&&probe.rootSettled===true&&probe.rootDehydrated!==true&&needed>0&&ownedCount>=needed){
           await nextFrames();
           const confirm=await mainWorldReactProbe();
           lastHydrationProbe=confirm;
           const confirmNeeded=Math.max(0,Number(confirm?.needed||0));
           const confirmOwned=Math.max(0,Number(confirm?.ownedCount||0));
-          if(confirm?.ok&&confirm.rootFound===true&&confirm.rootSettled===true&&confirm.rootDehydrated!==true&&confirm.documentRootOwned===true&&confirmNeeded>0&&confirmOwned>=confirmNeeded){
+          if(confirm?.ok&&confirm.rootFound===true&&confirm.rootSettled===true&&confirm.rootDehydrated!==true&&confirmNeeded>0&&confirmOwned>=confirmNeeded){
             const viaFiber=probe.rootSource==='fiber-owner'||confirm.rootSource==='fiber-owner';
             hydrationProof=viaFiber
               ?(hydrationFault?'react-fiber-root-settled-after-host-fault':'react-fiber-root-settled')
@@ -111,21 +115,23 @@
     }
     try{
       const p=lastHydrationProbe||{};
-      const diag={at:Date.now(),ok:!!p.ok,containerFound:!!p.containerFound,rootFound:!!p.rootFound,rootSource:String(p.rootSource||''),rootSettled:!!p.rootSettled,rootDehydrated:!!p.rootDehydrated,documentRootOwned:!!p.documentRootOwned,htmlOwned:!!p.htmlOwned,bodyOwned:!!p.bodyOwned,needed:Number(p.needed||0),ownedCount:Number(p.ownedCount||0),error:String(p.error||'').slice(0,160)};
+      const diag={at:Date.now(),ok:!!p.ok,containerFound:!!p.containerFound,rootFound:!!p.rootFound,rootSource:String(p.rootSource||''),rootSettled:!!p.rootSettled,rootDehydrated:!!p.rootDehydrated,rootHasDehydratedFlag:!!p.rootHasDehydratedFlag,rootStateKind:String(p.rootStateKind||''),documentRootOwned:!!p.documentRootOwned,htmlOwned:!!p.htmlOwned,bodyOwned:!!p.bodyOwned,needed:Number(p.needed||0),ownedCount:Number(p.ownedCount||0),hydrationFault,hydrationFaultAt,trustedHydrationInteraction,gateOpenedAt,error:String(p.error||'').slice(0,160)};
       sessionStorage.setItem('niakgpt-hydration-probe-v109',JSON.stringify(diag));
       console.warn('[NiakGPT hydration blocked]',diag);
     }catch{}
     return false;
   }
   function waitTrustedHydratedInteraction(){
+    if(trustedHydrationInteraction)return Promise.resolve(true);
     return new Promise(resolve=>{
       let done=false;
-      const finish=()=>{
-        if(done)return;done=true;
-        for(const type of ['pointerdown','keydown','touchstart'])window.removeEventListener(type,finish,true);
+      const finish=event=>{
+        if(done||event?.isTrusted!==true)return;
+        trustedHydrationInteraction=true;done=true;
+        for(const type of TRUSTED_HYDRATION_EVENTS)window.removeEventListener(type,finish,true);
         resolve(true);
       };
-      for(const type of ['pointerdown','keydown','touchstart'])window.addEventListener(type,finish,{capture:true,once:true});
+      for(const type of TRUSTED_HYDRATION_EVENTS)window.addEventListener(type,finish,true);
     });
   }
   async function waitStableHostIdentity(stableMs=1600,maxWait=8500){
@@ -143,23 +149,25 @@
   }
   async function waitHydrationStable(){
     await waitComplete(5000);
-    await waitStableHostIdentity(1600,8500);
-    await waitForQuiet(1200,7000);
-    await idleTurn(2200);
-    await idleTurn(2200);
-    await nextFrames();
-    await sleep(220);
-    await nextFrames();
-    await waitStableHostIdentity(500,2500);
+    // Probe the current HostRoot first instead of stacking long sequential quiet/idle waits.
+    // A recoverable #418 may replace the dehydrated SSR root with a client-rendered current
+    // root whose memoizedState no longer contains isDehydrated at all.
     const owned=await waitReactHydrationOwnership(8000);
-    if(!owned){
-      // MAIN-world probing is authoritative for React expandos. If it is unavailable,
-      // keep the DOM untouched until a real native interaction instead of guessing a delay.
-      await waitTrustedHydratedInteraction();
-      hydrationProof=hydrationFault?'trusted-interaction-after-host-fault':'trusted-interaction';
+    if(owned){
+      await waitStableHostIdentity(500,2500);
+      await waitForQuiet(hydrationFault?900:500,hydrationFault?3200:2200);
       await nextFrames();
-      await waitForQuiet(500,2200);
+      return;
     }
+    // If the MAIN-world proof is unavailable, require a stable native shell and a real
+    // interaction. The interaction latch starts at content-script evaluation, so an early
+    // user click/keypress is not lost while the React probe is still running.
+    await waitStableHostIdentity(700,3500);
+    await waitForQuiet(hydrationFault?1000:600,hydrationFault?4000:2600);
+    await waitTrustedHydratedInteraction();
+    hydrationProof=hydrationFault?'trusted-interaction-after-host-fault':'trusted-interaction';
+    await nextFrames();
+    await waitForQuiet(500,2200);
   }
 
   function rememberShell(root){
@@ -257,6 +265,8 @@
   async function start(){
     await waitDomInteractive();await waitForChatShell();await waitHydrationStable();
     safeToMutate=!!document.body;
+    gateOpenedAt=Date.now();
+    releaseTrustedHydrationLatch();
     if(safeToMutate)document.documentElement.dataset.ng100HydrationProof=hydrationProof;
     window.__NIAKGPT_HOST_HYDRATED_100__=true;
     window.dispatchEvent(new Event('niakgpt:host-hydrated-v100'));

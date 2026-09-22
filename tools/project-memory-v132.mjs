@@ -52,7 +52,7 @@ const chatgptCalls=[];
 globalThis.fetch=async(url,init={})=>{
   const u=new URL(String(url)),method=String(init.method||'GET').toUpperCase();
   chatgptCalls.push({url:u.href,method,credentials:init.credentials,cache:init.cache,authorization:init.headers?.Authorization||''});
-  if(u.origin==='https://chatgpt.com'&&u.pathname==='/api/auth/session')return new Response(JSON.stringify({accessToken:'synthetic-chatgpt-access'}),{status:200,headers:{'content-type':'application/json'}});
+  if(u.origin==='https://chatgpt.com'&&u.pathname==='/api/auth/session')return new Response(JSON.stringify({accessToken:'lab-token'}),{status:200,headers:{'content-type':'application/json'}});
   if(u.origin==='https://chatgpt.com'&&u.pathname==='/backend-api/conversation/lab-chat')return new Response(JSON.stringify({current_node:'n1',mapping:{n1:{id:'n1',parent:null,message:{author:{role:'assistant'},content:{parts:['archived from background']}}}}}),{status:200,headers:{'content-type':'application/json'}});
   return new Response(JSON.stringify({message:'unexpected direct memory request'}),{status:500,headers:{'content-type':'application/json'}});
 };
@@ -64,7 +64,7 @@ assert.equal(directConversation.transport,'extension-background');
 assert.equal(chatgptCalls.filter(call=>call.url.endsWith('/api/auth/session')).length,1,'background transport did not cache its ephemeral ChatGPT session token');
 assert.equal(chatgptCalls.at(-1).credentials,'include');
 assert.equal(chatgptCalls.at(-1).cache,'no-store');
-assert.equal(chatgptCalls.at(-1).authorization,'Bearer synthetic-chatgpt-access');
+assert.equal(chatgptCalls.at(-1).authorization,'Bearer lab-token');
 await assert.rejects(()=>memory.chatgptMemoryGet('/backend-api/conversations?offset=0'),/chatgpt_memory_path_not_allowed/,'background memory transport accepted a broad ChatGPT endpoint');
 
 assert.equal(memory.normalizeRepo('niakw/private-memory'), 'niakw/private-memory');

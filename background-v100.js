@@ -170,10 +170,15 @@ async function probeReactHydration(tabId,frameId){
       world:'MAIN',
       func:()=>{
         const OWNER_RX=/^__react(?:Fiber|Props|Container)\$.+/;
+        const HOST_OWNER_RX=/^__react(?:Fiber|Props)\$.+/;
         const CONTAINER_RX=/^__reactContainer\$.+/;
         const owned=node=>{
           if(!node)return false;
           try{return Object.getOwnPropertyNames(node).some(key=>OWNER_RX.test(key));}catch{return false;}
+        };
+        const hostOwned=node=>{
+          if(!node)return false;
+          try{return Object.getOwnPropertyNames(node).some(key=>HOST_OWNER_RX.test(key));}catch{return false;}
         };
         const containerFiber=()=>{
           for(const node of [document,document.documentElement,document.body]){
@@ -189,8 +194,8 @@ async function probeReactHydration(tabId,frameId){
         const current=container?.stateNode?.current||container;
         const candidates=[container,current,container?.alternate,current?.alternate].filter(Boolean);
         const rootSettled=candidates.some(fiber=>fiber?.memoizedState&&fiber.memoizedState.isDehydrated===false);
-        const htmlOwned=owned(document.documentElement);
-        const bodyOwned=owned(document.body);
+        const htmlOwned=hostOwned(document.documentElement);
+        const bodyOwned=hostOwned(document.body);
         const identities=[
           document.querySelector('nav[aria-label*="Historique de chat" i],nav[aria-label*="Chat history" i],nav,aside'),
           document.querySelector('main'),

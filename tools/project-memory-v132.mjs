@@ -233,7 +233,8 @@ globalThis.fetch=async(url,init={})=>{
     {type:'dir',name:'not-a-project'},
     {type:'file',name:'README.md'}
   ]);
-  if(method==='GET'&&path==='/repos/niakw/catalog-memory/contents/.niakgpt-memory/PROJECTS.json')return reply(200,{type:'file',encoding:'base64',content:b64({projects:[{id:'g-p-gamma',name:'Workspace Gamma',knownConversationCount:4,indexed:false},{id:'g-p-alpha',name:'Stale Alpha',knownConversationCount:2,indexed:false}]}),sha:'root-catalog'});
+  if(method==='GET'&&path==='/repos/niakw/catalog-memory/contents/.niakgpt-memory/PROJECT_CATALOG.json')return reply(200,{type:'file',encoding:'base64',content:b64({kind:'NiakGPTProjectCatalog',projects:[{id:'g-p-gamma',name:'Workspace Gamma',knownConversationCount:4,indexed:false},{id:'g-p-alpha',name:'Workspace Alpha',knownConversationCount:12,indexed:true}]}),sha:'durable-catalog'});
+    if(method==='GET'&&path==='/repos/niakw/catalog-memory/contents/.niakgpt-memory/PROJECTS.json')return reply(200,{type:'file',encoding:'base64',content:b64({kind:'NiakGPTCachedBootstrap',projects:[{id:'g-p-alpha',name:'Collapsed Alpha',knownConversationCount:1,indexed:false}]}),sha:'collapsed-root'});
   const match=path.match(/^\/repos\/niakw\/catalog-memory\/contents\/\.niakgpt-memory\/projects\/(g-p-[^/]+)\/project\.json$/);
   if(method==='GET'&&match&&catalogRows[match[1]])return reply(200,{type:'file',encoding:'base64',content:b64(catalogRows[match[1]]),sha:'project-'+match[1]});
   return reply(500,{message:'unexpected catalog mock '+method+' '+path});
@@ -241,9 +242,10 @@ globalThis.fetch=async(url,init={})=>{
 const catalog=await memory.projectCatalog({repo:'niakw/catalog-memory',branch:'main',root:'.niakgpt-memory',authMode:'pat'});
 assert.equal(catalog.repoPrivate,true);
 assert.equal(catalog.source,'vault-project-directories');
+assert.equal(catalog.orderSource,'PROJECT_CATALOG.json','collapsed live PROJECTS.json overrode durable high-water ordering');
 assert.equal(catalog.projectCount,3,'vault catalog did not enumerate canonical Project directories');
 assert.deepEqual(catalog.projects.map(row=>row.id),['g-p-gamma','g-p-alpha','g-p-beta'],'vault catalog did not preserve durable root ordering before appending missing directories');
-assert.equal(catalog.projects[1].name,'Workspace Alpha','project.json must override stale root-catalog metadata');
+assert.equal(catalog.projects[1].name,'Workspace Alpha','project.json must override stale bootstrap/catalog metadata');
 assert.equal(catalog.projects[1].knownConversationCount,12);
 assert.equal(catalog.projects[0].indexed,false);
 assert.equal(catalog.projects.some(row=>Object.hasOwn(row,'instructions')||Object.hasOwn(row,'description')),false,'vault catalog leaked private Project content');
@@ -299,6 +301,8 @@ assert.match(backend, /niakgpt:memory-chatgpt-fetch-v132/);
 assert.match(backend, /niakgpt:memory-catalog-v132/);
 assert.match(backend, /async function projectCatalog\(config\)/);
 assert.match(backend, /source: 'vault-project-directories'/);
+assert.match(backend, /PROJECT_CATALOG\.json/);
+assert.match(backend, /orderSource:/);
 assert.match(backend, /credentials: 'include'/);
 assert.match(backend, /transport: 'extension-background'/);
 assert.doesNotMatch(backend, /chrome\.storage\.(?:local|session)\.set\([^\n]{0,240}chatgptAccessToken/,'ChatGPT access token must remain memory-only');
@@ -377,6 +381,8 @@ assert.match(runtime, /writeCachedBootstrap/);
 assert.match(runtime, /async function recoverVaultCatalog\(force=false\)/);
 assert.match(runtime, /await recoverVaultCatalog\(options\.force===true\)/);
 assert.match(runtime, /vaultCatalogRecoveredAt/);
+assert.match(runtime, /PROJECT_CATALOG\.json/);
+assert.match(runtime, /server-index-authority/);
 assert.match(runtime, /niakgpt:memory-catalog-v132/);
 assert.match(runtime, /bootstrapMetadataOnly:true/);
 assert.match(runtime, /bootstrapWritten:true/);

@@ -193,7 +193,7 @@
       // A complete local/server inventory remains the active authority. Vault recovery is a
       // high-water safety net for reinstall/cold-cache collapse, never a reason to resurrect
       // archived Projects over a healthy current index.
-      if (!force && currentCanonical.length >= 4 && Number(current.serverIndexedAt||0) > 0) {
+      if (currentCanonical.length >= 4 && Number(current.serverIndexedAt||0) > 0) {
         lastCatalogRecoveryAt=Date.now();
         return {ok:true,skipped:'healthy-current',projects:currentCanonical.length};
       }
@@ -202,7 +202,7 @@
       const remote=await send({type:'niakgpt:memory-catalog-v132'});
       if (!remote?.ok || !Array.isArray(remote.projects)) return {ok:false,error:String(remote?.error||'vault_catalog_unavailable')};
       const catalog=remote.projects.filter(p=>/^g-p-[A-Za-z0-9_-]+$/.test(String(p?.id||''))&&projectName(p?.name||''));
-      if (catalog.length < 2 || (!force && catalog.length <= currentCanonical.length)) {
+      if (catalog.length < 2 || catalog.length <= currentCanonical.length) {
         lastCatalogRecoveryAt=Date.now();
         return {ok:true,skipped:'not-better',projects:currentCanonical.length,vaultProjects:catalog.length};
       }

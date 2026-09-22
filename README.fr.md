@@ -6,7 +6,7 @@
   <p>Projects · performance des longs fils · continuité · navigation · productivité ciblée</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.104-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.105-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,11 +21,13 @@
 NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT en **véritable espace de travail pour un usage intensif et organisé par Projects**, sans remplacer ChatGPT.
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
-> **Version actuelle : 0.9.104.** Le démarrage attend désormais une vraie preuve de propriété React sur le rendu full-document de ChatGPT avant que NiakGPT puisse toucher `<html>`, `<body>` ou la sidebar. Les correctifs Project Memory et Projects/Chats de la 0.9.103 restent conservés.
+> **Version actuelle : 0.9.105.** Le démarrage attend désormais une vraie preuve de propriété React sur le rendu full-document de ChatGPT avant que NiakGPT puisse toucher `<html>`, `<body>` ou la sidebar. Les correctifs Project Memory et Projects/Chats de la 0.9.103 restent conservés.
 
 ## Points forts
 
 ### Démarrage protégé contre les erreurs d’hydratation
+
+La 0.9.105 supprime la dernière surface précoce : **aucun CSS NiakGPT n’est plus déclaré comme content script statique**. Les 34 feuilles de style sont injectées uniquement après validation du gate d’hydratation, juste avant le runtime. Cela évite qu’un style NiakGPT puisse influencer le rendu client de ChatGPT pendant l’hydratation SSR.
 
 Le JavaScript NiakGPT ne s’exécute plus à `document_start` : le bootstrap démarre à `document_idle`, puis attend stabilité des nœuds, calme DOM, scheduler idle **et marqueurs de propriété React sur le document ChatGPT et ses nœuds hôtes** avant toute mutation. Si ces marqueurs ne sont pas disponibles, le gate reste fermé jusqu’à une interaction native fiable. Le lab Chromium/Firefox/WebKit conserve volontairement un DOM stable pendant que React continue son travail via `MessageChannel`, et échoue dès qu’un attribut `data-ng*` ou un nœud NiakGPT apparaît avant la propriété React.
 
@@ -203,7 +205,7 @@ Une fixture verte ne remplace **jamais** une capture utilisateur réelle qui la 
 | [README.md](README.md) | README anglais |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture runtime et invariants de propriété |
 | [CHANGELOG.md](CHANGELOG.md) | Historique détaillé |
-| [RELEASE_NOTES_0.9.104.md](RELEASE_NOTES_0.9.104.md) | Résumé de la release courante |
+| [RELEASE_NOTES_0.9.105.md](RELEASE_NOTES_0.9.104.md) | Résumé de la release courante |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnostic et reprise |
 | [PRIVACY.md](PRIVACY.md) | Données locales et comportement réseau |
 | [SECURITY.md](SECURITY.md) | Modèle de sécurité et signalement |

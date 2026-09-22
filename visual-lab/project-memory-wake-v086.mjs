@@ -141,12 +141,14 @@ try{
       const row=index.conversations?.['11111111-1111-4111-8111-111111111111']||{};
       const project=JSON.parse(window.__wakeRemote['projects/g-p-one/project.json']||'{}');
       const part=window.__wakeRemote['projects/g-p-one/conversations/11111111-1111-4111-8111-111111111111/part-001.md']||'';
-      return{rpc:window.__wakeRpcCalls,index,row,project,part,marker:document.documentElement.dataset.ng132DomCapture||''};
+      const conversationIndex=JSON.parse(window.__wakeRemote['projects/g-p-one/conversations/11111111-1111-4111-8111-111111111111/index.json']||'{}');
+      return{rpc:window.__wakeRpcCalls,index,row,project,part,conversationIndex,marker:document.documentElement.dataset.ng132DomCapture||''};
     });
     assert(domResult?.domCaptured===true,'manual in-chat sync did not report DOM capture: '+JSON.stringify(domResult));
     assert(domProof.rpc===rpcBeforeDom,'current-chat DOM capture touched ChatGPT RPC: '+JSON.stringify(domProof));
     assert(domProof.row.captureSource==='live-dom'&&domProof.row.complete===false&&domProof.row.historyPartial===true,'DOM capture was not marked partial: '+JSON.stringify(domProof.row));
     assert(domProof.row.messages===2&&domProof.row.parts>=1,'DOM capture did not persist visible messages: '+JSON.stringify(domProof.row));
+    assert(domProof.conversationIndex.captureSource==='live-dom'&&domProof.conversationIndex.messages===2,'per-conversation DOM index missing or stale: '+JSON.stringify(domProof.conversationIndex));
     assert(domProof.project.name==='One'&&domProof.index.projectName==='One','polluted Project name reached private vault: '+JSON.stringify({project:domProof.project.name,index:domProof.index.projectName}));
     assert(domProof.part.includes('Visible user message')&&domProof.part.includes('Visible assistant reply'),'DOM transcript content missing: '+domProof.part);
     assert(domProof.marker.includes(':2'),'DOM capture diagnostic marker missing: '+domProof.marker);

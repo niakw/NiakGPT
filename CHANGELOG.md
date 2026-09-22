@@ -1,3 +1,14 @@
+# NiakGPT 0.9.114 — catalogue Projects durable et auto-réparation du cache froid
+
+- **Cause racine du « 1 Project »** : `PROJECTS.json` était un snapshot live réécrit depuis le cache local. Après cache froid/réinstallation, un inventaire local réduit à un seul Project pouvait donc écraser le catalogue privé complet et rendre la panne auto-entretenue.
+- **Catalogue high-water séparé** : Project Memory utilise désormais `PROJECT_CATALOG.json` comme inventaire privé durable. Il n’est mis à jour que lorsqu’un index serveur ChatGPT courant est réellement disponible ; un cache froid ou restauré depuis le coffre ne peut pas le rétrograder.
+- **Auto-réparation au démarrage** : si l’index serveur local est absent et que le coffre contient un catalogue plus complet, les identités Projects sûres (`id`, nom, compteurs, état indexed) sont restaurées depuis les répertoires `projects/g-p-*/project.json` avant le prochain snapshot.
+- **Autorité serveur conservée** : dès que `serverIndexedAt` prouve un inventaire ChatGPT courant, le coffre historique ne peut ni ressusciter un ancien Project ni remplacer la liste active.
+- **Gouvernance/classification réparées avec le catalogue** : le cas exact où `coreProjectIds` s’était réduit au même unique Project que le cache est restauré vers tous les Projects visibles, sans toucher une sélection manuelle/partielle explicite ni le Project « À classer ».
+- **Sidebar actuelle couverte** : la régression sans titre « Projects » — dossiers natifs suivis d’« Afficher plus », puis section Chats — exige maintenant que l’autorité NiakGPT masque le cluster natif, rende tout le catalogue dans son slot, reste au-dessus de Chats et laisse les conversations génériques hors des Projects.
+- **Confidentialité** : le nouvel endpoint interne de catalogue ne renvoie ni instructions ni descriptions Project ; seuls les métadonnées nécessaires au rétablissement transitent vers la page.
+- **Non-régression** : tests backend, browser Project Memory et fixture UX terrain couvrent le passage 1 → catalogue complet, l’ordre durable, la gouvernance, l’absence d’écrasement high-water et la priorité d’un index serveur sain.
+
 # NiakGPT 0.9.113 — restauration du boot terrain 0.9.103
 
 - **Régression terrain confirmée** : 0.9.112 continue d’afficher React #418 et peut laisser toute l’UI NiakGPT absente.

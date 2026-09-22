@@ -282,7 +282,7 @@ assert.equal(catalog.projects.some(row=>Object.hasOwn(row,'instructions')||Objec
 delete sessionStore['niakgpt-project-memory-session-token-v132'];
 
 const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
-assert.equal(manifest.version, '0.9.116');
+assert.equal(manifest.version, '0.9.117');
 assert.deepEqual(manifest.permissions, ['storage','scripting','identity']);
 assert.deepEqual(manifest.host_permissions, ['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']);
 
@@ -402,6 +402,12 @@ assert.match(runtime, /PRIORITY_HISTORY_FETCH_GAP_MS = 900/);
 assert.match(runtime, /PRIORITY_RETRY_MS = 1000/);
 assert.match(runtime, /syncPriorityNow/);
 assert.match(runtime, /projectArchivedBefore/);
+assert.match(runtime, /CHAT_FETCH_RETRIES_PRIORITY = 2/);
+assert.match(runtime, /PRIORITY_CHAT_BATCH = 3/);
+assert.match(runtime, /chatRetryLedger/);
+assert.match(runtime, /fetchConversationResilient/);
+assert.match(runtime, /chat-fetch-retry/);
+assert.match(runtime, /queueWait/);
 assert.match(runtime, /function normalizePid\(value\)/);
 assert.match(runtime, /return m \? normalizePid\(m\[1\]\) : ''/);
 assert.match(runtime, /captureSource:'live-dom'/);
@@ -440,6 +446,8 @@ assert.match(ui, /reprise après 1 min de calme/);
 assert.match(ui, /Forcer la synchro des chats/);
 assert.match(ui, /Transfert initial prioritaire/);
 assert.match(ui, /data-ng132-priority/);
+assert.match(ui, /chat\(s\) temporairement indisponible\(s\)/);
+assert.match(ui, /mise à jour remplace sa révision Git/);
 assert.match(ui, /niakgpt:control-center-rendered/);
 assert.match(ui, /schedule\(0\);/);
 assert.match(ui, /token\.value = draft\.token/);
@@ -458,6 +466,7 @@ assert.match(packager, /project-memory-background-v132\.js/);
 
 assert.ok(fs.existsSync('visual-lab/project-memory-v132.mjs'),'Project Memory browser gate missing');
 assert.ok(fs.existsSync('visual-lab/project-memory-priority-sync-v116.mjs'),'Project Memory priority transfer gate missing');
+assert.ok(fs.existsSync('visual-lab/project-memory-transient-fetch-v117.mjs'),'Project Memory transient-fetch isolation gate missing');
 assert.ok(fs.existsSync('visual-lab/native-chat-zero-background-v087.mjs'),'native chat zero-background gate missing');
 const memoryLab=fs.readFileSync('visual-lab/project-memory-v132.mjs','utf8');
 assert.match(memoryLab,/configured unsynced vault did not recreate persistent bootstrap queue/);

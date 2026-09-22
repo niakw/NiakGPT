@@ -1,11 +1,11 @@
 # Architecture de NiakGPT
 
-## Invariants terrain actuels 0.9.102
+## Invariants terrain actuels 0.9.103
 
-- **Chat courant = zéro lecture backend Project Memory.** La conversation affichée est sauvegardée depuis le DOM visible ; elle n’est jamais relue via `GET /backend-api/conversation/{id}` dans cet onglet.
+- **Chat courant = zéro lecture via le broker réseau de la page.** La conversation affichée est sauvegardée immédiatement depuis le DOM visible. Après une minute de calme, le service worker MV3 peut compléter l’historique avec un GET strictement borné à `/backend-api/conversation/{id}` ; son jeton ChatGPT est éphémère et mémoire-only.
 - **Peer chat = quarantaine ordinaire, exception mémoire bornée.** Depuis un onglet hors chat, seuls les GET `memoryBootstrap:true` de Project Memory (conversation complète ou inventaire ciblé d’un Project incomplet) peuvent traverser un peer visible mais inactif. `ng90PeerBusy`, génération, vérification ou incident réseau referment l’exception et annulent les GET en vol.
 - **Complétude = identité + compte.** `indexed:true` ne suffit pas : si `knownConversationCount > cachedConversationCount`, Project Memory conserve la queue et réclame une réparation ciblée.
-- **Pins hors du sous-arbre Projects natif.** `sidebar-projects-v121.js` remonte jusqu’au host Projects complet puis monte `#ng8-pins` comme sibling précédent ; `sidebar-projects-authority-v112.js` masque ensuite ce sibling natif déterministe.
+- **Pins dans une lane verticale pleine largeur.** `ux-v131.js` privilégie le scrollport ChatGPT `Historique de chat / Chat history`; `sidebar-projects-v121.js` remonte jusqu’à la section Chats complète et rejette tout parent de montage flex-row ou grid multi-colonne. `#ng8-pins` ne peut donc plus partager la ligne du titre Chats.
 - **GitHub découplé des lectures ChatGPT.** Project Memory écrit immédiatement `PROJECTS.json` et les checkpoints depuis le cache local ; les payloads complets sont archivés de façon opportuniste et séquentielle. Un chat courant peut être capturé depuis le DOM sans lecture backend.
 - **Cache local ≠ autorité Project canonique.** Des entrées locales/dom-only peuvent alimenter un fallback Pins, mais elles ne suffisent jamais à masquer la surface Projects native ni à inventer des `coreProjectIds`. Le passage à l’autorité NiakGPT n’a lieu qu’après présence d’identités canoniques `g-p-*`.
 - **Remount sidebar = recréation, pas disparition silencieuse.** La suppression externe de `#ng8-pins` est traitée comme un événement de cycle de vie même pendant un epoch interne. v131 demande explicitement une réconciliation quand la sidebar active existe mais que le bloc Pins manque, puis le self-heal repeuple le fallback local sans lecture backend ChatGPT.

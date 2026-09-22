@@ -8,7 +8,7 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 
 const manifest=JSON.parse(read('manifest.json'));
 if(manifest.manifest_version!==3)fail('manifest_version drift');
-if(manifest.version!=='0.9.112')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.113')fail(`unexpected release ${manifest.version}`);
 same(manifest.permissions,['storage','scripting','identity'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*'],'host scope mismatch');
 const staticRuntime=['boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'];
@@ -16,21 +16,22 @@ same(manifest.content_scripts.flatMap(x=>x.js||[]),staticRuntime,'unexpected sta
 const jsScripts=manifest.content_scripts.filter(x=>(x.js||[]).length);
 if(jsScripts.some(x=>x.run_at!=='document_idle'))fail('all NiakGPT JS content scripts must run at document_idle');
 if(manifest.content_scripts.some(x=>x.run_at==='document_start'&&(x.js||[]).length))fail('document_start JS is forbidden after 0.9.81 hydration regression');
-if(manifest.content_scripts.some(x=>(x.css||[]).length))fail('static content-script CSS is forbidden: styles must wait for the hydration gate');
-
-const background=read('background-v100.js');
-const runtimeList=name=>[...(background.match(new RegExp(`const ${name}=\\[(.*?)\\];`,'s'))?.[1]||'').matchAll(/'([^']+)'/g)].map(x=>x[1]);
-const main=runtimeList('MAIN_RUNTIME'),isolated=runtimeList('ISOLATED_RUNTIME'),optional=runtimeList('OPTIONAL_RUNTIME'),styles=runtimeList('STYLE_RUNTIME');
-same(main,['page-bridge.js'],'MAIN runtime mismatch');
 const expectedStyles=[
   'theme-v08.css','polish-v081.css','chronology-v081.css','multitab-v083.css','governance-v085.css','activity-v086.css','control-center-v090.css','project-memory-v132.css','core-v090.css','profiles-v100.css','commands-v100.css','onboarding-v100.css','coach-v100.css','pin-folders-v096.css','sidebar-ux-v119.css','side-panels-v096.css','continuity-v100.css','interruption-guard-v119.css','visual-stability-v101.css','live-fixes-v104.css','sidebar-metadata-v118.css','sidebar-projects-authority-v112.css','project-chat-ux-v110.css','home-layout-v112.css','native-actions-v113.css','sidebar-actions-v123.css','chat-attention-v113.css','matrix-guardian-v112.css','performance-guard-v112.css','sidebar-icons-v114.css','native-da-v112.css','live-stability-v129.css','ux-v131.css','retro-loader-v097.css'
 ];
-same(styles,expectedStyles,'post-hydration STYLE_RUNTIME mismatch');
-for(const file of styles)if(!fs.existsSync(file))fail(`missing deferred style ${file}`);
-for(const token of ['chrome.scripting.insertCSS','async function injectStyles','STYLE_INJECTED','const styleFailure=await injectStyles(tabId,frameId)','if(styleFailure){errors.push(styleFailure);bootBlocked=true;}'])need(background,token,'post-hydration style injection contract incomplete');
-for(const token of ['async function probeReactHydration','chrome.scripting.executeScript','world:\'MAIN\'','niakgpt:probe-react-hydration-v107','HOST_OWNER_RX','FIBER_RX','hostOwned','ownerFiber','rootFromFiber','currentHostRoot','containerRoot','authoritativeRoot','rootFound','rootSource','rootSettled','rootDehydrated','rootHasDehydratedFlag','rootStateKind','settled-client-render','htmlOwned','bodyOwned','documentRootOwned','ownedCount'])need(background,token,'MAIN-world React hydration probe contract incomplete');
+same(manifest.content_scripts.flatMap(x=>x.css||[]),expectedStyles,'field-proven declarative style set drift');
+const cssScripts=manifest.content_scripts.filter(x=>(x.css||[]).length);
+if(cssScripts.some(x=>x.run_at!=='document_start'))fail('field-proven CSS must stay declarative at document_start');
+for(const file of expectedStyles)if(!fs.existsSync(file))fail(`missing declarative style ${file}`);
+
+const background=read('background-v100.js');
+const runtimeList=name=>[...(background.match(new RegExp(`const ${name}=\\[(.*?)\\];`,'s'))?.[1]||'').matchAll(/'([^']+)'/g)].map(x=>x[1]);
+const main=runtimeList('MAIN_RUNTIME'),isolated=runtimeList('ISOLATED_RUNTIME'),optional=runtimeList('OPTIONAL_RUNTIME');
+same(main,['page-bridge.js'],'MAIN runtime mismatch');
+for(const token of ['STYLE_RUNTIME','chrome.scripting.insertCSS','async function injectStyles','STYLE_INJECTED','async function probeReactHydration','niakgpt:probe-react-hydration','world:\'MAIN\''])forbid(background,token,'broken 0.9.104+ hydration authority must not return: '+token);
 const packager=read('tools/package-extension.mjs');
-need(packager,"['STYLE_RUNTIME','MAIN_RUNTIME','ISOLATED_RUNTIME','OPTIONAL_RUNTIME']",'package builder must include deferred styles');
+need(packager,"['MAIN_RUNTIME','ISOLATED_RUNTIME','OPTIONAL_RUNTIME']",'package builder must follow manifest-driven CSS/runtime contract');
+forbid(packager,"'STYLE_RUNTIME'",'packager must not depend on deferred STYLE_RUNTIME');
 
 const required=[
   'sidebar-metadata-v118.js','sidebar-projects-authority-v112.js','sidebar-projects-v121.js','pin-folders-v096.js','app-v090.js','sidebar-actions-v123.js','folder-scroll-anchor-v124.js','project-native-name-sync-v124.js',
@@ -88,13 +89,9 @@ for(const token of ['PROJECT_STATE.md','canonicalUpdated','prefsReady','function
 forbid(memoryRuntime,'async function inject(ed)','Project Memory send-time injection must be synchronous');
 
 const gate=read('boot-gate-v100.js');
-for(const token of ['waitDomInteractive','waitForChatShell','restorePendingContinuity','guardUpdateOnboarding','injectRuntime','for(const delay of [0,240,720])','safeToMutate=!!document.body','mainWorldReactProbe','niakgpt:probe-react-hydration-v107','waitReactHydrationOwnership','waitPostReactSchedulerDrain','sameHostIdentity','waitStableHostIdentity(1800,8500)','idleTurn(2200)','schedulerFence','react-structural-confirmed','shell-structural-confirmed','waitTrustedHydratedInteraction','TRUSTED_HYDRATION_EVENTS','trustedHydrationInteraction','react-document-root-settled','react-fiber-root-settled','trusted-interaction-after-host-fault','hydrationFault','hydrationFaultAt','rootFound','rootSource','ng100HydrationProof','__NIAKGPT_HOST_HYDRATED_100__','niakgpt:host-hydrated-v100'])need(gate,token,'late-scheduler/full-document React hydration bootstrap contract incomplete');
-if((gate.match(/idleTurn\(2200\)/g)||[]).length<2)fail('React scheduler fence must retain two idle turns after HostRoot proof');
-forbid(gate,'probe.fullDocument===false','heuristic fullDocument bypass must never unlock hydration');
-forbid(gate,'main-world-legacy-host','legacy host hydration bypass must never return');
-forbid(gate,'probe.documentRootOwned===true','HTML/BODY React ownership must remain diagnostic, not a boot requirement');
-forbid(gate,'confirm.documentRootOwned===true','HTML/BODY React ownership confirmation must not deadlock post-recovery boot');
-forbid(gate,'Object.getOwnPropertyNames','isolated boot gate must not inspect page-world React expandos directly');
+for(const token of ['waitDomInteractive','waitForChatShell','restorePendingContinuity','guardUpdateOnboarding','injectRuntime','for(const delay of [0,240,720])','safeToMutate=!!document.body','waitForQuiet(1200,7000)','waitStableHostIdentity(1600,8500)','idleTurn(2200)','requestIdleCallback','__NIAKGPT_HOST_HYDRATED_100__','niakgpt:host-hydrated-v100'])need(gate,token,'field-proven 0.9.81/0.9.103 boot contract incomplete');
+if((gate.match(/idleTurn\(2200\)/g)||[]).length<2)fail('field-proven scheduler fence must retain two idle turns');
+for(const token of ['mainWorldReactProbe','waitReactHydrationOwnership','waitPostReactSchedulerDrain','niakgpt:probe-react-hydration','Object.getOwnPropertyNames','ng100HydrationProof'])forbid(gate,token,'private React boot dependency must not return: '+token);
 forbid(gate,'location.reload(','boot gate must never reload ChatGPT');
 const hydrationEvent='niakgpt:host-hydrated-v100';
 for(const file of staticRuntime.slice(1)){
@@ -104,36 +101,16 @@ for(const file of staticRuntime.slice(1)){
   need(src,hydrationEvent,`pre-runtime missing hydration event: ${file}`);
   need(src,"window.addEventListener('niakgpt:host-hydrated-v100',init,{once:true})",`pre-runtime must wait exactly once for hydration: ${file}`);
 }
-if(!fs.existsSync('visual-lab/hydration-barrier-v080.mjs'))fail('SSR hydration barrier browser gate missing');
-if(!fs.existsSync('visual-lab/tests/hydration-isolated-world-v106.spec.js'))fail('real MV3 isolated-world hydration gate missing');
-const fiberRootLab=read('visual-lab/tests/hydration-fiber-root-v109.spec.js');
-for(const token of ['__reactFiber','tag:3','staleAlternate','isDehydrated:true','isDehydrated=false','react-fiber-root-settled','HYDRATION_FIBER_ROOT_CHECKPOINT PASS'])need(fiberRootLab,token,'fiber-root hydration regression incomplete');
-const recoveryLab=read('visual-lab/tests/hydration-recovery-v110.spec.js');
-for(const token of ['root.memoizedState={}','HYDRATION_RECOVERY_V110_CHECKPOINT PASS','htmlFiber','bodyFiber','react-fiber-root-settled'])need(recoveryLab,token,'post-418 client-render recovery regression incomplete');
-const schedulerDrainLab=read('visual-lab/tests/hydration-scheduler-drain-v111.spec.js');
-for(const token of ['MessageChannel','memoizedState:{}','late MessagePort hydration at HTML','late-1','late-2','HYDRATION_SCHEDULER_DRAIN_V111_CHECKPOINT PASS','react-fiber-root-settled'])need(schedulerDrainLab,token,'post-HostRoot late scheduler regression incomplete');
-const activeSpaLab=read('visual-lab/tests/hydration-active-spa-v112.spec.js');
-for(const token of ['setInterval','dataset.liveTick','recovered HTML hydration mismatch','HYDRATION_ACTIVE_SPA_V112_CHECKPOINT PASS','react-fiber-root-settled'])need(activeSpaLab,token,'active-SPA hydration regression incomplete');
-const schedulerFenceBody=gate.slice(gate.indexOf('async function waitPostReactSchedulerDrain'),gate.indexOf('async function waitHydrationStable'));
-forbid(schedulerFenceBody,'waitForQuiet(','active SPA scheduler fence must not require global DOM silence');
-const hydrationWorkflow=read('.github/workflows/live-stability-v129.yml');
-if((hydrationWorkflow.match(/tests\/hydration-fiber-root-v109\.spec\.js/g)||[]).length<3)fail('fiber-root regression must be tracked and run in both Chromium and Brave');
-if((hydrationWorkflow.match(/tests\/hydration-recovery-v110\.spec\.js/g)||[]).length<3)fail('post-418 recovery regression must be tracked and run in both Chromium and Brave');
-if((hydrationWorkflow.match(/tests\/hydration-scheduler-drain-v111\.spec\.js/g)||[]).length<3)fail('late scheduler drain regression must be tracked and run in both Chromium and Brave');
-need(hydrationWorkflow,'HYDRATION_SCHEDULER_DRAIN_V111_CHECKPOINT PASS','Brave fallback must require the late scheduler drain checkpoint');
-if((hydrationWorkflow.match(/tests\/hydration-active-spa-v112\.spec\.js/g)||[]).length<3)fail('active-SPA regression must be tracked and run in both Chromium and Brave');
-need(hydrationWorkflow,'HYDRATION_ACTIVE_SPA_V112_CHECKPOINT PASS','Brave fallback must require the active-SPA checkpoint');
-const documentRootLab=read('visual-lab/tests/hydration-document-root-v107.spec.js');
-for(const token of ['window.__documentRootClaimed=false','window.__earlyNiakMutation=false','hostRootSettled','documentRootClaimed','react-document-root-settled','HYDRATION_DOCUMENT_ROOT_CHECKPOINT PASS'])need(documentRootLab,token,'document-root hydration regression incomplete');
-const isolatedHydrationLab=read('visual-lab/tests/hydration-isolated-world-v106.spec.js');
-for(const token of ['launchPersistentContext','--load-extension','hostRootSettled','legacyDataBuild','legacyRouterContext','react-document-root-settled','HYDRATION_MAIN_WORLD_CHECKPOINT PASS'])need(isolatedHydrationLab,token,'real MV3 isolated-world hydration regression incomplete');
+if(!fs.existsSync('visual-lab/hydration-barrier-v080.mjs'))fail('field-proven scheduler barrier missing');
 const hydrationLab=read('visual-lab/hydration-barrier-v080.mjs');
-for(const token of ["const BOOT='boot-gate-v100.js'",'manifestOrderedSource','MessageChannel','containerFound','String.fromCharCode(36)','__reactContainer','__reactFiber','isDehydrated:true','isDehydrated=false','hydratedAtReactMarkerOnly','bare React ownership markers incorrectly unlocked','root-dehydration gate','zero pre-hydration DOM mutation','first false-calm scheduler window','late MessagePort hydration settled'])need(hydrationLab,token,'full-document React hydration lab incomplete');
-for(const file of ['visual-lab/runtime-fixture.html','visual-lab/tests/composer-continuation-runtime-v128.spec.js']){
-  const fixture=read(file);
-  for(const token of ['__reactContainer','__reactFiber','isDehydrated:false'])need(fixture,token,`post-hydration MV3 fixture missing settled React proof: ${file}`);
-}
-
+for(const token of ["const BOOT='boot-gate-v100.js'",'manifestOrderedSource','MessageChannel',"tick===7","tick===17",'first false-calm scheduler window','late MessagePort hydration settled','stable-node activation'])need(hydrationLab,token,'0.9.103 scheduler regression incomplete');
+if(!fs.existsSync('visual-lab/tests/hydration-known-good-v113.spec.js'))fail('real MV3 known-good hydration regression missing');
+const knownGood=read('visual-lab/tests/hydration-known-good-v113.spec.js');
+for(const token of ['launchPersistentContext','--load-extension','MessageChannel',"tick===7","tick===17",'privateReactKeys:0','HYDRATION_KNOWN_GOOD_V113_CHECKPOINT PASS'])need(knownGood,token,'real MV3 known-good regression incomplete');
+for(const token of ['__reactContainer','__reactFiber','memoizedState','isDehydrated'])forbid(knownGood,token,'known-good regression must not manufacture private React internals');
+const hydrationWorkflow=read('.github/workflows/live-stability-v129.yml');
+if((hydrationWorkflow.match(/tests\/hydration-known-good-v113\.spec\.js/g)||[]).length<3)fail('known-good regression must be tracked and run in both Chromium and Brave');
+need(hydrationWorkflow,'HYDRATION_KNOWN_GOOD_V113_CHECKPOINT PASS','Brave fallback must require known-good checkpoint');
 
 const parallel=read('composer-continuation-v128.js');
 for(const token of ['--- CONTINUE — AJOUT EN PARALLÈLE ---','Poursuis le travail déjà en cours','waiting','thinking','executing','nativeGenerationBusy','idleTriggerUntil','CANCEL_RX','prepareParallelContinuation','niakgpt:parallel-continue','execCommand'])need(parallel,token,'parallel continuation contract incomplete');

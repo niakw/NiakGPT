@@ -25,7 +25,11 @@
   function statusText(snapshot) {
     const s = snapshot && snapshot.state || {};
     const github = snapshot && snapshot.github || {};
-    if (s.mode === 'preparing') return 'Préparation de l’inventaire · ' + Number(s.inventoryPending || 0) + ' Project(s) à compléter';
+    if (s.mode === 'preparing') {
+      if(s.indexRepairPending)return 'Restauration des checkpoints · ' + Number(s.indexRows||0) + '/' + Number(s.chatTotal||0) + ' indexés · aucun transcript déjà présent ne sera retéléchargé';
+      if(Number(s.recoveredChats||0)>0)return 'Checkpoints restaurés · +' + Number(s.recoveredChats||0) + ' · ' + Number(s.indexRows||0) + '/' + Number(s.chatTotal||0) + ' conversations reconnues';
+      return 'Préparation de l’inventaire · ' + Number(s.inventoryPending || 0) + ' Project(s) à compléter';
+    }
     if (s.mode === 'syncing') {
       const p = syncPercent(s);
       const chat = s.chatTitle ? ' · ' + s.chatTitle + (Number(s.chatTotal||0) ? ' (' + Number(s.chatDone||0) + '/' + Number(s.chatTotal||0) + ')' : '') : '';

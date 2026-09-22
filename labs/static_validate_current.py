@@ -87,6 +87,10 @@ if not (ROOT/'visual-lab/tests/hydration-isolated-world-v106.spec.js').exists():
 isolated_hydration=read('visual-lab/tests/hydration-isolated-world-v106.spec.js')
 for token in ('launchPersistentContext','--load-extension','hostRootSettled','legacyDataBuild','legacyRouterContext','react-main-world-settled','HYDRATION_MAIN_WORLD_CHECKPOINT PASS'):
     if token not in isolated_hydration: fail('isolated-world hydration regression incomplete '+token)
+for file in ('visual-lab/runtime-fixture.html','visual-lab/tests/composer-continuation-runtime-v128.spec.js'):
+    fixture=read(file)
+    for token in ('__reactContainer','__reactFiber','isDehydrated:false'):
+        if token not in fixture: fail('post-hydration MV3 fixture missing settled React proof '+file+' '+token)
 packager=read('tools/package-extension.mjs')
 if "['STYLE_RUNTIME','MAIN_RUNTIME','ISOLATED_RUNTIME','OPTIONAL_RUNTIME']" not in packager: fail('package builder missing deferred STYLE_RUNTIME')
 sidebar_projects=read('sidebar-projects-v121.js')

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.105",
-  "description": "NiakGPT : démarrage React zéro-touch, styles différés après hydratation, mémoire Project complète et sidebar stable.",
+  "version": "0.9.106",
+  "description": "NiakGPT : hydratation React vérifiée dans le monde MAIN, styles différés, mémoire Project complète et sidebar stable.",
   "permissions": [
     "storage",
     "scripting",

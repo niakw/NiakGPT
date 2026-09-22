@@ -163,10 +163,64 @@ async function injectOne(tabId,frameId,file,world){
   }
 }
 
+async function probeReactHydration(tabId,frameId){
+  try{
+    const results=await chrome.scripting.executeScript({
+      target:{tabId,frameIds:[frameId]},
+      world:'MAIN',
+      func:()=>{
+        const OWNER_RX=/^__react(?:Fiber|Props|Container)\$.+/;
+        const CONTAINER_RX=/^__reactContainer\$.+/;
+        const owned=node=>{
+          if(!node)return false;
+          try{return Object.getOwnPropertyNames(node).some(key=>OWNER_RX.test(key));}catch{return false;}
+        };
+        const containerFiber=()=>{
+          for(const node of [document,document.documentElement,document.body]){
+            if(!node)continue;
+            try{
+              const key=Object.getOwnPropertyNames(node).find(name=>CONTAINER_RX.test(name));
+              if(key&&node[key])return node[key];
+            }catch{}
+          }
+          return null;
+        };
+        const container=containerFiber();
+        const current=container?.stateNode?.current||container;
+        const candidates=[container,current,container?.alternate,current?.alternate].filter(Boolean);
+        const rootSettled=candidates.some(fiber=>fiber?.memoizedState&&fiber.memoizedState.isDehydrated===false);
+        const identities=[
+          document.querySelector('nav[aria-label*="Historique de chat" i],nav[aria-label*="Chat history" i],nav,aside'),
+          document.querySelector('main'),
+          document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')
+        ].filter(Boolean);
+        const needed=Math.min(2,identities.length);
+        const ownedCount=identities.filter(owned).length;
+        return {
+          fullDocument:!!(document.documentElement?.hasAttribute('data-build')||window.__reactRouterContext),
+          rootSettled,
+          needed,
+          ownedCount
+        };
+      }
+    });
+    const probe=results?.[0]?.result||null;
+    return probe?{ok:true,...probe}:{ok:false,error:'empty_main_world_probe'};
+  }catch(error){
+    return {ok:false,error:String(error?.message||error||'main_world_probe_failed').slice(0,220)};
+  }
+}
+
 chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
-  if(message?.type!=='niakgpt:inject-runtime-v100')return;
+  const type=message?.type;
   const tabId=sender.tab?.id;
   const frameId=Number.isInteger(sender.frameId)?sender.frameId:0;
+  if(type==='niakgpt:probe-react-hydration-v106'){
+    if(!Number.isInteger(tabId)){sendResponse({ok:false,error:'missing_tab_id'});return;}
+    probeReactHydration(tabId,frameId).then(sendResponse).catch(error=>sendResponse({ok:false,error:String(error?.message||error)}));
+    return true;
+  }
+  if(type!=='niakgpt:inject-runtime-v100')return;
   if(!Number.isInteger(tabId)){sendResponse({ok:false,errors:['missing_tab_id']});return;}
   (async()=>{
     const errors=[];

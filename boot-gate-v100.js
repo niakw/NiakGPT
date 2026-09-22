@@ -75,48 +75,35 @@
       document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')
     ];
   }
-  const REACT_OWNER_RX=/^__react(?:Fiber|Props|Container)\$.+/;
-  const REACT_CONTAINER_RX=/^__reactContainer\$.+/;
-  function reactOwned(node){
-    if(!node)return false;
-    try{return Object.getOwnPropertyNames(node).some(key=>REACT_OWNER_RX.test(key));}catch{return false;}
-  }
-  function reactContainerFiber(){
-    for(const node of [document,document.documentElement,document.body]){
-      if(!node)continue;
-      try{
-        const key=Object.getOwnPropertyNames(node).find(name=>REACT_CONTAINER_RX.test(name));
-        if(key&&node[key])return node[key];
-      }catch{}
+  async function mainWorldReactProbe(){
+    try{
+      const probe=await chrome.runtime.sendMessage({type:'niakgpt:probe-react-hydration-v106'});
+      return probe&&typeof probe==='object'?probe:{ok:false,error:'invalid_main_world_probe'};
+    }catch(error){
+      remember('HYDRATION-PROBE',error);
+      return {ok:false,error:message(error)};
     }
-    return null;
   }
-  function rootHydrationSettled(){
-    const container=reactContainerFiber();
-    if(!container)return false;
-    const current=container?.stateNode?.current||container;
-    const candidates=[container,current,container?.alternate,current?.alternate].filter(Boolean);
-    return candidates.some(fiber=>fiber?.memoizedState&&fiber.memoizedState.isDehydrated===false);
-  }
-  function currentFullDocumentReactHost(){
-    return !!(document.documentElement?.hasAttribute('data-build')||window.__reactRouterContext);
-  }
-  function reactHydrationOwned(){
-    if(!currentFullDocumentReactHost())return true;
-    const identities=hostIdentity().filter(Boolean);
-    const needed=Math.min(2,identities.length);
-    return rootHydrationSettled()&&needed>0&&identities.filter(reactOwned).length>=needed;
-  }
-  async function waitReactHydrationOwnership(maxWait=16000){
-    if(!currentFullDocumentReactHost())return true;
+  async function waitReactHydrationOwnership(maxWait=8000){
     const started=performance.now();
     while(performance.now()-started<maxWait){
-      if(hydrationFault)return false;
-      if(reactHydrationOwned()){
-        await nextFrames();
-        if(reactHydrationOwned()){hydrationProof='react-root-settled';return true;}
+      const probe=await mainWorldReactProbe();
+      if(probe.ok){
+        if(probe.fullDocument===false){hydrationProof='main-world-legacy-host';return true;}
+        const needed=Math.max(0,Number(probe.needed||0));
+        const ownedCount=Math.max(0,Number(probe.ownedCount||0));
+        if(probe.rootSettled===true&&needed>0&&ownedCount>=needed){
+          await nextFrames();
+          const confirm=await mainWorldReactProbe();
+          const confirmNeeded=Math.max(0,Number(confirm?.needed||0));
+          const confirmOwned=Math.max(0,Number(confirm?.ownedCount||0));
+          if(confirm?.ok&&confirm.rootSettled===true&&confirmNeeded>0&&confirmOwned>=confirmNeeded){
+            hydrationProof=hydrationFault?'react-main-world-settled-after-host-fault':'react-main-world-settled';
+            return true;
+          }
+        }
       }
-      await sleep(80);
+      await sleep(180);
     }
     return false;
   }
@@ -154,17 +141,14 @@
     await sleep(220);
     await nextFrames();
     await waitStableHostIdentity(500,2500);
-    if(currentFullDocumentReactHost()){
-      const owned=await waitReactHydrationOwnership(16000);
-      if(!owned){
-        // Stable DOM identities are not proof of full-document React hydration. Fail closed:
-        // wait for a real host interaction, which React can only receive after hydration, instead
-        // of mutating <html>, <body> or the sidebar during a scheduler false-calm window.
-        await waitTrustedHydratedInteraction();
-        hydrationProof='trusted-interaction';
-        await nextFrames();
-        await waitForQuiet(500,2200);
-      }
+    const owned=await waitReactHydrationOwnership(8000);
+    if(!owned){
+      // MAIN-world probing is authoritative for React expandos. If it is unavailable,
+      // keep the DOM untouched until a real native interaction instead of guessing a delay.
+      await waitTrustedHydratedInteraction();
+      hydrationProof=hydrationFault?'trusted-interaction-after-host-fault':'trusted-interaction';
+      await nextFrames();
+      await waitForQuiet(500,2200);
     }
   }
 
@@ -262,7 +246,6 @@
 
   async function start(){
     await waitDomInteractive();await waitForChatShell();await waitHydrationStable();
-    if(hydrationFault)return;
     safeToMutate=!!document.body;
     if(safeToMutate)document.documentElement.dataset.ng100HydrationProof=hydrationProof;
     window.__NIAKGPT_HOST_HYDRATED_100__=true;

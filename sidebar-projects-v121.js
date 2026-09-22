@@ -281,6 +281,19 @@
     }
     return null;
   }
+  function nativeChatsHost(root,seed){
+    if(!root||!seed?.isConnected)return null;
+    let host=seed;
+    // A Chats title is often nested in a horizontal header row. Mounting #ng8-pins beside
+    // that title makes the catalogue share the row even though its own CSS requests full width.
+    // Climb to the whole Chats section, but never cross primary navigation or a Projects block.
+    while(host.parentElement&&host.parentElement!==root){
+      const parent=host.parentElement;
+      if(hasPrimary(parent)||projectLinks(parent).length)break;
+      host=parent;
+    }
+    return host;
+  }
   function visiblePlacementNode(node){
     if(!(node instanceof Element)||!node.isConnected||node.closest('[hidden],[inert],[aria-hidden="true"]'))return false;
     const s=getComputedStyle(node),r=node.getBoundingClientRect();
@@ -398,7 +411,7 @@
     if(launcher?.parentElement&&(!tail||nativeSectionAfterPrimary(root,launcher,tail))&&(!box||(!launcher.contains(box)&&!box.contains(launcher.parentElement)))){
       return{parent:launcher.parentElement,before:launcher.nextSibling,mode:'native-projects-launcher',legacy:'projects-launcher-v121'};
     }
-    const chatsBoundary=nativeChatsBoundary(root);
+    const chatsBoundary=nativeChatsHost(root,nativeChatsBoundary(root));
     if(chatsBoundary?.parentElement&&(!tail||nativeSectionAfterPrimary(root,chatsBoundary,tail))&&(!box||(!chatsBoundary.contains(box)&&!box.contains(chatsBoundary.parentElement)))){
       return{parent:chatsBoundary.parentElement,before:chatsBoundary,mode:'before-native-chats',legacy:'before-native-chats-v089'};
     }

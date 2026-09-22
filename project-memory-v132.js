@@ -4,6 +4,7 @@
   window.__NIAKGPT_PROJECT_MEMORY_132__ = true;
 
   const CACHE_KEY = 'niakgpt-v08-cache';
+  const GOV_KEY = 'niakgpt-governance-v085';
   const PREFS_KEY = 'niakgpt-project-memory-prefs-v132';
   const STATE_KEY = 'niakgpt-project-memory-state-v132';
   const CONTEXT_KEY = 'niakgpt-project-memory-context-v132';
@@ -231,6 +232,31 @@
       const bus=window.__NIAKGPT_CACHE_BUS__;
       if(bus?.update)await bus.update(merge);
       else await chrome.storage.local.set({[CACHE_KEY]:merge(current)});
+
+      // Governance can collapse in lockstep with the Project inventory. If its core list exactly
+      // mirrored the whole collapsed canonical inventory (the field failure is 1/1) and there is
+      // no explicit manual-core marker, preserve that "all visible Projects are core" policy
+      // across catalog recovery. Never expand a genuine partial/manual selection.
+      try{
+        const rawGov=(await chrome.storage.local.get(GOV_KEY))[GOV_KEY]||{};
+        const beforeIds=currentCanonical.map(p=>String(p.id||'')).filter(Boolean);
+        const beforeSet=new Set(beforeIds),core=[...new Set((rawGov.coreProjectIds||[]).map(String).filter(Boolean))];
+        const mirroredCollapsed=beforeIds.length>0&&beforeIds.length<=1&&
+          core.length===beforeIds.length&&core.every(id=>beforeSet.has(id))&&
+          rawGov.manualCoreSelection!==true;
+        if(mirroredCollapsed){
+          const hidden=new Set((rawGov.hiddenProjectIds||[]).map(String));
+          const recoveredCore=catalog
+            .filter(row=>!hidden.has(String(row.id))&&!QUEUE.has(projectName(row.name||'')))
+            .map(row=>String(row.id));
+          if(recoveredCore.length>core.length){
+            await chrome.storage.local.set({[GOV_KEY]:{
+              ...rawGov,seeded:true,manualCoreSelection:false,coreProjectIds:[...new Set(recoveredCore)],
+              vaultCatalogRecoveredCoreAt:Date.now()
+            }});
+          }
+        }
+      }catch{}
       lastCatalogRecoveryAt=Date.now();
       document.dispatchEvent(new CustomEvent('niakgpt:server-projects-ready',{detail:{source:'project-memory-vault',count:catalog.length}}));
       window.__NIAKGPT_DIAGNOSTICS__?.set('project-memory-catalog',`RÉPARÉ · ${catalog.length} Projects canoniques récupérés du coffre`);

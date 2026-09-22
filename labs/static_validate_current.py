@@ -67,6 +67,8 @@ if 'Object.getOwnPropertyNames' in boot_gate: fail('isolated boot gate reads pag
 hydration_lab=read('visual-lab/hydration-barrier-v080.mjs')
 for token in ('prod-hydration-lab','__reactRouterContext','String.fromCharCode(36)','__reactContainer','__reactFiber','isDehydrated:true','isDehydrated=false','hydratedAtReactMarkerOnly','bare React ownership markers incorrectly unlocked','root-dehydration gate','zero pre-hydration DOM mutation'):
     if token not in hydration_lab: fail('React 418 regression lab incomplete '+token)
+if r"const ownerRx=/^__react(?:Fiber|Props|Container)\$.+/;" not in hydration_lab: fail('hydration lab React owner regex escaping invalid')
+if r"const containerRx=/^__reactContainer\$.+/;" not in hydration_lab: fail('hydration lab React container regex escaping invalid')
 background=read('background-v100.js')
 style_match=re.search(r"const\s+STYLE_RUNTIME\s*=\s*\[(.*?)\];",background,re.S)
 style_runtime=re.findall(r"['\"]([^'\"]+\.css)['\"]",style_match.group(1)) if style_match else []
@@ -78,6 +80,8 @@ for token in ('chrome.scripting.insertCSS','async function injectStyles','STYLE_
     if token not in background: fail('post-hydration style injection incomplete '+token)
 for token in ('async function probeReactHydration','chrome.scripting.executeScript',"world:'MAIN'",'niakgpt:probe-react-hydration-v106','rootSettled','ownedCount'):
     if token not in background: fail('MAIN-world React hydration probe incomplete '+token)
+if r"const OWNER_RX=/^__react(?:Fiber|Props|Container)\$.+/;" not in background: fail('MAIN-world React owner regex escaping invalid')
+if r"const CONTAINER_RX=/^__reactContainer\$.+/;" not in background: fail('MAIN-world React container regex escaping invalid')
 if not (ROOT/'visual-lab/tests/hydration-isolated-world-v106.spec.js').exists(): fail('real MV3 isolated-world hydration regression missing')
 isolated_hydration=read('visual-lab/tests/hydration-isolated-world-v106.spec.js')
 for token in ('launchPersistentContext','--load-extension','hostRootSettled','react-main-world-settled','HYDRATION_MAIN_WORLD_CHECKPOINT PASS'):

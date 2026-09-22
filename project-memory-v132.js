@@ -13,11 +13,12 @@
   const MAX_STATE = 18000;
   const CHUNK = 360000;
   const HISTORY_FETCH_GAP_MS = 20000;
+  const BACKGROUND_HISTORY_FETCH_GAP_MS = 4000;
   const HUMAN_QUIET_MS = 60*1000;
   const WAKE_HEARTBEAT_MS = 30000;
   const GITHUB_AUTH_UI_TIMEOUT_MS = 6*60*1000;
   let seq = 0, syncing = false, syncAuto = false, autoTimer = 0, wakeTimer = 0, routeTimer = 0, domCaptureTimer = 0, lastHistoryFetchAt = 0, lastHumanAt = Date.now();
-  let contextProject = '', contextText = '';
+  let contextProject = '', contextText = '', backgroundHistoryAvailable = null, backgroundHistoryProbeAt = 0;
 
   const clean = v => String(v == null ? '' : v).replace(/\r/g, '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
   const one = v => clean(v).replace(/\s+/g, ' ').trim();
@@ -35,7 +36,7 @@
   const quietFor = () => Date.now() - lastHumanAt;
   const remainingQuiet = (floor=1000) => Math.max(floor, HUMAN_QUIET_MS - quietFor() + floor);
   const peerBusy = () => document.documentElement.dataset.ng90PeerBusy === '1';
-  const backgroundDelay = () => (conversationPage() || peerBusy()) ? WAKE_HEARTBEAT_MS : remainingQuiet();
+  const backgroundDelay = () => peerBusy() ? WAKE_HEARTBEAT_MS : remainingQuiet();
   const defaults = { autoSync: true, injectOnNewChat: true };
   let prefsCache = Object.assign({}, defaults), prefsReady = false;
 
@@ -48,6 +49,26 @@
         });
       } catch (error) { resolve({ ok: false, error: String(error && error.message || error) }); }
     });
+  }
+
+  async function backgroundHistoryProbe(force=false) {
+    const now=Date.now();
+    if(!force&&backgroundHistoryAvailable!==null&&now-backgroundHistoryProbeAt<60*1000)return backgroundHistoryAvailable;
+    const result=await send({type:'niakgpt:memory-chatgpt-probe-v132'});
+    backgroundHistoryAvailable=!!result?.ok;
+    backgroundHistoryProbeAt=now;
+    document.documentElement.dataset.ng132HistoryTransport=backgroundHistoryAvailable?'background':'page-only';
+    return backgroundHistoryAvailable;
+  }
+
+  async function backgroundHistoryFetch(id) {
+    const result=await send({type:'niakgpt:memory-chatgpt-fetch-v132',path:'/backend-api/conversation/'+encodeURIComponent(id)});
+    if(result?.ok)return result;
+    const error=String(result?.error||'');
+    if(/chatgpt_session_|chatgpt_memory_http_401|chatgpt_memory_http_403|extension_context_invalidated/i.test(error)){
+      backgroundHistoryAvailable=false;backgroundHistoryProbeAt=Date.now();
+    }
+    return result||{ok:false,status:0,error:'background_history_empty'};
   }
 
   function rpc(path, memoryBootstrap) {
@@ -63,13 +84,13 @@
     });
   }
 
-  const busy = (background = syncAuto) => {
+  const busy = (background = syncAuto, allowConversation = false) => {
     const interruption=String(document.documentElement.dataset.ng119Interruption||'').toLowerCase();
     const bridgePriorityUntil=Math.max(
       Number(document.documentElement.dataset.ng100NativePriorityUntil||0),
       Number(document.documentElement.dataset.ng100BackgroundPriorityUntil||0)
     );
-    return conversationPage() ||
+    return (!allowConversation && conversationPage()) ||
       peerBusy() ||
       document.documentElement.dataset.ng8Running === '1' ||
       ['loading','waiting','thinking','executing'].includes(String(document.documentElement.dataset.ng86Activity || '').toLowerCase()) ||
@@ -81,14 +102,14 @@
       (background && quietFor() < HUMAN_QUIET_MS);
   };
 
-  async function waitIdle(limit) {
+  async function waitIdle(limit, allowConversation=false) {
     const start = Date.now(), max = limit || 10 * 60 * 1000;
-    while (busy(syncAuto)) {
-      if (conversationPage() || document.hidden || (syncAuto && !autoOwner())) return false;
+    while (busy(syncAuto,allowConversation)) {
+      if ((!allowConversation&&conversationPage()) || document.hidden || (syncAuto && !autoOwner())) return false;
       if (Date.now() - start > max) return false;
       await sleep(1000);
     }
-    if (conversationPage() || document.hidden || (syncAuto && !autoOwner())) return false;
+    if ((!allowConversation&&conversationPage()) || document.hidden || (syncAuto && !autoOwner())) return false;
     return true;
   }
 
@@ -264,6 +285,22 @@
   }
 
   async function fetchConversation(id, attempt) {
+    const direct=await backgroundHistoryProbe(false);
+    if(direct){
+      if(!await waitIdle(undefined,true))throw new Error('memory_sync_paused_busy');
+      const elapsed=Date.now()-lastHistoryFetchAt;
+      if(lastHistoryFetchAt&&elapsed<BACKGROUND_HISTORY_FETCH_GAP_MS)await sleep(BACKGROUND_HISTORY_FETCH_GAP_MS-elapsed);
+      if(!await waitIdle(undefined,true))throw new Error('memory_sync_paused_busy');
+      lastHistoryFetchAt=Date.now();
+      const background=await backgroundHistoryFetch(id);
+      if(background?.ok)return background.data;
+      const bgError=String(background?.error||'');
+      if(background?.status===429||/chatgpt_memory_http_429/.test(bgError))throw new Error('memory_sync_paused_rate_limit');
+      if(conversationPage()){
+        if(/chatgpt_session_|chatgpt_memory_http_401|chatgpt_memory_http_403/.test(bgError))throw new Error('memory_sync_paused_network');
+        throw new Error('conversation_fetch_failed:'+(background?.status||0)+':'+(bgError||'background_history_failed'));
+      }
+    }
     if (!await waitIdle()) throw new Error('memory_sync_paused_busy');
     const elapsed=Date.now()-lastHistoryFetchAt;
     if(lastHistoryFetchAt&&elapsed<HISTORY_FETCH_GAP_MS)await sleep(HISTORY_FETCH_GAP_MS-elapsed);
@@ -281,6 +318,11 @@
 
   function currentChatId() {
     return String(location.pathname||'').match(/\/c\/([A-Za-z0-9_-]+)/)?.[1]||'';
+  }
+
+  function normalizePid(value){
+    const raw=String(value||'').trim(),match=raw.match(/^g-p-([A-Za-z0-9]+)(?:-.+)?$/);
+    return match?'g-p-'+match[1]:raw;
   }
 
   function domMessages() {
@@ -305,7 +347,7 @@
   async function captureCurrentDomConversation(force=false) {
     if(!conversationPage()||document.hidden)return{ok:true,skipped:'not-visible-conversation'};
     const cid=currentChatId(),rows=domMessages();if(!cid||!rows.length)return{ok:true,skipped:'dom-not-ready'};
-    const raw=await cache(),list=projects(raw),pid=currentPid();
+    const raw=await cache(),list=projects(raw),pid=normalizePid(currentPid());
     let project=list.find(p=>p.id===pid)||list.find(p=>(p.chats||[]).some(chat=>String(chat.id)===cid));
     if(!project)return{ok:true,skipped:'project-unknown'};
     let chat=(project.chats||[]).find(row=>String(row.id)===cid);
@@ -680,7 +722,7 @@
 
   function currentPid() {
     const m = location.pathname.match(/\/g\/(g-p-[A-Za-z0-9_-]+)(?:\/project|\/c\/|$)/);
-    return m ? m[1] : '';
+    return m ? normalizePid(m[1]) : '';
   }
 
   async function refreshContext() {

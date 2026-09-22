@@ -17,6 +17,7 @@ try{
     const store={
       'niakgpt-v08-cache':{schema:2,projects:[],chats:[],counts:{},indexedProjectIds:[]}
     };
+    window.__nativeZeroStore=store;
     window.__startupRpc=[];
     window.__sessionCalls=0;
     window.__backendCalls=0;
@@ -168,8 +169,8 @@ try{
     const cache=window.__wakeNever||null;
     return window.__startupRpc.some(x=>x.memoryBootstrap&&x.path.includes('/gizmos/g-p-abcdefghijklmnop/conversations'));
   },null,{timeout:3500});
-  await page.waitForFunction(async()=>{
-    const cache=(await chrome.storage.local.get('niakgpt-v08-cache'))['niakgpt-v08-cache']||{};
+  await page.waitForFunction(()=>{
+    const cache=window.__nativeZeroStore?.['niakgpt-v08-cache']||{};
     return Number(cache.counts?.['g-p-abcdefghijklmnop']||0)===2&&
       (cache.chats||[]).some(row=>row.id==='missing-chat'&&row.projectId==='g-p-abcdefghijklmnop');
   },null,{timeout:3500});

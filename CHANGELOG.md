@@ -1,3 +1,13 @@
+# NiakGPT 0.9.119 — Project Memory ne peut plus saturer l’accès aux conversations ChatGPT
+
+- **Incident terrain caractérisé** : le transfert prioritaire lisait jusqu’ici les conversations historiques toutes les **900 ms**. Sur un gros backlog, cette cadence pouvait déclencher la protection native ChatGPT (« demandes trop rapidement » / accès temporairement restreint aux conversations), jusqu’à empêcher momentanément le chargement normal d’un chat.
+- **Cadence sûre et partagée** : toutes les lectures historiques utilisent maintenant un garde-fou persistant avec un intervalle minimal de **6 s** et un plafond de **10 lectures par minute**. La protection survit aux rechargements et s’applique aussi au mode prioritaire.
+- **Priorité redéfinie correctement** : « Forcer la synchro des chats » accélère la reprise locale/GitHub et ignore la fenêtre de calme quand le worker isolé est sûr, mais **ne contourne plus la limite de lecture ChatGPT**.
+- **Circuit breaker compte** : un HTTP 429, une erreur explicite de rate-limit ou le message natif ChatGPT de restriction déclenche une pause de **15 minutes**. La queue et les checkpoints restent intacts ; aucun retry historique n’est lancé pendant le cooldown.
+- **Pas de boucle cachée** : le heartbeat, la reprise automatique, la synchronisation manuelle et le bouton prioritaire consultent tous le même garde-fou persistant avant tout accès historique.
+- **UX** : pendant le cooldown, le Control Center affiche `Protection ChatGPT · accès conversations en pause jusqu’à …` et désactive les boutons de synchronisation susceptibles de relancer des lectures.
+- **Non-régression** : `project-memory-rate-guard-v119.mjs` injecte un 429 sur la première conversation, exige un cooldown persistant > 10 min, vérifie qu’aucune deuxième lecture n’est émise pendant la fenêtre observée et que la file reprend uniquement après l’échéance.
+
 # NiakGPT 0.9.118 — un gros Project ne peut plus perdre son index de reprise
 
 - **Cause terrain prouvée sur le coffre réel** : un index Project terrain avait atteint **180 conversations dont 89 archivées** et environ **3,13 millions de caractères**. Une minute plus tard, l’index courant ne contenait plus qu’**1 conversation** alors que les **89 dossiers de conversations** existaient toujours. Ce n’était pas une limite à 100 chats : la lecture via GitHub Contents cessait d’embarquer les gros fichiers, le runtime interprétait alors l’échec de lecture comme un index absent et repartait d’un objet vide.

@@ -1,5 +1,15 @@
 # Architecture de NiakGPT
 
+## Invariant architecture 0.9.119 — la mémoire ne doit jamais dégrader l’accès natif ChatGPT
+
+Project Memory partage le même compte et les mêmes endpoints conversationnels que l’interface native. La synchronisation historique est donc un consommateur **de second rang** : elle doit préserver en priorité la capacité de l’utilisateur à ouvrir, recharger et utiliser ses conversations.
+
+Toutes les lectures `/backend-api/conversation/<id>` passent par un garde-fou persistant `niakgpt-project-memory-rate-guard-v119`. Il impose un intervalle minimal de 6 s et un budget maximal de 10 lectures dans une fenêtre glissante de 60 s. Le mode prioritaire ne possède aucune exception à cette règle.
+
+Un signal de rate-limit — HTTP 429, erreur explicite du transport ou message natif de restriction visible dans la page — ouvre un circuit breaker de 15 minutes. Le cooldown est stocké dans `chrome.storage.local`, reporté dans la queue via `retryAt`, consulté avant `bootstrap`, `resume`, `schedule`, le heartbeat et les actions manuelles. Le cooldown ne supprime ni la queue ni les checkpoints.
+
+La priorité continue d’accélérer uniquement les couches qui ne sollicitent pas l’API conversationnelle : réconciliation d’archives déjà présentes, index compact, écritures GitHub Create Tree et reprise au dernier chat durable. Cette séparation interdit qu’une optimisation de transfert puisse à nouveau provoquer un blocage de l’interface ChatGPT elle-même.
+
 ## Invariant architecture 0.9.118 — les dossiers de conversation sont l’autorité durable de dernier recours
 
 Le Project `index.json` est un **index de reprise compact**, pas une copie de tout le contexte. Les signaux détaillés restent dans `conversations/<conversation-id>/index.json` et les transcripts dans `part-NNN.md`. Cette séparation empêche la taille de l’index Project de croître proportionnellement au contenu conversationnel et évite de franchir les limites d’inline de GitHub Contents.

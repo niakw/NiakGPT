@@ -21,7 +21,7 @@
 NiakGPT is a browser extension that turns the ChatGPT web interface into a more capable **workspace for heavy, project-based use** without replacing ChatGPT itself.
 
 It adds a native-first layer for Projects, navigation, long conversations, continuity, diagnostics and local productivity. Core features run locally in the browser: **no NiakGPT account, no NiakGPT analytics and no NiakGPT server are required**.
-> **Current version: 0.9.117.** Project Memory no longer lets one temporary conversation fetch failure stall a large backlog. HTTP 500/network failures are retried briefly, then deferred with backoff while later chats continue. Priority mode also batches several successful chats per durable GitHub checkpoint, and existing conversation IDs are updated at the same vault paths instead of creating duplicates.
+> **Current version: 0.9.117.** Project Memory no longer lets one temporary conversation fetch failure stall a large backlog. HTTP 500/network failures are retried briefly, then deferred with backoff while later chats continue. Per-chat durable checkpoints are preserved; large transcripts use fewer, larger chunks and GitHub write setup is reused briefly for speed. Existing conversation IDs are always updated at the same vault paths instead of creating duplicates.
 
 ## Highlights
 

@@ -26,18 +26,18 @@ try{
       projects:[{id:P,name:'Workspace',href:'/g/'+P+'/project',domOnly:false}],
       chats,projectChats:{[P]:chats},counts:{[P]:5},indexedProjectIds:[P]
     };
-    const archived=id=>({
-      schema:1,id,title:'Archived '+id.slice(0,4),updated:now-10000,capturedAt:new Date(now-10000).toISOString(),
+    const archived=(id,i)=>({
+      schema:1,id,title:'Archived '+id.slice(0,4),updated:chats[i].updated,capturedAt:new Date(now-10000+i).toISOString(),
       parts:1,messages:2,canonicalHash:'hash-'+id,bootstrapMetadataOnly:false,historyPartial:false,complete:true,captureSource:'backend',
       signals:{tasks:[],architecture:[],decisions:[],recent:[]}
     });
     const initial={
       schema:1,projectId:P,projectName:'Workspace',bootstrapMetadataOnly:false,updatedAt:new Date(now-10000).toISOString(),
-      conversations:{[ids[0]]:archived(ids[0]),[ids[1]]:archived(ids[1])}
+      conversations:{[ids[0]]:archived(ids[0],0),[ids[1]]:archived(ids[1],1)}
     };
     const recovered={
       ...initial,updatedAt:new Date(now-5000).toISOString(),
-      conversations:{...initial.conversations,[ids[2]]:archived(ids[2]),[ids[3]]:archived(ids[3])}
+      conversations:{...initial.conversations,[ids[2]]:archived(ids[2],2),[ids[3]]:archived(ids[3],3)}
     };
     const remote={['projects/'+P+'/index.json']:JSON.stringify(initial,null,2)+'\n'};
     const store={

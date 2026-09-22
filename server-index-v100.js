@@ -147,7 +147,16 @@
       const indexed=new Set((Array.isArray(before.indexedProjectIds)?before.indexedProjectIds:[]).filter(id=>String(id).startsWith('g-p-')));let failures=0;
       for(let i=0;i<projects.length;i++){
         if(!chatReady())throw new Error('paused');const p=projects[i];diagnostic(`INDEX · ${i+1}/${projects.length} · ${p.name}`);
-        try{const list=await fetchProjectChats(p,memoryMode);counts[p.id]=list.length;indexed.add(p.id);for(const c of list){seenIds.add(c.id);const old=chats.get(c.id)||{};chats.set(c.id,{...old,...c,projectId:p.id,updated:Math.max(parseTime(old.updated),c.updated||0)});}}catch(error){if(['paused','rate-limited'].includes(String(error?.message)))throw error;failures++;}
+        try{
+          const list=await fetchProjectChats(p,memoryMode),expected=Math.max(0,Number(before.counts?.[p.id]||0));
+          // A targeted memory repair is non-destructive: an unexpectedly shorter Project list
+          // is evidence of a partial undocumented-API response, not proof that old chats vanished.
+          // Keep the high-water count and leave the repair queued until a pass reaches it.
+          if(memoryMode&&list.length<expected){counts[p.id]=expected;failures++;}
+          else counts[p.id]=list.length;
+          indexed.add(p.id);
+          for(const c of list){seenIds.add(c.id);const old=chats.get(c.id)||{};chats.set(c.id,{...old,...c,projectId:p.id,updated:Math.max(parseTime(old.updated),c.updated||0)});}
+        }catch(error){if(['paused','rate-limited'].includes(String(error?.message)))throw error;failures++;}
         await sleep(35);
       }
       if(!memoryMode){

@@ -21,6 +21,12 @@
 
   const clean = v => String(v == null ? '' : v).replace(/\r/g, '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
   const one = v => clean(v).replace(/\s+/g, ' ').trim();
+  const projectName = v => {
+    const raw=one(v);if(!raw)return'';
+    let s=raw.replace(/^(?:(?:<\/>|[§€▶◇▣✦◈+◆▤]))+\s*/u,'');
+    s=s.replace(/(?:\s*\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?\s*(?:\[\d+\])?\s*›?)+\s*$/u,'').trim();
+    return s||raw;
+  };
   const clip = (v, n) => { const s = clean(v); return s.length <= n ? s : s.slice(0, Math.max(0, n - 1)) + '…'; };
   const safe = v => one(v).replace(/[^A-Za-z0-9_.-]+/g, '_').slice(0, 160);
   const parseTime = v => { const n = Number(v); if (Number.isFinite(n) && n > 0) return n > 1e12 ? n : n * 1000; const d = Date.parse(String(v || '')); return Number.isFinite(d) ? d : 0; };
@@ -132,6 +138,7 @@
     return ps.filter(p => String(p && p.id || '').startsWith('g-p-')).map(p => {
       const rows = chats.filter(c => c && c.projectId === p.id);
       return Object.assign({}, p, {
+        name:projectName(p?.name||'')||one(p?.name||''),
         chats: rows,
         count: Math.max(Number(raw.counts && raw.counts[p.id] || 0), rows.length),
         indexed: indexed.has(p.id)

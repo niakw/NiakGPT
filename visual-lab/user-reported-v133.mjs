@@ -301,6 +301,106 @@ async function screenshotSidebarRegression(){
   }finally{await page.close();}
 }
 
+async function vaultRecoveredNoHeadingSidebarRegression(){
+  const page=await browser.newPage({viewport:{width:1200,height:820}});
+  try{
+    await page.addInitScript(()=>{
+      const ids=['alpha','beta','gamma','delta','epsilon'].map(x=>'g-p-'+x);
+      const raw={
+        schema:2,
+        projects:ids.map((id,i)=>({id,name:'Workspace '+String.fromCharCode(65+i),href:'/g/'+id+'/project',domOnly:false,vaultRecovered:true})),
+        chats:[
+          {id:'70000000-0000-4000-8000-000000000001',title:'Generic thread one',projectId:'',updated:Date.now()-30_000},
+          {id:'70000000-0000-4000-8000-000000000002',title:'Generic thread two',projectId:'',updated:Date.now()-60_000}
+        ],
+        counts:Object.fromEntries(ids.map(id=>[id,0])),
+        indexedProjectIds:ids,
+        serverIndexedAt:0,
+        vaultCatalogRecoveredAt:Date.now(),
+        vaultCatalogCount:ids.length
+      };
+      const store={
+        'niakgpt-v08-cache':raw,
+        'niakgpt-governance-v085':{seeded:true,coreProjectIds:ids,hiddenProjectIds:[],locks:{},autoResync:true}
+      };
+      const listeners=[];
+      window.chrome={storage:{local:{
+        get:async keys=>{
+          if(typeof keys==='string')return {[keys]:store[keys]};
+          const arr=Array.isArray(keys)?keys:Object.keys(store);
+          return Object.fromEntries(arr.filter(k=>store[k]!==undefined).map(k=>[k,structuredClone(store[k])]));
+        },
+        set:async obj=>{const changes={};for(const[k,v]of Object.entries(obj)){const oldValue=store[k];store[k]=structuredClone(v);changes[k]={oldValue,newValue:store[k]};}for(const fn of listeners)fn(changes,'local');},
+        remove:async keys=>{for(const key of(Array.isArray(keys)?keys:[keys]))delete store[key];}
+      },onChanged:{addListener:fn=>listeners.push(fn)}}};
+      window.__store=store;window.__diag={};
+      window.__NIAKGPT_DIAGNOSTICS__={set:(k,v)=>window.__diag[k]=String(v)};
+      window.__NIAKGPT_CACHE_BUS__={update:async fn=>{store['niakgpt-v08-cache']=await fn(structuredClone(store['niakgpt-v08-cache']));return store['niakgpt-v08-cache'];}};
+    });
+    await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html',body:`<!doctype html><html data-ng86-activity="ready"><head><style>
+      *{box-sizing:border-box}html,body{margin:0;background:#071019;color:#dce7f1;font:14px Arial}
+      #left{position:fixed;inset:0 auto 0 0;width:310px;height:100vh;overflow:auto;background:#0b131b}
+      #primary a{display:block;padding:10px 18px;color:#dce7f1;text-decoration:none}
+      #native-project-cluster,#native-chats{padding:8px 12px}
+      [data-sidebar-item="true"],#native-project-cluster button,#native-chats a{display:block;width:100%;padding:8px;color:#dce7f1;background:transparent;border:0;text-align:left;text-decoration:none}
+      #native-chats h3{margin:8px 0;color:#8ea0b2;font-size:12px}
+      main{margin-left:310px;padding:40px}
+    </style></head><body>
+      <aside id="left" data-testid="conversation-sidebar">
+        <section id="primary"><a href="/">ChatGPT</a><a href="/new">Nouveau chat</a><a href="/library">Bibliothèque</a><a href="/plugins">Plugins</a></section>
+        <section id="native-project-cluster">
+          <div data-sidebar-item="true"><button>Workspace A</button></div>
+          <div data-sidebar-item="true"><button>Workspace B</button></div>
+          <div data-sidebar-item="true"><button>Workspace C</button></div>
+          <div data-sidebar-item="true"><button>Workspace D</button></div>
+          <div data-sidebar-item="true"><button>Workspace E</button></div>
+          <button id="project-more">Afficher plus</button>
+        </section>
+        <section id="native-chats">
+          <h3>Chats</h3>
+          <a data-sidebar-item="true" href="/c/70000000-0000-4000-8000-000000000001">Generic thread one</a>
+          <a data-sidebar-item="true" href="/c/70000000-0000-4000-8000-000000000002">Generic thread two</a>
+        </section>
+      </aside>
+      <main>ready</main>
+    </body></html>`}));
+    await page.goto('https://chatgpt.com/',{waitUntil:'domcontentloaded'});
+    await page.addStyleTag({content:authorityCss});
+    await page.addStyleTag({content:uxCss});
+    await page.addScriptTag({content:authority});
+    await page.addScriptTag({content:projects});
+    await page.addScriptTag({content:selfheal});
+    await page.addScriptTag({content:uxJs});
+    await page.waitForTimeout(900);
+    const got=await page.evaluate(()=>{
+      const visible=el=>{if(!el)return false;const st=getComputedStyle(el),r=el.getBoundingClientRect();return st.display!=='none'&&st.visibility!=='hidden'&&!el.hidden&&r.width>0&&r.height>0;};
+      const box=document.getElementById('ng8-pins'),native=document.getElementById('native-project-cluster'),chats=document.getElementById('native-chats');
+      return{
+        shown:box?.querySelectorAll('a[data-ng8-pin],a[href*="/g/g-p-"]').length||0,
+        nativeVisible:visible(native),
+        nativeMarked:native?.getAttribute('data-ng112-native-projects')||'',
+        chatsVisible:visible(chats),
+        genericInside:box?.querySelectorAll('a[href*="/c/"]').length||0,
+        genericOutside:chats?.querySelectorAll('a[href*="/c/"]').length||0,
+        beforeChats:!!box&&!!(box.compareDocumentPosition(chats)&Node.DOCUMENT_POSITION_FOLLOWING),
+        placement:box?.dataset.ng121Placement||'',
+        authority:window.__diag['projects-authority']||'',
+        pins:window.__diag['pins-ui']||''
+      };
+    });
+    assert.equal(got.shown,5,'vault-recovered canonical catalog did not render every Project: '+JSON.stringify(got));
+    assert.equal(got.nativeVisible,false,'unlabelled native Project folder cluster remained visible: '+JSON.stringify(got));
+    assert.equal(got.nativeMarked,'1','native no-heading Project cluster was not acquired by authority v112');
+    assert.equal(got.chatsVisible,true,'native Chats section was hidden with Projects');
+    assert.equal(got.genericInside,0,'generic chats leaked into managed Projects');
+    assert.equal(got.genericOutside,2,'generic chats disappeared from the native Chats section');
+    assert.equal(got.beforeChats,true,'managed Projects is not above the native Chats section');
+    assert.equal(got.placement,'native-projects','recovered catalog still fell back to the bottom/after-primary slot: '+JSON.stringify(got));
+    assert.match(got.authority,/masquée/);
+    await page.screenshot({path:path.join(ARTIFACTS,`${engineName}-01e-vault-recovered-no-heading-projects.png`),fullPage:true});
+  }finally{await page.close();}
+}
+
 async function nestedSemanticSidebarRegression(){
   const page=await browser.newPage({viewport:{width:1200,height:820}});
   try{
@@ -603,6 +703,7 @@ try{
   await duplicateRecovery();
   await falseMirrorRecovery();
   await screenshotSidebarRegression();
+  await vaultRecoveredNoHeadingSidebarRegression();
   await nestedSemanticSidebarRegression();
   await historicalCatchup();
   await generationScroll();

@@ -15,11 +15,13 @@
   const MAX_REF_RETRIES = 8;
   const MAX_REF_BACKOFF_MS = 3000;
   const PRIORITY_BLOB_CONCURRENCY = 6;
+  const PRIVATE_REPO_VERIFY_TTL_MS = 60 * 1000;
   const WORKER_ERROR_KEY = 'niakgpt-worker-errors-v100';
   const CHATGPT_ORIGIN = 'https://chatgpt.com';
   const CHATGPT_CONVERSATION_RX = /^\/backend-api\/conversation\/[A-Za-z0-9_-]+$/;
   const CHATGPT_TOKEN_TTL_MS = 90 * 1000;
   let commitTail = Promise.resolve();
+  const privateRepoVerification = new Map();
   let chatgptAccessToken = '';
   let chatgptAccessTokenAt = 0;
 
@@ -650,10 +652,19 @@
     return github(token, `/repos/${repo.split('/').map(encodeURIComponent).join('/')}`);
   }
 
-  async function verifyPrivateRepo(token, repo) {
+  async function verifyPrivateRepo(token, repo, force=false) {
+    const key=String(repo||'').toLowerCase(),now=Date.now(),cached=privateRepoVerification.get(key);
+    if(!force&&cached&&now-Number(cached.at||0)<PRIVATE_REPO_VERIFY_TTL_MS)return cached.meta;
     const meta = await repoMetadata(token, repo);
-    if (meta?.private !== true) throw new Error('memory_repository_must_be_private');
-    if (meta?.archived === true) throw new Error('memory_repository_archived');
+    if (meta?.private !== true) {
+      privateRepoVerification.delete(key);
+      throw new Error('memory_repository_must_be_private');
+    }
+    if (meta?.archived === true) {
+      privateRepoVerification.delete(key);
+      throw new Error('memory_repository_archived');
+    }
+    privateRepoVerification.set(key,{at:now,meta});
     return meta;
   }
 
@@ -1093,6 +1104,7 @@
       MAX_BATCH_BYTES,
       MAX_REF_RETRIES,
       PRIORITY_BLOB_CONCURRENCY,
+      PRIVATE_REPO_VERIFY_TTL_MS,
       refRace,
       commitFilesWith,
       initializeEmptyRepo,

@@ -51,7 +51,7 @@ try{
       runtime:{
         id:'active-history-lab',
         lastError:null,
-        getManifest:()=>({version:'0.9.118'}),
+        getManifest:()=>({version:'0.9.119'}),
         sendMessage(message,cb){
           const type=String(message?.type||'');
           const reply=value=>queueMicrotask(()=>cb(value));

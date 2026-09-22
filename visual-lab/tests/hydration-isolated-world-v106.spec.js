@@ -5,15 +5,18 @@ import { test, expect, chromium } from '@playwright/test';
 
 const ROOT=path.resolve('..');
 const VERSION=JSON.parse(fs.readFileSync(path.join(ROOT,'manifest.json'),'utf8')).version;
+const EXECUTABLE=String(process.env.NIAKGPT_EXECUTABLE_PATH||'').trim();
+const HEADLESS=String(process.env.NIAKGPT_HEADLESS||'1')!=='0';
 
 test('real MV3 boot reads React hydration from MAIN world without user interaction',async()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'niakgpt-hydration-main-world-'));
-  const context=await chromium.launchPersistentContext(dir,{
-    headless:true,
-    channel:'chromium',
+  const launchOptions={
+    headless:HEADLESS,
     viewport:{width:1280,height:820},
     args:[`--disable-extensions-except=${ROOT}`,`--load-extension=${ROOT}`,'--disable-background-mode','--no-first-run','--no-default-browser-check']
-  });
+  };
+  if(EXECUTABLE)launchOptions.executablePath=EXECUTABLE;else launchOptions.channel='chromium';
+  const context=await chromium.launchPersistentContext(dir,launchOptions);
   try{
     const worker=context.serviceWorkers().find(w=>w.url().includes('background-v100.js'))
       ||await context.waitForEvent('serviceworker',{predicate:w=>w.url().includes('background-v100.js'),timeout:15000});
@@ -73,6 +76,7 @@ test('real MV3 boot reads React hydration from MAIN world without user interacti
     expect(state.pageNavFiber).toBe(true);
     expect(state.proof).toMatch(/^react-main-world-settled/);
     expect(state.rail).toBe(true);
+    console.log('HYDRATION_MAIN_WORLD_CHECKPOINT PASS');
   }finally{
     await context.close();
     fs.rmSync(dir,{recursive:true,force:true});

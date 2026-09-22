@@ -34,6 +34,7 @@ for(const [name,launcher] of Object.entries(selected)){
           sendMessage:async message=>{
             if(message?.type==='niakgpt:probe-react-hydration-v107'){
               const ownerRx=/^__react(?:Fiber|Props|Container)\$.+/;
+              const hostOwnerRx=/^__react(?:Fiber|Props)\$.+/;
               const containerRx=/^__reactContainer\$.+/;
               const identities=[document.querySelector('nav,aside'),document.querySelector('main'),document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')].filter(Boolean);
               let container=null;
@@ -44,8 +45,8 @@ for(const [name,launcher] of Object.entries(selected)){
               const current=container?.stateNode?.current||container;
               const candidates=[container,current,container?.alternate,current?.alternate].filter(Boolean);
               const needed=Math.min(2,identities.length);
-              const htmlOwned=Object.getOwnPropertyNames(document.documentElement).some(key=>ownerRx.test(key));
-              const bodyOwned=Object.getOwnPropertyNames(document.body).some(key=>ownerRx.test(key));
+              const htmlOwned=Object.getOwnPropertyNames(document.documentElement).some(key=>hostOwnerRx.test(key));
+              const bodyOwned=Object.getOwnPropertyNames(document.body).some(key=>hostOwnerRx.test(key));
               return {ok:true,fullDocument:true,rootSettled:candidates.some(f=>f?.memoizedState?.isDehydrated===false),htmlOwned,bodyOwned,documentRootOwned:htmlOwned&&bodyOwned,needed,ownedCount:identities.filter(node=>Object.getOwnPropertyNames(node).some(key=>ownerRx.test(key))).length};
             }
             return {ok:true,errors:[]};

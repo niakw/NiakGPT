@@ -34,7 +34,8 @@
   const conversationPage = () => /(?:^|\/)c\/[A-Za-z0-9_-]+(?:$|[/?#])/.test(String(location.pathname || ''));
   const quietFor = () => Date.now() - lastHumanAt;
   const remainingQuiet = (floor=1000) => Math.max(floor, HUMAN_QUIET_MS - quietFor() + floor);
-  const backgroundDelay = () => (conversationPage() || document.documentElement.dataset.ng90PeerChatActive === '1') ? WAKE_HEARTBEAT_MS : remainingQuiet();
+  const peerBusy = () => document.documentElement.dataset.ng90PeerBusy === '1';
+  const backgroundDelay = () => (conversationPage() || peerBusy()) ? WAKE_HEARTBEAT_MS : remainingQuiet();
   const defaults = { autoSync: true, injectOnNewChat: true };
   let prefsCache = Object.assign({}, defaults), prefsReady = false;
 
@@ -69,7 +70,7 @@
       Number(document.documentElement.dataset.ng100BackgroundPriorityUntil||0)
     );
     return conversationPage() ||
-      document.documentElement.dataset.ng90PeerChatActive === '1' ||
+      peerBusy() ||
       document.documentElement.dataset.ng8Running === '1' ||
       ['loading','waiting','thinking','executing'].includes(String(document.documentElement.dataset.ng86Activity || '').toLowerCase()) ||
       document.documentElement.dataset.ng105Verification === '1' ||
@@ -637,7 +638,7 @@
       const q = (await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY], p = await prefs();
       if (!q?.pending?.length || !p.autoSync) return;
       if (conversationPage()) { await queuedState('conversation'); schedule(WAKE_HEARTBEAT_MS); return; }
-      if (document.documentElement.dataset.ng90PeerChatActive === '1') { await queuedState('peer-conversation'); schedule(WAKE_HEARTBEAT_MS); return; }
+      if (peerBusy()) { await queuedState('peer-busy'); schedule(WAKE_HEARTBEAT_MS); return; }
       if (busy(true)) { schedule(remainingQuiet()); return; }
       bootstrap({ force:q.force, projectIds:q.pending, auto:true });
     } catch {}
@@ -649,7 +650,7 @@
     autoTimer = setTimeout(async () => {
       if (!autoOwner()) return;
       if (conversationPage()) { await queuedState('conversation'); return schedule(WAKE_HEARTBEAT_MS); }
-      if (document.documentElement.dataset.ng90PeerChatActive === '1') { await queuedState('peer-conversation'); return schedule(WAKE_HEARTBEAT_MS); }
+      if (peerBusy()) { await queuedState('peer-busy'); return schedule(WAKE_HEARTBEAT_MS); }
       if (busy(true)) return schedule(remainingQuiet());
       const st = await send({ type:'niakgpt:memory-status-v132' });
       if (!st?.connected) return;
@@ -719,7 +720,7 @@
         schedule(backgroundDelay());
         return Object.assign({},r,{bootstrapQueued:true,queuedProjects:pending.length,bootstrapWritten:false,bootstrapError:message});
       }
-      await queuedState(conversationPage()?'conversation':document.documentElement.dataset.ng90PeerChatActive==='1'?'peer-conversation':'quiet');
+      await queuedState(conversationPage()?'conversation':peerBusy()?'peer-busy':'quiet');
       schedule(backgroundDelay());
       return Object.assign({},r,{bootstrapQueued:true,queuedProjects:pending.length,bootstrapWritten:true,bootstrapFiles:cached.files,bootstrapProjects:cached.projects});
     }
@@ -798,7 +799,7 @@
         schedule(backgroundDelay());
         return Object.assign({},r,{bootstrapQueued:true,queuedProjects:pending.length,bootstrapWritten:false,bootstrapError:message});
       }
-      await queuedState(conversationPage()?'conversation':document.documentElement.dataset.ng90PeerChatActive==='1'?'peer-conversation':'quiet');
+      await queuedState(conversationPage()?'conversation':peerBusy()?'peer-busy':'quiet');
       schedule(backgroundDelay());
       return Object.assign({},r,{bootstrapQueued:true,queuedProjects:pending.length,bootstrapWritten:true,bootstrapFiles:cached.files,bootstrapProjects:cached.projects});
     }
@@ -946,7 +947,7 @@
     }
     if(!bootstrapFailed){
       if (conversationPage()) await queuedState('conversation');
-      else if(document.documentElement.dataset.ng90PeerChatActive==='1')await queuedState('peer-conversation');
+      else if(peerBusy())await queuedState('peer-busy');
     }
     scheduleDomCapture(1200);
     resume();

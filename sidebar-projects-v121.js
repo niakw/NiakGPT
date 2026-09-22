@@ -262,10 +262,11 @@
   }
   function nativeChatsBoundary(root=navRoot()){
     if(!root)return null;
-    const labels=[...root.querySelectorAll('h1,h2,h3,[role="heading"],span,div')].filter(el=>{
+    const labels=[...root.querySelectorAll('h1,h2,h3,[role="heading"],button,[role="button"],span,div')].filter(el=>{
       if(isOwn(el)||!visiblePlacementNode(el))return false;
       const text=norm(el.getAttribute?.('aria-label')||el.textContent);
-      return /^(?:chats?|conversations?|discussions?|recent chats?|chats recents?)$/.test(text);
+      if(!text||text.length>48)return false;
+      return /^(?:chats?|conversations?|discussions?|recent chats?|chats recents?)(?:\s+[⌄⌃▼▲›»·•…0-9-]+)?$/.test(text);
     });
     for(const seed of labels){
       let node=seed,best=seed;
@@ -411,9 +412,10 @@
     if(launcher?.parentElement&&authoritativeLaneSafe(root,launcher.parentElement)&&(!tail||nativeSectionAfterPrimary(root,launcher,tail))&&(!box||(!launcher.contains(box)&&!box.contains(launcher.parentElement)))){
       return{parent:launcher.parentElement,before:launcher.nextSibling,mode:'native-projects-launcher',legacy:'projects-launcher-v121'};
     }
-    const chatsBoundary=nativeChatsHost(root,nativeChatsBoundary(root));
+    const chatsHost=nativeChatsHost(root,nativeChatsBoundary(root));
+    const chatsBoundary=topChild(root,chatsHost)||chatsHost;
     if(chatsBoundary?.parentElement&&authoritativeLaneSafe(root,chatsBoundary.parentElement)&&(!tail||nativeSectionAfterPrimary(root,chatsBoundary,tail))&&(!box||(!chatsBoundary.contains(box)&&!box.contains(chatsBoundary.parentElement)))){
-      return{parent:chatsBoundary.parentElement,before:chatsBoundary,mode:'before-native-chats',legacy:'before-native-chats-v089'};
+      return{parent:chatsBoundary.parentElement,before:chatsBoundary,mode:'before-native-chats',legacy:'before-native-chats-v114'};
     }
     if(tail?.parentElement&&authoritativeLaneSafe(root,tail.parentElement)&&(!box||(!tail.contains(box)&&!box.contains(tail.parentElement)))){
       return{parent:tail.parentElement,before:tail.nextSibling,mode:'after-primary',legacy:'after-primary-v121'};

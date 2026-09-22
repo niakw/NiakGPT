@@ -9,6 +9,7 @@
   const STATE_KEY = 'niakgpt-project-memory-state-v132';
   const CONTEXT_KEY = 'niakgpt-project-memory-context-v132';
   const QUEUE_KEY = 'niakgpt-project-memory-queue-v132';
+  const RETRY_KEY = 'niakgpt-project-memory-chat-retry-v117';
   const MEMORY_LOCK = 'niakgpt-project-memory-sync-v132';
   const CACHE_BOOTSTRAP_LOCK = 'niakgpt-project-memory-cache-bootstrap-v088';
   const MAX_STATE = 18000;
@@ -19,6 +20,9 @@
   const HUMAN_QUIET_MS = 60*1000;
   const ACTIVE_HISTORY_RETRY_MS = 5000;
   const PRIORITY_RETRY_MS = 1000;
+  const CHAT_FETCH_RETRIES_PRIORITY = 3;
+  const CHAT_FETCH_RETRIES_NORMAL = 2;
+  const CHAT_RETRY_BACKOFF_MS = [45_000,120_000,300_000,900_000,1_800_000];
   const WAKE_HEARTBEAT_MS = 30000;
   const GITHUB_AUTH_UI_TIMEOUT_MS = 6*60*1000;
   let seq = 0, syncing = false, syncAuto = false, prioritySync = false, priorityKick = false, autoTimer = 0, wakeTimer = 0, routeTimer = 0, domCaptureTimer = 0, lastHistoryFetchAt = 0, lastHumanAt = Date.now();
@@ -47,6 +51,8 @@
   const backgroundDelay = (allowConversation=false,priority=prioritySync) => peerBusy() ? WAKE_HEARTBEAT_MS : (priorityWorkerMode(priority) ? PRIORITY_RETRY_MS : (activeHistoryMode(allowConversation) ? ACTIVE_HISTORY_RETRY_MS : remainingQuiet()));
   const retryDelay = (allowConversation,priority=prioritySync) => priorityWorkerMode(priority) ? PRIORITY_RETRY_MS : (activeHistoryMode(allowConversation) ? ACTIVE_HISTORY_RETRY_MS : remainingQuiet());
   const backgroundHistoryGap = () => prioritySync ? PRIORITY_HISTORY_FETCH_GAP_MS : BACKGROUND_HISTORY_FETCH_GAP_MS;
+  const queueWait = q => Math.max(0,Number(q?.retryAt||0)-Date.now());
+  const transientConversationFailure = error => /^conversation_fetch_failed:/.test(String(error?.message||error||''));
   const defaults = { autoSync: true, injectOnNewChat: true };
   let prefsCache = Object.assign({}, defaults), prefsReady = false;
 
@@ -148,6 +154,42 @@
 
   async function cache() {
     try { return (await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY] || {}; } catch { return {}; }
+  }
+
+  async function chatRetryLedger() {
+    try {
+      const raw=(await chrome.storage.local.get(RETRY_KEY))[RETRY_KEY];
+      return raw&&typeof raw==='object'&&!Array.isArray(raw)?{...raw}:{};
+    } catch { return {}; }
+  }
+
+  async function saveChatRetryLedger(ledger) {
+    const rows=ledger&&typeof ledger==='object'?ledger:{};
+    if(Object.keys(rows).length)await chrome.storage.local.set({[RETRY_KEY]:rows});
+    else await chrome.storage.local.remove(RETRY_KEY);
+  }
+
+  const retryEntryKey = (projectId,chatId) => String(projectId||'')+'::'+String(chatId||'');
+  const retryBackoff = cycles => CHAT_RETRY_BACKOFF_MS[Math.min(CHAT_RETRY_BACKOFF_MS.length-1,Math.max(0,Number(cycles||1)-1))];
+
+  async function fetchConversationResilient(project,chat,progress={}) {
+    const limit=prioritySync?CHAT_FETCH_RETRIES_PRIORITY:CHAT_FETCH_RETRIES_NORMAL;
+    let lastError=null;
+    for(let attempt=0;attempt<limit;attempt++){
+      try{return {ok:true,data:await fetchConversation(chat.id,attempt)};}
+      catch(error){
+        if(!transientConversationFailure(error))throw error;
+        lastError=error;
+        if(attempt+1>=limit)break;
+        await state({
+          mode:'syncing',projectId:project.id,projectName:project.name,chatId:chat.id,chatTitle:chat.title,
+          chatDone:Number(progress.chatDone||0),chatTotal:Number(progress.chatTotal||0),prioritySync,
+          retryingChat:true,retryAttempt:attempt+2,retryLimit:limit,lastTransientError:String(error?.message||error).slice(0,180)
+        });
+        await sleep(prioritySync?(attempt===0?1200:3500):4000);
+      }
+    }
+    return {ok:false,deferred:true,error:String(lastError?.message||lastError||'conversation_fetch_failed:0:unknown')};
   }
 
   function projects(raw) {

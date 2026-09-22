@@ -25,7 +25,7 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.114': fail(f"version={version}")
+if version!='0.9.115': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting','identity']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']: fail('host permissions drift')
 
@@ -282,12 +282,13 @@ for token in ('COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement(raw)','convers
     if token not in server_bootstrap: fail('cold canonical bootstrap recovery incomplete '+token)
 
 memory=read('project-memory-v132.js')
-for token in ('memoryBootstrap: memoryBootstrap === true','PROJECT_STATE.md','conversations/','sync_already_running','injectOnNewChat','NIAKGPT PROJECT MEMORY — CHECKPOINT RÉCUPÉRÉ','canonicalUpdated','MEMORY_LOCK','CACHE_BOOTSTRAP_LOCK','autoOwner','niakgpt:tab-role-changed','primeBootstrapQueue','ensureBootstrapQueued','writeCachedBootstrap','bootstrapMetadataOnly:true','bootstrapWritten:true','cachedOnly:true,historyDeferred:true','queuedProjects','changes[QUEUE_KEY]','githubLogin','runtime.connect','extension_context_invalidated_reload_required','GITHUB_AUTH_UI_TIMEOUT_MS','setTimeout(heartbeat,20_000)','githubRepositories','githubConnectRepo','githubLogout','captureCurrentDomConversation',"captureSource:'live-dom'",'complete:false','projectName = v =>','peerBusy()','Number(p.count||0) > (p.chats||[]).length',"name:projectName(project.name||'')"):
+for token in ('memoryBootstrap: memoryBootstrap === true','PROJECT_STATE.md','conversations/','sync_already_running','injectOnNewChat','NIAKGPT PROJECT MEMORY — CHECKPOINT RÉCUPÉRÉ','canonicalUpdated','MEMORY_LOCK','CACHE_BOOTSTRAP_LOCK','autoOwner','niakgpt:tab-role-changed','primeBootstrapQueue','ensureBootstrapQueued','writeCachedBootstrap','bootstrapMetadataOnly:true','bootstrapWritten:true','cachedOnly:true,historyDeferred:true','queuedProjects','changes[QUEUE_KEY]','githubLogin','runtime.connect','extension_context_invalidated_reload_required','GITHUB_AUTH_UI_TIMEOUT_MS','setTimeout(heartbeat,20_000)','githubRepositories','githubConnectRepo','githubLogout','captureCurrentDomConversation',"captureSource:'live-dom'",'complete:false','projectName = v =>','peerBusy()','ACTIVE_HISTORY_RETRY_MS = 5000','activeHistoryMode','humanQuietRequired','retryDelay','Number(p.count||0) > (p.chats||[]).length',"name:projectName(project.name||'')"):
     if token not in memory: fail('Project Memory runtime incomplete '+token)
 bridge=read('page-bridge.js')
 if "d.memoryBootstrap !== true" not in bridge or 'conversation_detail_get_disabled' not in bridge: fail('Project Memory full-history bridge guard incomplete')
 if 'project-memory-v132.css' not in style_runtime: fail('Project Memory UI CSS missing from declarative manifest styles')
 if not (ROOT/'visual-lab/project-memory-v132.mjs').exists(): fail('Project Memory browser UX gate missing')
+if not (ROOT/'visual-lab/project-memory-active-catchup-v115.mjs').exists(): fail('Project Memory active-chat catch-up gate missing')
 if not (ROOT/'visual-lab/native-chat-zero-background-v087.mjs').exists(): fail('native chat zero-background regression gate missing')
 if not (ROOT/'visual-lab/field-regressions-v088.mjs').exists(): fail('0.9.88 combined field regression gate missing')
 if not (ROOT/'visual-lab/user-reported-v133.mjs').exists(): fail('0.9.93 user-reported regression gate missing')

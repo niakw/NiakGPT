@@ -105,6 +105,9 @@ jobs:
       - name: Project Memory cache bootstrap + deferred history wake
         working-directory: visual-lab
         run: node project-memory-wake-v086.mjs
+      - name: Project Memory active-chat history catch-up
+        working-directory: visual-lab
+        run: node project-memory-active-catchup-v115.mjs
       - name: Cold-chat Pins remain local/cache-only
         working-directory: visual-lab
         run: node pins-launcher-only-v085.mjs

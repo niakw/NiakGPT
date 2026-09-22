@@ -16,6 +16,7 @@
   const HISTORY_FETCH_GAP_MS = 20000;
   const BACKGROUND_HISTORY_FETCH_GAP_MS = 4000;
   const HUMAN_QUIET_MS = 60*1000;
+  const ACTIVE_HISTORY_RETRY_MS = 5000;
   const WAKE_HEARTBEAT_MS = 30000;
   const GITHUB_AUTH_UI_TIMEOUT_MS = 6*60*1000;
   let seq = 0, syncing = false, syncAuto = false, autoTimer = 0, wakeTimer = 0, routeTimer = 0, domCaptureTimer = 0, lastHistoryFetchAt = 0, lastHumanAt = Date.now();
@@ -38,7 +39,10 @@
   const quietFor = () => Date.now() - lastHumanAt;
   const remainingQuiet = (floor=1000) => Math.max(floor, HUMAN_QUIET_MS - quietFor() + floor);
   const peerBusy = () => document.documentElement.dataset.ng90PeerBusy === '1';
-  const backgroundDelay = () => peerBusy() ? WAKE_HEARTBEAT_MS : remainingQuiet();
+  const activeHistoryMode = allowConversation => !!allowConversation && conversationPage() && backgroundHistoryAvailable === true;
+  const humanQuietRequired = (background,allowConversation=false) => !!background && !activeHistoryMode(allowConversation);
+  const backgroundDelay = (allowConversation=false) => peerBusy() ? WAKE_HEARTBEAT_MS : (activeHistoryMode(allowConversation) ? ACTIVE_HISTORY_RETRY_MS : remainingQuiet());
+  const retryDelay = allowConversation => activeHistoryMode(allowConversation) ? ACTIVE_HISTORY_RETRY_MS : remainingQuiet();
   const defaults = { autoSync: true, injectOnNewChat: true };
   let prefsCache = Object.assign({}, defaults), prefsReady = false;
 
@@ -101,7 +105,7 @@
       interruption === 'network' ||
       navigator.onLine === false ||
       Date.now() < bridgePriorityUntil ||
-      (background && quietFor() < HUMAN_QUIET_MS);
+      (humanQuietRequired(background,allowConversation) && quietFor() < HUMAN_QUIET_MS);
   };
 
   async function waitIdle(limit, allowConversation=false) {
@@ -733,7 +737,11 @@
         const q=local[QUEUE_KEY]||{},p=Object.assign({},defaults,local[PREFS_KEY]||{});
         const pending=Array.isArray(q.pending)?q.pending:[];
         document.documentElement.dataset.ng132WakeBeat=String(Date.now());
-        if(p.autoSync!==false&&pending.length&&autoOwner()&&quietFor()>=HUMAN_QUIET_MS&&await currentPageHistoryAllowed()) await resume();
+        if(p.autoSync!==false&&pending.length&&autoOwner()){
+          const allowed=await currentPageHistoryAllowed();
+          const activeCatchup=conversationPage()&&backgroundHistoryAvailable===true;
+          if(allowed&&(activeCatchup||quietFor()>=HUMAN_QUIET_MS)) await resume();
+        }
       }catch{}
       wakeHeartbeat();
     },WAKE_HEARTBEAT_MS);
@@ -753,7 +761,11 @@
       return { ok:false, paused:true, error:document.hidden?'memory_sync_paused_hidden':'memory_sync_paused_owner_change' };
     }
     if (busy(automatic,allowConversation)) {
-      if (automatic) { await queuedState(quietFor()<HUMAN_QUIET_MS?'quiet':'busy'); schedule(remainingQuiet()); }
+      if (automatic) {
+        const quietBlocked=humanQuietRequired(true,allowConversation)&&quietFor()<HUMAN_QUIET_MS;
+        await queuedState(quietBlocked?'quiet':'busy');
+        schedule(retryDelay(allowConversation));
+      }
       return { ok:false, paused:true, error:'memory_sync_paused_busy' };
     }
     if (navigator.locks && navigator.locks.request && opt.__lockHeld !== true) {
@@ -807,7 +819,7 @@
       if(/^memory_sync_paused_(?:conversation|hidden|owner_change|busy|rate_limit|network)$/.test(message)){
         const reason=message.replace('memory_sync_paused_','');
         await queuedState(reason);
-        schedule(reason==='rate_limit'||reason==='network'?120000:(reason==='conversation'?WAKE_HEARTBEAT_MS:remainingQuiet()));
+        schedule(reason==='rate_limit'||reason==='network'?120000:(reason==='conversation'?WAKE_HEARTBEAT_MS:retryDelay(allowConversation)));
         return {ok:false,paused:true,error:message};
       }
       await state({ mode:'error', error:message.slice(0,260) });
@@ -816,7 +828,7 @@
       syncing = false; syncAuto = false;
       try{
         const q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};
-        if(Array.isArray(q.pending)&&q.pending.length) schedule(backgroundDelay());
+        if(Array.isArray(q.pending)&&q.pending.length) schedule(backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true));
       }catch{}
     }
   }
@@ -829,7 +841,7 @@
       const allowConversation=conversationPage()&&await backgroundHistoryProbe(false);
       if (conversationPage()&&!allowConversation) { await queuedState('conversation'); schedule(WAKE_HEARTBEAT_MS); return; }
       if (peerBusy()) { await queuedState('peer-busy'); schedule(WAKE_HEARTBEAT_MS); return; }
-      if (busy(true,allowConversation)) { schedule(remainingQuiet()); return; }
+      if (busy(true,allowConversation)) { schedule(retryDelay(allowConversation)); return; }
       bootstrap({ force:q.force, projectIds:q.pending, auto:true });
     } catch {}
   }
@@ -842,12 +854,12 @@
       const allowConversation=conversationPage()&&await backgroundHistoryProbe(false);
       if (conversationPage()&&!allowConversation) { await queuedState('conversation'); return schedule(WAKE_HEARTBEAT_MS); }
       if (peerBusy()) { await queuedState('peer-busy'); return schedule(WAKE_HEARTBEAT_MS); }
-      if (busy(true,allowConversation)) return schedule(remainingQuiet());
+      if (busy(true,allowConversation)) return schedule(retryDelay(allowConversation));
       const st = await send({ type:'niakgpt:memory-status-v132' });
       if (!st?.connected) return;
       let q={};try{q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
       bootstrap({ force:q.force===true, projectIds:Array.isArray(q.pending)&&q.pending.length?q.pending:undefined, auto:true });
-    }, delay || remainingQuiet());
+    }, delay ?? backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true));
   }
 
   function currentPid() {
@@ -1105,7 +1117,7 @@
   document.addEventListener('touchstart',noteHuman,{capture:true,passive:true});
 
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes[CACHE_KEY]) ensureBootstrapQueued().catch(()=>[]).finally(()=>schedule(backgroundDelay()));
+    if (area === 'local' && changes[CACHE_KEY]) ensureBootstrapQueued().catch(()=>[]).finally(()=>schedule(backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true)));
     if (area === 'local' && changes[CONTEXT_KEY]) refreshContext();
     if (area === 'local' && changes[QUEUE_KEY] && autoOwner()) resume();
   });
@@ -1113,7 +1125,7 @@
     const allowConversation=conversationPage()&&backgroundHistoryAvailable===true;
     if (event.detail?.active === true || busy(false,allowConversation)) { lastHumanAt=Date.now(); clearTimeout(autoTimer); schedule(backgroundDelay()); return; }
     scheduleDomCapture(650);
-    schedule(backgroundDelay());
+    schedule(backgroundDelay(allowConversation));
   });
   document.addEventListener('niakgpt:tab-role-changed', event => {
     if (event.detail && event.detail.role !== 'inactive' && !document.hidden) { resume(); schedule(backgroundDelay()); }

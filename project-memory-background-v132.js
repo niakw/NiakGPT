@@ -16,7 +16,7 @@
   const MAX_REF_BACKOFF_MS = 3000;
   const WORKER_ERROR_KEY = 'niakgpt-worker-errors-v100';
   const CHATGPT_ORIGIN = 'https://chatgpt.com';
-  const CHATGPT_CONVERSATION_RX = /^\\/backend-api\\/conversation\\/[A-Za-z0-9_-]+$/;
+  const CHATGPT_CONVERSATION_RX = /^\/backend-api\/conversation\/[A-Za-z0-9_-]+$/;
   const CHATGPT_TOKEN_TTL_MS = 90 * 1000;
   let commitTail = Promise.resolve();
   let chatgptAccessToken = '';

@@ -1,3 +1,11 @@
+# NiakGPT 0.9.112 — boot fiable sur SPA active après #418
+
+- **Régression 0.9.111 reproduite avant correction** : le nouveau test MV3 démarre avec un HostRoot déjà recovered/settled, déclenche un #418 `HTML`, puis maintient de simples mutations d’attribut toutes les 120 ms. Sur le runtime 0.9.111 inchangé, `ng100HydrationProof` reste vide et le rail ne monte pas après 12 s.
+- **Cause racine prouvée** : le gate post-HostRoot exigeait une fenêtre globale sans mutation. Une application ChatGPT active peut muter continuellement sans aucun remount structurel ; le gate interprétait donc l’activité normale comme une hydratation encore instable.
+- **Correction** : suppression du silence DOM global comme autorité de boot. Le gate exige désormais la stabilité d’identité de `nav/main/composer`, deux tours idle, frames, comparaison finale des identités et revalidation du HostRoot courant.
+- **Sécurité conservée** : un remplacement réel de `nav/main/composer` redémarre la barrière ; `hydration-scheduler-drain-v111.spec.js` continue de couvrir les commits `MessageChannel/MessagePort` tardifs.
+- **Non-régression dédiée** : `hydration-active-spa-v112.spec.js` doit passer sur Chromium et Brave stable avec `HYDRATION_ACTIVE_SPA_V112_CHECKPOINT PASS`.
+
 # NiakGPT 0.9.111 — ordre de boot React et drainage scheduler tardif
 
 - **Régression terrain confirmée après 0.9.110** : le même `Minified React error #418` sur `HTML`, avec une longue chaîne `MessagePort`, reste observable et le rail droit NiakGPT ne se monte toujours pas.

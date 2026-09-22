@@ -21,7 +21,7 @@ try{
       {id:ids[3],title:'Missing D',projectId:P,updated:now-1000}
     ];
     const archived=(id,title,updated)=>({
-      schema:1,id,title,updated,capturedAt:new Date(now-5000+updated).toISOString(),parts:1,messages:2,
+      schema:1,id,title,updated,capturedAt:new Date(updated).toISOString(),parts:1,messages:2,
       canonicalHash:'hash-'+id,bootstrapMetadataOnly:false,historyPartial:false,complete:true,captureSource:'backend'
     });
     const cache={

@@ -90,7 +90,7 @@ for(const file of staticRuntime.slice(1)){
 }
 if(!fs.existsSync('visual-lab/hydration-barrier-v080.mjs'))fail('SSR hydration barrier browser gate missing');
 const hydrationLab=read('visual-lab/hydration-barrier-v080.mjs');
-for(const token of ["const BOOT='boot-gate-v100.js'",'manifestOrderedSource','MessageChannel','data-build="prod-hydration-lab"','__reactRouterContext','__reactContainer$lab','__reactFiber$lab','hydratedBeforeReactOwnership','zero pre-hydration DOM mutation','full-document React ownership','first false-calm scheduler window','late MessagePort hydration settled'])need(hydrationLab,token,'full-document React hydration lab incomplete');
+for(const token of ["const BOOT='boot-gate-v100.js'",'manifestOrderedSource','MessageChannel','data-build="prod-hydration-lab"','__reactRouterContext','String.fromCharCode(36)','__reactContainer','__reactFiber','hydratedBeforeReactOwnership','zero pre-hydration DOM mutation','full-document React ownership','first false-calm scheduler window','late MessagePort hydration settled'])need(hydrationLab,token,'full-document React hydration lab incomplete');
 
 
 const parallel=read('composer-continuation-v128.js');

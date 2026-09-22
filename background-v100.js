@@ -189,6 +189,8 @@ async function probeReactHydration(tabId,frameId){
         const current=container?.stateNode?.current||container;
         const candidates=[container,current,container?.alternate,current?.alternate].filter(Boolean);
         const rootSettled=candidates.some(fiber=>fiber?.memoizedState&&fiber.memoizedState.isDehydrated===false);
+        const htmlOwned=owned(document.documentElement);
+        const bodyOwned=owned(document.body);
         const identities=[
           document.querySelector('nav[aria-label*="Historique de chat" i],nav[aria-label*="Chat history" i],nav,aside'),
           document.querySelector('main'),
@@ -199,6 +201,9 @@ async function probeReactHydration(tabId,frameId){
         return {
           fullDocument:!!(document.documentElement?.hasAttribute('data-build')||window.__reactRouterContext),
           rootSettled,
+          htmlOwned,
+          bodyOwned,
+          documentRootOwned:htmlOwned&&bodyOwned,
           needed,
           ownedCount
         };
@@ -215,7 +220,7 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
   const type=message?.type;
   const tabId=sender.tab?.id;
   const frameId=Number.isInteger(sender.frameId)?sender.frameId:0;
-  if(type==='niakgpt:probe-react-hydration-v106'){
+  if(type==='niakgpt:probe-react-hydration-v107'){
     if(!Number.isInteger(tabId)){sendResponse({ok:false,error:'missing_tab_id'});return;}
     probeReactHydration(tabId,frameId).then(sendResponse).catch(error=>sendResponse({ok:false,error:String(error?.message||error)}));
     return true;

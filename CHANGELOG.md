@@ -1,3 +1,15 @@
+# NiakGPT 0.9.105 — zéro influence avant hydratation + HostRoot réellement terminé
+
+- **Le 0.9.104 n’a pas suffi sur le terrain** : l’erreur React #418 persistait après la barrière par clés internes.
+- **Deux angles morts identifiés** :
+  1. les clés `__reactContainer$…` / `__reactFiber$…` apparaissent avant la fin effective de l’hydratation ;
+  2. 34 feuilles CSS NiakGPT étaient encore injectées à `document_start`, donc pouvaient modifier la mise en page avant l’hydratation client alors même que le JavaScript était correctement retenu.
+- **HostRoot réel** : le gate n’accepte plus la simple présence des clés React ; il exige `memoizedState.isDehydrated === false` sur le HostRoot et des fibres hôtes présentes.
+- **CSS différé** : le manifest ne contient plus aucun `content_scripts[].css`. `STYLE_RUNTIME` est injecté par le service worker uniquement après réussite du gate, juste avant les scripts runtime.
+- **Packaging corrigé** : le builder inclut explicitement `STYLE_RUNTIME` dans le ZIP afin que le déplacement hors manifest ne puisse pas perdre des feuilles CSS.
+- **Régression ciblée** : le lab installe d’abord les clés React avec `isDehydrated:true` et vérifie que NiakGPT reste totalement absent ; il ne peut démarrer qu’après passage à `isDehydrated:false`.
+- **Frontière complète** : avant hydratation validée, NiakGPT n’injecte ni nœud, ni attribut `data-ng*`, ni feuille CSS.
+
 # NiakGPT 0.9.104 — fusible d’hydratation React full-document
 
 - **Régression terrain reproduite** : ChatGPT remontait `Minified React error #418` avec une pile terminant sur `body/html` et une longue activité `MessagePort`. Cela caractérise une hydratation React qui continue alors que le DOM peut sembler stable.

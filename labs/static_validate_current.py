@@ -63,7 +63,7 @@ boot_gate=read('boot-gate-v100.js')
 for token in ('reactHydrationOwned','waitReactHydrationOwnership','waitTrustedHydratedInteraction','REACT_OWNER_RX','data-build','hydrationFault','ng100HydrationProof'):
     if token not in boot_gate: fail('full-document React hydration fuse incomplete '+token)
 hydration_lab=read('visual-lab/hydration-barrier-v080.mjs')
-for token in ('prod-hydration-lab','__reactRouterContext','__reactContainer$lab','__reactFiber$lab','hydratedBeforeReactOwnership','zero pre-hydration DOM mutation','full-document React ownership'):
+for token in ('prod-hydration-lab','__reactRouterContext','String.fromCharCode(36)','__reactContainer','__reactFiber','hydratedBeforeReactOwnership','zero pre-hydration DOM mutation','full-document React ownership'):
     if token not in hydration_lab: fail('React 418 regression lab incomplete '+token)
 css_runtime=[file for cs in manifest.get('content_scripts',[]) for file in cs.get('css',[])]
 if 'ux-v131.css' not in css_runtime: fail('v131 visual authority missing from manifest')

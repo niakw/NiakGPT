@@ -725,6 +725,26 @@
     return readFileWith(token, config, relativePath);
   }
 
+  async function listDirectoryWith(token, config, relativePath) {
+    const meta = await verifyPrivateRepo(token, config.repo);
+    const path = joinRoot(config.root, relativePath);
+    const data = await github(token, `/repos/${config.repo}/contents/${path.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(config.branch)}`);
+    if (!Array.isArray(data)) throw new Error('memory_path_not_directory');
+    const items = data.map(item => ({
+      name: clean(item?.name),
+      path: clean(item?.path),
+      type: clean(item?.type),
+      sha: clean(item?.sha)
+    })).filter(item => item.name && item.type);
+    return { items, repoPrivate: meta.private === true };
+  }
+
+  async function listDirectory(config, relativePath) {
+    const token = await tokenForConfig(config);
+    if (!token) throw new Error('github_token_missing');
+    return listDirectoryWith(token, config, relativePath);
+  }
+
   async function commitFilesWith(token, config, files, message, retry = 0) {
     await verifyPrivateRepo(token, config.repo);
     if (!Array.isArray(files) || !files.length || files.length > MAX_FILES) throw new Error('invalid_memory_file_batch');
@@ -971,6 +991,12 @@
         if (type === 'niakgpt:memory-github-logout-v132') return logoutGitHubApp();
         if (type === 'niakgpt:memory-chatgpt-probe-v132') return chatgptMemoryProbe();
         if (type === 'niakgpt:memory-chatgpt-fetch-v132') return chatgptMemoryGet(message.path);
+        if (type === 'niakgpt:memory-list-v132') {
+          const config = await readConfig();
+          if (!config?.enabled) throw new Error('project_memory_not_configured');
+          const result = await listDirectory(config, message.path);
+          return { ok: true, ...result };
+        }
         if (type === 'niakgpt:memory-read-v132') {
           const config = await readConfig();
           if (!config?.enabled) throw new Error('project_memory_not_configured');
@@ -1012,7 +1038,8 @@
       launchIdentityFlow,
       launchManifestRegistrationTab,
       chatgptMemoryGet,
-      chatgptMemoryProbe
+      chatgptMemoryProbe,
+      listDirectoryWith
     };
   }
 })();

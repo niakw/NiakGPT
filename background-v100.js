@@ -206,14 +206,14 @@ async function probeReactHydration(tabId,frameId){
           document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')
         ].filter(Boolean);
         const container=containerFiber();
-        const containerCurrent=container?.stateNode?.current||container;
+        const containerCurrent=container?.stateNode?.current||null;
+        const containerRoot=containerCurrent?.tag===3?containerCurrent:container?.tag===3?container:null;
         const ownerNodes=[document.documentElement,document.body,...identities].filter(Boolean);
         const fiberRoot=ownerNodes.map(ownerFiber).map(rootFromFiber).find(Boolean)||null;
-        const primaryRoot=containerCurrent||fiberRoot||container||null;
-        const candidates=[primaryRoot,primaryRoot?.alternate,container,container?.alternate,fiberRoot,fiberRoot?.alternate].filter(Boolean);
-        const rootFound=candidates.some(fiber=>fiber?.tag===3||fiber?.stateNode?.current?.tag===3);
-        const rootSettled=candidates.some(fiber=>fiber?.memoizedState&&fiber.memoizedState.isDehydrated===false);
-        const rootDehydrated=candidates.some(fiber=>fiber?.memoizedState&&fiber.memoizedState.isDehydrated===true);
+        const authoritativeRoot=containerRoot||fiberRoot||null;
+        const rootFound=!!authoritativeRoot;
+        const rootSettled=authoritativeRoot?.memoizedState?.isDehydrated===false;
+        const rootDehydrated=authoritativeRoot?.memoizedState?.isDehydrated===true;
         const htmlOwned=hostOwned(document.documentElement);
         const bodyOwned=hostOwned(document.body);
         const needed=Math.min(2,identities.length);
@@ -221,7 +221,7 @@ async function probeReactHydration(tabId,frameId){
         return {
           containerFound:!!container,
           rootFound,
-          rootSource:containerCurrent?'container':fiberRoot?'fiber-owner':'none',
+          rootSource:containerRoot?'container':fiberRoot?'fiber-owner':'none',
           rootSettled,
           rootDehydrated,
           htmlOwned,

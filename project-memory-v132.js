@@ -464,6 +464,10 @@
     const unresolved=()=>list.filter(p => p.count > 0 && (!p.indexed || Number(p.count||0) > (p.chats||[]).length));
     if (!unresolved().length) return list;
     await state({ mode:'preparing', inventoryPending:unresolved().length, projectDone:0, projectTotal:list.length, error:'' });
+    // The active-chat path can archive every conversation already known to the cache through
+    // the isolated extension worker. Server inventory repair still belongs to the page broker
+    // and remains quarantined on the current chat; the unresolved Project IDs stay queued.
+    if(conversationPage()&&await backgroundHistoryProbe(false))return list;
     if (!await waitIdle(15000)) return list;
     const missing=unresolved().map(p=>p.id);
     document.dispatchEvent(new CustomEvent('niakgpt:force-server-index', { detail:{ source:'project-memory-v132',memoryBootstrap:true,projectIds:missing } }));
@@ -906,19 +910,35 @@
 
   async function syncNow(options={}) {
     const force=options.force===true;
-    if(conversationPage()||document.documentElement.dataset.ng90PeerBusy==='1'){
+    if(document.documentElement.dataset.ng90PeerBusy==='1'){
       const pending=await primeBootstrapQueue(force);
       try{
         const cached=await writeCachedBootstrap({force});
-        const dom=conversationPage()?await captureCurrentDomConversation(force):{ok:true,skipped:'peer-busy'};
-        await queuedState(conversationPage()?'conversation':'peer-busy');
-        schedule(backgroundDelay());
-        return {ok:true,cachedOnly:true,historyDeferred:true,domCaptured:dom?.captured===true,projects:cached.projects,files:cached.files,queuedProjects:pending.length};
+        await queuedState('peer-busy');schedule(backgroundDelay());
+        return {ok:true,cachedOnly:true,historyDeferred:true,projects:cached.projects,files:cached.files,queuedProjects:pending.length};
       }catch(error){
         const message='cached_bootstrap_write_failed:'+String(error?.message||error).slice(0,180);
         await state({mode:'error',error:message,queuedProjects:pending.length});
         return {ok:false,error:message,cachedOnly:true,historyDeferred:true};
       }
+    }
+    if(conversationPage()){
+      const pending=await primeBootstrapQueue(force);
+      let cached,dom;
+      try{
+        cached=await writeCachedBootstrap({force});
+        dom=await captureCurrentDomConversation(force);
+      }catch(error){
+        const message='cached_bootstrap_write_failed:'+String(error?.message||error).slice(0,180);
+        await state({mode:'error',error:message,queuedProjects:pending.length});
+        return {ok:false,error:message,cachedOnly:true,historyDeferred:true};
+      }
+      if(!await backgroundHistoryProbe(true)){
+        await queuedState('conversation');schedule(backgroundDelay());
+        return {ok:true,cachedOnly:true,historyDeferred:true,domCaptured:dom?.captured===true,projects:cached.projects,files:cached.files,queuedProjects:pending.length};
+      }
+      const full=await bootstrap({force,auto:false});
+      return {...full,domCaptured:dom?.captured===true,cachedBootstrapFiles:cached.files,queuedProjects:pending.length};
     }
     return bootstrap({force,auto:false});
   }
@@ -969,7 +989,8 @@
     if (area === 'local' && changes[QUEUE_KEY] && autoOwner()) resume();
   });
   document.addEventListener('niakgpt:activity-changed', event => {
-    if (event.detail?.active === true || busy(false)) { lastHumanAt=Date.now(); clearTimeout(autoTimer); schedule(backgroundDelay()); return; }
+    const allowConversation=conversationPage()&&backgroundHistoryAvailable===true;
+    if (event.detail?.active === true || busy(false,allowConversation)) { lastHumanAt=Date.now(); clearTimeout(autoTimer); schedule(backgroundDelay()); return; }
     scheduleDomCapture(650);
     schedule(backgroundDelay());
   });

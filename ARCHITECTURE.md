@@ -6,7 +6,7 @@ Un échec transitoire de `/backend-api/conversation/<id>` ne peut plus interromp
 
 Le chemin de stockage est une fonction de l’identité, jamais du titre ni de l’instant : `projects/<project-id>/conversations/<conversation-id>/part-NNN.md`. Une réimportation met donc à jour ces mêmes chemins dans l’arbre Git. L’historique Git conserve naturellement les anciennes révisions, mais l’état courant du coffre ne contient pas de second dossier pour la même conversation.
 
-Le checkpoint durable reste **par conversation** : une conversation réussie et l’index Project qui la marque `complete:true` sont validés ensemble avant de passer à la suivante. Les accélérations restent sous cette frontière de sûreté : chunks de transcript portés à 1 000 000 caractères pour réduire le nombre de blobs, création de blobs GitHub concurrente et bornée, et vérification « dépôt toujours privé » mise en cache 60 s pendant le transfert. Ainsi une erreur ultérieure ne rejoue pas les chats déjà commités.
+Le checkpoint durable reste **par conversation** : une conversation réussie et l’index Project qui la marque `complete:true` sont validés ensemble avant de passer à la suivante. Les accélérations restent sous cette frontière de sûreté : chunks de transcript portés à 1 000 000 caractères, contenu des fichiers injecté directement dans `Create Tree` en priorité afin d’éviter un appel `/git/blobs` par chunk, et vérification « dépôt toujours privé » mise en cache 5 minutes pendant le transfert. Ainsi une erreur ultérieure ne rejoue pas les chats déjà commités.
 
 ## Invariant architecture 0.9.116 — un chat durable vaut un checkpoint durable
 

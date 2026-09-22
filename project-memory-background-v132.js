@@ -15,7 +15,12 @@
   const MAX_REF_RETRIES = 8;
   const MAX_REF_BACKOFF_MS = 3000;
   const WORKER_ERROR_KEY = 'niakgpt-worker-errors-v100';
+  const CHATGPT_ORIGIN = 'https://chatgpt.com';
+  const CHATGPT_CONVERSATION_RX = /^\\/backend-api\\/conversation\\/[A-Za-z0-9_-]+$/;
+  const CHATGPT_TOKEN_TTL_MS = 90 * 1000;
   let commitTail = Promise.resolve();
+  let chatgptAccessToken = '';
+  let chatgptAccessTokenAt = 0;
 
   const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
   function queueCommit(work) {
@@ -293,6 +298,57 @@
   async function tokenForConfig(config) {
     if (config?.authMode === 'github-app') return getGitHubAppToken();
     return getPatToken();
+  }
+
+  async function chatgptSessionToken(force = false) {
+    if (!force && chatgptAccessToken && Date.now() - chatgptAccessTokenAt < CHATGPT_TOKEN_TTL_MS) return chatgptAccessToken;
+    const response = await fetch(CHATGPT_ORIGIN + '/api/auth/session', {
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store',
+      headers: { Accept: 'application/json' }
+    });
+    if (!response.ok) throw new Error('chatgpt_session_http_' + response.status);
+    const data = await response.json();
+    const token = clean(data?.accessToken);
+    if (!token) throw new Error('chatgpt_session_token_missing');
+    chatgptAccessToken = token;
+    chatgptAccessTokenAt = Date.now();
+    return token;
+  }
+
+  async function chatgptMemoryGet(path, forceToken = false) {
+    const safePath = clean(path);
+    if (!CHATGPT_CONVERSATION_RX.test(safePath)) throw new Error('chatgpt_memory_path_not_allowed');
+    const token = await chatgptSessionToken(forceToken);
+    const response = await fetch(CHATGPT_ORIGIN + safePath, {
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store',
+      headers: {
+        Accept: 'application/json',
+        Authorization: 'Bearer ' + token
+      }
+    });
+    if (response.status === 401 && !forceToken) {
+      chatgptAccessToken = '';
+      chatgptAccessTokenAt = 0;
+      return chatgptMemoryGet(safePath, true);
+    }
+    const text = await response.text();
+    let data = null;
+    if (text) { try { data = JSON.parse(text); } catch { data = text; } }
+    if (!response.ok) {
+      const error = new Error('chatgpt_memory_http_' + response.status);
+      error.status = response.status;
+      throw error;
+    }
+    return { ok: true, status: response.status, data, transport: 'extension-background' };
+  }
+
+  async function chatgptMemoryProbe() {
+    await chatgptSessionToken(false);
+    return { ok: true, authenticated: true, transport: 'extension-background' };
   }
 
   async function directGitHubJson(url, init = {}) {
@@ -913,6 +969,8 @@
         if (type === 'niakgpt:memory-github-repositories-v132') return { ok: true, ...(await refreshGitHubRepositories()) };
         if (type === 'niakgpt:memory-github-connect-repo-v132') return connectGitHubRepository(message);
         if (type === 'niakgpt:memory-github-logout-v132') return logoutGitHubApp();
+        if (type === 'niakgpt:memory-chatgpt-probe-v132') return chatgptMemoryProbe();
+        if (type === 'niakgpt:memory-chatgpt-fetch-v132') return chatgptMemoryGet(message.path);
         if (type === 'niakgpt:memory-read-v132') {
           const config = await readConfig();
           if (!config?.enabled) throw new Error('project_memory_not_configured');
@@ -952,7 +1010,9 @@
       validateStateRedirect,
       pkceChallenge,
       launchIdentityFlow,
-      launchManifestRegistrationTab
+      launchManifestRegistrationTab,
+      chatgptMemoryGet,
+      chatgptMemoryProbe
     };
   }
 })();

@@ -6,7 +6,7 @@
   <p>Projects · performance des longs fils · continuité · navigation · productivité ciblée</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.112-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.113-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,15 +21,15 @@
 NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT en **véritable espace de travail pour un usage intensif et organisé par Projects**, sans remplacer ChatGPT.
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
-> **Version actuelle : 0.9.112.** L’hydratation React est vérifiée dans le **monde MAIN**, puis NiakGPT attend la **stabilité structurelle des nœuds hôtes** au lieu d’exiger le silence global du DOM. HostRoot courant settled, identités `nav/main/composer` stables, passages idle, frames et revalidation finale HostRoot/ownership restent nécessaires ; l’activité normale des messages/attributs ne peut plus bloquer le rail indéfiniment.
+> **Version actuelle : 0.9.113.** Le démarrage revient au modèle terrain éprouvé de 0.9.81/0.9.103 après que 0.9.104–0.9.112 ont rendu tout le boot dépendant d’internals React privés. Le JavaScript reste à `document_idle` ; le gate attend la stabilité des hôtes natifs, une fenêtre calme bornée, deux tours idle du scheduler et des frames, sans exiger de preuve HostRoot/Fiber.
 
 ## Points forts
 
 ### Démarrage protégé contre les erreurs d’hydratation
 
-La 0.9.112 conserve la frontière zéro-touch et rend la barrière scheduler tardive compatible avec une SPA continuellement active : **aucun CSS NiakGPT n’est déclaré comme content script statique**. Les 34 feuilles de style sont injectées uniquement après validation du gate d’hydratation, juste avant le runtime. Cela évite qu’un style NiakGPT puisse influencer le rendu client de ChatGPT pendant l’hydratation SSR.
+La 0.9.113 restaure la dernière frontière de démarrage réellement validée sur le terrain au lieu d’ajouter un nouvel heuristique basé sur React. Les styles NiakGPT sont de nouveau déclarés par le manifest à `document_start`, comme en 0.9.81–0.9.103, tandis que tout le JavaScript reste à `document_idle`.
 
-Le JavaScript NiakGPT ne s’exécute plus à `document_start` : le bootstrap démarre à `document_idle`, prouve le HostRoot courant et les identités hôtes React, puis **exige encore une identité hôte stable, deux tours idle du scheduler, plusieurs frames et une nouvelle preuve MAIN-world du HostRoot**, mais n’exige plus que tout le DOM ChatGPT cesse de muter. Cela protège des remounts tardifs `MessageChannel`/`MessagePort` sans bloquer sur l’activité normale de la SPA. Un `isDehydrated:true` explicite reste bloquant ; un HostRoot récupéré sans ce flag est accepté, mais ne contourne jamais cette barrière scheduler. Si les internals React privés ne sont pas lisibles, la même barrière déterministe du shell s’exécute avant le fallback par interaction utilisateur.
+Le gate attend le shell ChatGPT, des identités `nav/main/composer` stables, une fenêtre calme de 1,2 s, deux tours idle bornés du scheduler, plusieurs frames et une dernière vérification de stabilité des hôtes. Il **n’inspecte plus** `__reactContainer$…`, `__reactFiber$…`, HostRoot ou `isDehydrated`, et le service worker ne possède plus l’injection CSS différée. Une régression MV3 réelle vérifie désormais que le rail charge après des remplacements hôtes tardifs via `MessageChannel`, sans fabriquer d’internals React privés.
 
 ### Projects intégrés à ChatGPT
 
@@ -205,7 +205,7 @@ Une fixture verte ne remplace **jamais** une capture utilisateur réelle qui la 
 | [README.md](README.md) | README anglais |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture runtime et invariants de propriété |
 | [CHANGELOG.md](CHANGELOG.md) | Historique détaillé |
-| [RELEASE_NOTES_0.9.112.md](RELEASE_NOTES_0.9.112.md) | Résumé de la release courante |
+| [RELEASE_NOTES_0.9.113.md](RELEASE_NOTES_0.9.113.md) | Résumé de la release courante |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnostic et reprise |
 | [PRIVACY.md](PRIVACY.md) | Données locales et comportement réseau |
 | [SECURITY.md](SECURITY.md) | Modèle de sécurité et signalement |

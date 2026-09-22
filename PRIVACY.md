@@ -15,11 +15,11 @@ NiakGPT 0.9.105 conserve un **cœur local-first** et Project Memory v132, une sy
 
 ## Réveil de la file privée
 
-En 0.9.103, une file Project Memory persistante possède un heartbeat **strictement local** de 30 s. Le chat courant est d’abord copié depuis le DOM visible, sans lecture backend du broker de la page. Après une minute de calme, le service worker de l’extension peut compléter l’historique par un GET strictement limité à `/backend-api/conversation/<id>`. Le bearer ChatGPT obtenu via la session du navigateur reste uniquement en mémoire du worker, n’est ni journalisé ni persisté et n’est jamais envoyé au dépôt GitHub. Le broker réseau de la page conserve sa quarantaine du chat courant ; toute génération, vérification ou activité native suspend la reprise historique.
+Depuis 0.9.103, une file Project Memory persistante possède un heartbeat **strictement local** de 30 s. Le chat courant est d’abord copié depuis le DOM visible, sans lecture backend du broker de la page. Après une minute de calme, le service worker de l’extension peut compléter l’historique par un GET strictement limité à `/backend-api/conversation/<id>`. Le bearer ChatGPT obtenu via la session du navigateur reste uniquement en mémoire du worker, n’est ni journalisé ni persisté et n’est jamais envoyé au dépôt GitHub. Le broker réseau de la page conserve sa quarantaine du chat courant ; toute génération, vérification ou activité native suspend la reprise historique.
 
 ## Périmètre réseau
 
-Le manifest 0.9.102 déclare :
+Le manifest 0.9.105 déclare :
 
 ```text
 https://chatgpt.com/*
@@ -55,7 +55,7 @@ En fonctionnement normal, NiakGPT continue de refuser les `GET /backend-api/conv
 
 ### Exception Project Memory
 
-Après activation explicite de Project Memory, le bootstrap ou une synchronisation peut lire le payload complet d’une conversation afin d’en créer une copie privée durable. Cette exception est marquée `memoryBootstrap` et passe par le broker réseau unique. **Le chat courant n’est jamais lu par ce chemin** : sa sauvegarde immédiate provient du DOM visible et reste marquée partielle. Depuis un onglet hors chat, les lectures mémoire peuvent continuer à côté d’un autre chat visible seulement si ce peer est inactif ; un peer occupé, une génération, une vérification, une panne réseau ou le circuit de débit referment immédiatement l’exception. Les lectures complètes restent séquentielles et espacées.
+Après activation explicite de Project Memory, le bootstrap ou une synchronisation peut lire le payload complet d’une conversation afin d’en créer une copie privée durable. La sauvegarde immédiate du chat courant provient du DOM visible et reste marquée partielle. Pour compléter l’archive, Project Memory peut ensuite utiliser soit le broker réseau borné hors chat, soit le transport direct du service worker MV3 limité à `GET /backend-api/conversation/<id>`. Le bearer ChatGPT utilisé par ce dernier reste éphémère en mémoire du worker et n’est jamais écrit dans le coffre. Un peer occupé, une génération, une vérification, une panne réseau ou le circuit de débit suspendent la reprise. Les lectures complètes restent séquentielles et espacées.
 
 La connexion au coffre écrit d’abord son marqueur d’initialisation puis, **sans requête vers le backend ChatGPT**, écrit immédiatement depuis le cache local `PROJECTS.json` ainsi que `project.json`, `index.json` et `PROJECT_STATE.md` metadata-only pour les Projects connus. Elle crée en parallèle une **file persistante** pour compléter ensuite l’historique. Un seul onglet **visible et utilisable** exécute la file à la fois, protégé par un `navigator.locks` dédié à Project Memory. Le verrou n’est plus couplé au WORKER général : un onglet caché ne peut donc plus monopoliser la synchronisation en attendant indéfiniment de redevenir visible. Si l’onglet actif devient caché, la file reste persistante et la reprise se fait sur un onglet visible. Si un coffre est déjà connecté mais qu’aucune synchronisation réussie n’a encore été enregistrée, NiakGPT recrée automatiquement cette file au démarrage. Un Project reste aussi en file si son compteur connu est supérieur au nombre de chats effectivement présents dans le cache, même si son ancien flag serveur indique déjà `indexed:true`. La synchronisation est désormais strictement opportuniste : toute activité humaine ou native ChatGPT la met en pause, les GET en vol peuvent être annulés, et la reprise attend une fenêtre calme. Après le bootstrap, NiakGPT tente de ne relire que les conversations dont le timestamp d’activité a changé.
 

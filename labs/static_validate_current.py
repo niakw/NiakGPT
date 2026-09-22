@@ -79,14 +79,14 @@ expected_styles=[
 if style_runtime!=expected_styles: fail(f'deferred STYLE_RUNTIME drift: {style_runtime!r}')
 for token in ('chrome.scripting.insertCSS','async function injectStyles','STYLE_INJECTED','const styleFailure=await injectStyles(tabId,frameId)'):
     if token not in background: fail('post-hydration style injection incomplete '+token)
-for token in ('async function probeReactHydration','chrome.scripting.executeScript',"world:'MAIN'",'niakgpt:probe-react-hydration-v107','HOST_OWNER_RX','FIBER_RX','hostOwned','ownerFiber','rootFromFiber','rootFound','rootSource','rootSettled','rootDehydrated','htmlOwned','bodyOwned','documentRootOwned','ownedCount'):
+for token in ('async function probeReactHydration','chrome.scripting.executeScript',"world:'MAIN'",'niakgpt:probe-react-hydration-v107','HOST_OWNER_RX','FIBER_RX','hostOwned','ownerFiber','rootFromFiber','containerRoot','authoritativeRoot','rootFound','rootSource','rootSettled','rootDehydrated','htmlOwned','bodyOwned','documentRootOwned','ownedCount'):
     if token not in background: fail('MAIN-world React hydration probe incomplete '+token)
 if r"const OWNER_RX=/^__react(?:Fiber|Props|Container)\$.+/;" not in background: fail('MAIN-world React owner regex escaping invalid')
 if r"const HOST_OWNER_RX=/^__react(?:Fiber|Props)\$.+/;" not in background: fail('MAIN-world React host-owner regex escaping invalid')
 if r"const CONTAINER_RX=/^__reactContainer\$.+/;" not in background: fail('MAIN-world React container regex escaping invalid')
 if not (ROOT/'visual-lab/tests/hydration-fiber-root-v109.spec.js').exists(): fail('fiber-root hydration regression missing')
 fiber_root_hydration=read('visual-lab/tests/hydration-fiber-root-v109.spec.js')
-for token in ('__reactFiber','tag:3','isDehydrated:true','isDehydrated=false','react-fiber-root-settled','HYDRATION_FIBER_ROOT_CHECKPOINT PASS'):
+for token in ('__reactFiber','tag:3','staleAlternate','isDehydrated:true','isDehydrated=false','react-fiber-root-settled','HYDRATION_FIBER_ROOT_CHECKPOINT PASS'):
     if token not in fiber_root_hydration: fail('fiber-root hydration regression incomplete '+token)
 if not (ROOT/'visual-lab/tests/hydration-document-root-v107.spec.js').exists(): fail('document-root hydration regression missing')
 document_root_hydration=read('visual-lab/tests/hydration-document-root-v107.spec.js')
@@ -359,7 +359,7 @@ if 'niakgpt:probe-react-hydration-v107' not in live_stability_fixture: fail('liv
 if 'niakgpt:probe-react-hydration-v106' in live_stability_fixture: fail('live stability fixture still accepts superseded hydration probe v106')
 if live_stability.count('tests/hydration-isolated-world-v106.spec.js') < 2: fail('MAIN-world hydration regression must execute in Chromium and Brave stability jobs')
 if live_stability.count('tests/hydration-document-root-v107.spec.js') < 2: fail('document-root hydration regression must execute in Chromium and Brave stability jobs')
-if live_stability.count('tests/hydration-fiber-root-v109.spec.js') < 2: fail('fiber-root hydration regression must execute in Chromium and Brave stability jobs')
+if live_stability.count('tests/hydration-fiber-root-v109.spec.js') < 3: fail('fiber-root hydration regression must be tracked and execute in Chromium and Brave stability jobs')
 for token in ('background-v100.js','hydration-isolated-world-v106.spec.js','hydration-document-root-v107.spec.js','hydration-fiber-root-v109.spec.js','HYDRATION_MAIN_WORLD_CHECKPOINT PASS','HYDRATION_DOCUMENT_ROOT_CHECKPOINT PASS','HYDRATION_FIBER_ROOT_CHECKPOINT PASS','conversation-scroll-guard-v133.js','project-state-selfheal-v102.js','user-reported-v133.mjs','User-reported scroll + single Projects authority in Brave stable','/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'):
     if token not in live_stability: fail('Brave macOS field gate missing '+token)
 if re.search(r'^\s*npx playwright install --with-deps\b',workflow,re.M): fail('Linux Finalization reintroduced apt --with-deps')

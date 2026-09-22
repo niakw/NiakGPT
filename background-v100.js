@@ -170,10 +170,15 @@ async function probeReactHydration(tabId,frameId){
       world:'MAIN',
       func:()=>{
         const OWNER_RX=/^__react(?:Fiber|Props|Container)\$.+/;
+        const HOST_OWNER_RX=/^__react(?:Fiber|Props)\$.+/;
         const CONTAINER_RX=/^__reactContainer\$.+/;
         const owned=node=>{
           if(!node)return false;
           try{return Object.getOwnPropertyNames(node).some(key=>OWNER_RX.test(key));}catch{return false;}
+        };
+        const hostOwned=node=>{
+          if(!node)return false;
+          try{return Object.getOwnPropertyNames(node).some(key=>HOST_OWNER_RX.test(key));}catch{return false;}
         };
         const containerFiber=()=>{
           for(const node of [document,document.documentElement,document.body]){
@@ -189,6 +194,8 @@ async function probeReactHydration(tabId,frameId){
         const current=container?.stateNode?.current||container;
         const candidates=[container,current,container?.alternate,current?.alternate].filter(Boolean);
         const rootSettled=candidates.some(fiber=>fiber?.memoizedState&&fiber.memoizedState.isDehydrated===false);
+        const htmlOwned=hostOwned(document.documentElement);
+        const bodyOwned=hostOwned(document.body);
         const identities=[
           document.querySelector('nav[aria-label*="Historique de chat" i],nav[aria-label*="Chat history" i],nav,aside'),
           document.querySelector('main'),
@@ -199,6 +206,9 @@ async function probeReactHydration(tabId,frameId){
         return {
           fullDocument:!!(document.documentElement?.hasAttribute('data-build')||window.__reactRouterContext),
           rootSettled,
+          htmlOwned,
+          bodyOwned,
+          documentRootOwned:htmlOwned&&bodyOwned,
           needed,
           ownedCount
         };
@@ -215,7 +225,7 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
   const type=message?.type;
   const tabId=sender.tab?.id;
   const frameId=Number.isInteger(sender.frameId)?sender.frameId:0;
-  if(type==='niakgpt:probe-react-hydration-v106'){
+  if(type==='niakgpt:probe-react-hydration-v107'){
     if(!Number.isInteger(tabId)){sendResponse({ok:false,error:'missing_tab_id'});return;}
     probeReactHydration(tabId,frameId).then(sendResponse).catch(error=>sendResponse({ok:false,error:String(error?.message||error)}));
     return true;

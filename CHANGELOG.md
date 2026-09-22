@@ -1,3 +1,13 @@
+# NiakGPT 0.9.107 — ownership HTML/BODY avant toute mutation
+
+- **Régression terrain encore présente après 0.9.106** : ChatGPT remonte toujours `Minified React error #418` avec `args[]=HTML`.
+- **Angle mort identifié** : le probe MAIN-world validait un HostRoot `isDehydrated === false` et au moins deux nœuds fonctionnels (`nav/main/composer`), mais ne vérifiait pas que React avait déjà revendiqué la racine document elle-même.
+- **Cause corrigée au bon niveau** : sur le renderer full-document, NiakGPT exige désormais l’ownership React explicite de `<html>` **et** `<body>`, en plus du HostRoot stabilisé et des nœuds hôtes, puis reconfirme cette preuve après deux frames.
+- **Frontière zéro-touch renforcée** : tant que HTML/BODY ne sont pas possédés par React, aucun `data-ng*`, aucune classe NiakGPT, aucun CSS et aucun shell NiakGPT ne sont autorisés.
+- **Non-régression MV3 réelle** : `hydration-document-root-v107.spec.js` simule le cas exact où le HostRoot et `nav/main/composer` paraissent prêts plusieurs secondes avant HTML/BODY ; le test exige zéro mutation pendant cette fenêtre puis un démarrage normal après ownership document-root.
+- **Chromium + Brave** : cette régression est branchée dans les deux jobs Live Stability et possède un checkpoint dédié `HYDRATION_DOCUMENT_ROOT_CHECKPOINT PASS`.
+- **Fallback conservé** : si l’ownership document-root ne peut pas être prouvé, NiakGPT reste fermé jusqu’à une interaction native fiable plutôt que de deviner un délai.
+
 # NiakGPT 0.9.106 — probe React MAIN-world + reprise fiable de la sidebar
 
 - **Régression terrain après 0.9.105** : la sidebar NiakGPT pouvait rester absente alors que ChatGPT lui-même continuait à fonctionner.

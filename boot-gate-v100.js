@@ -77,7 +77,7 @@
   }
   async function mainWorldReactProbe(){
     try{
-      const probe=await chrome.runtime.sendMessage({type:'niakgpt:probe-react-hydration-v106'});
+      const probe=await chrome.runtime.sendMessage({type:'niakgpt:probe-react-hydration-v107'});
       return probe&&typeof probe==='object'?probe:{ok:false,error:'invalid_main_world_probe'};
     }catch(error){
       remember('HYDRATION-PROBE',error);
@@ -92,13 +92,13 @@
         if(probe.fullDocument===false){hydrationProof='main-world-legacy-host';return true;}
         const needed=Math.max(0,Number(probe.needed||0));
         const ownedCount=Math.max(0,Number(probe.ownedCount||0));
-        if(probe.rootSettled===true&&needed>0&&ownedCount>=needed){
+        if(probe.rootSettled===true&&probe.documentRootOwned===true&&needed>0&&ownedCount>=needed){
           await nextFrames();
           const confirm=await mainWorldReactProbe();
           const confirmNeeded=Math.max(0,Number(confirm?.needed||0));
           const confirmOwned=Math.max(0,Number(confirm?.ownedCount||0));
-          if(confirm?.ok&&confirm.rootSettled===true&&confirmNeeded>0&&confirmOwned>=confirmNeeded){
-            hydrationProof=hydrationFault?'react-main-world-settled-after-host-fault':'react-main-world-settled';
+          if(confirm?.ok&&confirm.rootSettled===true&&confirm.documentRootOwned===true&&confirmNeeded>0&&confirmOwned>=confirmNeeded){
+            hydrationProof=hydrationFault?'react-document-root-settled-after-host-fault':'react-document-root-settled';
             return true;
           }
         }

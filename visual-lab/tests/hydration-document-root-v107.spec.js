@@ -13,9 +13,6 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function closePersistentContext(context){
   const braveMac=!!EXECUTABLE&&process.platform==='darwin';
   if(!braveMac){await context.close().catch(()=>{});return;}
-  // Playwright can hang while closing a persistent Brave profile on macOS even
-  // after every functional assertion passed. Terminate the isolated CI Brave
-  // process first, then let Playwright observe the disconnect.
   for(const signal of ['-TERM','-KILL']){
     try{execFileSync('/usr/bin/pkill',[signal,'-f','Brave Browser'],{stdio:'ignore'});}catch{}
     await sleep(signal==='-TERM'?350:120);
@@ -24,8 +21,8 @@ async function closePersistentContext(context){
   await Promise.race([context.close().catch(()=>{}),sleep(1500)]);
 }
 
-test('real MV3 boot reads React hydration from MAIN world without user interaction',async()=>{
-  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'niakgpt-hydration-main-world-'));
+test('NiakGPT does not mutate HTML before React owns the document root',async()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'niakgpt-document-root-hydration-'));
   const launchOptions={
     headless:HEADLESS,
     viewport:{width:1280,height:820},
@@ -44,24 +41,52 @@ test('real MV3 boot reads React hydration from MAIN world without user interacti
         return route.fulfill({
           status:200,
           contentType:'text/html; charset=utf-8',
-          body:`<!doctype html><html lang="fr" data-build="prod-main-world-probe"><head><title>NiakGPT hydration isolation</title></head><body>
+          body:`<!doctype html><html lang="fr" data-build="prod-document-root-probe"><head><title>NiakGPT document root hydration</title></head><body>
             <nav aria-label="Historique de chat"><a href="/">Nouveau chat</a><div>Projects</div></nav>
             <main><article><div data-message-author-role="assistant">Fixture</div></article>
               <form><div id="prompt-textarea" data-testid="prompt-textarea" contenteditable="true"></div><button type="button" aria-label="Envoyer">Envoyer</button></form>
             </main>
             <script>
               window.__reactRouterContext={streamController:{closed:true}};
+              window.__documentRootClaimed=false;
+              window.__earlyNiakMutation=false;
+              const niakNode=node=>node instanceof Element && (/^ng/i.test(node.id||'') || [...node.attributes].some(a=>/^data-ng/i.test(a.name)));
+              const observer=new MutationObserver(records=>{
+                if(window.__documentRootClaimed)return;
+                for(const record of records){
+                  if(record.type==='attributes'){
+                    const name=String(record.attributeName||'');
+                    if(/^data-ng/i.test(name) || (record.target===document.body&&name==='class'&&/\\bng/i.test(document.body.className))){
+                      window.__earlyNiakMutation=true;
+                    }
+                  }
+                  for(const node of record.addedNodes||[]){
+                    if(niakNode(node) || (node instanceof Element&&node.querySelector?.('[id^="ng"],[data-ng8],[data-ng90],[data-ng100],[data-ng119],[data-ng123],[data-ng128],[data-ng129]'))){
+                      window.__earlyNiakMutation=true;
+                    }
+                  }
+                }
+              });
+              observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true});
+
               const dollar=String.fromCharCode(36);
               const rootFiber={memoizedState:{isDehydrated:true},stateNode:{current:null}};
               rootFiber.stateNode.current=rootFiber;
               Object.defineProperty(document,'__reactContainer'+dollar+'page',{value:rootFiber,configurable:true});
-              for(const node of [document.documentElement,document.body,document.querySelector('nav'),document.querySelector('main'),document.getElementById('prompt-textarea')]){
+              for(const node of [document.querySelector('nav'),document.querySelector('main'),document.getElementById('prompt-textarea')]){
                 if(node)Object.defineProperty(node,'__reactFiber'+dollar+'page',{value:{memoizedState:{}},configurable:true});
               }
               setTimeout(()=>{
                 rootFiber.memoizedState.isDehydrated=false;
                 document.documentElement.dataset.hostRootSettled='1';
-              },900);
+              },700);
+              setTimeout(()=>{
+                for(const node of [document.documentElement,document.body]){
+                  Object.defineProperty(node,'__reactFiber'+dollar+'page',{value:{memoizedState:{}},configurable:true});
+                }
+                window.__documentRootClaimed=true;
+                document.documentElement.dataset.documentRootClaimed='1';
+              },6500);
             <\/script>
           </body></html>`
         });
@@ -73,26 +98,41 @@ test('real MV3 boot reads React hydration from MAIN world without user interacti
     });
 
     const page=context.pages()[0]||await context.newPage();
-    await page.goto('https://chatgpt.com/c/11111111-1111-4111-8111-111111111111',{waitUntil:'load',timeout:15000});
-    await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.hostRootSettled||''),{timeout:4000}).toBe('1');
+    await page.goto('https://chatgpt.com/c/22222222-2222-4222-8222-222222222222',{waitUntil:'load',timeout:15000});
+    await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.hostRootSettled||''),{timeout:3000}).toBe('1');
 
-    // No click/key/touch is performed: production boot must succeed from the service-worker
-    // MAIN-world probe, not from the trusted-interaction fallback.
-    await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.ng100HydrationProof||''),{timeout:15000})
+    await page.waitForTimeout(4300);
+    const beforeClaim=await page.evaluate(()=>({
+      claimed:window.__documentRootClaimed===true,
+      early:window.__earlyNiakMutation===true,
+      proof:document.documentElement.dataset.ng100HydrationProof||'',
+      rail:!!document.getElementById('ng8-rail'),
+      ready:document.body.classList.contains('ng8-ready')
+    }));
+    expect(beforeClaim.claimed).toBe(false);
+    expect(beforeClaim.early).toBe(false);
+    expect(beforeClaim.proof).toBe('');
+    expect(beforeClaim.rail).toBe(false);
+    expect(beforeClaim.ready).toBe(false);
+
+    await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.documentRootClaimed||''),{timeout:5000}).toBe('1');
+    await expect.poll(()=>page.evaluate(()=>document.documentElement.dataset.ng100HydrationProof||''),{timeout:12000})
       .toMatch(/^react-document-root-settled/);
     await expect(page.locator('#ng8-rail')).toBeAttached({timeout:10000});
 
-    const state=await page.evaluate(()=>({
+    const afterClaim=await page.evaluate(()=>({
+      early:window.__earlyNiakMutation===true,
       proof:document.documentElement.dataset.ng100HydrationProof||'',
       rail:!!document.getElementById('ng8-rail'),
-      pageContainer:Object.getOwnPropertyNames(document).some(k=>k.startsWith('__reactContainer$')),
-      pageNavFiber:Object.getOwnPropertyNames(document.querySelector('nav')).some(k=>k.startsWith('__reactFiber$'))
+      htmlFiber:Object.getOwnPropertyNames(document.documentElement).some(k=>k.startsWith('__reactFiber$')),
+      bodyFiber:Object.getOwnPropertyNames(document.body).some(k=>k.startsWith('__reactFiber$'))
     }));
-    expect(state.pageContainer).toBe(true);
-    expect(state.pageNavFiber).toBe(true);
-    expect(state.proof).toMatch(/^react-document-root-settled/);
-    expect(state.rail).toBe(true);
-    console.log('HYDRATION_MAIN_WORLD_CHECKPOINT PASS');
+    expect(afterClaim.early).toBe(false);
+    expect(afterClaim.htmlFiber).toBe(true);
+    expect(afterClaim.bodyFiber).toBe(true);
+    expect(afterClaim.proof).toMatch(/^react-document-root-settled/);
+    expect(afterClaim.rail).toBe(true);
+    console.log('HYDRATION_DOCUMENT_ROOT_CHECKPOINT PASS');
   }finally{
     await closePersistentContext(context);
     fs.rmSync(dir,{recursive:true,force:true});

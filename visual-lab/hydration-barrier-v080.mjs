@@ -30,8 +30,24 @@ for(const [name,launcher] of Object.entries(selected)){
       window.chrome={
         runtime:{
           id:'hydration-lab',
-          getManifest:()=>({version:'0.9.105'}),
-          sendMessage:async()=>({ok:true,errors:[]})
+          getManifest:()=>({version:'0.9.106'}),
+          sendMessage:async message=>{
+            if(message?.type==='niakgpt:probe-react-hydration-v106'){
+              const ownerRx=/^__react(?:Fiber|Props|Container)\\$.+/;
+              const containerRx=/^__reactContainer\\$.+/;
+              const identities=[document.querySelector('nav,aside'),document.querySelector('main'),document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')].filter(Boolean);
+              let container=null;
+              for(const node of [document,document.documentElement,document.body]){
+                const key=node&&Object.getOwnPropertyNames(node).find(name=>containerRx.test(name));
+                if(key&&node[key]){container=node[key];break;}
+              }
+              const current=container?.stateNode?.current||container;
+              const candidates=[container,current,container?.alternate,current?.alternate].filter(Boolean);
+              const needed=Math.min(2,identities.length);
+              return {ok:true,fullDocument:true,rootSettled:candidates.some(f=>f?.memoizedState?.isDehydrated===false),needed,ownedCount:identities.filter(node=>Object.getOwnPropertyNames(node).some(key=>ownerRx.test(key))).length};
+            }
+            return {ok:true,errors:[]};
+          }
         },
         storage:{
           local:{
@@ -189,4 +205,4 @@ for(const [name,launcher] of Object.entries(selected)){
   }
 }
 
-console.log('hydration-barrier-v080: PASS React root isDehydrated=false + bare-marker rejection + zero pre-hydration DOM mutation + late MessagePort host replacements');
+console.log('hydration-barrier-v080: PASS MAIN-world React root isDehydrated=false + bare-marker rejection + zero pre-hydration DOM mutation + late MessagePort host replacements');

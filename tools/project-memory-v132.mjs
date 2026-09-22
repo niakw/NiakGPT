@@ -316,6 +316,7 @@ assert.match(runtime, /ensureBootstrapQueued/);
 assert.match(runtime, /queuedProjects/);
 assert.match(runtime, /changes\[QUEUE_KEY\]/);
 assert.match(runtime, /historyCompletedAt/);
+assert.match(runtime, /historyQueueSchema/);
 assert.match(runtime, /historyCacheSignature/);
 assert.match(runtime, /conversationPage/);
 assert.match(runtime, /ng90PeerBusy/);

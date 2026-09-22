@@ -6,7 +6,7 @@
   <p>Projects · performance des longs fils · continuité · navigation · productivité ciblée</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.100-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.101-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,7 +21,7 @@
 NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT en **véritable espace de travail pour un usage intensif et organisé par Projects**, sans remplacer ChatGPT.
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
-> **Version actuelle : 0.9.100.** La géométrie terrain remonte maintenant jusqu’au shell gauche englobant même lorsqu’il s’agit d’un `div` non étiqueté et que ChatGPT n’expose qu’un `nav/aside` interne étroit : le bloc Projects ne peut plus rester coincé dans la moitié droite. L’index canonique et les classifieurs normal/profond se réveillent aussi explicitement après une navigation SPA hors conversation.
+> **Version actuelle : 0.9.101.** Project Memory préserve désormais les vraies archives, capture directement depuis le DOM le chat Project actuellement affiché sans aucun trafic backend ChatGPT, et peut terminer l’historique depuis un onglet hors chat à côté d’une conversation inactive. Les noms Projects pollués par les métadonnées NiakGPT sont normalisés avant le cache et le coffre privé.
 
 ## Points forts
 

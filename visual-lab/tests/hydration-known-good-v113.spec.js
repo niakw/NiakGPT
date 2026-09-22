@@ -106,24 +106,24 @@ test('field-proven scheduler barrier boots without private React internals',asyn
     await page.waitForFunction(()=>document.documentElement.dataset.lateHydrationStage==='1',null,{timeout:5000});
     const stage1=await page.evaluate(()=>({
       rail:!!document.getElementById('ng8-rail'),
-      hydrated:window.__NIAKGPT_HOST_HYDRATED_100__===true,
       early:window.__earlyNiakMutation===true,
       nav:document.querySelector('nav')?.dataset.generation||''
     }));
-    expect(stage1).toEqual({rail:false,hydrated:false,early:false,nav:'react-1'});
+    expect(stage1).toEqual({rail:false,early:false,nav:'react-1'});
 
     await page.waitForFunction(()=>document.documentElement.dataset.lateHydrationStage==='2',null,{timeout:6000});
     const stage2=await page.evaluate(()=>({
       rail:!!document.getElementById('ng8-rail'),
-      hydrated:window.__NIAKGPT_HOST_HYDRATED_100__===true,
       early:window.__earlyNiakMutation===true,
       nav:document.querySelector('nav')?.dataset.generation||'',
       main:document.querySelector('main')?.dataset.generation||''
     }));
-    expect(stage2).toEqual({rail:false,hydrated:false,early:false,nav:'react-2',main:'react-2'});
+    expect(stage2).toEqual({rail:false,early:false,nav:'react-2',main:'react-2'});
 
-    await expect.poll(()=>page.evaluate(()=>window.__NIAKGPT_HOST_HYDRATED_100__===true),{timeout:15000}).toBe(true);
-    await expect(page.locator('#ng8-rail')).toBeAttached({timeout:12000});
+    // page.evaluate() executes in MAIN world while the MV3 content script runs in the
+    // isolated world, so its window globals are intentionally not observable here.
+    // The shared DOM is the user-visible authority: require the actual rail.
+    await expect(page.locator('#ng8-rail')).toBeAttached({timeout:15000});
     const final=await page.evaluate(()=>({
       rail:!!document.getElementById('ng8-rail'),
       nav:document.querySelector('nav')?.dataset.generation||'',

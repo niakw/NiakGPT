@@ -171,41 +171,59 @@ async function probeReactHydration(tabId,frameId){
       func:()=>{
         const OWNER_RX=/^__react(?:Fiber|Props|Container)\$.+/;
         const HOST_OWNER_RX=/^__react(?:Fiber|Props)\$.+/;
+        const FIBER_RX=/^__reactFiber\$.+/;
         const CONTAINER_RX=/^__reactContainer\$.+/;
-        const owned=node=>{
-          if(!node)return false;
-          try{return Object.getOwnPropertyNames(node).some(key=>OWNER_RX.test(key));}catch{return false;}
+        const keys=node=>{
+          if(!node)return[];
+          try{return Object.getOwnPropertyNames(node);}catch{return[];}
         };
-        const hostOwned=node=>{
-          if(!node)return false;
-          try{return Object.getOwnPropertyNames(node).some(key=>HOST_OWNER_RX.test(key));}catch{return false;}
+        const owned=node=>keys(node).some(key=>OWNER_RX.test(key));
+        const hostOwned=node=>keys(node).some(key=>HOST_OWNER_RX.test(key));
+        const ownerFiber=node=>{
+          if(!node)return null;
+          const key=keys(node).find(name=>FIBER_RX.test(name));
+          try{return key&&node[key]?node[key]:null;}catch{return null;}
+        };
+        const rootFromFiber=fiber=>{
+          let cursor=fiber,steps=0;
+          while(cursor&&steps++<256){
+            if(cursor.tag===3)return cursor;
+            cursor=cursor.return||null;
+          }
+          return null;
         };
         const containerFiber=()=>{
           for(const node of [document,document.documentElement,document.body]){
             if(!node)continue;
-            try{
-              const key=Object.getOwnPropertyNames(node).find(name=>CONTAINER_RX.test(name));
-              if(key&&node[key])return node[key];
-            }catch{}
+            const key=keys(node).find(name=>CONTAINER_RX.test(name));
+            try{if(key&&node[key])return node[key];}catch{}
           }
           return null;
         };
-        const container=containerFiber();
-        const current=container?.stateNode?.current||container;
-        const candidates=[container,current,container?.alternate,current?.alternate].filter(Boolean);
-        const rootSettled=candidates.some(fiber=>fiber?.memoizedState&&fiber.memoizedState.isDehydrated===false);
-        const htmlOwned=hostOwned(document.documentElement);
-        const bodyOwned=hostOwned(document.body);
         const identities=[
           document.querySelector('nav[aria-label*="Historique de chat" i],nav[aria-label*="Chat history" i],nav,aside'),
           document.querySelector('main'),
           document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')
         ].filter(Boolean);
+        const container=containerFiber();
+        const containerCurrent=container?.stateNode?.current||null;
+        const containerRoot=containerCurrent?.tag===3?containerCurrent:container?.tag===3?container:null;
+        const ownerNodes=[document.documentElement,document.body,...identities].filter(Boolean);
+        const fiberRoot=ownerNodes.map(ownerFiber).map(rootFromFiber).find(Boolean)||null;
+        const authoritativeRoot=containerRoot||fiberRoot||null;
+        const rootFound=!!authoritativeRoot;
+        const rootSettled=authoritativeRoot?.memoizedState?.isDehydrated===false;
+        const rootDehydrated=authoritativeRoot?.memoizedState?.isDehydrated===true;
+        const htmlOwned=hostOwned(document.documentElement);
+        const bodyOwned=hostOwned(document.body);
         const needed=Math.min(2,identities.length);
         const ownedCount=identities.filter(owned).length;
         return {
           containerFound:!!container,
+          rootFound,
+          rootSource:containerRoot?'container':fiberRoot?'fiber-owner':'none',
           rootSettled,
+          rootDehydrated,
           htmlOwned,
           bodyOwned,
           documentRootOwned:htmlOwned&&bodyOwned,

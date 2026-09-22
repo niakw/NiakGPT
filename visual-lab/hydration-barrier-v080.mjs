@@ -30,11 +30,12 @@ for(const [name,launcher] of Object.entries(selected)){
       window.chrome={
         runtime:{
           id:'hydration-lab',
-          getManifest:()=>({version:'0.9.108'}),
+          getManifest:()=>({version:'0.9.109'}),
           sendMessage:async message=>{
             if(message?.type==='niakgpt:probe-react-hydration-v107'){
               const ownerRx=/^__react(?:Fiber|Props|Container)\$.+/;
               const hostOwnerRx=/^__react(?:Fiber|Props)\$.+/;
+              const fiberRx=/^__reactFiber\$.+/;
               const containerRx=/^__reactContainer\$.+/;
               const identities=[document.querySelector('nav,aside'),document.querySelector('main'),document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')].filter(Boolean);
               let container=null;
@@ -43,11 +44,14 @@ for(const [name,launcher] of Object.entries(selected)){
                 if(key&&node[key]){container=node[key];break;}
               }
               const current=container?.stateNode?.current||container;
-              const candidates=[container,current,container?.alternate,current?.alternate].filter(Boolean);
+              const ownerFiber=node=>{const key=node&&Object.getOwnPropertyNames(node).find(name=>fiberRx.test(name));return key&&node[key]||null;};
+              const rootFromFiber=fiber=>{let cursor=fiber,steps=0;while(cursor&&steps++<256){if(cursor.tag===3)return cursor;cursor=cursor.return||null;}return null;};
+              const fiberRoot=[document.documentElement,document.body,...identities].map(ownerFiber).map(rootFromFiber).find(Boolean)||null;
+              const candidates=[current,current?.alternate,container,container?.alternate,fiberRoot,fiberRoot?.alternate].filter(Boolean);
               const needed=Math.min(2,identities.length);
               const htmlOwned=Object.getOwnPropertyNames(document.documentElement).some(key=>hostOwnerRx.test(key));
               const bodyOwned=Object.getOwnPropertyNames(document.body).some(key=>hostOwnerRx.test(key));
-              return {ok:true,containerFound:!!container,rootSettled:candidates.some(f=>f?.memoizedState?.isDehydrated===false),htmlOwned,bodyOwned,documentRootOwned:htmlOwned&&bodyOwned,needed,ownedCount:identities.filter(node=>Object.getOwnPropertyNames(node).some(key=>ownerRx.test(key))).length};
+              return {ok:true,containerFound:!!container,rootFound:candidates.some(f=>f?.tag===3||f?.stateNode?.current?.tag===3),rootSource:current?'container':fiberRoot?'fiber-owner':'none',rootSettled:candidates.some(f=>f?.memoizedState?.isDehydrated===false),rootDehydrated:candidates.some(f=>f?.memoizedState?.isDehydrated===true),htmlOwned,bodyOwned,documentRootOwned:htmlOwned&&bodyOwned,needed,ownedCount:identities.filter(node=>Object.getOwnPropertyNames(node).some(key=>ownerRx.test(key))).length};
             }
             return {ok:true,errors:[]};
           }
@@ -102,11 +106,11 @@ for(const [name,launcher] of Object.entries(selected)){
               }
               if(tick===25){
                 const dollar=String.fromCharCode(36);
-                const rootFiber={memoizedState:{isDehydrated:true},stateNode:{current:null}};
+                const rootFiber={tag:3,memoizedState:{isDehydrated:true},stateNode:{current:null},return:null,alternate:null};
                 rootFiber.stateNode.current=rootFiber;
                 Object.defineProperty(document,'__reactContainer'+dollar+'lab',{value:rootFiber,configurable:true});
                 for(const node of [document.documentElement,document.body,document.querySelector('nav'),document.querySelector('main'),document.getElementById('prompt-textarea')]){
-                  if(node)Object.defineProperty(node,'__reactFiber'+dollar+'lab',{value:{memoizedState:{}},configurable:true});
+                  if(node)Object.defineProperty(node,'__reactFiber'+dollar+'lab',{value:{tag:5,memoizedState:{},return:rootFiber,alternate:null},configurable:true});
                 }
                 window.__hydratedAtReactMarkerOnly=window.__NIAKGPT_HOST_HYDRATED_100__===true;
                 document.documentElement.dataset.lateHydrationStage='markers-only';

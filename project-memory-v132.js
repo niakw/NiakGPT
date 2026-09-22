@@ -16,7 +16,7 @@
   const HUMAN_QUIET_MS = 60*1000;
   const WAKE_HEARTBEAT_MS = 30000;
   const GITHUB_AUTH_UI_TIMEOUT_MS = 6*60*1000;
-  let seq = 0, syncing = false, syncAuto = false, autoTimer = 0, wakeTimer = 0, routeTimer = 0, lastHistoryFetchAt = 0, lastHumanAt = Date.now();
+  let seq = 0, syncing = false, syncAuto = false, autoTimer = 0, wakeTimer = 0, routeTimer = 0, domCaptureTimer = 0, lastHistoryFetchAt = 0, lastHumanAt = Date.now();
   let contextProject = '', contextText = '';
 
   const clean = v => String(v == null ? '' : v).replace(/\r/g, '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
@@ -278,6 +278,83 @@
     throw new Error('conversation_fetch_failed:' + String(r && r.status || 0) + ':' + String(r && r.error || 'unknown'));
   }
 
+  function currentChatId() {
+    return String(location.pathname||'').match(/\/c\/([A-Za-z0-9_-]+)/)?.[1]||'';
+  }
+
+  function domMessages() {
+    const out=[];
+    for(const el of document.querySelectorAll('[data-message-author-role]')){
+      const role=one(el.getAttribute('data-message-author-role')||'unknown').toLowerCase();
+      if(!['user','assistant','tool','system'].includes(role))continue;
+      const text=clean(el.innerText||el.textContent||'');if(!text)continue;
+      const turn=el.closest('article,[data-testid^="conversation-turn-"]'),time=turn?.querySelector?.('time[datetime]');
+      out.push({role,text,at:parseTime(time?.getAttribute?.('datetime')||0)});
+    }
+    return out;
+  }
+
+  function rowsHash(rows) {
+    let h=2166136261;
+    const input=(rows||[]).map(row=>String(row.role||'')+'\u0000'+String(row.text||'')).join('\u0001');
+    for(const ch of input){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}
+    return (h>>>0).toString(36);
+  }
+
+  async function captureCurrentDomConversation(force=false) {
+    if(!conversationPage()||document.hidden)return{ok:true,skipped:'not-visible-conversation'};
+    const cid=currentChatId(),rows=domMessages();if(!cid||!rows.length)return{ok:true,skipped:'dom-not-ready'};
+    const raw=await cache(),list=projects(raw),pid=currentPid();
+    let project=list.find(p=>p.id===pid)||list.find(p=>(p.chats||[]).some(chat=>String(chat.id)===cid));
+    if(!project)return{ok:true,skipped:'project-unknown'};
+    let chat=(project.chats||[]).find(row=>String(row.id)===cid);
+    if(!chat){
+      const title=one(document.title||'Conversation').replace(/\s*[|·-]\s*ChatGPT\s*$/i,'')||'Conversation';
+      chat={id:cid,title,projectId:project.id,updated:Date.now()};
+    }
+    let idx=null;
+    try{const txt=await read(ppath(project.id,'index.json'));if(txt)idx=JSON.parse(txt);}catch{}
+    if(!idx||typeof idx!=='object')idx={schema:1,projectId:project.id,conversations:{}};
+    if(!idx.conversations||typeof idx.conversations!=='object')idx.conversations={};
+    const old=idx.conversations[cid],hash=rowsHash(rows);
+    if(!force&&old&&old.captureSource==='live-dom'&&old.liveDomHash===hash&&Number(old.parts||0)>0)return{ok:true,skipped:'unchanged-dom'};
+    const full=transcript(project,chat,rows),chunks=[];
+    for(let at=0;at<full.length;at+=CHUNK)chunks.push(full.slice(at,at+CHUNK));
+    const base=ppath(project.id,'conversations/'+safe(cid)),files=[];
+    chunks.forEach((text,part)=>files.push({path:base+'/part-'+String(part+1).padStart(3,'0')+'.md',content:text}));
+    for(let stale=chunks.length;stale<Number(old?.parts||0);stale++)files.push({
+      path:base+'/part-'+String(stale+1).padStart(3,'0')+'.md',
+      content:'# Superseded\n\nThis chunk is no longer part of the current conversation snapshot. Use Git history for the previous revision.\n'
+    });
+    const updated=parseTime(chat.updated||chat.update_time||chat.create_time)||Number(old?.updated||0)||Date.now();
+    const chatIndex={
+      schema:1,id:cid,title:one(chat.title||old?.title||'Conversation'),updated,capturedAt:new Date().toISOString(),
+      parts:chunks.length,messages:rows.length,bootstrapMetadataOnly:false,historyPartial:true,complete:false,
+      captureSource:'live-dom',liveDomHash:hash,signals:signals(rows)
+    };
+    idx={...idx,schema:1,projectId:project.id,projectName:projectName(project.name||''),updatedAt:new Date().toISOString(),bootstrapMetadataOnly:false,conversations:{...idx.conversations,[cid]:chatIndex}};
+    const compact=buildState(project,idx);
+    files.push(
+      {path:ppath(project.id,'project.json'),content:JSON.stringify({
+        schema:1,id:project.id,name:projectName(project.name||''),description:clean(project.description||''),instructions:clean(project.instructions||''),
+        conversationCount:Object.keys(idx.conversations).length,knownConversationCount:Number(project.count||0),indexed:project.indexed===true,
+        bootstrapMetadataOnly:false,updatedAt:idx.updatedAt
+      },null,2)+'\n'},
+      {path:ppath(project.id,'index.json'),content:JSON.stringify(idx,null,2)+'\n'},
+      {path:ppath(project.id,'PROJECT_STATE.md'),content:compact}
+    );
+    await commit(files,'NiakGPT memory: live DOM '+projectName(project.name||project.id)+' / '+one(chat.title||cid));
+    await saveContext(project.id,compact);
+    document.documentElement.dataset.ng132DomCapture=cid+':'+rows.length;
+    return{ok:true,captured:true,projectId:project.id,chatId:cid,messages:rows.length,parts:chunks.length};
+  }
+
+  function scheduleDomCapture(delay=900) {
+    clearTimeout(domCaptureTimer);domCaptureTimer=0;
+    if(!conversationPage()||document.hidden)return;
+    domCaptureTimer=setTimeout(()=>{domCaptureTimer=0;captureCurrentDomConversation(false).catch(()=>{});},Math.max(120,Number(delay)||900));
+  }
+
   async function saveContext(pid, text) {
     let raw = {};
     try { raw = (await chrome.storage.local.get(CONTEXT_KEY))[CONTEXT_KEY] || {}; } catch {}
@@ -297,7 +374,7 @@
       if (document.hidden) throw new Error('memory_sync_paused_hidden');
       if (syncAuto && !autoOwner()) throw new Error('memory_sync_paused_owner_change');
       const chat = chats[i], old = idx.conversations[chat.id], updated = parseTime(chat.updated);
-      if (!force && old && Number(old.updated || 0) >= updated && Number(old.parts || 0) > 0) continue;
+      if (!force && old && old.complete !== false && Number(old.updated || 0) >= updated && Number(old.parts || 0) > 0) continue;
       await state({ mode:'syncing', projectId:project.id, projectName:project.name, chatId:chat.id, chatTitle:chat.title, chatDone:i, chatTotal:chats.length });
       const data = await fetchConversation(chat.id, 0), rows = messages(data);
       if (!rows.length) continue;
@@ -313,7 +390,7 @@
       }
       const sig = signals(rows);
       const canonicalUpdated = Math.max(updated, parseTime(data.update_time)) || Date.now();
-      const chatIndex = { schema:1, id:chat.id, title:one(chat.title || data.title || 'Conversation'), updated:canonicalUpdated, capturedAt:new Date().toISOString(), parts:chunks.length, messages:rows.length, signals:sig };
+      const chatIndex = { schema:1, id:chat.id, title:one(chat.title || data.title || 'Conversation'), updated:canonicalUpdated, capturedAt:new Date().toISOString(), parts:chunks.length, messages:rows.length, bootstrapMetadataOnly:false, historyPartial:false, complete:true, captureSource:'backend', signals:sig };
       files.push({ path: base + '/index.json', content: JSON.stringify(chatIndex, null, 2) + '\n' });
       await commit(files, 'NiakGPT memory: ' + one(project.name || project.id) + ' / ' + one(chat.title || chat.id));
       idx.conversations[chat.id] = chatIndex;

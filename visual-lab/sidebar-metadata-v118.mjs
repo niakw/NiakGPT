@@ -20,7 +20,7 @@ for(const [engine,launcher] of Object.entries(engines)){
       const nestedChat={id:CID2,title:'Nested ghost chat',projectId:NESTED,href:`/g/${GOOD}/c/${CID2}`,updated:2};
       const realDateChat={id:CID3,title:'Real date Project chat',projectId:REALDATE,href:`/c/${CID3}`,updated:3};
       const existingGood={id:CID4,title:'Existing Studio chat',projectId:GOOD,href:`/g/${GOOD}/c/${CID4}`,updated:4};
-      window.__labRaw={schema:2,at:1,projects:[{id:GOOD,name:'Studio',href:`/g/${GOOD}/project`,domOnly:false},{id:REALDATE,name:'Today',href:`/g/${REALDATE}/project`,domOnly:true},{id:BAD,name:'17/08',href:`/c/${CID}`,domOnly:true},{id:NESTED,name:'Yesterday',href:`/g/${GOOD}/c/${CID2}`,domOnly:true}],chats:[badChat,nestedChat,realDateChat,existingGood],counts:{[GOOD]:1,[REALDATE]:1,[BAD]:1,[NESTED]:1},projectChats:{[GOOD]:[existingGood],[REALDATE]:[realDateChat],[BAD]:[badChat],[NESTED]:[nestedChat]},indexedProjectIds:[GOOD,REALDATE,BAD,NESTED]};
+      window.__labRaw={schema:2,at:1,projects:[{id:GOOD,name:'▤▤Studio21/09 [4]›',href:`/g/${GOOD}/project`,domOnly:false},{id:REALDATE,name:'Today',href:`/g/${REALDATE}/project`,domOnly:true},{id:BAD,name:'17/08',href:`/c/${CID}`,domOnly:true},{id:NESTED,name:'Yesterday',href:`/g/${GOOD}/c/${CID2}`,domOnly:true}],chats:[badChat,nestedChat,realDateChat,existingGood],counts:{[GOOD]:1,[REALDATE]:1,[BAD]:1,[NESTED]:1},projectChats:{[GOOD]:[existingGood],[REALDATE]:[realDateChat],[BAD]:[badChat],[NESTED]:[nestedChat]},indexedProjectIds:[GOOD,REALDATE,BAD,NESTED]};
       window.__subs=[];window.__subscribeSnapshots=[];window.__raceEvents=[];
       const publish=(next,label='publish')=>{window.__labRaw=structuredClone(next);window.__raceEvents.push(`${label}:${(window.__labRaw.projects||[]).map(p=>p.id).join(',')}`);for(const sub of [...window.__subs])sub(window.__labRaw);};
       window.__publishLabRaw=publish;
@@ -45,7 +45,7 @@ for(const [engine,launcher] of Object.entries(engines)){
       ready:window.__NIAKGPT_METADATA_READY_118__||'',nativeDisplay:getComputedStyle(document.getElementById('native-projects')).display,dateTag:document.querySelector('#chat .ng8-chat-date')?.tagName||'',fakeBadge:!!document.querySelector('#chat .ng8-chat-project'),realDateBadge:document.querySelector('#real-date-chat .ng8-chat-project')?.textContent||'',
       badProjects:(window.__labRaw.projects||[]).filter(p=>p.id==='dom-p-date1708').length,nestedGhosts:(window.__labRaw.projects||[]).filter(p=>p.id==='dom-p-nested-date').length,realDateProject:(window.__labRaw.projects||[]).find(p=>p.id==='g-p-date-real')||null,
       chatProject:(window.__labRaw.chats||[]).find(c=>c.id==='11111111-1111-4111-8111-111111111111')?.projectId||'',nestedChatProject:(window.__labRaw.chats||[]).find(c=>c.id==='22222222-2222-4222-8222-222222222222')?.projectId||'',
-      goodDirect:(window.__labRaw.projectChats?.['g-p-good']||[]).map(c=>c?.id),goodCount:window.__labRaw.counts?.['g-p-good']||0,
+      goodDirect:(window.__labRaw.projectChats?.['g-p-good']||[]).map(c=>c?.id),goodCount:window.__labRaw.counts?.['g-p-good']||0,goodProjectName:(window.__labRaw.projects||[]).find(p=>p.id==='g-p-good')?.name||'',
       badCount:Object.prototype.hasOwnProperty.call(window.__labRaw.counts||{},'dom-p-date1708'),nestedCount:Object.prototype.hasOwnProperty.call(window.__labRaw.counts||{},'dom-p-nested-date'),badIndexed:(window.__labRaw.indexedProjectIds||[]).includes('dom-p-date1708'),nestedIndexed:(window.__labRaw.indexedProjectIds||[]).includes('dom-p-nested-date'),realDateCount:Object.prototype.hasOwnProperty.call(window.__labRaw.counts||{},'g-p-date-real'),realDateIndexed:(window.__labRaw.indexedProjectIds||[]).includes('g-p-date-real'),authorityMarks:document.querySelectorAll('[data-ng112-native-projects],.ng107-native-project-row,.ng107-native-project-cluster,.ng108-native-project-expando,.ng8-native-project-link-suppressed').length,subscribeSnapshots:window.__subscribeSnapshots
     }));
     assert(injectionMs>=140,`async metadata injection returned before delayed read+write sanitation completed (${injectionMs}ms)`);
@@ -60,6 +60,7 @@ for(const [engine,launcher] of Object.entries(engines)){
     assert(state.chatProject==='g-p-good'&&state.nestedChatProject==='g-p-good',`recovered chats did not resolve to canonical Project: ${JSON.stringify(state)}`);
     assert(state.goodDirect.length===3&&['11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222','44444444-4444-4444-8444-444444444444'].every(id=>state.goodDirect.includes(id)),`recovered chats missing from existing Project snapshot: ${JSON.stringify(state)}`);
     assert(state.goodCount>=3,`recovered Project count stayed below known chats: ${JSON.stringify(state)}`);
+    assert(state.goodProjectName==='Studio',`canonical Project name pollution was not repaired: ${JSON.stringify(state)}`);
 
     const supportsLocks=await page.evaluate(()=>!!navigator.locks?.request);
     assert(supportsLocks,`${engine} does not expose Web Locks on secure chatgpt.com test origin`);

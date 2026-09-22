@@ -916,11 +916,13 @@
         document.documentElement.dataset.ng132WakeBeat=String(Date.now());
         if((p.autoSync!==false||q.priority===true)&&pending.length&&autoOwner()){
           const wait=queueWait(q);
-          if(wait>0){schedule(wait);return;}
-          const allowed=await currentPageHistoryAllowed();
-          const activeCatchup=conversationPage()&&backgroundHistoryAvailable===true;
-          const priorityCatchup=q.priority===true&&backgroundHistoryAvailable===true;
-          if(allowed&&(priorityCatchup||activeCatchup||quietFor()>=HUMAN_QUIET_MS)) await resume();
+          if(wait>0) schedule(wait);
+          else {
+            const allowed=await currentPageHistoryAllowed();
+            const activeCatchup=conversationPage()&&backgroundHistoryAvailable===true;
+            const priorityCatchup=q.priority===true&&backgroundHistoryAvailable===true;
+            if(allowed&&(priorityCatchup||activeCatchup||quietFor()>=HUMAN_QUIET_MS)) await resume();
+          }
         }
       }catch{}
       wakeHeartbeat();

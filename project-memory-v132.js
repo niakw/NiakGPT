@@ -13,7 +13,7 @@
   const MEMORY_LOCK = 'niakgpt-project-memory-sync-v132';
   const CACHE_BOOTSTRAP_LOCK = 'niakgpt-project-memory-cache-bootstrap-v088';
   const MAX_STATE = 18000;
-  const CHUNK = 360000;
+  const CHUNK = 1000000;
   const HISTORY_FETCH_GAP_MS = 20000;
   const BACKGROUND_HISTORY_FETCH_GAP_MS = 4000;
   const PRIORITY_HISTORY_FETCH_GAP_MS = 900;

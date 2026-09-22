@@ -75,6 +75,8 @@ expected_styles=[
 if style_runtime!=expected_styles: fail(f'deferred STYLE_RUNTIME drift: {style_runtime!r}')
 for token in ('chrome.scripting.insertCSS','async function injectStyles','STYLE_INJECTED','const styleFailure=await injectStyles(tabId,frameId)'):
     if token not in background: fail('post-hydration style injection incomplete '+token)
+packager=read('tools/package-extension.mjs')
+if "['STYLE_RUNTIME','MAIN_RUNTIME','ISOLATED_RUNTIME','OPTIONAL_RUNTIME']" not in packager: fail('package builder missing deferred STYLE_RUNTIME')
 sidebar_projects=read('sidebar-projects-v121.js')
 for token in ('safeInsert(parent,node,before=null)','dataset.ng121Retired','mountParentByBox','box.parentElement!==mountedParent','ng121MountPolicy','direct-once','retireStaleBox','placementTarget(root=navRoot(),box=null)','visiblePlacementNode','nativeSectionAfterPrimary','projectLinks(parent).length'):
     if token not in sidebar_projects: fail('sidebar no-reparent contract incomplete '+token)

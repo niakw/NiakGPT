@@ -6,7 +6,7 @@
   <p>Projects · performance des longs fils · continuité · navigation · productivité ciblée</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.113-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.114-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,13 +21,13 @@
 NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT en **véritable espace de travail pour un usage intensif et organisé par Projects**, sans remplacer ChatGPT.
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
-> **Version actuelle : 0.9.113.** Le démarrage revient au modèle terrain éprouvé de 0.9.81/0.9.103 après que 0.9.104–0.9.112 ont rendu tout le boot dépendant d’internals React privés. Le JavaScript reste à `document_idle` ; le gate attend la stabilité des hôtes natifs, une fenêtre calme bornée, deux tours idle du scheduler et des frames, sans exiger de preuve HostRoot/Fiber.
+> **Version actuelle : 0.9.114.** La frontière de démarrage terrain de 0.9.113 reste inchangée. Cette release répare le chemin du catalogue Projects : un cache local partiel ne peut plus réduire l’inventaire du coffre privé, les Projects canoniques manquants peuvent être restaurés depuis le coffre, et le bloc Projects NiakGPT reste au-dessus de Chats tout en masquant la surface native même lorsque ses lignes n’exposent pas de href canonique.
 
 ## Points forts
 
 ### Démarrage protégé contre les erreurs d’hydratation
 
-La 0.9.113 restaure la dernière frontière de démarrage réellement validée sur le terrain au lieu d’ajouter un nouvel heuristique basé sur React. Les styles NiakGPT sont de nouveau déclarés par le manifest à `document_start`, comme en 0.9.81–0.9.103, tandis que tout le JavaScript reste à `document_idle`.
+La 0.9.114 conserve sans modification la frontière de démarrage 0.9.113 réellement validée sur le terrain. Les styles NiakGPT sont de nouveau déclarés par le manifest à `document_start`, comme en 0.9.81–0.9.103, tandis que tout le JavaScript reste à `document_idle`.
 
 Le gate attend le shell ChatGPT, des identités `nav/main/composer` stables, une fenêtre calme de 1,2 s, deux tours idle bornés du scheduler, plusieurs frames et une dernière vérification de stabilité des hôtes. Il **n’inspecte plus** `__reactContainer$…`, `__reactFiber$…`, HostRoot ou `isDehydrated`, et le service worker ne possède plus l’injection CSS différée. Une régression MV3 réelle vérifie désormais que le rail charge après des remplacements hôtes tardifs via `MessageChannel`, sans fabriquer d’internals React privés.
 
@@ -205,7 +205,7 @@ Une fixture verte ne remplace **jamais** une capture utilisateur réelle qui la 
 | [README.md](README.md) | README anglais |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture runtime et invariants de propriété |
 | [CHANGELOG.md](CHANGELOG.md) | Historique détaillé |
-| [RELEASE_NOTES_0.9.113.md](RELEASE_NOTES_0.9.113.md) | Résumé de la release courante |
+| [RELEASE_NOTES_0.9.114.md](RELEASE_NOTES_0.9.114.md) | Résumé de la release courante |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnostic et reprise |
 | [PRIVACY.md](PRIVACY.md) | Données locales et comportement réseau |
 | [SECURITY.md](SECURITY.md) | Modèle de sécurité et signalement |

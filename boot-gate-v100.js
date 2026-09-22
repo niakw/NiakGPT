@@ -10,7 +10,7 @@
   const PIN_OPEN_KEY='niakgpt-open-pin-folder-v096';
   const SHELL_IDS=new Set(['ng8-rail','ng8-panel','ng8-status']);
   const shellRefs=new Map();
-  let safeToMutate=false,shellObserver=null,shuttingDown=false,hydrationFault=false,hydrationFaultAt=0,hydrationProof='legacy-host',lastHydrationProbe=null,trustedHydrationInteraction=false,gateOpenedAt=0,schedulerFence='pending';
+  let safeToMutate=false,shellObserver=null,shuttingDown=false;
   const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   const message=value=>String(value?.message||value?.reason?.message||value?.reason||value||'Erreur inconnue')
     .replace(/github_pat_[A-Za-z0-9_]+/g,'[redacted]')
@@ -18,15 +18,9 @@
     .replace(/([?&](?:code|token|access_token|client_secret)=)[^&\s]+/gi,'$1[redacted]')
     .replace(/\s+/g,' ').slice(0,260);
   const clean=v=>String(v??'').replace(/\r/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
-  const TRUSTED_HYDRATION_EVENTS=['pointerdown','keydown','touchstart'];
-  const latchTrustedHydrationInteraction=event=>{if(event?.isTrusted===true)trustedHydrationInteraction=true;};
-  for(const type of TRUSTED_HYDRATION_EVENTS)window.addEventListener(type,latchTrustedHydrationInteraction,true);
-  const releaseTrustedHydrationLatch=()=>{for(const type of TRUSTED_HYDRATION_EVENTS)window.removeEventListener(type,latchTrustedHydrationInteraction,true);};
 
   function remember(kind,value){
-    const detail=message(value);
-    if(/(?:Minified React error #418|hydration failed|hydration mismatch)/i.test(detail)){hydrationFault=true;hydrationFaultAt=Date.now();}
-    const line=`${kind}: ${detail}`;
+    const line=`${kind}: ${message(value)}`;
     if(!captured.includes(line))captured.unshift(line);
     captured.splice(10);
     try{sessionStorage.setItem('niakgpt-last-boot-errors-v100',JSON.stringify(captured));}catch{}
@@ -55,8 +49,8 @@
       if(!document.documentElement){resolve();return;}
       let done=false,last=performance.now();const start=last;
       const observer=new MutationObserver(()=>{last=performance.now();});
-      observer.observe(document.documentElement,{childList:true,subtree:true,characterData:true,attributes:true});
-      const tick=()=>{if(done)return;const now=performance.now(),quiet=now-last>=quietMs;if(quiet||now-start>=maxWait){done=true;observer.disconnect();resolve(quiet);return;}setTimeout(tick,80);};
+      observer.observe(document.documentElement,{childList:true,subtree:true,characterData:true});
+      const tick=()=>{if(done)return;const now=performance.now();if(now-last>=quietMs||now-start>=maxWait){done=true;observer.disconnect();resolve();return;}setTimeout(tick,80);};
       setTimeout(tick,80);
     });
   }
@@ -74,65 +68,10 @@
   }
   function hostIdentity(){
     return [
-      document.querySelector('nav[aria-label*="Historique de chat" i],nav[aria-label*="Chat history" i],nav,aside'),
+      document.querySelector('nav,aside'),
       document.querySelector('main'),
       document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')
     ];
-  }
-  async function mainWorldReactProbe(){
-    try{
-      const probe=await chrome.runtime.sendMessage({type:'niakgpt:probe-react-hydration-v107'});
-      return probe&&typeof probe==='object'?probe:{ok:false,error:'invalid_main_world_probe'};
-    }catch(error){
-      remember('HYDRATION-PROBE',error);
-      return {ok:false,error:message(error)};
-    }
-  }
-  async function waitReactHydrationOwnership(maxWait=8000){
-    const started=performance.now();
-    while(performance.now()-started<maxWait){
-      const probe=await mainWorldReactProbe();
-      lastHydrationProbe=probe;
-      if(probe.ok){
-        const needed=Math.max(0,Number(probe.needed||0));
-        const ownedCount=Math.max(0,Number(probe.ownedCount||0));
-        if(probe.rootFound===true&&probe.rootSettled===true&&probe.rootDehydrated!==true&&needed>0&&ownedCount>=needed){
-          await nextFrames();
-          const confirm=await mainWorldReactProbe();
-          lastHydrationProbe=confirm;
-          const confirmNeeded=Math.max(0,Number(confirm?.needed||0));
-          const confirmOwned=Math.max(0,Number(confirm?.ownedCount||0));
-          if(confirm?.ok&&confirm.rootFound===true&&confirm.rootSettled===true&&confirm.rootDehydrated!==true&&confirmNeeded>0&&confirmOwned>=confirmNeeded){
-            const viaFiber=probe.rootSource==='fiber-owner'||confirm.rootSource==='fiber-owner';
-            hydrationProof=viaFiber
-              ?(hydrationFault?'react-fiber-root-settled-after-host-fault':'react-fiber-root-settled')
-              :(hydrationFault?'react-document-root-settled-after-host-fault':'react-document-root-settled');
-            return true;
-          }
-        }
-      }
-      await sleep(180);
-    }
-    try{
-      const p=lastHydrationProbe||{};
-      const diag={at:Date.now(),ok:!!p.ok,containerFound:!!p.containerFound,rootFound:!!p.rootFound,rootSource:String(p.rootSource||''),rootSettled:!!p.rootSettled,rootDehydrated:!!p.rootDehydrated,rootHasDehydratedFlag:!!p.rootHasDehydratedFlag,rootStateKind:String(p.rootStateKind||''),documentRootOwned:!!p.documentRootOwned,htmlOwned:!!p.htmlOwned,bodyOwned:!!p.bodyOwned,needed:Number(p.needed||0),ownedCount:Number(p.ownedCount||0),hydrationFault,hydrationFaultAt,trustedHydrationInteraction,gateOpenedAt,schedulerFence,error:String(p.error||'').slice(0,160)};
-      sessionStorage.setItem('niakgpt-hydration-probe-v109',JSON.stringify(diag));
-      console.warn('[NiakGPT hydration blocked]',diag);
-    }catch{}
-    return false;
-  }
-  function waitTrustedHydratedInteraction(){
-    if(trustedHydrationInteraction)return Promise.resolve(true);
-    return new Promise(resolve=>{
-      let done=false;
-      const finish=event=>{
-        if(done||event?.isTrusted!==true)return;
-        trustedHydrationInteraction=true;done=true;
-        for(const type of TRUSTED_HYDRATION_EVENTS)window.removeEventListener(type,finish,true);
-        resolve(true);
-      };
-      for(const type of TRUSTED_HYDRATION_EVENTS)window.addEventListener(type,finish,true);
-    });
   }
   async function waitStableHostIdentity(stableMs=1600,maxWait=8500){
     const started=performance.now();
@@ -143,57 +82,20 @@
       const enough=next.filter(Boolean).length>=2;
       const same=enough&&refs.length===next.length&&next.every((node,index)=>node===refs[index]);
       if(!same){refs=next;stableSince=performance.now();continue;}
-      if(performance.now()-stableSince>=stableMs)return next;
+      if(performance.now()-stableSince>=stableMs)return true;
     }
-    return null;
-  }
-  function sameHostIdentity(before,after){
-    return Array.isArray(before)&&Array.isArray(after)&&before.length===after.length&&after.filter(Boolean).length>=2&&after.every((node,index)=>node===before[index]);
-  }
-  async function waitPostReactSchedulerDrain({requireReact=true}={}){
-    // ChatGPT is a continuously active SPA: subtree text/attribute mutations are normal
-    // after hydration and must never be interpreted as "React is not ready". The scheduler
-    // fence therefore watches only native host identity/remounts, drains idle turns, then
-    // revalidates the current HostRoot. Structural replacement restarts the fence.
-    for(let round=0;round<4;round++){
-      const stable=await waitStableHostIdentity(1800,8500);
-      if(!stable)continue;
-      await idleTurn(2200);
-      await idleTurn(2200);
-      await nextFrames();
-      await sleep(220);
-      await nextFrames();
-      const finalIdentity=hostIdentity();
-      if(!sameHostIdentity(stable,finalIdentity))continue;
-      if(!requireReact){schedulerFence='shell-structural-confirmed';return true;}
-      const confirm=await mainWorldReactProbe();
-      lastHydrationProbe=confirm;
-      const needed=Math.max(0,Number(confirm?.needed||0));
-      const ownedCount=Math.max(0,Number(confirm?.ownedCount||0));
-      if(confirm?.ok&&confirm.rootFound===true&&confirm.rootSettled===true&&confirm.rootDehydrated!==true&&needed>0&&ownedCount>=needed){
-        schedulerFence='react-structural-confirmed';
-        return true;
-      }
-    }
-    schedulerFence='unstable';
     return false;
   }
   async function waitHydrationStable(){
     await waitComplete(5000);
-    // Prove the current HostRoot, then drain late scheduler work without requiring global DOM
-    // silence. ChatGPT may keep mutating messages/attributes forever after hydration.
-    const owned=await waitReactHydrationOwnership(8000);
-    if(owned&&await waitPostReactSchedulerDrain({requireReact:true}))return;
-    // React private attachment points can change. If the MAIN-world proof is unavailable,
-    // retain the deterministic shell/scheduler fence before using trusted interaction.
-    if(await waitPostReactSchedulerDrain({requireReact:false})){
-      hydrationProof=hydrationFault?'scheduler-shell-settled-after-host-fault':'scheduler-shell-settled-no-react-proof';
-      return;
-    }
-    await waitTrustedHydratedInteraction();
-    hydrationProof=hydrationFault?'trusted-interaction-after-host-fault':'trusted-interaction';
+    await waitStableHostIdentity(1600,8500);
+    await waitForQuiet(1200,7000);
+    await idleTurn(2200);
+    await idleTurn(2200);
     await nextFrames();
-    await waitForQuiet(500,2200);
+    await sleep(220);
+    await nextFrames();
+    await waitStableHostIdentity(500,2500);
   }
 
   function rememberShell(root){
@@ -291,9 +193,6 @@
   async function start(){
     await waitDomInteractive();await waitForChatShell();await waitHydrationStable();
     safeToMutate=!!document.body;
-    gateOpenedAt=Date.now();
-    releaseTrustedHydrationLatch();
-    if(safeToMutate)document.documentElement.dataset.ng100HydrationProof=hydrationProof;
     window.__NIAKGPT_HOST_HYDRATED_100__=true;
     window.dispatchEvent(new Event('niakgpt:host-hydrated-v100'));
     installShellRetention();

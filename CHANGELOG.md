@@ -1,3 +1,12 @@
+# NiakGPT 0.9.103 — archives réelles en chat actif + placement Projects/Chats terrain
+
+- **Preuve terrain après 0.9.102** : le coffre privé avait bien assaini les noms et fermé l’inventaire NiakVIO à 171/171, mais l’arbre GitHub contenait toujours **0 fichier sous `conversations/`** et les index restaient à `parts:0/messages:0/bootstrapMetadataOnly:true`.
+- **Cause mémoire** : l’historique complet ne pouvait démarrer que depuis un onglet hors conversation. Un utilisateur qui reste normalement dans ChatGPT pouvait donc laisser la queue tourner indéfiniment sans jamais écrire les corps de conversation.
+- **Transport historique isolé** : après une minute de calme, Project Memory peut lire un détail de conversation depuis le service worker MV3 via un endpoint strictement limité à `/backend-api/conversation/<id>`. Le jeton de session ChatGPT est éphémère, gardé uniquement en mémoire du worker et jamais écrit dans le coffre ou le stockage extension.
+- **Chat courant** : la capture DOM immédiate reste prioritaire et sans broker page. Le PID de route est maintenant canonisé, y compris les routes slugguées `g-p-<id>-<slug>`.
+- **Migration 0.9.102** : une ancienne queue metadata-only est automatiquement rematérialisée en queue full-history ; un ancien `lastSyncAt` ne vaut plus preuve d’archive.
+- **Placement Projects** : le DOM terrain montre le scrollport visible `nav[aria-label="Historique de chat"]`. v131 le préfère explicitement et v121 refuse désormais un parent flex-row/grid multi-colonne comme lane de montage. Le bloc Projects est monté avant la section Chats complète, jamais à côté de son titre.
+
 # NiakGPT 0.9.102 — Project Memory : inventaire complet, file persistante, noms propres
 
 - **Recheck du coffre privé** : 17 Projects, 316 conversations connues, 310 seulement présentes dans le cache, 0 fichier de conversation archivé et 16 noms de Projects contaminés par icône/date/compteur. Le Project NiakGPT était marqué `indexed:true` malgré `30 connus / 24 cachés`.

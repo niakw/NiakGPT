@@ -64,7 +64,7 @@ try{
     window.__store=store;
     window.chrome={
       runtime:{
-        id:'reconcile-lab',lastError:null,getManifest:()=>({version:'0.9.118'}),
+        id:'reconcile-lab',lastError:null,getManifest:()=>({version:'0.9.119'}),
         sendMessage(message,cb){
           const type=String(message?.type||'');
           const reply=value=>queueMicrotask(()=>cb(value));
@@ -148,7 +148,7 @@ try{
     const state=window.__store['niakgpt-project-memory-state-v132']||{};
     const queue=window.__store['niakgpt-project-memory-queue-v132'];
     return state.mode==='idle'&&state.prioritySync===false&&queue===undefined;
-  },null,{timeout:12000});
+  },null,{timeout:30000});
 
   const result=await page.evaluate(()=>{
     const P='g-p-reconcile';

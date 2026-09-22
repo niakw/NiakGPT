@@ -334,6 +334,121 @@ try{
 
   {
     const page=await newPage();
+    await page.addInitScript(()=>{
+      const CACHE='niakgpt-v08-cache',PREFS='niakgpt-project-memory-prefs-v132';
+      const localData={
+        [CACHE]:{
+          schema:2,
+          projects:[{id:'g-p-alpha',name:'Workspace Alpha',href:'/g/g-p-alpha/project',domOnly:false}],
+          chats:[{id:'chat-alpha',title:'Alpha thread',projectId:'g-p-alpha',updated:Date.now()-1000}],
+          counts:{'g-p-alpha':1},
+          indexedProjectIds:['g-p-alpha'],
+          serverIndexedAt:0
+        },
+        [PREFS]:{autoSync:false,injectOnNewChat:true},
+        'niakgpt-governance-v085':{seeded:true,manualCoreSelection:false,coreProjectIds:['g-p-alpha'],hiddenProjectIds:[],locks:{}}
+      };
+      const catalog=[
+        {id:'g-p-alpha',name:'Workspace Alpha',conversationCount:1,knownConversationCount:1,indexed:true},
+        {id:'g-p-beta',name:'Workspace Beta',conversationCount:7,knownConversationCount:7,indexed:true},
+        {id:'g-p-gamma',name:'Workspace Gamma',conversationCount:3,knownConversationCount:4,indexed:true},
+        {id:'g-p-delta',name:'Workspace Delta',conversationCount:2,knownConversationCount:2,indexed:true}
+      ];
+      const listeners=[];window.__localData=localData;window.__commits=[];window.__catalog=catalog;
+      const clone=value=>value===undefined?undefined:structuredClone(value);
+      window.chrome={
+        runtime:{
+          lastError:null,
+          sendMessage(message,cb){
+            const reply=value=>queueMicrotask(()=>cb(value));
+            if(message.type==='niakgpt:memory-status-v132')return reply({ok:true,connected:true,configured:true,tokenAvailable:true,config:{repo:'synthetic/private-vault',branch:'main',root:'.niakgpt-memory',authMode:'github-app'}});
+            if(message.type==='niakgpt:memory-catalog-v132')return reply({ok:true,repoPrivate:true,source:'vault-project-directories',projectCount:catalog.length,projects:clone(catalog)});
+            if(message.type==='niakgpt:memory-read-v132')return reply({ok:false,error:'github_http_404:not_found'});
+            if(message.type==='niakgpt:memory-commit-v132'){window.__commits.push(clone({files:message.files,message:message.message}));return reply({ok:true,sha:'catalog-bootstrap-'+window.__commits.length});}
+            if(message.type==='niakgpt:memory-chatgpt-probe-v132')return reply({ok:false,error:'not-needed'});
+            return reply({ok:false,error:'unexpected:'+message.type});
+          }
+        },
+        storage:{
+          local:{
+            async get(keys){
+              if(keys==null)return clone(localData);
+              if(typeof keys==='string')return localData[keys]===undefined?{}:{[keys]:clone(localData[keys])};
+              const list=Array.isArray(keys)?keys:Object.keys(keys||{}),out={};
+              for(const key of list)if(localData[key]!==undefined)out[key]=clone(localData[key]);
+              return out;
+            },
+            async set(obj){
+              const changes={};
+              for(const[key,value]of Object.entries(obj||{})){changes[key]={oldValue:clone(localData[key]),newValue:clone(value)};localData[key]=clone(value);}
+              for(const fn of listeners)fn(changes,'local');
+            },
+            async remove(keys){for(const key of(Array.isArray(keys)?keys:[keys]))delete localData[key];}
+          },
+          onChanged:{addListener(fn){listeners.push(fn);}}
+        }
+      };
+    });
+    await page.route('https://chatgpt.com/**',route=>route.fulfill({
+      status:200,contentType:'text/html; charset=utf-8',
+      body:'<!doctype html><html><body><main>Cold local Project cache</main></body></html>'
+    }));
+    await page.goto('https://chatgpt.com/',{waitUntil:'domcontentloaded'});
+    await page.evaluate(()=>{document.documentElement.dataset.ng8TabRole='inactive';});
+    await page.addScriptTag({content:coreScript});
+    await page.waitForFunction(()=>window.__localData?.['niakgpt-v08-cache']?.projects?.length===4,null,{timeout:4000});
+    await page.waitForFunction(()=>Number(window.__localData?.['niakgpt-project-memory-state-v132']?.bootstrapCachedProjects||0)===4,null,{timeout:4000});
+    await page.waitForFunction(()=>window.__localData?.['niakgpt-governance-v085']?.coreProjectIds?.length===4,null,{timeout:4000});
+    const recovered=await page.evaluate(()=>{
+      const cache=window.__localData['niakgpt-v08-cache'],commits=window.__commits||[];
+      const root=commits.flatMap(commit=>commit.files||[]).find(file=>file.path==='PROJECTS.json');
+      return{
+        ids:(cache.projects||[]).map(p=>p.id),
+        serverIndexedAt:Number(cache.serverIndexedAt||0),
+        vaultCount:Number(cache.vaultCatalogCount||0),
+        core:[...(window.__localData['niakgpt-governance-v085']?.coreProjectIds||[])],
+        manualCoreSelection:window.__localData['niakgpt-governance-v085']?.manualCoreSelection,
+        coldCatalogWrite:commits.flatMap(commit=>commit.files||[]).some(file=>file.path==='PROJECT_CATALOG.json'),
+        diag:window.__diag?.['project-memory-catalog']||'',
+        root:root?JSON.parse(root.content):null
+      };
+    });
+    assert(recovered.ids.length===4&&recovered.ids.includes('g-p-delta'),'cold local cache did not recover durable vault Project catalog: '+JSON.stringify(recovered));
+    assert(recovered.vaultCount===4,'recovered catalog high-water marker missing');
+    assert(recovered.serverIndexedAt===0,'vault recovery falsely claimed a complete current server index');
+    assert(recovered.coldCatalogWrite===false,'cold/vault-recovered cache downgraded the durable Project catalog');
+    assert(recovered.core.length===4&&recovered.manualCoreSelection===false,'classification governance stayed collapsed at one Project: '+JSON.stringify(recovered));
+    assert(recovered.root?.projectCount===4,'cached bootstrap rewrote durable PROJECTS.json from the collapsed one-Project cache');
+    assert(recovered.root.projects.every(row=>!('description'in row)&&!('instructions'in row)),'cached Project inventory leaked private Project content');
+
+    // A complete current server index must remain authoritative even when recovery is forced
+    // (for example by a reconnect/sync button) and the durable vault contains an older extra Project.
+    const authoritative=await page.evaluate(async()=>{
+      window.__localData['niakgpt-v08-cache'].serverIndexedAt=Date.now();
+      window.__catalog.push({id:'g-p-retired',name:'Workspace Retired',conversationCount:9,knownConversationCount:9,indexed:true});
+      const result=await window.__NIAKGPT_PROJECT_MEMORY__.recoverVaultCatalog(true);
+      return{result,count:window.__localData['niakgpt-v08-cache'].projects.length,hasRetired:window.__localData['niakgpt-v08-cache'].projects.some(p=>p.id==='g-p-retired')};
+    });
+    assert(authoritative.result?.skipped==='healthy-current'&&authoritative.count===4&&!authoritative.hasRetired,'forced vault recovery overrode a healthy current server index: '+JSON.stringify(authoritative));
+
+    // The first bootstrap after a genuine server index must create/update the durable high-water
+    // catalog even when the ordinary bootstrap signature was already written during cold recovery.
+    await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
+    await page.waitForFunction(()=>(window.__commits||[]).flatMap(commit=>commit.files||[]).some(file=>file.path==='PROJECT_CATALOG.json'),null,{timeout:4000});
+    const highWater=await page.evaluate(()=>{
+      const files=(window.__commits||[]).flatMap(commit=>commit.files||[]);
+      const file=[...files].reverse().find(row=>row.path==='PROJECT_CATALOG.json');
+      const state=window.__localData['niakgpt-project-memory-state-v132']||{};
+      return{catalog:file?JSON.parse(file.content):null,state};
+    });
+    assert(highWater.catalog?.kind==='NiakGPTProjectCatalog'&&highWater.catalog?.source==='server-index-authority','server index did not emit a durable Project catalog');
+    assert(highWater.catalog?.projectCount===4&&!highWater.catalog.projects.some(row=>row.id==='g-p-retired'),'durable catalog was polluted by stale vault membership: '+JSON.stringify(highWater.catalog));
+    assert(highWater.state.projectCatalogSignature===highWater.state.bootstrapCacheSignature&&Number(highWater.state.projectCatalogWrittenAt||0)>0,'durable catalog signature was not persisted');
+    await page.close();
+  }
+
+  {
+    const page=await newPage();
     const pid='g-p-lab0001',slug=pid+'-niakgpt',current='current-chat-0001',historical='historical-chat-0002';
     await page.addInitScript(({pid,current,historical})=>{
       const localData={

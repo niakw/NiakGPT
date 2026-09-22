@@ -1,5 +1,15 @@
 # Architecture de NiakGPT
 
+## Invariant architecture 0.9.114 — le catalogue Projects durable n’est pas le snapshot live
+
+`PROJECTS.json` reste le snapshot de bootstrap du cache local : il peut être réécrit fréquemment et ne constitue donc pas une autorité historique. `PROJECT_CATALOG.json` devient la borne high-water privée : elle n’est écrite que lorsque `serverIndexedAt > 0` prouve que l’inventaire local provient d’un index serveur ChatGPT courant. Une reconstruction depuis le coffre conserve `serverIndexedAt=0` et n’a donc jamais le droit de rétrograder cette borne.
+
+Au cache froid, Project Memory énumère les répertoires privés `projects/g-p-*`, relit uniquement les métadonnées sûres de `project.json`, et applique l’ordre du catalogue high-water. Cette récupération complète l’inventaire local uniquement lorsque celui-ci est plus pauvre et qu’aucun index serveur courant n’existe. Dès qu’un index courant existe, il reste l’autorité absolue, même lors d’une synchronisation forcée.
+
+La réparation de catalogue et la réparation de gouvernance sont liées pour le scénario de panne exact : si `coreProjectIds` reflétait intégralement l’unique Project d’un cache lui-même réduit à 1/1, l’ensemble des Projects visibles récupérés redevient cible du classement automatique. Une sélection partielle explicitement manuelle n’est jamais élargie, les Projects masqués restent masqués et le Project « À classer » reste hors des cibles.
+
+La sidebar ne devine plus sa structure à partir d’un titre « Projects ». La fixture terrain 0.9.114 couvre aussi le layout ChatGPT actuel sans heading : groupe de dossiers natifs + bouton « Afficher plus » + section Chats. Une fois plusieurs identités Projects récupérées, `sidebar-projects-authority-v112.js` acquiert et masque ce groupe natif, `sidebar-projects-v121.js` rend le catalogue complet dans ce slot, et les chats génériques restent dans leur section native jusqu’à un classement réellement décidé.
+
 ## Invariant architecture 0.9.113 — revenir à la dernière frontière terrain qui chargeait
 
 Les retours réels 0.9.104 → 0.9.112 ont invalidé l’architecture qui faisait dépendre tout le démarrage de preuves React privées. La frontière de régression est nette : 0.9.103 utilisait encore le même bootstrap que 0.9.81 et chargeait sans `HostRoot`, `__reactContainer$…`, `__reactFiber$…` ni `isDehydrated`; 0.9.104 a introduit cette dépendance, puis 0.9.105 a déplacé en plus tous les styles derrière ce gate, transformant une erreur de preuve en panne totale de l’UI.

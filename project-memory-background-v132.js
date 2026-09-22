@@ -707,8 +707,7 @@
     return { initialized: true, sha: clean(ready?.object?.sha || initialSha), initBranch };
   }
 
-  async function readFileWith(token, config, relativePath) {
-    const meta = await verifyPrivateRepo(token, config.repo);
+  async function readFileRawWith(token, config, relativePath) {
     const path = joinRoot(config.root, relativePath);
     const data = await github(token, `/repos/${config.repo}/contents/${path.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(config.branch)}`);
     if (Array.isArray(data) || data?.type !== 'file') throw new Error('memory_path_not_file');
@@ -716,13 +715,86 @@
     const binary = atob(String(data.content || '').replace(/\s+/g, ''));
     const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
     const content = new TextDecoder().decode(bytes);
-    return { content, sha: data.sha || '', repoPrivate: meta.private === true };
+    return { content, sha: data.sha || '' };
+  }
+
+  async function readFileWith(token, config, relativePath) {
+    const meta = await verifyPrivateRepo(token, config.repo);
+    return { ...(await readFileRawWith(token, config, relativePath)), repoPrivate: meta.private === true };
   }
 
   async function readFile(config, relativePath) {
     const token = await tokenForConfig(config);
     if (!token) throw new Error('github_token_missing');
     return readFileWith(token, config, relativePath);
+  }
+
+  async function projectCatalog(config) {
+    const token = await tokenForConfig(config);
+    if (!token) throw new Error('github_token_missing');
+    const meta = await verifyPrivateRepo(token, config.repo);
+    const rootProjects = joinRoot(config.root, 'projects');
+    let entries;
+    try {
+      entries = await github(token, `/repos/${config.repo}/contents/${rootProjects.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(config.branch)}`);
+    } catch (error) {
+      if (Number(error?.status || 0) === 404) return { projects: [], projectCount: 0, repoPrivate: meta.private === true };
+      throw error;
+    }
+    if (!Array.isArray(entries)) throw new Error('memory_projects_path_not_directory');
+
+    let durableIndex = null, rootIndex = null;
+    try {
+      const durable = await readFileRawWith(token, config, 'PROJECT_CATALOG.json');
+      durableIndex = JSON.parse(durable.content || 'null');
+    } catch {}
+    try {
+      const root = await readFileRawWith(token, config, 'PROJECTS.json');
+      rootIndex = JSON.parse(root.content || 'null');
+    } catch {}
+    const durableRows = Array.isArray(durableIndex?.projects) ? durableIndex.projects : [];
+    const rootRows = Array.isArray(rootIndex?.projects) ? rootIndex.projects : [];
+    // PROJECTS.json is a live bootstrap snapshot and older runtimes may overwrite it from a
+    // collapsed local cache. PROJECT_CATALOG.json is the durable high-water ordering source;
+    // directory/project.json existence still proves membership and supplies current safe metadata.
+    const orderRows = durableRows.length >= 2 ? durableRows : rootRows;
+    const metadataRows = [...rootRows, ...durableRows];
+    const rootById = new Map(metadataRows
+      .filter(item => /^g-p-[A-Za-z0-9_-]+$/.test(clean(item?.id)))
+      .map(item => [clean(item.id), item]));
+
+    const projects = [];
+    const rootOrder = new Map(orderRows
+      .map((item,index)=>[clean(item?.id),index])
+      .filter(([id])=>/^g-p-[A-Za-z0-9_-]+$/.test(id)));
+    const dirs = entries
+      .filter(item => item?.type === 'dir' && /^g-p-[A-Za-z0-9_-]+$/.test(clean(item?.name)))
+      .sort((a,b)=>(rootOrder.get(clean(a?.name))??1_000_000)-(rootOrder.get(clean(b?.name))??1_000_000)||clean(a?.name).localeCompare(clean(b?.name)))
+      .slice(0, 300);
+    for (const entry of dirs) {
+      const id = clean(entry.name);
+      const rootRow = rootById.get(id) || {};
+      let detail = null;
+      try {
+        const file = await readFileRawWith(token, config, `projects/${id}/project.json`);
+        detail = JSON.parse(file.content || 'null');
+      } catch {}
+      const name = clean(detail?.name || rootRow?.name);
+      if (!name) continue;
+      projects.push({
+        id,
+        name,
+        href: `/g/${id}/project`,
+        conversationCount: Math.max(0, Number(detail?.conversationCount || rootRow?.cachedConversationCount || 0)),
+        knownConversationCount: Math.max(0, Number(detail?.knownConversationCount || rootRow?.knownConversationCount || 0)),
+        indexed: detail?.indexed === true || rootRow?.indexed === true
+      });
+    }
+    return {
+      projects, projectCount: projects.length, repoPrivate: meta.private === true,
+      source: 'vault-project-directories',
+      orderSource: durableRows.length >= 2 ? 'PROJECT_CATALOG.json' : (rootRows.length ? 'PROJECTS.json' : 'directory')
+    };
   }
 
   async function commitFilesWith(token, config, files, message, retry = 0) {
@@ -977,6 +1049,11 @@
           const result = await readFile(config, message.path);
           return { ok: true, ...result };
         }
+        if (type === 'niakgpt:memory-catalog-v132') {
+          const config = await readConfig();
+          if (!config?.enabled) throw new Error('project_memory_not_configured');
+          return { ok: true, ...(await projectCatalog(config)) };
+        }
         if (type === 'niakgpt:memory-commit-v132') {
           const config = await readConfig();
           if (!config?.enabled) throw new Error('project_memory_not_configured');
@@ -1012,7 +1089,8 @@
       launchIdentityFlow,
       launchManifestRegistrationTab,
       chatgptMemoryGet,
-      chatgptMemoryProbe
+      chatgptMemoryProbe,
+      projectCatalog
     };
   }
 })();

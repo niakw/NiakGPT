@@ -4,6 +4,7 @@
   window.__NIAKGPT_PROJECT_MEMORY_132__ = true;
 
   const CACHE_KEY = 'niakgpt-v08-cache';
+  const GOV_KEY = 'niakgpt-governance-v085';
   const PREFS_KEY = 'niakgpt-project-memory-prefs-v132';
   const STATE_KEY = 'niakgpt-project-memory-state-v132';
   const CONTEXT_KEY = 'niakgpt-project-memory-context-v132';
@@ -19,6 +20,7 @@
   const GITHUB_AUTH_UI_TIMEOUT_MS = 6*60*1000;
   let seq = 0, syncing = false, syncAuto = false, autoTimer = 0, wakeTimer = 0, routeTimer = 0, domCaptureTimer = 0, lastHistoryFetchAt = 0, lastHumanAt = Date.now();
   let contextProject = '', contextText = '', backgroundHistoryAvailable = null, backgroundHistoryProbeAt = 0;
+  let catalogRecoveryPromise = null, lastCatalogRecoveryAt = 0;
 
   const clean = v => String(v == null ? '' : v).replace(/\r/g, '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
   const one = v => clean(v).replace(/\s+/g, ' ').trim();
@@ -179,6 +181,93 @@
     if (r && r.ok) return r.content;
     if (/404|not_found/i.test(String(r && r.error || ''))) return null;
     throw new Error(r && r.error || 'memory_read_failed');
+  }
+
+  async function recoverVaultCatalog(force=false) {
+    if (catalogRecoveryPromise) return catalogRecoveryPromise;
+    const now=Date.now();
+    if (!force && now-lastCatalogRecoveryAt < 5*60*1000) return {ok:true,skipped:'cooldown'};
+    catalogRecoveryPromise=(async()=>{
+      const current=await cache();
+      const currentCanonical=projects(current);
+      // A complete local/server inventory remains the active authority. Vault recovery is a
+      // high-water safety net for reinstall/cold-cache collapse, never a reason to resurrect
+      // archived Projects over a healthy current index.
+      if (Number(current.serverIndexedAt||0) > 0) {
+        lastCatalogRecoveryAt=Date.now();
+        return {ok:true,skipped:'healthy-current',projects:currentCanonical.length};
+      }
+      const status=await send({type:'niakgpt:memory-status-v132'});
+      if (!status?.ok || !status.connected || !status.configured) return {ok:true,skipped:'vault-disconnected'};
+      const remote=await send({type:'niakgpt:memory-catalog-v132'});
+      if (!remote?.ok || !Array.isArray(remote.projects)) return {ok:false,error:String(remote?.error||'vault_catalog_unavailable')};
+      const catalog=remote.projects.filter(p=>/^g-p-[A-Za-z0-9_-]+$/.test(String(p?.id||''))&&projectName(p?.name||''));
+      if (catalog.length < 2 || catalog.length <= currentCanonical.length) {
+        lastCatalogRecoveryAt=Date.now();
+        return {ok:true,skipped:'not-better',projects:currentCanonical.length,vaultProjects:catalog.length};
+      }
+      const merge=latest=>{
+        const base=latest&&typeof latest==='object'?latest:{};
+        const existing=new Map((Array.isArray(base.projects)?base.projects:[]).filter(p=>p?.id).map(p=>[String(p.id),{...p}]));
+        const counts={...(base.counts||{})};
+        const indexed=new Set(Array.isArray(base.indexedProjectIds)?base.indexedProjectIds:[]);
+        const recovered=[],seen=new Set();
+        for(const row of catalog){
+          const id=String(row.id),old=existing.get(id)||{},name=projectName(row.name||old.name||'');
+          if(!name)continue;
+          recovered.push({...old,id,name,href:`/g/${id}/project`,domOnly:false,vaultRecovered:true});
+          seen.add(id);
+          counts[id]=Math.max(Number(counts[id]||0),Number(row.conversationCount||0),Number(row.knownConversationCount||0));
+          if(row.indexed===true)indexed.add(id);
+        }
+        // Keep a newly discovered local canonical Project that is not in the older vault yet,
+        // but put the durable catalog itself back in its stable order.
+        for(const [id,row] of existing)if(!seen.has(id))recovered.push(row);
+        return {
+          ...base,
+          schema:Math.max(2,Number(base.schema||0)),
+          projects:recovered,
+          counts,
+          indexedProjectIds:[...indexed],
+          vaultCatalogRecoveredAt:Date.now(),
+          vaultCatalogCount:catalog.length,
+          at:Date.now()
+        };
+      };
+      const bus=window.__NIAKGPT_CACHE_BUS__;
+      if(bus?.update)await bus.update(merge);
+      else await chrome.storage.local.set({[CACHE_KEY]:merge(current)});
+
+      // Governance can collapse in lockstep with the Project inventory. If its core list exactly
+      // mirrored the whole collapsed canonical inventory (the field failure is 1/1) and there is
+      // no explicit manual-core marker, preserve that "all visible Projects are core" policy
+      // across catalog recovery. Never expand a genuine partial/manual selection.
+      try{
+        const rawGov=(await chrome.storage.local.get(GOV_KEY))[GOV_KEY]||{};
+        const beforeIds=currentCanonical.map(p=>String(p.id||'')).filter(Boolean);
+        const beforeSet=new Set(beforeIds),core=[...new Set((rawGov.coreProjectIds||[]).map(String).filter(Boolean))];
+        const mirroredCollapsed=beforeIds.length>0&&beforeIds.length<=1&&
+          core.length===beforeIds.length&&core.every(id=>beforeSet.has(id))&&
+          rawGov.manualCoreSelection!==true;
+        if(mirroredCollapsed){
+          const hidden=new Set((rawGov.hiddenProjectIds||[]).map(String));
+          const recoveredCore=catalog
+            .filter(row=>!hidden.has(String(row.id))&&!/^(?:à classer|a classer|hors projet\s*\/\s*a classer|hors projet\s*\/\s*à classer|unclassified|to classify)$/i.test(projectName(row.name||'')))
+            .map(row=>String(row.id));
+          if(recoveredCore.length>core.length){
+            await chrome.storage.local.set({[GOV_KEY]:{
+              ...rawGov,seeded:true,manualCoreSelection:false,coreProjectIds:[...new Set(recoveredCore)],
+              vaultCatalogRecoveredCoreAt:Date.now()
+            }});
+          }
+        }
+      }catch{}
+      lastCatalogRecoveryAt=Date.now();
+      document.dispatchEvent(new CustomEvent('niakgpt:server-projects-ready',{detail:{source:'project-memory-vault',count:catalog.length}}));
+      window.__NIAKGPT_DIAGNOSTICS__?.set('project-memory-catalog',`RÉPARÉ · ${catalog.length} Projects canoniques récupérés du coffre`);
+      return {ok:true,recovered:true,projects:catalog.length};
+    })().catch(error=>({ok:false,error:String(error?.message||error)})).finally(()=>{catalogRecoveryPromise=null;});
+    return catalogRecoveryPromise;
   }
 
   async function commit(files, message) {
@@ -535,21 +624,38 @@
     if(navigator.locks?.request&&options.__lockHeld!==true){
       return navigator.locks.request(CACHE_BOOTSTRAP_LOCK,{mode:'exclusive'},()=>writeCachedBootstrap(Object.assign({},options,{__lockHeld:true})));
     }
+    await recoverVaultCatalog(options.force===true);
     const raw=await cache(),list=projects(raw),generatedAt=new Date().toISOString(),signature=cachedBootstrapSignature(list);
+    const authoritative=Number(raw.serverIndexedAt||0)>0;
     let current={};try{current=(await chrome.storage.local.get(STATE_KEY))[STATE_KEY]||{};}catch{}
-    if(options.force!==true&&signature&&current.bootstrapCacheSignature===signature&&Number(current.bootstrapCachedAt||0)>0){
+    const bootstrapCurrent=signature&&current.bootstrapCacheSignature===signature&&Number(current.bootstrapCachedAt||0)>0;
+    const catalogCurrent=!authoritative||(current.projectCatalogSignature===signature&&Number(current.projectCatalogWrittenAt||0)>0);
+    if(options.force!==true&&bootstrapCurrent&&catalogCurrent){
       return {ok:true,skipped:true,projects:list.length,files:Number(current.bootstrapCachedFiles||0),signature};
     }
+    const safeProjectRows=list.map(project=>({
+      id:project.id,name:projectName(project.name||''),href:String(project.href||''),
+      knownConversationCount:Number(project.count||0),cachedConversationCount:(project.chats||[]).length,indexed:project.indexed===true
+    }));
     const files=[{
       path:'PROJECTS.json',
       content:JSON.stringify({
         schema:1,kind:'NiakGPTCachedBootstrap',source:'local-cache-only',generatedAt,
-        projectCount:list.length,
-        projects:list.map(project=>({
-          id:project.id,name:projectName(project.name||''),href:String(project.href||''),knownConversationCount:Number(project.count||0),cachedConversationCount:(project.chats||[]).length,indexed:project.indexed===true
-        }))
+        projectCount:list.length,projects:safeProjectRows
       },null,2)+'\n'
     }];
+    // PROJECTS.json is intentionally a live/bootstrap snapshot. Persist a separate high-water
+    // catalog only after a complete current ChatGPT server index has been published locally.
+    // A cold/vault-recovered cache keeps serverIndexedAt=0 and therefore cannot downgrade it.
+    if(authoritative){
+      files.push({
+        path:'PROJECT_CATALOG.json',
+        content:JSON.stringify({
+          schema:1,kind:'NiakGPTProjectCatalog',source:'server-index-authority',generatedAt,
+          serverIndexedAt:Number(raw.serverIndexedAt||0),projectCount:list.length,projects:safeProjectRows
+        },null,2)+'\n'
+      });
+    }
     for(const project of list){
       let previous=null;
       try{const txt=await read(ppath(project.id,'index.json'));if(txt)previous=JSON.parse(txt);}catch{}
@@ -586,10 +692,16 @@
       );
     }
     await commit(files,'NiakGPT memory: cached bootstrap inventory');
-    await state({
+    const statePatch={
       bootstrapCachedAt:Date.now(),bootstrapCachedProjects:list.length,bootstrapCachedFiles:files.length,
       bootstrapCacheSignature:signature,bootstrapSource:'local-cache-only',error:''
-    });
+    };
+    if(authoritative){
+      statePatch.projectCatalogWrittenAt=Date.now();
+      statePatch.projectCatalogSignature=signature;
+      statePatch.projectCatalogServerIndexedAt=Number(raw.serverIndexedAt||0);
+    }
+    await state(statePatch);
     document.dispatchEvent(new CustomEvent('niakgpt:project-memory-bootstrap-written',{detail:{projects:list.length,files:files.length,signature}}));
     return {ok:true,projects:list.length,files:files.length,signature};
   }
@@ -790,6 +902,7 @@
   async function connect(options) {
     const r = await send(Object.assign({ type:'niakgpt:memory-connect-v132' }, options || {}));
     if (r && r.ok) {
+      await recoverVaultCatalog(true);
       const pending=await primeBootstrapQueue(false);
       let cached;
       try{cached=await writeCachedBootstrap({force:true});}
@@ -961,7 +1074,8 @@
     syncNow,
     getPrefs:prefs,
     setPrefs,
-    refreshContext
+    refreshContext,
+    recoverVaultCatalog
   };
 
   document.addEventListener('click', event => {
@@ -1035,6 +1149,7 @@
 
   prefs().finally(async() => {
     refreshContext();
+    try{await recoverVaultCatalog(false);}catch{}
     let pending=[],bootstrapFailed=false;
     try{pending=await ensureBootstrapQueued();}catch{}
     if(pending.length&&!document.hidden){

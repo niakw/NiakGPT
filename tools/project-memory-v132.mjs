@@ -215,24 +215,20 @@ assert.equal(preCommitSeq,3,'preflight race did not rebuild until the branch hea
 assert.equal(prePatchAttempts,1,'preflight race still emitted doomed update-ref requests');
 assert.equal(preResult.sha,preHead);
 
-// Priority first-transfer mode may parallelize independent blob creation, but the branch
-// commit/update itself remains serialized by queueCommit.
-assert.equal(memory.PRIORITY_BLOB_CONCURRENCY,6);
-let priorityHead='priority-parent-0',priorityCommitSeq=0,priorityBlobSeq=0,priorityBlobInFlight=0,priorityBlobMax=0;
+// Priority first-transfer inlines file content into Create Tree. This keeps the branch
+// commit serialized while removing one GitHub blob POST per transcript chunk.
+assert.equal(memory.PRIORITY_TREE_INLINE,true);
+assert.ok(memory.PRIVATE_REPO_VERIFY_TTL_MS>=5*60*1000);
+let priorityHead='priority-parent-0',priorityCommitSeq=0,priorityBlobCalls=0,priorityTreeBody=null,priorityRepoChecks=0;
 globalThis.fetch=async(url,init={})=>{
   const u=new URL(String(url)),path=u.pathname,method=String(init.method||'GET').toUpperCase();
   const body=init.body?JSON.parse(init.body):null;
   const reply=(status,data)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json'}});
-  if(method==='GET'&&path==='/repos/niakw/priority-memory')return reply(200,{private:true,archived:false,size:1,default_branch:'main'});
+  if(method==='GET'&&path==='/repos/niakw/priority-memory'){priorityRepoChecks++;return reply(200,{private:true,archived:false,size:1,default_branch:'main'});}
   if(method==='GET'&&path==='/repos/niakw/priority-memory/git/ref/heads/main')return reply(200,{object:{sha:priorityHead}});
   if(method==='GET'&&path.startsWith('/repos/niakw/priority-memory/git/commits/'))return reply(200,{tree:{sha:'tree-'+priorityHead}});
-  if(method==='POST'&&path==='/repos/niakw/priority-memory/git/blobs'){
-    priorityBlobInFlight++;priorityBlobMax=Math.max(priorityBlobMax,priorityBlobInFlight);
-    await new Promise(resolve=>setTimeout(resolve,20));
-    priorityBlobInFlight--;
-    return reply(201,{sha:'priority-blob-'+(++priorityBlobSeq)});
-  }
-  if(method==='POST'&&path==='/repos/niakw/priority-memory/git/trees')return reply(201,{sha:'priority-tree-1'});
+  if(method==='POST'&&path==='/repos/niakw/priority-memory/git/blobs'){priorityBlobCalls++;return reply(201,{sha:'unexpected-blob'});}
+  if(method==='POST'&&path==='/repos/niakw/priority-memory/git/trees'){priorityTreeBody=body;return reply(201,{sha:'priority-tree-1'});}
   if(method==='POST'&&path==='/repos/niakw/priority-memory/git/commits')return reply(201,{sha:'priority-commit-'+(++priorityCommitSeq)});
   if(method==='PATCH'&&path==='/repos/niakw/priority-memory/git/refs/heads/main'){
     priorityHead=body.sha;return reply(200,{object:{sha:priorityHead}});
@@ -240,10 +236,15 @@ globalThis.fetch=async(url,init={})=>{
   return reply(500,{message:'unexpected priority mock '+method+' '+path});
 };
 const priorityFiles=Array.from({length:8},(_,i)=>({path:'projects/g-p-priority/conversations/c-'+i+'/part-001.md',content:'payload '+i+'\n'}));
-const priorityResult=await memory.commitFilesWith('synthetic-priority-token',{repo:'niakw/priority-memory',branch:'main',root:'.niakgpt-memory'},priorityFiles,'priority blob test',0,true);
+const priorityConfig={repo:'niakw/priority-memory',branch:'main',root:'.niakgpt-memory'};
+const priorityResult=await memory.commitFilesWith('synthetic-priority-token',priorityConfig,priorityFiles,'priority inline-tree test',0,true);
 assert.equal(priorityResult.files,8);
-assert.ok(priorityBlobMax>=2,'priority blob creation remained fully serial');
-assert.ok(priorityBlobMax<=memory.PRIORITY_BLOB_CONCURRENCY,'priority blob concurrency exceeded bound');
+assert.equal(priorityBlobCalls,0,'priority transfer still emitted per-file blob requests');
+assert.equal(priorityTreeBody.tree.length,8);
+assert.ok(priorityTreeBody.tree.every(row=>typeof row.content==='string'&&!Object.hasOwn(row,'sha')),'priority tree did not inline blob content');
+const priorityResult2=await memory.commitFilesWith('synthetic-priority-token',priorityConfig,[{path:'PROJECTS.json',content:'{}\n'}],'priority verify-cache test',0,true);
+assert.equal(priorityResult2.files,1);
+assert.equal(priorityRepoChecks,1,'private repository verification cache did not remove repeated metadata reads');
 
 // Cold-cache recovery must rebuild its canonical Project inventory from durable vault
 // directories, without returning private Project instructions/descriptions to the page.

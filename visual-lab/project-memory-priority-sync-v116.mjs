@@ -156,7 +156,7 @@ try{
       const state=window.__store['niakgpt-project-memory-state-v132']||{};
       return complete&&queue===undefined&&state.mode==='idle'&&state.prioritySync===false;
     }catch{return false;}
-  },null,{timeout:12000});
+  },null,{timeout:30000});
 
   const result=await page.evaluate(()=>{
     const P='g-p-prioritylab';

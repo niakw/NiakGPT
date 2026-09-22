@@ -1,3 +1,13 @@
+# NiakGPT 0.9.106 — probe React MAIN-world + reprise fiable de la sidebar
+
+- **Régression terrain après 0.9.105** : la sidebar NiakGPT pouvait rester absente alors que ChatGPT lui-même continuait à fonctionner.
+- **Cause racine** : `boot-gate-v100.js` s’exécute comme content script MV3 isolé, alors que les expandos React (`__reactContainer$…`, `__reactFiber$…`) appartiennent au monde JavaScript de la page. Le lab 0.9.105 posait les marqueurs dans le même monde que le gate et ne reproduisait donc pas l’isolation réelle Chrome/Brave.
+- **Autorité corrigée** : le service worker exécute désormais un probe strictement en `world:'MAIN'`, sans mutation DOM, et renvoie uniquement `fullDocument / rootSettled / needed / ownedCount` au gate isolé.
+- **Plus de fusible permanent sur #418** : un #418 observé avant activation reste un signal hôte, mais un HostRoot ensuite stabilisé peut autoriser le boot ; à défaut, le fallback reste une vraie interaction native.
+- **Zéro-touch conservé** : aucun CSS, attribut `data-ng*` ni nœud NiakGPT n’est injecté avant la preuve d’hydratation.
+- **Non-régression réelle MV3** : nouveau test Chromium/Brave avec l’extension chargée via `--load-extension`, expandos React créés uniquement dans le monde page et **aucun clic utilisateur** ; le test exige `react-main-world-settled` puis la présence de `#ng8-rail`.
+- **Le 410 `/backend-api/f/conversation/resume` reste natif ChatGPT** : cette route reste absente du runtime NiakGPT et interdite par les validateurs.
+
 # NiakGPT 0.9.105 — zéro influence avant hydratation + HostRoot réellement terminé
 
 - **Le 0.9.104 n’a pas suffi sur le terrain** : l’erreur React #418 persistait après la barrière par clés internes.

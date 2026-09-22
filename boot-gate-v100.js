@@ -75,7 +75,7 @@
       document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')
     ];
   }
-  const REACT_OWNER_RX=/^__react(?:Fiber|Props|Container)\$/;
+  const REACT_OWNER_RX=/^__react(?:Fiber|Props|Container)\$.+/;
   function reactOwned(node){
     if(!node)return false;
     try{return Object.getOwnPropertyNames(node).some(key=>REACT_OWNER_RX.test(key));}catch{return false;}

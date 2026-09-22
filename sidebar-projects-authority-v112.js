@@ -85,6 +85,24 @@
     }
     return null;
   }
+
+  function headingProjectHost(seed){
+    let node=seed;
+    for(let depth=0;depth<7&&node&&node!==document.body&&node!==document.documentElement;depth++,node=node.parentElement){
+      if(!sharesSidebarShell(node)||node.contains(ownProjects()))continue;
+      if(genericChatLinks(node).length||hasPrimary(node))break;
+      const controls=[...node.querySelectorAll?.('[data-sidebar-item="true"],[role="listitem"],li,button,[role="button"],a')||[]].filter(el=>{
+        if(!sharesSidebarShell(el)||el===seed)return false;
+        const label=norm(el.getAttribute?.('aria-label')||el.textContent);
+        if(!label||label.length>140||projectLabel(label)||showMoreLabel(label))return false;
+        if(/^(?:chats?|conversations?|discussions?|nouveau chat|new chat|bibliotheque|library|planification|planning|plugins?|sites?|plus|more)$/.test(label))return false;
+        return !genericChatLinks(el).length;
+      });
+      const structural=controls.filter(el=>projectChildHref(el.getAttribute?.('href'))||el.matches?.('[data-sidebar-item="true"],[role="listitem"],li,[class*="project-unfurl-row"],[class*="project" i],button,[role="button"]'));
+      if(structural.length>=2&&(hasProjectHeading(node)||hasShowMore(node)))return node;
+    }
+    return null;
+  }
   function identityHosts(){
     const hosts=new Set(),names=managedNames();
     for(const link of document.querySelectorAll('a[href*="/g/g-p-"]')){if(!sharesSidebarShell(link))continue;const host=nearestProjectHost(link);if(host)hosts.add(host);}
@@ -114,7 +132,7 @@
       if(!sharesSidebarShell(el))continue;
       const label=norm(el.getAttribute?.('aria-label')||el.textContent);
       if(projectLabel(label)){
-        const host=nearestProjectHost(el);if(host)found.add(host);else{const target=rowTarget(el);if(target)found.add(target);}continue;
+        const host=headingProjectHost(el)||nearestProjectHost(el);if(host)found.add(host);else{const target=rowTarget(el);if(target)found.add(target);}continue;
       }
       if(showMoreLabel(label)){const host=nearestProjectHost(el);if(host)found.add(host);continue;}
       if(names.size&&names.has(label)){

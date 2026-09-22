@@ -345,6 +345,9 @@ project_switch=read('.github/workflows/project-switch-user-journey-v130.yml')
 for token in ('sidebar-projects-authority-v112.js','project-state-selfheal-v102.js','reclassify-v101.js','reclassify-deep-v112.js','ux-v131.js','visual-lab/user-reported-v133.mjs'):
     if token not in project_switch: fail('Project-switch journey trigger coverage incomplete '+token)
 live_stability=read('.github/workflows/live-stability-v129.yml')
+live_stability_fixture=read('visual-lab/tests/live-stability-v129.spec.js')
+if 'niakgpt:probe-react-hydration-v107' not in live_stability_fixture: fail('live stability fixture hydration protocol stale')
+if 'niakgpt:probe-react-hydration-v106' in live_stability_fixture: fail('live stability fixture still accepts superseded hydration probe v106')
 if live_stability.count('tests/hydration-isolated-world-v106.spec.js') < 2: fail('MAIN-world hydration regression must execute in Chromium and Brave stability jobs')
 if live_stability.count('tests/hydration-document-root-v107.spec.js') < 2: fail('document-root hydration regression must execute in Chromium and Brave stability jobs')
 for token in ('background-v100.js','hydration-isolated-world-v106.spec.js','hydration-document-root-v107.spec.js','HYDRATION_MAIN_WORLD_CHECKPOINT PASS','HYDRATION_DOCUMENT_ROOT_CHECKPOINT PASS','conversation-scroll-guard-v133.js','project-state-selfheal-v102.js','user-reported-v133.mjs','User-reported scroll + single Projects authority in Brave stable','/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'):

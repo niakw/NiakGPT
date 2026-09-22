@@ -1071,7 +1071,7 @@
         const pending=Array.isArray(q.pending)?q.pending:[];
         document.documentElement.dataset.ng132WakeBeat=String(Date.now());
         if((p.autoSync!==false||q.priority===true)&&pending.length&&autoOwner()){
-          const wait=queueWait(q);
+          const rateWait=await historyRateWait(),wait=Math.max(queueWait(q),rateWait);
           if(wait>0) schedule(wait);
           else {
             const allowed=await currentPageHistoryAllowed();

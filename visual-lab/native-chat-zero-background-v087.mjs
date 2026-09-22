@@ -117,18 +117,39 @@ try{
   snapshot=await page.evaluate(()=>({session:window.__sessionCalls,backend:window.__backendCalls}));
   assert(snapshot.session===0&&snapshot.backend===0,'blocked chat-route requests still reached network: '+JSON.stringify(snapshot));
 
-  // Cross-tab safety: even from a non-chat route, a visible peer conversation blocks all NiakGPT backend work, including foreground.
+  // Cross-tab safety remains absolute for ordinary NiakGPT work. Project Memory has one narrow
+  // exception: from an off-chat tab it may archive a full conversation while a peer chat is idle.
   await page.evaluate(()=>{
     history.pushState({},'', '/');
     document.documentElement.dataset.ng90PeerChatActive='1';
+    delete document.documentElement.dataset.ng90PeerBusy;
   });
   const peerBlocked=await rpc({path:'/backend-api/gizmos/snorlax/sidebar?conversations_per_gizmo=0',method:'GET',foreground:true});
-  assert(peerBlocked.error==='native_conversation_quiet','peer chat did not quarantine background GET: '+JSON.stringify(peerBlocked));
+  assert(peerBlocked.error==='native_conversation_quiet','idle peer chat did not quarantine ordinary background GET: '+JSON.stringify(peerBlocked));
+  const peerMemory=await rpc({
+    path:'/backend-api/conversation/abcdefghijklmnop',
+    method:'GET',
+    memoryBootstrap:true,
+    governance:true
+  });
+  assert(peerMemory.ok===true,'idle peer chat incorrectly blocked Project Memory archival: '+JSON.stringify(peerMemory));
   snapshot=await page.evaluate(()=>({session:window.__sessionCalls,backend:window.__backendCalls}));
-  assert(snapshot.session===0&&snapshot.backend===0,'peer-quarantined request reached network: '+JSON.stringify(snapshot));
+  assert(snapshot.session===1&&snapshot.backend===1,'idle-peer memory exception used unexpected network count: '+JSON.stringify(snapshot));
+
+  // If that peer starts generating, the exception closes immediately.
+  await page.evaluate(()=>{document.documentElement.dataset.ng90PeerBusy='1';});
+  const peerBusyMemory=await rpc({
+    path:'/backend-api/conversation/peer-busy-chat',
+    method:'GET',
+    memoryBootstrap:true,
+    governance:true
+  });
+  assert(peerBusyMemory.error==='native_conversation_quiet','active peer generation did not quarantine Project Memory: '+JSON.stringify(peerBusyMemory));
+  snapshot=await page.evaluate(()=>({session:window.__sessionCalls,backend:window.__backendCalls}));
+  assert(snapshot.session===1&&snapshot.backend===1,'peer-busy blocked request still reached network: '+JSON.stringify(snapshot));
 
   // Explicit user foreground hydration remains possible only off-chat, when no visible peer conversation exists.
-  await page.evaluate(()=>{delete document.documentElement.dataset.ng90PeerChatActive;});
+  await page.evaluate(()=>{delete document.documentElement.dataset.ng90PeerBusy;delete document.documentElement.dataset.ng90PeerChatActive;});
   const foreground=await rpc({
     path:'/backend-api/gizmos/g-p-abcdefghijklmnop/conversations?limit=20',
     method:'GET',
@@ -136,7 +157,7 @@ try{
   });
   assert(foreground.ok===true,'explicit foreground Project read was incorrectly blocked: '+JSON.stringify(foreground));
   snapshot=await page.evaluate(()=>({session:window.__sessionCalls,backend:window.__backendCalls}));
-  assert(snapshot.session===1&&snapshot.backend===1,'foreground read did not use exactly one auth + one backend request: '+JSON.stringify(snapshot));
+  assert(snapshot.session===1&&snapshot.backend===2,'foreground read did not add exactly one backend request with cached auth: '+JSON.stringify(snapshot));
 
   // A foreground request must still yield instantly to an active native generation.
   await page.evaluate(()=>{document.documentElement.dataset.ng8Running='1';});
@@ -147,9 +168,9 @@ try{
   });
   assert(blockedForeground.error==='native_busy','native generation did not block foreground extension GET: '+JSON.stringify(blockedForeground));
   const finalState=await page.evaluate(()=>({session:window.__sessionCalls,backend:window.__backendCalls}));
-  assert(finalState.session===1&&finalState.backend===1,'native-busy foreground request still reached network: '+JSON.stringify(finalState));
+  assert(finalState.session===1&&finalState.backend===2,'native-busy foreground request still reached network: '+JSON.stringify(finalState));
 }finally{
   await browser.close();
 }
 
-console.log('native-chat-zero-background-v087: PASS absolute current/peer conversation quarantine + off-chat foreground-only exception');
+console.log('native-chat-zero-background-v087: PASS current-chat quarantine + idle-peer memory exception + active-peer safety');

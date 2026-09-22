@@ -1,3 +1,12 @@
+# NiakGPT 0.9.104 — fusible d’hydratation React full-document
+
+- **Régression terrain reproduite** : ChatGPT remontait `Minified React error #418` avec une pile terminant sur `body/html` et une longue activité `MessagePort`. Cela caractérise une hydratation React qui continue alors que le DOM peut sembler stable.
+- **Cause racine** : le gate 0.9.103 utilisait stabilité d’identité DOM + calme + idle scheduler comme preuve d’hydratation. Ce n’est pas suffisant pour le renderer React full-document actuel : React peut garder les mêmes nœuds tout en poursuivant l’hydratation.
+- **Barrière déterministe** : sur le document ChatGPT actuel (`data-build` / React Router), NiakGPT attend maintenant la propriété React réelle du root et d’au moins deux nœuds hôtes avant toute mutation de `html`, `body` ou de la sidebar.
+- **Fail closed** : si les marqueurs React ne sont pas disponibles, NiakGPT attend une interaction native fiable au lieu de choisir un délai arbitraire. Si une erreur d’hydratation #418 est observée avant activation, le runtime ne démarre pas.
+- **Preuve négative** : le lab cross-engine garde volontairement le DOM inchangé pendant plusieurs secondes de scheduler `MessageChannel`; avant les marqueurs React, il exige zéro `data-ng*`, zéro nœud NiakGPT et zéro activation.
+- **Correctifs 0.9.103 conservés** : archive Project Memory via worker MV3, migration des queues metadata-only, normalisation des routes Project slugguées, et placement Projects pleine largeur avant la section Chats.
+
 # NiakGPT 0.9.103 — archives réelles en chat actif + placement Projects/Chats terrain
 
 - **Preuve terrain après 0.9.102** : le coffre privé avait bien assaini les noms et fermé l’inventaire Project de référence à 171/171, mais l’arbre GitHub contenait toujours **0 fichier sous `conversations/`** et les index restaient à `parts:0/messages:0/bootstrapMetadataOnly:true`.

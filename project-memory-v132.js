@@ -599,6 +599,10 @@
     return !document.hidden && role !== 'inactive';
   };
 
+  async function currentPageHistoryAllowed() {
+    return !conversationPage() || await backgroundHistoryProbe(false);
+  }
+
   async function wakeHeartbeat() {
     clearTimeout(wakeTimer);
     wakeTimer=setTimeout(async()=>{
@@ -607,7 +611,7 @@
         const q=local[QUEUE_KEY]||{},p=Object.assign({},defaults,local[PREFS_KEY]||{});
         const pending=Array.isArray(q.pending)?q.pending:[];
         document.documentElement.dataset.ng132WakeBeat=String(Date.now());
-        if(p.autoSync!==false&&pending.length&&autoOwner()&&!conversationPage()&&quietFor()>=HUMAN_QUIET_MS) await resume();
+        if(p.autoSync!==false&&pending.length&&autoOwner()&&quietFor()>=HUMAN_QUIET_MS&&await currentPageHistoryAllowed()) await resume();
       }catch{}
       wakeHeartbeat();
     },WAKE_HEARTBEAT_MS);
@@ -616,7 +620,8 @@
   async function bootstrap(options) {
     const opt = options || {};
     const automatic = opt.auto === true;
-    if (conversationPage()) {
+    const allowConversation=conversationPage()&&await backgroundHistoryProbe(false);
+    if (conversationPage()&&!allowConversation) {
       await queuedState('conversation');
       if (automatic) schedule(WAKE_HEARTBEAT_MS);
       return { ok:false, paused:true, error:'memory_sync_paused_conversation' };
@@ -625,7 +630,7 @@
       if (automatic) { await queuedState(document.hidden?'hidden':'owner'); schedule(WAKE_HEARTBEAT_MS); }
       return { ok:false, paused:true, error:document.hidden?'memory_sync_paused_hidden':'memory_sync_paused_owner_change' };
     }
-    if (busy(automatic)) {
+    if (busy(automatic,allowConversation)) {
       if (automatic) { await queuedState(quietFor()<HUMAN_QUIET_MS?'quiet':'busy'); schedule(remainingQuiet()); }
       return { ok:false, paused:true, error:'memory_sync_paused_busy' };
     }
@@ -654,7 +659,7 @@
         if (document.hidden) throw new Error('memory_sync_paused_hidden');
         if (automatic && !autoOwner()) throw new Error('memory_sync_paused_owner_change');
         await saveQueue(list.slice(i).map(p => p.id), opt.force);
-        if (!await waitIdle()) throw new Error(document.hidden?'memory_sync_paused_hidden':(automatic&&!autoOwner()?'memory_sync_paused_owner_change':'memory_sync_idle_timeout'));
+        if (!await waitIdle(undefined,allowConversation)) throw new Error(document.hidden?'memory_sync_paused_hidden':(automatic&&!autoOwner()?'memory_sync_paused_owner_change':'memory_sync_idle_timeout'));
         changed += await syncProject(list[i], opt.force === true);
         await state({ mode:'syncing', projectDone:i+1, projectTotal:list.length, projectId:list[i].id, projectName:list[i].name, chatDone:0, chatTotal:0 });
       }
@@ -698,9 +703,10 @@
     try {
       const q = (await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY], p = await prefs();
       if (!q?.pending?.length || !p.autoSync) return;
-      if (conversationPage()) { await queuedState('conversation'); schedule(WAKE_HEARTBEAT_MS); return; }
+      const allowConversation=conversationPage()&&await backgroundHistoryProbe(false);
+      if (conversationPage()&&!allowConversation) { await queuedState('conversation'); schedule(WAKE_HEARTBEAT_MS); return; }
       if (peerBusy()) { await queuedState('peer-busy'); schedule(WAKE_HEARTBEAT_MS); return; }
-      if (busy(true)) { schedule(remainingQuiet()); return; }
+      if (busy(true,allowConversation)) { schedule(remainingQuiet()); return; }
       bootstrap({ force:q.force, projectIds:q.pending, auto:true });
     } catch {}
   }
@@ -710,9 +716,10 @@
     if (!autoOwner() || !(await prefs()).autoSync) return;
     autoTimer = setTimeout(async () => {
       if (!autoOwner()) return;
-      if (conversationPage()) { await queuedState('conversation'); return schedule(WAKE_HEARTBEAT_MS); }
+      const allowConversation=conversationPage()&&await backgroundHistoryProbe(false);
+      if (conversationPage()&&!allowConversation) { await queuedState('conversation'); return schedule(WAKE_HEARTBEAT_MS); }
       if (peerBusy()) { await queuedState('peer-busy'); return schedule(WAKE_HEARTBEAT_MS); }
-      if (busy(true)) return schedule(remainingQuiet());
+      if (busy(true,allowConversation)) return schedule(remainingQuiet());
       const st = await send({ type:'niakgpt:memory-status-v132' });
       if (!st?.connected) return;
       let q={};try{q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}

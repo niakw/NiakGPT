@@ -151,13 +151,13 @@
     return Array.isArray(before)&&Array.isArray(after)&&before.length===after.length&&after.filter(Boolean).length>=2&&after.every((node,index)=>node===before[index]);
   }
   async function waitPostReactSchedulerDrain({requireReact=true}={}){
-    // React can keep reconciling through MessageChannel/MessagePort after a false quiet
-    // window. A positive HostRoot proof is therefore necessary but not sufficient.
+    // ChatGPT is a continuously active SPA: subtree text/attribute mutations are normal
+    // after hydration and must never be interpreted as "React is not ready". The scheduler
+    // fence therefore watches only native host identity/remounts, drains idle turns, then
+    // revalidates the current HostRoot. Structural replacement restarts the fence.
     for(let round=0;round<4;round++){
-      const stable=await waitStableHostIdentity(1600,8500);
+      const stable=await waitStableHostIdentity(1800,8500);
       if(!stable)continue;
-      const quiet=await waitForQuiet(1200,7000);
-      if(!quiet)continue;
       await idleTurn(2200);
       await idleTurn(2200);
       await nextFrames();
@@ -165,13 +165,13 @@
       await nextFrames();
       const finalIdentity=hostIdentity();
       if(!sameHostIdentity(stable,finalIdentity))continue;
-      if(!requireReact){schedulerFence='shell-confirmed';return true;}
+      if(!requireReact){schedulerFence='shell-structural-confirmed';return true;}
       const confirm=await mainWorldReactProbe();
       lastHydrationProbe=confirm;
       const needed=Math.max(0,Number(confirm?.needed||0));
       const ownedCount=Math.max(0,Number(confirm?.ownedCount||0));
       if(confirm?.ok&&confirm.rootFound===true&&confirm.rootSettled===true&&confirm.rootDehydrated!==true&&needed>0&&ownedCount>=needed){
-        schedulerFence='react-confirmed';
+        schedulerFence='react-structural-confirmed';
         return true;
       }
     }
@@ -180,9 +180,8 @@
   }
   async function waitHydrationStable(){
     await waitComplete(5000);
-    // 0.9.110 proved the current HostRoot, but then opened after a short calm window.
-    // Re-apply the 0.9.81 late-scheduler fence *after* the React proof and revalidate the
-    // authoritative current root once all delayed native work has drained.
+    // Prove the current HostRoot, then drain late scheduler work without requiring global DOM
+    // silence. ChatGPT may keep mutating messages/attributes forever after hydration.
     const owned=await waitReactHydrationOwnership(8000);
     if(owned&&await waitPostReactSchedulerDrain({requireReact:true}))return;
     // React private attachment points can change. If the MAIN-world proof is unavailable,

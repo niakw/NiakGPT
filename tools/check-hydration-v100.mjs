@@ -68,13 +68,13 @@ const serverIndex=read('server-index-v100.js');
   for(const token of ['COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement(raw)','conversationPage()'])need(serverBootstrap,token,'cold canonical bootstrap recovery incomplete');
 
 const bridge=read('page-bridge.js');
-need(bridge,'const nativeFetch = window.fetch.bind(window);');need(bridge,'conversation_detail_get_disabled');need(bridge,'d.memoryBootstrap !== true');need(bridge,'project_move_requires_governance');forbid(bridge,'window.fetch =');forbid(bridge,'globalThis.fetch =');
+need(bridge,'const nativeFetch = window.fetch.bind(window);');need(bridge,'conversation_detail_get_disabled');need(bridge,'d.memoryBootstrap !== true');need(bridge,'project_move_requires_governance');for(const token of ['memoryPeerSafe','peerBusyPage','data-ng90-peer-busy','d.memoryBootstrap === true'])need(bridge,token,'Project Memory idle-peer bridge exception incomplete');forbid(bridge,'window.fetch =');forbid(bridge,'globalThis.fetch =');
 
 const memoryBackend=read('project-memory-background-v132.js');
 for(const token of ['memory_repository_must_be_private','meta?.private !== true','chrome.storage.session','niakgpt:memory-connect-v132','chrome.identity.launchWebAuthFlow','app-manifests/','request_oauth_on_install','niakgpt:memory-github-connect-repo-v132','github_repository_not_authorized_for_vault','refresh_token','code_challenge','code_verifier','setup_url: clean(flow.installRedirect)','request_oauth_on_install: false',"cache: init.cache || 'no-store'",'const beforeUpdate = await getRef','MAX_REF_RETRIES = 8','MAX_REF_BACKOFF_MS'])need(memoryBackend,token,'Project Memory backend invariant incomplete');
 if(/force:\s*true/.test(memoryBackend.slice(memoryBackend.indexOf('git/refs/heads'),memoryBackend.indexOf('git/refs/heads')+5000)))fail('Project Memory must never force-push the vault branch');
 const memoryRuntime=read('project-memory-v132.js');
-for(const token of ['PROJECT_STATE.md','canonicalUpdated','prefsReady','function inject(ed)','memoryBootstrap: memoryBootstrap === true','MEMORY_LOCK','CACHE_BOOTSTRAP_LOCK','autoOwner','niakgpt:tab-role-changed','primeBootstrapQueue','ensureBootstrapQueued','writeCachedBootstrap','bootstrapMetadataOnly:true','bootstrapWritten:true','cachedOnly:true,historyDeferred:true','queuedProjects','changes[QUEUE_KEY]','githubLogin','githubRepositories','githubConnectRepo','githubLogout'])need(memoryRuntime,token,'Project Memory runtime invariant incomplete');
+for(const token of ['PROJECT_STATE.md','canonicalUpdated','prefsReady','function inject(ed)','memoryBootstrap: memoryBootstrap === true','MEMORY_LOCK','CACHE_BOOTSTRAP_LOCK','autoOwner','niakgpt:tab-role-changed','primeBootstrapQueue','ensureBootstrapQueued','writeCachedBootstrap','bootstrapMetadataOnly:true','bootstrapWritten:true','cachedOnly:true,historyDeferred:true','queuedProjects','changes[QUEUE_KEY]','githubLogin','githubRepositories','githubConnectRepo','githubLogout','captureCurrentDomConversation','captureSource:\'live-dom\'','complete:false','projectName = v =>','peerBusy()'])need(memoryRuntime,token,'Project Memory runtime/archive invariant incomplete');
 forbid(memoryRuntime,'async function inject(ed)','Project Memory send-time injection must be synchronous');
 
 const gate=read('boot-gate-v100.js');
@@ -138,8 +138,11 @@ forbid(nativeNameSync,'setInterval(','native Project name sync must remain event
 const activity=read('activity-v086.js');
 for(const token of ['nativeBusy=hasThinking()||hasStop()','id===currentChat()&&ACTIVE.has(localState)','remember(id,localState,cur.projectId,localAt)'])need(activity,token,'long-running native activity retention incomplete');
 
+const metadata=read('sidebar-metadata-v118.js');
+for(const token of ['cleanProjectName','normalizedProjects','renamed=false'])need(metadata,token,'canonical Project-name sanitation incomplete');
 const catalog=read('sidebar-projects-v121.js');
 need(catalog,'placementAnchorNode','v121 must preserve hidden v112 native Projects host as a stable placement anchor');
+for(const token of ['cleanProjectName',':scope > span,[class*="truncate" i]'])need(catalog,token,'Project label sanitation incomplete');
 for(const token of ['canonicalProjects','renderCatalog','ng121PinsReady','ng121PlacementReady','sessionOrder','armBootstrap','projectScroll','drawerScroll','projectScrollMemory','niakgpt:sidebar-projects-reconcile','signalAuthorityReady','niakgpt:sidebar-projects-ready','authoritativeLaneSafe','column-fragment','laneUnsafe','surface NiakGPT unique','autorité v121 unique · natif masqué'])need(catalog,token,'single-authority Projects catalog/session/lane ownership incomplete');
 const projectSelfheal=read('project-state-selfheal-v102.js');
 for(const token of ['surface NiakGPT unique','NiakGPT autoritaire','nativePreferred:false','window.__NIAKGPT_FIND_SIDEBAR_V131__','a[href*="/g/g-p-"]','niakgpt:local-project-recovery-ready','hiddenSet','visibleIds'])need(projectSelfheal,token,'single-authority local recovery incomplete');

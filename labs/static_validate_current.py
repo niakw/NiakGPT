@@ -25,7 +25,7 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.104': fail(f"version={version}")
+if version!='0.9.105': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting','identity']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']: fail('host permissions drift')
 
@@ -51,6 +51,7 @@ if static_js!=expected_static: fail(f'static runtime drift: {static_js!r}')
 js_content_scripts=[cs for cs in manifest.get('content_scripts',[]) if cs.get('js')]
 if any(cs.get('run_at')!='document_idle' for cs in js_content_scripts): fail('all NiakGPT JS content scripts must run at document_idle')
 if any(cs.get('run_at')=='document_start' and cs.get('js') for cs in manifest.get('content_scripts',[])): fail('document_start JS forbidden after hydration regression')
+if any(cs.get('css') for cs in manifest.get('content_scripts',[])): fail('static content-script CSS forbidden before hydration gate')
 hydration_gate=read('boot-gate-v100.js')
 for token in ('waitForQuiet(1200,7000)','waitStableHostIdentity(1600,8500)','idleTurn(2200)','requestIdleCallback','__NIAKGPT_HOST_HYDRATED_100__','niakgpt:host-hydrated-v100'):
     if token not in hydration_gate: fail('boot hydration barrier incomplete '+token)
@@ -60,13 +61,20 @@ for file in expected_static[1:]:
         if token not in src: fail('pre-runtime hydration gate incomplete '+file+' '+token)
 if not (ROOT/'visual-lab/hydration-barrier-v080.mjs').exists(): fail('SSR hydration barrier browser gate missing')
 boot_gate=read('boot-gate-v100.js')
-for token in ('reactHydrationOwned','waitReactHydrationOwnership','waitTrustedHydratedInteraction','REACT_OWNER_RX','data-build','hydrationFault','ng100HydrationProof'):
+for token in ('reactHydrationOwned','rootHydrationSettled','reactContainerFiber','isDehydrated===false','waitReactHydrationOwnership','waitTrustedHydratedInteraction','REACT_OWNER_RX','REACT_CONTAINER_RX','data-build','hydrationFault','ng100HydrationProof'):
     if token not in boot_gate: fail('full-document React hydration fuse incomplete '+token)
 hydration_lab=read('visual-lab/hydration-barrier-v080.mjs')
-for token in ('prod-hydration-lab','__reactRouterContext','String.fromCharCode(36)','__reactContainer','__reactFiber','hydratedBeforeReactOwnership','zero pre-hydration DOM mutation','full-document React ownership'):
+for token in ('prod-hydration-lab','__reactRouterContext','String.fromCharCode(36)','__reactContainer','__reactFiber','isDehydrated:true','isDehydrated=false','hydratedAtReactMarkerOnly','bare React ownership markers incorrectly unlocked','root-dehydration gate','zero pre-hydration DOM mutation'):
     if token not in hydration_lab: fail('React 418 regression lab incomplete '+token)
-css_runtime=[file for cs in manifest.get('content_scripts',[]) for file in cs.get('css',[])]
-if 'ux-v131.css' not in css_runtime: fail('v131 visual authority missing from manifest')
+background=read('background-v100.js')
+style_match=re.search(r"const\s+STYLE_RUNTIME\s*=\s*\[(.*?)\];",background,re.S)
+style_runtime=re.findall(r"['\"]([^'\"]+\.css)['\"]",style_match.group(1)) if style_match else []
+expected_styles=[
+    'theme-v08.css','polish-v081.css','chronology-v081.css','multitab-v083.css','governance-v085.css','activity-v086.css','control-center-v090.css','project-memory-v132.css','core-v090.css','profiles-v100.css','commands-v100.css','onboarding-v100.css','coach-v100.css','pin-folders-v096.css','sidebar-ux-v119.css','side-panels-v096.css','continuity-v100.css','interruption-guard-v119.css','visual-stability-v101.css','live-fixes-v104.css','sidebar-metadata-v118.css','sidebar-projects-authority-v112.css','project-chat-ux-v110.css','home-layout-v112.css','native-actions-v113.css','sidebar-actions-v123.css','chat-attention-v113.css','matrix-guardian-v112.css','performance-guard-v112.css','sidebar-icons-v114.css','native-da-v112.css','live-stability-v129.css','ux-v131.css','retro-loader-v097.css'
+]
+if style_runtime!=expected_styles: fail(f'deferred STYLE_RUNTIME drift: {style_runtime!r}')
+for token in ('chrome.scripting.insertCSS','async function injectStyles','STYLE_INJECTED','const styleFailure=await injectStyles(tabId,frameId)'):
+    if token not in background: fail('post-hydration style injection incomplete '+token)
 sidebar_projects=read('sidebar-projects-v121.js')
 for token in ('safeInsert(parent,node,before=null)','dataset.ng121Retired','mountParentByBox','box.parentElement!==mountedParent','ng121MountPolicy','direct-once','retireStaleBox','placementTarget(root=navRoot(),box=null)','visiblePlacementNode','nativeSectionAfterPrimary','projectLinks(parent).length'):
     if token not in sidebar_projects: fail('sidebar no-reparent contract incomplete '+token)
@@ -119,7 +127,7 @@ for file in recovery_overlays:
     if file in isolated: fail(f'0.9.71-0.9.73 recovery overlay wired: {file}')
     if (ROOT/file).exists(): fail(f'0.9.71-0.9.73 recovery overlay still shipped: {file}')
 
-refs=set(main+isolated+optional)
+refs=set(main+isolated+optional+style_runtime)
 for cs in manifest.get('content_scripts',[]):
     refs.update(cs.get('js',[]))
     refs.update(cs.get('css',[]))

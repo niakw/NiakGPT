@@ -1,6 +1,6 @@
 # Architecture de NiakGPT
 
-## Invariant catalogue 0.9.114 — le coffre ne peut plus être réduit par un cache partiel
+## Invariant architecture 0.9.114 — le coffre ne peut plus être réduit par un cache partiel
 
 Le dépôt Project Memory est une archive durable, pas un miroir destructif du cache courant. Une réinstallation, un index serveur différé ou une vue DOM partielle peuvent temporairement ne connaître qu’un sous-ensemble des Projects ; cet état ne doit jamais réécrire `PROJECTS.json` avec moins de Projects que ceux déjà présents dans le coffre.
 

@@ -117,6 +117,9 @@ jobs:
       - name: Project Memory durable archive reconciliation
         working-directory: visual-lab
         run: node project-memory-index-reconcile-v118.mjs
+      - name: Project Memory account rate-limit protection
+        working-directory: visual-lab
+        run: node project-memory-rate-guard-v119.mjs
       - name: Cold-chat Pins remain local/cache-only
         working-directory: visual-lab
         run: node pins-launcher-only-v085.mjs

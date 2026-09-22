@@ -25,7 +25,7 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.103': fail(f"version={version}")
+if version!='0.9.104': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting','identity']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']: fail('host permissions drift')
 
@@ -59,6 +59,12 @@ for file in expected_static[1:]:
     for token in ('const init=()=>','window.__NIAKGPT_HOST_HYDRATED_100__',"window.addEventListener('niakgpt:host-hydrated-v100',init,{once:true})"):
         if token not in src: fail('pre-runtime hydration gate incomplete '+file+' '+token)
 if not (ROOT/'visual-lab/hydration-barrier-v080.mjs').exists(): fail('SSR hydration barrier browser gate missing')
+boot_gate=read('boot-gate-v100.js')
+for token in ('reactHydrationOwned','waitReactHydrationOwnership','waitTrustedHydratedInteraction','REACT_OWNER_RX','data-build','hydrationFault','ng100HydrationProof'):
+    if token not in boot_gate: fail('full-document React hydration fuse incomplete '+token)
+hydration_lab=read('visual-lab/hydration-barrier-v080.mjs')
+for token in ('prod-hydration-lab','__reactRouterContext','String.fromCharCode(36)','__reactContainer','__reactFiber','hydratedBeforeReactOwnership','zero pre-hydration DOM mutation','full-document React ownership'):
+    if token not in hydration_lab: fail('React 418 regression lab incomplete '+token)
 css_runtime=[file for cs in manifest.get('content_scripts',[]) for file in cs.get('css',[])]
 if 'ux-v131.css' not in css_runtime: fail('v131 visual authority missing from manifest')
 sidebar_projects=read('sidebar-projects-v121.js')

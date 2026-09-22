@@ -10,7 +10,7 @@
   const PIN_OPEN_KEY='niakgpt-open-pin-folder-v096';
   const SHELL_IDS=new Set(['ng8-rail','ng8-panel','ng8-status']);
   const shellRefs=new Map();
-  let safeToMutate=false,shellObserver=null,shuttingDown=false;
+  let safeToMutate=false,shellObserver=null,shuttingDown=false,hydrationFault=false,hydrationProof='legacy-host';
   const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   const message=value=>String(value?.message||value?.reason?.message||value?.reason||value||'Erreur inconnue')
     .replace(/github_pat_[A-Za-z0-9_]+/g,'[redacted]')
@@ -20,7 +20,9 @@
   const clean=v=>String(v??'').replace(/\r/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
 
   function remember(kind,value){
-    const line=`${kind}: ${message(value)}`;
+    const detail=message(value);
+    if(/(?:Minified React error #418|hydration failed|hydration mismatch)/i.test(detail))hydrationFault=true;
+    const line=`${kind}: ${detail}`;
     if(!captured.includes(line))captured.unshift(line);
     captured.splice(10);
     try{sessionStorage.setItem('niakgpt-last-boot-errors-v100',JSON.stringify(captured));}catch{}
@@ -68,10 +70,49 @@
   }
   function hostIdentity(){
     return [
-      document.querySelector('nav,aside'),
+      document.querySelector('nav[aria-label*="Historique de chat" i],nav[aria-label*="Chat history" i],nav,aside'),
       document.querySelector('main'),
       document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')
     ];
+  }
+  const REACT_OWNER_RX=/^__react(?:Fiber|Props|Container)\$.+/;
+  function reactOwned(node){
+    if(!node)return false;
+    try{return Object.getOwnPropertyNames(node).some(key=>REACT_OWNER_RX.test(key));}catch{return false;}
+  }
+  function currentFullDocumentReactHost(){
+    return !!(document.documentElement?.hasAttribute('data-build')||window.__reactRouterContext);
+  }
+  function reactHydrationOwned(){
+    if(!currentFullDocumentReactHost())return true;
+    const identities=hostIdentity().filter(Boolean);
+    const rootOwned=[document,document.documentElement,document.body].some(reactOwned);
+    const needed=Math.min(2,identities.length);
+    return rootOwned&&needed>0&&identities.filter(reactOwned).length>=needed;
+  }
+  async function waitReactHydrationOwnership(maxWait=16000){
+    if(!currentFullDocumentReactHost())return true;
+    const started=performance.now();
+    while(performance.now()-started<maxWait){
+      if(hydrationFault)return false;
+      if(reactHydrationOwned()){
+        await nextFrames();
+        if(reactHydrationOwned()){hydrationProof='react-owned';return true;}
+      }
+      await sleep(80);
+    }
+    return false;
+  }
+  function waitTrustedHydratedInteraction(){
+    return new Promise(resolve=>{
+      let done=false;
+      const finish=()=>{
+        if(done)return;done=true;
+        for(const type of ['pointerdown','keydown','touchstart'])window.removeEventListener(type,finish,true);
+        resolve(true);
+      };
+      for(const type of ['pointerdown','keydown','touchstart'])window.addEventListener(type,finish,{capture:true,once:true});
+    });
   }
   async function waitStableHostIdentity(stableMs=1600,maxWait=8500){
     const started=performance.now();
@@ -96,6 +137,18 @@
     await sleep(220);
     await nextFrames();
     await waitStableHostIdentity(500,2500);
+    if(currentFullDocumentReactHost()){
+      const owned=await waitReactHydrationOwnership(16000);
+      if(!owned){
+        // Stable DOM identities are not proof of full-document React hydration. Fail closed:
+        // wait for a real host interaction, which React can only receive after hydration, instead
+        // of mutating <html>, <body> or the sidebar during a scheduler false-calm window.
+        await waitTrustedHydratedInteraction();
+        hydrationProof='trusted-interaction';
+        await nextFrames();
+        await waitForQuiet(500,2200);
+      }
+    }
   }
 
   function rememberShell(root){
@@ -192,7 +245,9 @@
 
   async function start(){
     await waitDomInteractive();await waitForChatShell();await waitHydrationStable();
+    if(hydrationFault)return;
     safeToMutate=!!document.body;
+    if(safeToMutate)document.documentElement.dataset.ng100HydrationProof=hydrationProof;
     window.__NIAKGPT_HOST_HYDRATED_100__=true;
     window.dispatchEvent(new Event('niakgpt:host-hydrated-v100'));
     installShellRetention();

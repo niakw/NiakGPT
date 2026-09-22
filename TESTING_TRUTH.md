@@ -1,3 +1,13 @@
+## 0.9.104 — React #418 : DOM stable n’est pas hydratation terminée
+
+Le log terrain contient explicitement `Minified React error #418`, une pile remontant jusqu’à `html/body`, et une longue suite de callbacks `MessagePort`. Le défaut n’est donc pas traité comme un simple warning : le scénario prouve que le scheduler React peut continuer après une fausse période de calme sans remplacer les nœuds hôtes.
+
+1. `hydration-barrier-v080.mjs` expose un document ChatGPT-like `data-build` avec `__reactRouterContext`, puis garde les mêmes nœuds `nav/main` pendant des dizaines de ticks `MessageChannel`.
+2. Avant l’apparition synthétique de `__reactContainer$…` / `__reactFiber$…`, le test exige `window.__NIAKGPT_HOST_HYDRATED_100__ !== true`, aucun rail NiakGPT, **aucun attribut `data-ng*` sur html/body** et aucun nœud NiakGPT.
+3. Les marqueurs React arrivent volontairement après l’ancienne fenêtre de stabilité. Le runtime ne peut s’activer qu’après cette preuve.
+4. `boot-gate-v100.js` reste le seul propriétaire du signal `niakgpt:host-hydrated-v100`; les cinq modules pré-runtime restent dormants jusque-là.
+5. Le fallback n’est pas un timeout arbitraire : sans marqueur React, le gate attend une vraie interaction native. Une erreur #418 détectée avant activation déclenche `hydrationFault` et laisse NiakGPT inactif.
+
 ## 0.9.103 — preuve d’archive depuis un chat actif + placement DOM terrain
 
 Le recheck du coffre privé après 0.9.102 montre Project de référence à **171 connus / 171 cachés**, mais toujours **0 fichier `conversations/`** et des index à `parts:0/messages:0`. La complétude de l’inventaire n’est donc pas la complétude de l’archive.

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.103",
-  "description": "NiakGPT : Project Memory archive réellement les historiques depuis un chat inactif et stabilise le bloc Projects avant Chats.",
+  "version": "0.9.104",
+  "description": "NiakGPT : barrière d’hydratation React déterministe, mémoire Project complète et sidebar Projects stable.",
   "permissions": [
     "storage",
     "scripting",

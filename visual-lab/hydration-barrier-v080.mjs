@@ -51,13 +51,14 @@ for(const [name,launcher] of Object.entries(selected)){
     await page.route('https://chatgpt.com/**',route=>route.fulfill({
       status:200,
       contentType:'text/html; charset=utf-8',
-      body:`<!doctype html><html lang="fr"><head><title>late scheduler hydration fixture</title></head>
+      body:`<!doctype html><html lang="fr" data-build="prod-hydration-lab"><head><title>late scheduler hydration fixture</title></head>
       <body>
         <nav data-testid="conversation-sidebar" data-generation="ssr"><a href="/">Nouveau chat</a><div>Projects</div></nav>
         <main data-generation="ssr"><article><div data-message-author-role="assistant">SSR stable</div></article>
           <form><div id="prompt-textarea" contenteditable="true"></div><button aria-label="Envoyer" type="button">Envoyer</button></form>
         </main>
         <script>
+          window.__reactRouterContext={streamController:{closed:true}};
           window.addEventListener('load',()=>{
             const channel=new MessageChannel();
             let tick=0;
@@ -80,6 +81,15 @@ for(const [name,launcher] of Object.entries(selected)){
                 nextMain.dataset.generation='react-2';
                 oldMain.replaceWith(nextMain);
                 document.documentElement.dataset.lateHydrationStage='2';
+              }
+              if(tick===55){
+                window.__hydratedBeforeReactOwnership=window.__NIAKGPT_HOST_HYDRATED_100__===true;
+                const dollar=String.fromCharCode(36);
+                Object.defineProperty(document,'__reactContainer'+dollar+'lab',{value:{},configurable:true});
+                for(const node of [document.documentElement,document.body,document.querySelector('nav'),document.querySelector('main'),document.getElementById('prompt-textarea')]){
+                  if(node)Object.defineProperty(node,'__reactFiber'+dollar+'lab',{value:{},configurable:true});
+                }
+                document.documentElement.dataset.lateHydrationStage='3';
                 return;
               }
               setTimeout(()=>channel.port2.postMessage('react-work'),120);
@@ -92,7 +102,8 @@ for(const [name,launcher] of Object.entries(selected)){
 
     await page.goto('https://chatgpt.com/c/hydration-fixture',{waitUntil:'load'});
 
-    // Production 0.9.83 runs the JS content-script group at document_idle, never document_start.
+    // Production JS runs at document_idle, but current ChatGPT hydrates the full HTML document
+    // asynchronously. Stable node identities alone must not authorize DOM mutation.
     await page.addScriptTag({content:manifestOrderedSource});
 
     await page.waitForFunction(()=>document.documentElement.dataset.lateHydrationStage==='1',null,{timeout:4000});
@@ -109,10 +120,26 @@ for(const [name,launcher] of Object.entries(selected)){
       hydrated:window.__NIAKGPT_HOST_HYDRATED_100__===true,
       rail:!!document.getElementById('ng8-rail'),
       nav:document.querySelector('nav')?.dataset.generation||'',
-      main:document.querySelector('main')?.dataset.generation||''
+      main:document.querySelector('main')?.dataset.generation||'',
+      htmlNg:[...document.documentElement.attributes].map(a=>a.name).filter(name=>name.startsWith('data-ng')),
+      bodyNg:[...document.body.attributes].map(a=>a.name).filter(name=>name.startsWith('data-ng')),
+      ownNodes:document.querySelectorAll('[id^="ng8-"],[id^="ng90-"],[id^="ng100-"],[id^="ng119-"],[id^="ng123-"]').length
     }));
     assert(stage2.nav==='react-2'&&stage2.main==='react-2',name+': second late React replacement did not run');
     assert(stage2.hydrated===false&&!stage2.rail,name+': NiakGPT activated before late MessagePort hydration settled');
+    assert(stage2.htmlNg.length===0&&stage2.bodyNg.length===0&&stage2.ownNodes===0,name+': NiakGPT mutated React-owned HTML before hydration ownership: '+JSON.stringify(stage2));
+
+    await page.waitForFunction(()=>document.documentElement.dataset.lateHydrationStage==='3',null,{timeout:9000});
+    const ownership=await page.evaluate(()=>{
+      const dollar=String.fromCharCode(36);
+      return{
+        hydratedBeforeOwnership:window.__hydratedBeforeReactOwnership===true,
+        root:Object.getOwnPropertyNames(document).some(k=>k.startsWith('__reactContainer'+dollar)),
+        nav:Object.getOwnPropertyNames(document.querySelector('nav')).some(k=>k.startsWith('__reactFiber'+dollar)),
+        main:Object.getOwnPropertyNames(document.querySelector('main')).some(k=>k.startsWith('__reactFiber'+dollar))
+      };
+    });
+    assert(!ownership.hydratedBeforeOwnership&&ownership.root&&ownership.nav&&ownership.main,name+': React ownership gate did not precede NiakGPT activation: '+JSON.stringify(ownership));
 
     await page.waitForFunction(()=>window.__NIAKGPT_HOST_HYDRATED_100__===true,null,{timeout:12000});
     await page.waitForFunction(()=>[
@@ -143,4 +170,4 @@ for(const [name,launcher] of Object.entries(selected)){
   }
 }
 
-console.log('hydration-barrier-v080: PASS document_idle + late MessagePort host replacements + stable-node activation');
+console.log('hydration-barrier-v080: PASS full-document React ownership + zero pre-hydration DOM mutation + late MessagePort host replacements');

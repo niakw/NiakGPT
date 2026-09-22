@@ -30,7 +30,7 @@ async function memoryCatalogRecovery(){
       };
       const remote={
         'PROJECTS.json':JSON.stringify({schema:1,kind:'NiakGPTCachedBootstrap',projectCount:1,projects:[{id:P1,name:'NiakGPT',href:'/g/'+P1+'/project',knownConversationCount:1,cachedConversationCount:1,indexed:true}]}),
-        ['projects/'+P2+'/project.json']:JSON.stringify({schema:1,id:P2,name:'NiakVIO',description:'providers streaming',instructions:'repair providers',conversationCount:171,knownConversationCount:171,indexed:true,updatedAt:new Date(now-2000).toISOString()}),
+        ['projects/'+P2+'/project.json']:JSON.stringify({schema:1,id:P2,name:'Provider Lab',description:'providers streaming',instructions:'repair providers',conversationCount:171,knownConversationCount:171,indexed:true,updatedAt:new Date(now-2000).toISOString()}),
         ['projects/'+P3+'/project.json']:JSON.stringify({schema:1,id:P3,name:'Films',description:'cinema anime',instructions:'',conversationCount:12,knownConversationCount:12,indexed:true,updatedAt:new Date(now-3000).toISOString()})
       };
       const listeners=[];window.__commits=[];window.__remote=remote;window.__store=store;window.__diag={};
@@ -82,7 +82,7 @@ async function memoryCatalogRecovery(){
       diag:window.__diag['memory-catalog']||''
     }));
     assert.equal(recovered.projects.length,3);
-    assert.equal(recovered.projects.find(p=>p.name==='NiakVIO')?.memoryRecovered,true);
+    assert.equal(recovered.projects.find(p=>p.name==='Provider Lab')?.memoryRecovered,true);
     assert.equal(recovered.counts[P2],171);
     assert.equal(recovered.counts[P3],12);
     assert.match(recovered.diag,/RÉPARÉ · 3 Projects canoniques/);
@@ -95,7 +95,7 @@ async function memoryCatalogRecovery(){
       return JSON.parse(file.content);
     });
     assert.equal(manifest.projectCount,3,'cached bootstrap destructively shrank the vault Project catalog');
-    assert.deepEqual(new Set(manifest.projects.map(p=>p.name)),new Set(['NiakGPT','NiakVIO','Films']));
+    assert.deepEqual(new Set(manifest.projects.map(p=>p.name)),new Set(['NiakGPT','Provider Lab','Films']));
     assert.equal(manifest.retainedProjectCount,0);
   }finally{await page.close();}
 }
@@ -107,7 +107,7 @@ async function sidebarNoHrefNativeProjects(){
       const P1='g-p-one123',P2='g-p-two456',P3='g-p-three789';
       const raw={schema:2,projects:[
         {id:P1,name:'NiakGPT',href:'/g/'+P1+'/project',domOnly:false},
-        {id:P2,name:'NiakVIO',href:'/g/'+P2+'/project',domOnly:false},
+        {id:P2,name:'Provider Lab',href:'/g/'+P2+'/project',domOnly:false},
         {id:P3,name:'Films',href:'/g/'+P3+'/project',domOnly:false}
       ],chats:[],counts:{[P1]:21,[P2]:171,[P3]:12},indexedProjectIds:[P1,P2,P3],serverIndexedAt:Date.now()};
       const store={'niakgpt-v08-cache':raw,'niakgpt-governance-v085':{seeded:true,coreProjectIds:[P1,P2,P3],hiddenProjectIds:[],locks:{}}};
@@ -128,7 +128,7 @@ async function sidebarNoHrefNativeProjects(){
         <section id="primary"><a href="/">ChatGPT</a><a href="/new">Nouveau chat</a><a href="/library">Bibliothèque</a><a href="/search">Rechercher</a></section>
         <section id="native-projects">
           <div role="heading">Projects</div>
-          <button data-sidebar-item="true"><span>NiakVIO</span></button>
+          <button data-sidebar-item="true"><span>Provider Lab</span></button>
           <button data-sidebar-item="true"><span>Administratif & Juridique</span></button>
           <button data-sidebar-item="true"><span>Films</span></button>
           <button>Afficher plus</button>

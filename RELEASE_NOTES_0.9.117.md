@@ -8,7 +8,7 @@ Deferred retries use increasing delays instead of the previous fast restart loop
 
 ## Faster first transfer
 
-Priority mode now groups several successful conversations into one durable GitHub checkpoint when size limits allow. This reduces branch/ref/commit overhead on Projects containing hundreds of chats while keeping a bounded checkpoint size.
+The durable checkpoint remains per conversation. Speedups stay below that safety boundary: transcript chunks are larger (1,000,000 characters instead of 360,000), independent GitHub blobs inside a commit are still uploaded with bounded concurrency, and the private-repository verification is reused for 60 seconds during a bulk transfer. Large conversations therefore require substantially fewer GitHub blob requests without weakening resume semantics.
 
 ## No duplicate conversations
 
@@ -16,4 +16,4 @@ The canonical vault path is based on Project ID + conversation ID. Re-importing 
 
 ## Regression coverage
 
-`visual-lab/project-memory-transient-fetch-v117.mjs` injects a 500 then `Failed to fetch` on one conversation, verifies that later chats continue and are batched, ensures the failing chat does not enter a tight retry loop, then releases its retry and verifies convergence without refetching already archived chats.
+`visual-lab/project-memory-transient-fetch-v117.mjs` injects a 500 then `Failed to fetch` on one conversation, verifies that later chats continue, ensures the failing chat does not enter a tight retry loop, then releases its retry and verifies convergence without refetching already archived chats.

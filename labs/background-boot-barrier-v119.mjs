@@ -13,7 +13,7 @@ async function runScenario(failFile=''){
     runtime:{
       onInstalled:{addListener(){}},
       onMessage:{addListener(fn){onMessage=fn;}},
-      getManifest(){return{version:'0.9.113'};}
+      getManifest(){return{version:'0.9.114'};}
     },
     storage:{local:{async get(){return{};},async set(){}}},
     scripting:{async executeScript({files}){

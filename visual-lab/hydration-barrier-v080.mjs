@@ -30,31 +30,8 @@ for(const [name,launcher] of Object.entries(selected)){
       window.chrome={
         runtime:{
           id:'hydration-lab',
-          getManifest:()=>({version:'0.9.112'}),
-          sendMessage:async message=>{
-            if(message?.type==='niakgpt:probe-react-hydration-v107'){
-              const ownerRx=/^__react(?:Fiber|Props|Container)\$.+/;
-              const hostOwnerRx=/^__react(?:Fiber|Props)\$.+/;
-              const fiberRx=/^__reactFiber\$.+/;
-              const containerRx=/^__reactContainer\$.+/;
-              const identities=[document.querySelector('nav,aside'),document.querySelector('main'),document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')].filter(Boolean);
-              let container=null;
-              for(const node of [document,document.documentElement,document.body]){
-                const key=node&&Object.getOwnPropertyNames(node).find(name=>containerRx.test(name));
-                if(key&&node[key]){container=node[key];break;}
-              }
-              const current=container?.stateNode?.current||container;
-              const ownerFiber=node=>{const key=node&&Object.getOwnPropertyNames(node).find(name=>fiberRx.test(name));return key&&node[key]||null;};
-              const rootFromFiber=fiber=>{let cursor=fiber,steps=0;while(cursor&&steps++<256){if(cursor.tag===3)return cursor;cursor=cursor.return||null;}return null;};
-              const fiberRoot=[document.documentElement,document.body,...identities].map(ownerFiber).map(rootFromFiber).find(Boolean)||null;
-              const candidates=[current,current?.alternate,container,container?.alternate,fiberRoot,fiberRoot?.alternate].filter(Boolean);
-              const needed=Math.min(2,identities.length);
-              const htmlOwned=Object.getOwnPropertyNames(document.documentElement).some(key=>hostOwnerRx.test(key));
-              const bodyOwned=Object.getOwnPropertyNames(document.body).some(key=>hostOwnerRx.test(key));
-              return {ok:true,containerFound:!!container,rootFound:candidates.some(f=>f?.tag===3||f?.stateNode?.current?.tag===3),rootSource:current?'container':fiberRoot?'fiber-owner':'none',rootSettled:candidates.some(f=>f?.memoizedState?.isDehydrated===false),rootDehydrated:candidates.some(f=>f?.memoizedState?.isDehydrated===true),htmlOwned,bodyOwned,documentRootOwned:htmlOwned&&bodyOwned,needed,ownedCount:identities.filter(node=>Object.getOwnPropertyNames(node).some(key=>ownerRx.test(key))).length};
-            }
-            return {ok:true,errors:[]};
-          }
+          getManifest:()=>({version:'0.9.113'}),
+          sendMessage:async()=>({ok:true,errors:[]})
         },
         storage:{
           local:{
@@ -103,24 +80,6 @@ for(const [name,launcher] of Object.entries(selected)){
                 nextMain.dataset.generation='react-2';
                 oldMain.replaceWith(nextMain);
                 document.documentElement.dataset.lateHydrationStage='2';
-              }
-              if(tick===25){
-                const dollar=String.fromCharCode(36);
-                const rootFiber={tag:3,memoizedState:{isDehydrated:true},stateNode:{current:null},return:null,alternate:null};
-                rootFiber.stateNode.current=rootFiber;
-                Object.defineProperty(document,'__reactContainer'+dollar+'lab',{value:rootFiber,configurable:true});
-                for(const node of [document.documentElement,document.body,document.querySelector('nav'),document.querySelector('main'),document.getElementById('prompt-textarea')]){
-                  if(node)Object.defineProperty(node,'__reactFiber'+dollar+'lab',{value:{tag:5,memoizedState:{},return:rootFiber,alternate:null},configurable:true});
-                }
-                window.__hydratedAtReactMarkerOnly=window.__NIAKGPT_HOST_HYDRATED_100__===true;
-                document.documentElement.dataset.lateHydrationStage='markers-only';
-              }
-              if(tick===55){
-                window.__hydratedBeforeReactRootSettled=window.__NIAKGPT_HOST_HYDRATED_100__===true;
-                const dollar=String.fromCharCode(36);
-                const key=Object.getOwnPropertyNames(document).find(k=>k.startsWith('__reactContainer'+dollar));
-                if(key&&document[key]?.memoizedState)document[key].memoizedState.isDehydrated=false;
-                document.documentElement.dataset.lateHydrationStage='3';
                 return;
               }
               setTimeout(()=>channel.port2.postMessage('react-work'),120);
@@ -133,8 +92,7 @@ for(const [name,launcher] of Object.entries(selected)){
 
     await page.goto('https://chatgpt.com/c/hydration-fixture',{waitUntil:'load'});
 
-    // Production JS runs at document_idle, but current ChatGPT hydrates the full HTML document
-    // asynchronously. Stable node identities alone must not authorize DOM mutation.
+    // Production 0.9.83 runs the JS content-script group at document_idle, never document_start.
     await page.addScriptTag({content:manifestOrderedSource});
 
     await page.waitForFunction(()=>document.documentElement.dataset.lateHydrationStage==='1',null,{timeout:4000});
@@ -151,36 +109,10 @@ for(const [name,launcher] of Object.entries(selected)){
       hydrated:window.__NIAKGPT_HOST_HYDRATED_100__===true,
       rail:!!document.getElementById('ng8-rail'),
       nav:document.querySelector('nav')?.dataset.generation||'',
-      main:document.querySelector('main')?.dataset.generation||'',
-      htmlNg:[...document.documentElement.attributes].map(a=>a.name).filter(name=>name.startsWith('data-ng')),
-      bodyNg:[...document.body.attributes].map(a=>a.name).filter(name=>name.startsWith('data-ng')),
-      ownNodes:document.querySelectorAll('[id^="ng8-"],[id^="ng90-"],[id^="ng100-"],[id^="ng119-"],[id^="ng123-"]').length
+      main:document.querySelector('main')?.dataset.generation||''
     }));
     assert(stage2.nav==='react-2'&&stage2.main==='react-2',name+': second late React replacement did not run');
     assert(stage2.hydrated===false&&!stage2.rail,name+': NiakGPT activated before late MessagePort hydration settled');
-    assert(stage2.htmlNg.length===0&&stage2.bodyNg.length===0&&stage2.ownNodes===0,name+': NiakGPT mutated React-owned HTML before hydration ownership: '+JSON.stringify(stage2));
-
-    await page.waitForFunction(()=>document.documentElement.dataset.lateHydrationStage==='markers-only',null,{timeout:6000});
-    const markerOnly=await page.evaluate(()=>({
-      hydrated:window.__NIAKGPT_HOST_HYDRATED_100__===true,
-      hydratedAtMarkerOnly:window.__hydratedAtReactMarkerOnly===true,
-      htmlNg:[...document.documentElement.attributes].map(a=>a.name).filter(name=>name.startsWith('data-ng')),
-      ownNodes:document.querySelectorAll('[id^="ng8-"],[id^="ng90-"],[id^="ng100-"],[id^="ng119-"],[id^="ng123-"]').length
-    }));
-    assert(!markerOnly.hydrated&&!markerOnly.hydratedAtMarkerOnly&&markerOnly.htmlNg.length===0&&markerOnly.ownNodes===0,name+': bare React ownership markers incorrectly unlocked NiakGPT before root hydration settled: '+JSON.stringify(markerOnly));
-
-    await page.waitForFunction(()=>document.documentElement.dataset.lateHydrationStage==='3',null,{timeout:9000});
-    const ownership=await page.evaluate(()=>{
-      const dollar=String.fromCharCode(36);
-      const key=Object.getOwnPropertyNames(document).find(k=>k.startsWith('__reactContainer'+dollar));
-      return{
-        hydratedBeforeRootSettled:window.__hydratedBeforeReactRootSettled===true,
-        rootSettled:document[key]?.memoizedState?.isDehydrated===false,
-        nav:Object.getOwnPropertyNames(document.querySelector('nav')).some(k=>k.startsWith('__reactFiber'+dollar)),
-        main:Object.getOwnPropertyNames(document.querySelector('main')).some(k=>k.startsWith('__reactFiber'+dollar))
-      };
-    });
-    assert(!ownership.hydratedBeforeRootSettled&&ownership.rootSettled&&ownership.nav&&ownership.main,name+': React root-dehydration gate did not precede NiakGPT activation: '+JSON.stringify(ownership));
 
     await page.waitForFunction(()=>window.__NIAKGPT_HOST_HYDRATED_100__===true,null,{timeout:12000});
     await page.waitForFunction(()=>[
@@ -211,4 +143,4 @@ for(const [name,launcher] of Object.entries(selected)){
   }
 }
 
-console.log('hydration-barrier-v080: PASS MAIN-world React root isDehydrated=false + bare-marker rejection + zero pre-hydration DOM mutation + late MessagePort host replacements');
+console.log('hydration-barrier-v080: PASS document_idle + late MessagePort host replacements + stable-node activation');

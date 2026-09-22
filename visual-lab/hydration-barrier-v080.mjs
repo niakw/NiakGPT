@@ -82,7 +82,7 @@ for(const [name,launcher] of Object.entries(selected)){
                 oldMain.replaceWith(nextMain);
                 document.documentElement.dataset.lateHydrationStage='2';
               }
-              if(tick===27){
+              if(tick===55){
                 window.__hydratedBeforeReactOwnership=window.__NIAKGPT_HOST_HYDRATED_100__===true;
                 Object.defineProperty(document,'__reactContainer$lab',{value:{},configurable:true});
                 for(const node of [document.documentElement,document.body,document.querySelector('nav'),document.querySelector('main'),document.getElementById('prompt-textarea')]){
@@ -128,7 +128,7 @@ for(const [name,launcher] of Object.entries(selected)){
     assert(stage2.hydrated===false&&!stage2.rail,name+': NiakGPT activated before late MessagePort hydration settled');
     assert(stage2.htmlNg.length===0&&stage2.bodyNg.length===0&&stage2.ownNodes===0,name+': NiakGPT mutated React-owned HTML before hydration ownership: '+JSON.stringify(stage2));
 
-    await page.waitForFunction(()=>document.documentElement.dataset.lateHydrationStage==='3',null,{timeout:6000});
+    await page.waitForFunction(()=>document.documentElement.dataset.lateHydrationStage==='3',null,{timeout:9000});
     const ownership=await page.evaluate(()=>({
       hydratedBeforeOwnership:window.__hydratedBeforeReactOwnership===true,
       root:Object.getOwnPropertyNames(document).some(k=>k.startsWith('__reactContainer

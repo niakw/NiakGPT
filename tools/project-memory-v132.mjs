@@ -216,7 +216,7 @@ assert.equal(prePatchAttempts,1,'preflight race still emitted doomed update-ref 
 assert.equal(preResult.sha,preHead);
 
 const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
-assert.equal(manifest.version, '0.9.106');
+assert.equal(manifest.version, '0.9.107');
 assert.deepEqual(manifest.permissions, ['storage','scripting','identity']);
 assert.deepEqual(manifest.host_permissions, ['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']);
 

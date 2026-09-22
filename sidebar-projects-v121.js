@@ -404,19 +404,26 @@
   function placementTarget(root=navRoot(),box=null){
     if(!root||!root.isConnected||root.closest('[hidden],[inert],[aria-hidden="true"]')||box?.contains(root))return null;
     const tail=primaryTail(root),section=nativeProjectHost(root,nativeProjectSection(root));
-    if(nativeSectionAfterPrimary(root,section,tail)&&(!box||(!section.contains(box)&&!box.contains(section.parentElement)))){
+    if(nativeSectionAfterPrimary(root,section,tail)&&authoritativeLaneSafe(root,section.parentElement)&&(!box||(!section.contains(box)&&!box.contains(section.parentElement)))){
       return{parent:section.parentElement,before:section,mode:'native-projects',legacy:'projects-slot-v121'};
     }
     const launcher=nativeProjectHost(root,nativeProjectsLauncher(root));
-    if(launcher?.parentElement&&(!tail||nativeSectionAfterPrimary(root,launcher,tail))&&(!box||(!launcher.contains(box)&&!box.contains(launcher.parentElement)))){
+    if(launcher?.parentElement&&authoritativeLaneSafe(root,launcher.parentElement)&&(!tail||nativeSectionAfterPrimary(root,launcher,tail))&&(!box||(!launcher.contains(box)&&!box.contains(launcher.parentElement)))){
       return{parent:launcher.parentElement,before:launcher.nextSibling,mode:'native-projects-launcher',legacy:'projects-launcher-v121'};
     }
     const chatsBoundary=nativeChatsHost(root,nativeChatsBoundary(root));
-    if(chatsBoundary?.parentElement&&(!tail||nativeSectionAfterPrimary(root,chatsBoundary,tail))&&(!box||(!chatsBoundary.contains(box)&&!box.contains(chatsBoundary.parentElement)))){
+    if(chatsBoundary?.parentElement&&authoritativeLaneSafe(root,chatsBoundary.parentElement)&&(!tail||nativeSectionAfterPrimary(root,chatsBoundary,tail))&&(!box||(!chatsBoundary.contains(box)&&!box.contains(chatsBoundary.parentElement)))){
       return{parent:chatsBoundary.parentElement,before:chatsBoundary,mode:'before-native-chats',legacy:'before-native-chats-v089'};
     }
-    if(tail?.parentElement&&(!box||(!tail.contains(box)&&!box.contains(tail.parentElement)))){
+    if(tail?.parentElement&&authoritativeLaneSafe(root,tail.parentElement)&&(!box||(!tail.contains(box)&&!box.contains(tail.parentElement)))){
       return{parent:tail.parentElement,before:tail.nextSibling,mode:'after-primary',legacy:'after-primary-v121'};
+    }
+    // Last deterministic fallback for the current ChatGPT sidebar: its visible History nav is
+    // a vertical scrollport. If an inner row is horizontal, mount after the top-level primary
+    // block instead of inserting inside that row next to the "Chats" title.
+    const topTail=topChild(root,tail);
+    if(topTail&&authoritativeLaneSafe(root,root)&&(!box||!topTail.contains(box))){
+      return{parent:root,before:topTail.nextSibling,mode:'after-primary-root',legacy:'after-primary-root-v103'};
     }
     // Never mount at a generic sidebar tail while ChatGPT is still hydrating. A visible native
     // /projects launcher is sufficient authority even before individual Project links hydrate.
@@ -427,9 +434,25 @@
     if(target.before===box)return true; // already immediately after the selected primary tail
     return box.nextSibling===target.before;
   }
+  function topChild(root,node){
+    let current=node;if(!root||!current)return null;
+    while(current.parentElement&&current.parentElement!==root)current=current.parentElement;
+    return current.parentElement===root?current:null;
+  }
+  function horizontalMountParent(parent){
+    if(!(parent instanceof Element))return false;
+    const style=getComputedStyle(parent),display=String(style.display||'');
+    if(display.includes('flex')&&!String(style.flexDirection||'row').startsWith('column'))return true;
+    if(display.includes('grid')){
+      const cols=String(style.gridTemplateColumns||'').trim().split(/\\s+/).filter(Boolean);
+      if(cols.length>1)return true;
+    }
+    return false;
+  }
   function authoritativeLaneSafe(root,parent){
     if(!(root instanceof Element)||!(parent instanceof Element)||!root.isConnected||!parent.isConnected)return false;
-    if(parent===root)return true;
+    if(parent===root)return !horizontalMountParent(parent);
+    if(horizontalMountParent(parent))return false;
     const rr=root.getBoundingClientRect(),pr=parent.getBoundingClientRect();
     // Zero-size geometry can happen for one frame during React hydration. Do not retire a
     // direct-once node on an unmeasurable frame; the next structural/UX reconcile will retry.

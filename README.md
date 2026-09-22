@@ -6,7 +6,7 @@
   <p>Projects · long-thread performance · continuity · navigation · focused productivity</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.109-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.110-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,15 +21,15 @@
 NiakGPT is a browser extension that turns the ChatGPT web interface into a more capable **workspace for heavy, project-based use** without replacing ChatGPT itself.
 
 It adds a native-first layer for Projects, navigation, long conversations, continuity, diagnostics and local productivity. Core features run locally in the browser: **no NiakGPT account, no NiakGPT analytics and no NiakGPT server are required**.
-> **Current version: 0.9.109.** React hydration is verified from the page’s **MAIN world**. NiakGPT now resolves the HostRoot either from the React container expando or by climbing the real `__reactFiber$…` owner chain from document/host nodes. It still requires a settled HostRoot, React ownership of `<html>` + `<body>`, and host ownership confirmation before any DOM/CSS mutation.
+> **Current version: 0.9.110.** React hydration is verified from the page’s **MAIN world**. NiakGPT resolves the current HostRoot from the React container or host Fiber chain, treats only an explicit `isDehydrated:true` as still blocked, and accepts React's post-#418 client-render recovery where that flag disappears. HTML/BODY ownership is diagnostic only; at least two stable React-owned host identities are still required before DOM/CSS mutation.
 
 ## Highlights
 
 ### Hydration-safe startup
 
-0.9.109 keeps the zero-touch CSS boundary and adds a second React authority path: **no NiakGPT CSS is declared as a static content script**. All 34 stylesheets are inserted only after the hydration gate succeeds, immediately before the runtime scripts. This prevents early layout/style influence from changing ChatGPT's client render during SSR hydration.
+0.9.110 keeps the zero-touch CSS boundary and adds a second React authority path: **no NiakGPT CSS is declared as a static content script**. All 34 stylesheets are inserted only after the hydration gate succeeds, immediately before the runtime scripts. This prevents early layout/style influence from changing ChatGPT's client render during SSR hydration.
 
-NiakGPT JavaScript no longer runs at `document_start`: the bootstrap group starts at `document_idle`, then waits for stable host identities, DOM quiet, scheduler idle, React host ownership, **an explicitly settled HostRoot (`memoizedState.isDehydrated === false`) and React ownership of both `<html>` and `<body>` read from the page MAIN world** before any NiakGPT mutation. If those ownership markers are unavailable, the gate fails closed until a trusted native user interaction. A Chromium/Firefox/WebKit lab now keeps the DOM visually stable while React continues scheduling work through `MessageChannel`, and fails if NiakGPT writes any `data-ng*` attribute or custom node before React ownership.
+NiakGPT JavaScript no longer runs at `document_start`: the bootstrap group starts at `document_idle`, then waits for the current HostRoot and stable React-owned host identities. **An explicit `isDehydrated:true` remains a hard block; after a recoverable hydration mismatch, a current HostRoot with no dehydration flag is treated as client-render recovery rather than a permanent failure.** HTML/BODY expandos are retained as diagnostics, not as a boot requirement. If MAIN-world proof is unavailable, the gate fails closed until a trusted native user interaction; interactions are latched from startup so an early click is not lost. A Chromium/Firefox/WebKit lab now keeps the DOM visually stable while React continues scheduling work through `MessageChannel`, and fails if NiakGPT writes any `data-ng*` attribute or custom node before React ownership.
 
 ### Projects that behave like part of ChatGPT
 
@@ -206,7 +206,7 @@ A fixture passing does **not** override a contradictory real user screenshot. Se
 | [README.fr.md](README.fr.md) | French README |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Runtime architecture and ownership invariants |
 | [CHANGELOG.md](CHANGELOG.md) | Detailed release history |
-| [RELEASE_NOTES_0.9.109.md](RELEASE_NOTES_0.9.109.md) | Current release summary |
+| [RELEASE_NOTES_0.9.110.md](RELEASE_NOTES_0.9.110.md) | Current release summary |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnosis and recovery |
 | [PRIVACY.md](PRIVACY.md) | Local data and network behavior |
 | [SECURITY.md](SECURITY.md) | Security model and reporting |

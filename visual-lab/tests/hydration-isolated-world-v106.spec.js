@@ -10,6 +10,11 @@ const EXECUTABLE=String(process.env.NIAKGPT_EXECUTABLE_PATH||'').trim();
 const HEADLESS=String(process.env.NIAKGPT_HEADLESS||'1')!=='0';
 
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+async function removeProfile(dir){
+  if(EXECUTABLE&&process.platform==='darwin')await sleep(220);
+  fs.rmSync(dir,{recursive:true,force:true,maxRetries:8,retryDelay:120});
+}
+
 async function closePersistentContext(context){
   const braveMac=!!EXECUTABLE&&process.platform==='darwin';
   if(!braveMac){await context.close().catch(()=>{});return;}
@@ -107,6 +112,6 @@ test('real MV3 boot reads React hydration from MAIN world without user interacti
     console.log('HYDRATION_MAIN_WORLD_CHECKPOINT PASS');
   }finally{
     await closePersistentContext(context);
-    fs.rmSync(dir,{recursive:true,force:true});
+    await removeProfile(dir);
   }
 });

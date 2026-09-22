@@ -2,7 +2,7 @@
 
 ## Field evidence
 
-The 0.9.102 vault refresh proved that metadata completeness was not archive completeness. NiakVIO reached 171 known / 171 cached conversations with clean Project names, yet the private repository still contained no files below any `conversations/` directory and every sampled conversation index remained `parts: 0`, `messages: 0`, `bootstrapMetadataOnly: true`.
+The 0.9.102 vault refresh proved that metadata completeness was not archive completeness. Project de référence reached 171 known / 171 cached conversations with clean Project names, yet the private repository still contained no files below any `conversations/` directory and every sampled conversation index remained `parts: 0`, `messages: 0`, `bootstrapMetadataOnly: true`.
 
 The supplied current ChatGPT home DOM also exposes the visible sidebar as a vertical `nav[aria-label="Historique de chat"]`, separate from the inert tiny rail. The existing placement code could still choose an inner Chats title row as its insertion parent.
 

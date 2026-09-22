@@ -739,11 +739,17 @@
     return list;
   }
 
-  async function saveQueue(ids, force, priority=false) {
+  async function saveQueue(ids, force, priority=false, extras={}) {
     const pending=[...new Set((ids||[]).map(String).filter(Boolean))];
     let old={};try{old=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
     const keepPriority=priority===true||old.priority===true;
-    try { await chrome.storage.local.set({ [QUEUE_KEY]:{ pending, force:force === true, priority:keepPriority, at:Date.now() } }); } catch {}
+    const retryAt=Math.max(0,Number(extras.retryAt||0));
+    const deferredChats=Math.max(0,Number(extras.deferredChats||0));
+    try {
+      await chrome.storage.local.set({[QUEUE_KEY]:{
+        pending,force:force===true,priority:keepPriority,retryAt,deferredChats,at:Date.now()
+      }});
+    } catch {}
     return pending;
   }
 
@@ -880,7 +886,12 @@
     try { q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{}; } catch {}
     const pending=Array.isArray(q.pending)?q.pending:[];
     const priority=q.priority===true;
-    return state({mode:'queued',queuedProjects:pending.length,projectTotal:pending.length,prioritySync:priority,error:'',pauseReason:reason,nextAttemptAt:Date.now()+(priority?PRIORITY_RETRY_MS:WAKE_HEARTBEAT_MS)});
+    const retryAt=Math.max(0,Number(q.retryAt||0));
+    return state({
+      mode:'queued',queuedProjects:pending.length,projectTotal:pending.length,prioritySync:priority,error:'',
+      pauseReason:reason,deferredChats:Number(q.deferredChats||0),
+      nextAttemptAt:retryAt||Date.now()+(priority?PRIORITY_RETRY_MS:WAKE_HEARTBEAT_MS)
+    });
   }
 
   const autoOwner = () => {
@@ -904,6 +915,8 @@
         const pending=Array.isArray(q.pending)?q.pending:[];
         document.documentElement.dataset.ng132WakeBeat=String(Date.now());
         if((p.autoSync!==false||q.priority===true)&&pending.length&&autoOwner()){
+          const wait=queueWait(q);
+          if(wait>0){schedule(wait);return;}
           const allowed=await currentPageHistoryAllowed();
           const activeCatchup=conversationPage()&&backgroundHistoryAvailable===true;
           const priorityCatchup=q.priority===true&&backgroundHistoryAvailable===true;
@@ -956,32 +969,47 @@
       let list = await deepInventory();
       list = list.filter(p => p.count > 0 && (!Array.isArray(opt.projectIds) || opt.projectIds.includes(p.id)));
       await saveQueue(list.map(p => p.id), opt.force, prioritySync);
-      await state({ mode:'syncing', projectDone:0, projectTotal:list.length, chatDone:0, chatTotal:0, prioritySync, error:'' });
+      await state({ mode:'syncing', projectDone:0, projectTotal:list.length, chatDone:0, chatTotal:0, prioritySync, deferredChats:0, error:'' });
       let changed = 0;
+      const deferred=[];
       for (let i = 0; i < list.length; i++) {
         if (document.hidden) throw new Error('memory_sync_paused_hidden');
         if (automatic && !autoOwner()) throw new Error('memory_sync_paused_owner_change');
         await saveQueue(list.slice(i).map(p => p.id), opt.force, prioritySync);
         if (!await waitIdle(undefined,allowConversation)) throw new Error(document.hidden?'memory_sync_paused_hidden':(automatic&&!autoOwner()?'memory_sync_paused_owner_change':'memory_sync_idle_timeout'));
-        changed += await syncProject(list[i], opt.force === true);
-        await saveQueue(list.slice(i+1).map(p=>p.id),opt.force,prioritySync);
-        await state({ mode:'syncing', projectDone:i+1, projectTotal:list.length, projectId:list[i].id, projectName:list[i].name, chatDone:0, chatTotal:0, prioritySync });
+        const result=await syncProject(list[i], opt.force === true);
+        changed+=Number(result?.changed||0);
+        if(Array.isArray(result?.deferred)&&result.deferred.length)deferred.push(...result.deferred);
+        const retryProjects=[...new Set(deferred.map(row=>row.projectId))];
+        await saveQueue([...retryProjects,...list.slice(i+1).map(p=>p.id)],opt.force,prioritySync);
+        await state({
+          mode:'syncing',projectDone:i+1,projectTotal:list.length,projectId:list[i].id,projectName:list[i].name,
+          chatDone:0,chatTotal:0,prioritySync,deferredChats:deferred.length
+        });
       }
       const afterList=projects(await cache());
       const remainingInventory=afterList.filter(p=>p.count>0&&(!p.indexed||Number(p.count||0)>(p.chats||[]).length)).map(p=>p.id);
-      if(remainingInventory.length){
-        await saveQueue(remainingInventory,opt.force,prioritySync);
+      const retryProjects=[...new Set(deferred.map(row=>row.projectId))];
+      const pendingProjects=[...new Set([...retryProjects,...remainingInventory])];
+      if(pendingProjects.length){
+        const now=Date.now();
+        const retryAt=deferred.length
+          ? Math.max(now+1000,Math.min(...deferred.map(row=>Number(row.nextAt||now+CHAT_RETRY_BACKOFF_MS[0]))))
+          : now+120000;
+        await saveQueue(pendingProjects,opt.force,prioritySync,{retryAt,deferredChats:deferred.length});
+        const reason=deferred.length?'chat-fetch-retry':'inventory-incomplete';
         const pendingState=await state({
           mode:'queued',projectDone:list.length,projectTotal:list.length,changed,lastSyncAt:Date.now(),
-          queuedProjects:remainingInventory.length,prioritySync,pauseReason:'inventory-incomplete',error:'',nextAttemptAt:Date.now()+120000
+          queuedProjects:pendingProjects.length,prioritySync,pauseReason:reason,error:'',
+          deferredChats:deferred.length,lastTransientError:deferred.at?.(-1)?.error||'',nextAttemptAt:retryAt
         });
-        schedule(120000);
+        schedule(Math.max(1000,retryAt-Date.now()));
         document.dispatchEvent(new CustomEvent('niakgpt:project-memory-partial',{detail:pendingState}));
-        return {ok:true,partial:true,projects:list.length,changed,pendingInventory:remainingInventory.length};
+        return {ok:true,partial:true,projects:list.length,changed,pendingInventory:remainingInventory.length,deferredChats:deferred.length};
       }
       try { await chrome.storage.local.remove(QUEUE_KEY); } catch {}
       const historyCacheSignature=cachedBootstrapSignature(projects(await cache()));
-      const done = await state({ mode:'idle', projectDone:list.length, projectTotal:list.length, changed, lastSyncAt:Date.now(), historyCompletedAt:Date.now(), historyCacheSignature, prioritySync:false, error:'',pauseReason:'' });
+      const done = await state({ mode:'idle', projectDone:list.length, projectTotal:list.length, changed, lastSyncAt:Date.now(), historyCompletedAt:Date.now(), historyCacheSignature, prioritySync:false, deferredChats:0, lastTransientError:'', error:'',pauseReason:'' });
       document.dispatchEvent(new CustomEvent('niakgpt:project-memory-synced', { detail:done }));
       return { ok:true, projects:list.length, changed };
     } catch (error) {
@@ -998,8 +1026,10 @@
       syncing = false; syncAuto = false;
       try{
         const q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};
-        if(Array.isArray(q.pending)&&q.pending.length) schedule(backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true,q.priority===true));
-        else prioritySync=false;
+        if(Array.isArray(q.pending)&&q.pending.length){
+          const delay=Math.max(backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true,q.priority===true),queueWait(q));
+          schedule(delay);
+        } else prioritySync=false;
       }catch{prioritySync=false;}
     }
   }
@@ -1009,6 +1039,8 @@
     try {
       const q = (await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY], p = await prefs();
       if (!q?.pending?.length || (!p.autoSync && q.priority!==true)) return;
+      const wait=queueWait(q);
+      if(wait>0){schedule(wait);return;}
       const allowConversation=conversationPage()&&await backgroundHistoryProbe(false);
       if (conversationPage()&&!allowConversation) { await queuedState('conversation'); schedule(WAKE_HEARTBEAT_MS); return; }
       if (peerBusy()) { await queuedState('peer-busy'); schedule(WAKE_HEARTBEAT_MS); return; }
@@ -1024,18 +1056,21 @@
     let initialQueue={};try{initialQueue=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
     const settings=await prefs();
     if(!settings.autoSync&&initialQueue.priority!==true)return;
+    const initialDelay=Math.max(Number(delay ?? backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true)),queueWait(initialQueue));
     autoTimer = setTimeout(async () => {
       if (!autoOwner() || syncing) return;
+      let q={};try{q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
+      const wait=queueWait(q);
+      if(wait>0)return schedule(wait);
       const allowConversation=conversationPage()&&await backgroundHistoryProbe(false);
       if (conversationPage()&&!allowConversation) { await queuedState('conversation'); return schedule(WAKE_HEARTBEAT_MS); }
       if (peerBusy()) { await queuedState('peer-busy'); return schedule(WAKE_HEARTBEAT_MS); }
-      let q={};try{q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
       const priority=q.priority===true;
       if (busy(true,allowConversation,priority)) return schedule(retryDelay(allowConversation,priority));
       const st = await send({ type:'niakgpt:memory-status-v132' });
       if (!st?.connected) return;
       bootstrap({ force:q.force===true, projectIds:Array.isArray(q.pending)&&q.pending.length?q.pending:undefined, auto:true, priority });
-    }, delay ?? backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true));
+    }, initialDelay);
   }
 
   function currentPid() {

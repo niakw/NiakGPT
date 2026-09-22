@@ -6,7 +6,7 @@
   <p>Projects · long-thread performance · continuity · navigation · focused productivity</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.117-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.118-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,7 +21,7 @@
 NiakGPT is a browser extension that turns the ChatGPT web interface into a more capable **workspace for heavy, project-based use** without replacing ChatGPT itself.
 
 It adds a native-first layer for Projects, navigation, long conversations, continuity, diagnostics and local productivity. Core features run locally in the browser: **no NiakGPT account, no NiakGPT analytics and no NiakGPT server are required**.
-> **Current version: 0.9.117.** Project Memory no longer lets one temporary conversation fetch failure stall a large backlog. HTTP 500/network failures are retried briefly, then deferred with backoff while later chats continue. Per-chat durable checkpoints are preserved; large transcripts use fewer, larger chunks, priority writes inline file contents directly in the GitHub tree request, and private-repository verification is reused for five minutes during bulk transfer. Existing conversation IDs are always updated at the same vault paths instead of creating duplicates.
+> **Current version: 0.9.118.** Project Memory now treats the Project index as a monotonic union instead of a last-writer snapshot. If an older tab/runtime overwrites the index with only a few rows, NiakGPT rebuilds it from the per-conversation checkpoints already present in the private vault before fetching history again. Existing archived conversations are recognized and skipped rather than replayed from 0%.
 
 ## Highlights
 
@@ -206,7 +206,7 @@ A fixture passing does **not** override a contradictory real user screenshot. Se
 | [README.fr.md](README.fr.md) | French README |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Runtime architecture and ownership invariants |
 | [CHANGELOG.md](CHANGELOG.md) | Detailed release history |
-| [RELEASE_NOTES_0.9.117.md](RELEASE_NOTES_0.9.117.md) | Current release summary |
+| [RELEASE_NOTES_0.9.118.md](RELEASE_NOTES_0.9.118.md) | Current release summary |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnosis and recovery |
 | [PRIVACY.md](PRIVACY.md) | Local data and network behavior |
 | [SECURITY.md](SECURITY.md) | Security model and reporting |

@@ -8,7 +8,7 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 
 const manifest=JSON.parse(read('manifest.json'));
 if(manifest.manifest_version!==3)fail('manifest_version drift');
-if(manifest.version!=='0.9.108')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.109')fail(`unexpected release ${manifest.version}`);
 same(manifest.permissions,['storage','scripting','identity'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*'],'host scope mismatch');
 const staticRuntime=['boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'];
@@ -28,7 +28,7 @@ const expectedStyles=[
 same(styles,expectedStyles,'post-hydration STYLE_RUNTIME mismatch');
 for(const file of styles)if(!fs.existsSync(file))fail(`missing deferred style ${file}`);
 for(const token of ['chrome.scripting.insertCSS','async function injectStyles','STYLE_INJECTED','const styleFailure=await injectStyles(tabId,frameId)','if(styleFailure){errors.push(styleFailure);bootBlocked=true;}'])need(background,token,'post-hydration style injection contract incomplete');
-for(const token of ['async function probeReactHydration','chrome.scripting.executeScript','world:\'MAIN\'','niakgpt:probe-react-hydration-v107','HOST_OWNER_RX','hostOwned','containerFound','rootSettled','htmlOwned','bodyOwned','documentRootOwned','ownedCount'])need(background,token,'MAIN-world React hydration probe contract incomplete');
+for(const token of ['async function probeReactHydration','chrome.scripting.executeScript','world:\'MAIN\'','niakgpt:probe-react-hydration-v107','HOST_OWNER_RX','FIBER_RX','hostOwned','ownerFiber','rootFromFiber','rootFound','rootSource','rootSettled','rootDehydrated','htmlOwned','bodyOwned','documentRootOwned','ownedCount'])need(background,token,'MAIN-world React hydration probe contract incomplete');
 const packager=read('tools/package-extension.mjs');
 need(packager,"['STYLE_RUNTIME','MAIN_RUNTIME','ISOLATED_RUNTIME','OPTIONAL_RUNTIME']",'package builder must include deferred styles');
 
@@ -88,7 +88,7 @@ for(const token of ['PROJECT_STATE.md','canonicalUpdated','prefsReady','function
 forbid(memoryRuntime,'async function inject(ed)','Project Memory send-time injection must be synchronous');
 
 const gate=read('boot-gate-v100.js');
-for(const token of ['waitDomInteractive','waitForChatShell','restorePendingContinuity','guardUpdateOnboarding','injectRuntime','for(const delay of [0,240,720])','safeToMutate=!!document.body','waitForQuiet(1200,7000)','waitStableHostIdentity(1600,8500)','idleTurn(2200)','requestIdleCallback','mainWorldReactProbe','niakgpt:probe-react-hydration-v107','waitReactHydrationOwnership','waitTrustedHydratedInteraction','react-document-root-settled','trusted-interaction-after-host-fault','hydrationFault','containerFound','ng100HydrationProof','__NIAKGPT_HOST_HYDRATED_100__','niakgpt:host-hydrated-v100'])need(gate,token,'late-scheduler/full-document React hydration bootstrap contract incomplete');
+for(const token of ['waitDomInteractive','waitForChatShell','restorePendingContinuity','guardUpdateOnboarding','injectRuntime','for(const delay of [0,240,720])','safeToMutate=!!document.body','waitForQuiet(1200,7000)','waitStableHostIdentity(1600,8500)','idleTurn(2200)','requestIdleCallback','mainWorldReactProbe','niakgpt:probe-react-hydration-v107','waitReactHydrationOwnership','waitTrustedHydratedInteraction','react-document-root-settled','react-fiber-root-settled','trusted-interaction-after-host-fault','hydrationFault','rootFound','rootSource','ng100HydrationProof','__NIAKGPT_HOST_HYDRATED_100__','niakgpt:host-hydrated-v100'])need(gate,token,'late-scheduler/full-document React hydration bootstrap contract incomplete');
 forbid(gate,'probe.fullDocument===false','heuristic fullDocument bypass must never unlock hydration');
 forbid(gate,'main-world-legacy-host','legacy host hydration bypass must never return');
 forbid(gate,'Object.getOwnPropertyNames','isolated boot gate must not inspect page-world React expandos directly');
@@ -103,6 +103,8 @@ for(const file of staticRuntime.slice(1)){
 }
 if(!fs.existsSync('visual-lab/hydration-barrier-v080.mjs'))fail('SSR hydration barrier browser gate missing');
 if(!fs.existsSync('visual-lab/tests/hydration-isolated-world-v106.spec.js'))fail('real MV3 isolated-world hydration gate missing');
+const fiberRootLab=read('visual-lab/tests/hydration-fiber-root-v109.spec.js');
+for(const token of ['__reactFiber','tag:3','isDehydrated:true','isDehydrated=false','react-fiber-root-settled','HYDRATION_FIBER_ROOT_CHECKPOINT PASS'])need(fiberRootLab,token,'fiber-root hydration regression incomplete');
 const documentRootLab=read('visual-lab/tests/hydration-document-root-v107.spec.js');
 for(const token of ['window.__documentRootClaimed=false','window.__earlyNiakMutation=false','hostRootSettled','documentRootClaimed','react-document-root-settled','HYDRATION_DOCUMENT_ROOT_CHECKPOINT PASS'])need(documentRootLab,token,'document-root hydration regression incomplete');
 const isolatedHydrationLab=read('visual-lab/tests/hydration-isolated-world-v106.spec.js');

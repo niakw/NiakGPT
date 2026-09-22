@@ -205,15 +205,26 @@ async function probeReactHydration(tabId,frameId){
           document.querySelector('main'),
           document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')
         ].filter(Boolean);
+        const currentHostRoot=root=>{
+          if(!root)return null;
+          const current=root?.stateNode?.current;
+          return current?.tag===3?current:root?.tag===3?root:null;
+        };
         const container=containerFiber();
-        const containerCurrent=container?.stateNode?.current||null;
-        const containerRoot=containerCurrent?.tag===3?containerCurrent:container?.tag===3?container:null;
+        const containerRoot=currentHostRoot(container?.stateNode?.current||container);
         const ownerNodes=[document.documentElement,document.body,...identities].filter(Boolean);
-        const fiberRoot=ownerNodes.map(ownerFiber).map(rootFromFiber).find(Boolean)||null;
+        const fiberRoot=currentHostRoot(ownerNodes.map(ownerFiber).map(rootFromFiber).find(Boolean)||null);
         const authoritativeRoot=containerRoot||fiberRoot||null;
         const rootFound=!!authoritativeRoot;
-        const rootSettled=authoritativeRoot?.memoizedState?.isDehydrated===false;
-        const rootDehydrated=authoritativeRoot?.memoizedState?.isDehydrated===true;
+        const rootState=authoritativeRoot?.memoizedState;
+        const rootHasDehydratedFlag=!!rootState&&Object.prototype.hasOwnProperty.call(rootState,'isDehydrated');
+        const rootDehydrated=rootHasDehydratedFlag&&rootState.isDehydrated===true;
+        // React recovery after a recoverable hydration mismatch can switch the current
+        // HostRoot to client rendering. In that state the dehydration flag may vanish
+        // instead of becoming the literal boolean false. Only an explicit true means
+        // hydration is still pending.
+        const rootSettled=rootFound&&!rootDehydrated;
+        const rootStateKind=!rootFound?'missing':rootDehydrated?'dehydrated':rootHasDehydratedFlag?'settled-explicit':'settled-client-render';
         const htmlOwned=hostOwned(document.documentElement);
         const bodyOwned=hostOwned(document.body);
         const needed=Math.min(2,identities.length);
@@ -224,6 +235,8 @@ async function probeReactHydration(tabId,frameId){
           rootSource:containerRoot?'container':fiberRoot?'fiber-owner':'none',
           rootSettled,
           rootDehydrated,
+          rootHasDehydratedFlag,
+          rootStateKind,
           htmlOwned,
           bodyOwned,
           documentRootOwned:htmlOwned&&bodyOwned,

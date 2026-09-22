@@ -247,7 +247,7 @@
         if(mirroredCollapsed){
           const hidden=new Set((rawGov.hiddenProjectIds||[]).map(String));
           const recoveredCore=catalog
-            .filter(row=>!hidden.has(String(row.id))&&!QUEUE.has(projectName(row.name||'')))
+            .filter(row=>!hidden.has(String(row.id))&&!/^(?:à classer|a classer|hors projet\s*\/\s*a classer|hors projet\s*\/\s*à classer|unclassified|to classify)$/i.test(projectName(row.name||'')))
             .map(row=>String(row.id));
           if(recoveredCore.length>core.length){
             await chrome.storage.local.set({[GOV_KEY]:{

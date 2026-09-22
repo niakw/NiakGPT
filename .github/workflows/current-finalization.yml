@@ -114,6 +114,9 @@ jobs:
       - name: Project Memory transient fetch isolation
         working-directory: visual-lab
         run: node project-memory-transient-fetch-v117.mjs
+      - name: Project Memory durable archive reconciliation
+        working-directory: visual-lab
+        run: node project-memory-index-reconcile-v118.mjs
       - name: Cold-chat Pins remain local/cache-only
         working-directory: visual-lab
         run: node pins-launcher-only-v085.mjs

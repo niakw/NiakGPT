@@ -63,12 +63,12 @@ for(const token of ["const OPTIONAL_RUNTIME=[","sendResponse({ok:!coreFailed","P
 forbid(background,"item.includes(':project-memory-v132.js:')",'Project Memory must not be a critical coreFailed owner');
 
 const serverIndex=read('server-index-v100.js');
-  for(const token of ['COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement','coldBootstrap','conversationPage()',"navigation.addEventListener('navigatesuccess',routeWake)"])need(serverIndex,token,'cold canonical index recovery incomplete');
+  for(const token of ['COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement','coldBootstrap','conversationPage()',"navigation.addEventListener('navigatesuccess',routeWake)",'memoryRepairIds','memoryBootstrap:memoryBootstrap===true','peerBlocked','projectIds'])need(serverIndex,token,'cold canonical index / Project Memory repair incomplete');
   const serverBootstrap=read('server-index-bootstrap-v124.js');
   for(const token of ['COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement(raw)','conversationPage()'])need(serverBootstrap,token,'cold canonical bootstrap recovery incomplete');
 
 const bridge=read('page-bridge.js');
-need(bridge,'const nativeFetch = window.fetch.bind(window);');need(bridge,'conversation_detail_get_disabled');need(bridge,'d.memoryBootstrap !== true');need(bridge,'project_move_requires_governance');for(const token of ['memoryPeerSafe','peerBusyPage','data-ng90-peer-busy','d.memoryBootstrap === true'])need(bridge,token,'Project Memory idle-peer bridge exception incomplete');forbid(bridge,'window.fetch =');forbid(bridge,'globalThis.fetch =');
+need(bridge,'const nativeFetch = window.fetch.bind(window);');need(bridge,'conversation_detail_get_disabled');need(bridge,'d.memoryBootstrap !== true');need(bridge,'project_move_requires_governance');for(const token of ['memoryPeerSafe','peerBusyPage','data-ng90-peer-busy','d.memoryBootstrap === true','projectConversationsRx.test(String(path||\'\'))'])need(bridge,token,'Project Memory idle-peer bridge/inventory exception incomplete');forbid(bridge,'window.fetch =');forbid(bridge,'globalThis.fetch =');
 
 const memoryBackend=read('project-memory-background-v132.js');
 for(const token of ['memory_repository_must_be_private','meta?.private !== true','chrome.storage.session','niakgpt:memory-connect-v132','chrome.identity.launchWebAuthFlow','app-manifests/','request_oauth_on_install','niakgpt:memory-github-connect-repo-v132','github_repository_not_authorized_for_vault','refresh_token','code_challenge','code_verifier','setup_url: clean(flow.installRedirect)','request_oauth_on_install: false',"cache: init.cache || 'no-store'",'const beforeUpdate = await getRef','MAX_REF_RETRIES = 8','MAX_REF_BACKOFF_MS'])need(memoryBackend,token,'Project Memory backend invariant incomplete');

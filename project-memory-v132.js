@@ -787,7 +787,7 @@
         const q=local[QUEUE_KEY]||{},p=Object.assign({},defaults,local[PREFS_KEY]||{});
         const pending=Array.isArray(q.pending)?q.pending:[];
         document.documentElement.dataset.ng132WakeBeat=String(Date.now());
-        if(p.autoSync!==false&&pending.length&&autoOwner()){
+        if((p.autoSync!==false||q.priority===true)&&pending.length&&autoOwner()){
           const allowed=await currentPageHistoryAllowed();
           const activeCatchup=conversationPage()&&backgroundHistoryAvailable===true;
           const priorityCatchup=q.priority===true&&backgroundHistoryAvailable===true;
@@ -891,7 +891,7 @@
     if (syncing || !autoOwner()) return;
     try {
       const q = (await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY], p = await prefs();
-      if (!q?.pending?.length || !p.autoSync) return;
+      if (!q?.pending?.length || (!p.autoSync && q.priority!==true)) return;
       const allowConversation=conversationPage()&&await backgroundHistoryProbe(false);
       if (conversationPage()&&!allowConversation) { await queuedState('conversation'); schedule(WAKE_HEARTBEAT_MS); return; }
       if (peerBusy()) { await queuedState('peer-busy'); schedule(WAKE_HEARTBEAT_MS); return; }
@@ -903,7 +903,10 @@
 
   async function schedule(delay) {
     clearTimeout(autoTimer);
-    if (!autoOwner() || !(await prefs()).autoSync) return;
+    if (!autoOwner()) return;
+    let initialQueue={};try{initialQueue=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
+    const settings=await prefs();
+    if(!settings.autoSync&&initialQueue.priority!==true)return;
     autoTimer = setTimeout(async () => {
       if (!autoOwner()) return;
       const allowConversation=conversationPage()&&await backgroundHistoryProbe(false);
@@ -1104,6 +1107,7 @@
     await state({mode:'queued',prioritySync:true,priorityStartedAt:Date.now(),queuedProjects:pending.length,projectTotal:pending.length,pauseReason:'priority',error:''});
     if(syncing)return {ok:true,priority:true,joined:true,queuedProjects:pending.length};
     const result=await bootstrap({force:false,projectIds:pending,auto:false,priority:true});
+    if(result?.paused) schedule(PRIORITY_RETRY_MS);
     return {...result,priority:true,queuedProjects:pending.length};
   }
 

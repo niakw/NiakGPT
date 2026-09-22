@@ -63,7 +63,7 @@ try{
     window.__store=store;
     window.chrome={
       runtime:{
-        id:'priority-sync-lab',lastError:null,getManifest:()=>({version:'0.9.117'}),
+        id:'priority-sync-lab',lastError:null,getManifest:()=>({version:'0.9.118'}),
         sendMessage(message,cb){
           const type=String(message?.type||'');
           const reply=value=>queueMicrotask(()=>cb(value));

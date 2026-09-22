@@ -403,9 +403,21 @@
     return out.join('\n').trim() + '\n';
   }
 
-  function buildState(project, index) {
+  function buildState(project, index, previousState='') {
     const convs = Object.values(index.conversations || {}).sort((a,b) => Number(b.updated || 0) - Number(a.updated || 0));
-    const tasks = [], arch = [], decisions = [], recent = [];
+    const priorSection=name=>{
+      const text=String(previousState||''),start=text.indexOf('## '+name);
+      if(start<0)return[];
+      const tail=text.slice(start+('## '+name).length),end=tail.search(/\n##\s/),body=end>=0?tail.slice(0,end):tail;
+      return body.split('\n').map(line=>line.trim()).filter(line=>line.startsWith('- ')&&!/Aucun signal fiable/i.test(line)).map(line=>line.slice(2));
+    };
+    const priorRecent=(()=>{
+      const text=String(previousState||''),start=text.indexOf('## Recent working context');
+      if(start<0)return'';
+      const tail=text.slice(start+'## Recent working context'.length),end=tail.indexOf('\n## Conversation inventory');
+      return (end>=0?tail.slice(0,end):tail).trim();
+    })();
+    const tasks = priorSection('Open tasks / next actions'), arch = priorSection('Architecture / invariants / constraints'), decisions = priorSection('Decisions / rules'), recent = [];
     convs.forEach(c => {
       const s = c.signals || {};
       tasks.push(...(s.tasks || [])); arch.push(...(s.architecture || [])); decisions.push(...(s.decisions || []));
@@ -414,7 +426,8 @@
     const uniq = list => [...new Map(list.map(x => [String(x).toLowerCase(), x])).values()].slice(0, 24);
     recent.sort((a,b) => Number(b.at || b.updated || 0) - Number(a.at || a.updated || 0));
     const section = (name, list) => '## ' + name + '\n\n' + (list.length ? uniq(list).map(x => '- ' + clip(x, 650)).join('\n') : '- Aucun signal fiable.') + '\n';
-    const recentText = recent.slice(0, 10).map(x => '### ' + String(x.role || 'assistant').toUpperCase() + ' · ' + one(x.title || 'Conversation') + '\n\n' + clip(x.text, 1200)).join('\n\n');
+    const freshRecent = recent.slice(0, 10).map(x => '### ' + String(x.role || 'assistant').toUpperCase() + ' · ' + one(x.title || 'Conversation') + '\n\n' + clip(x.text, 1200)).join('\n\n');
+    const recentText = [freshRecent,priorRecent].filter(Boolean).join('\n\n');
     const inventory = convs.slice(0, 100).map(c => '- ' + one(c.title || c.id) + ' — ' + (c.updated ? new Date(Number(c.updated)).toISOString() : 'unknown')).join('\n');
     return clip(
       '# NiakGPT Project Memory — ' + one(project.name || project.id) + '\n\n' +
@@ -493,6 +506,63 @@
     return (h>>>0).toString(36);
   }
 
+  const compactProjectConversation = row => {
+    const r=row&&typeof row==='object'?row:{};
+    return {
+      schema:1,id:String(r.id||''),title:one(r.title||'Conversation'),updated:Number(r.updated||0),
+      capturedAt:String(r.capturedAt||''),parts:Math.max(0,Number(r.parts||0)),messages:Math.max(0,Number(r.messages||0)),
+      canonicalHash:String(r.canonicalHash||''),liveDomHash:String(r.liveDomHash||''),
+      bootstrapMetadataOnly:r.bootstrapMetadataOnly===true,historyPartial:r.historyPartial===true,
+      complete:r.complete===true,captureSource:String(r.captureSource||'')
+    };
+  };
+  const projectConversationStrength = row => row?.complete===true&&Number(row?.parts||0)>0&&Number(row?.messages||0)>0
+    ? 3 : (Number(row?.parts||0)>0&&Number(row?.messages||0)>0 ? 2 : (row?.id?1:0));
+  const projectConversationEpoch = row => Math.max(Number(row?.updated||0),Date.parse(String(row?.capturedAt||''))||0);
+  function preferProjectConversation(current,incoming){
+    if(!current)return incoming;
+    if(!incoming)return current;
+    const a=projectConversationStrength(current),b=projectConversationStrength(incoming);
+    if(a!==b)return b>a?incoming:current;
+    return projectConversationEpoch(incoming)>=projectConversationEpoch(current)?incoming:current;
+  }
+  function compactProjectIndex(index){
+    const src=index&&typeof index==='object'?index:{},conversations={};
+    for(const [id,row] of Object.entries(src.conversations&&typeof src.conversations==='object'?src.conversations:{})){
+      if(id)conversations[id]=compactProjectConversation({...row,id:row?.id||id});
+    }
+    return {...src,conversations};
+  }
+  async function reconcileProjectArchive(project,idx){
+    const known=Object.entries(idx.conversations||{})
+      .filter(([,row])=>row?.complete===true&&Number(row?.parts||0)>0&&Number(row?.messages||0)>0)
+      .map(([id])=>id);
+    const result=await send({
+      type:'niakgpt:memory-project-archive-v132',projectId:project.id,knownArchivedIds:known
+    });
+    if(!result?.ok)return {idx,recovered:0,directoryCount:known.length,error:String(result?.error||'archive_reconcile_failed')};
+    let recovered=0;
+    for(const row of (Array.isArray(result.recovered)?result.recovered:[])){
+      const id=String(row?.id||'');if(!id)continue;
+      const chosen=preferProjectConversation(idx.conversations[id],row);
+      if(chosen!==idx.conversations[id]){idx.conversations[id]=chosen;recovered++;}
+    }
+    return {idx,recovered,directoryCount:Number(result.directoryCount||known.length),error:''};
+  }
+  function ensureProjectChatMetadata(project,idx){
+    for(const chat of (project.chats||[])){
+      if(!chat?.id)continue;
+      const id=String(chat.id),old=idx.conversations[id];
+      if(old)continue;
+      idx.conversations[id]={
+        schema:1,id,title:one(chat.title||'Conversation'),updated:parseTime(chat.updated||chat.update_time||chat.create_time),
+        capturedAt:new Date().toISOString(),parts:0,messages:0,canonicalHash:'',liveDomHash:'',
+        bootstrapMetadataOnly:true,historyPartial:false,complete:false,captureSource:''
+      };
+    }
+    return idx;
+  }
+
   async function captureCurrentDomConversation(force=false) {
     if(!conversationPage()||document.hidden)return{ok:true,skipped:'not-visible-conversation'};
     const cid=currentChatId(),rows=domMessages();if(!cid||!rows.length)return{ok:true,skipped:'dom-not-ready'};
@@ -525,7 +595,7 @@
       captureSource:'live-dom',liveDomHash:hash,signals:signals(rows)
     };
     idx={...idx,schema:1,projectId:project.id,projectName:projectName(project.name||''),updatedAt:new Date().toISOString(),bootstrapMetadataOnly:false,conversations:{...idx.conversations,[cid]:chatIndex}};
-    const compact=buildState(project,idx);
+    const compact=buildState(project,idx,await loadContext(project.id));
     files.push(
       {path:base+'/index.json',content:JSON.stringify(chatIndex,null,2)+'\n'},
       {path:ppath(project.id,'project.json'),content:JSON.stringify({
@@ -533,7 +603,7 @@
         conversationCount:Object.keys(idx.conversations).length,knownConversationCount:Number(project.count||0),indexed:project.indexed===true,
         bootstrapMetadataOnly:false,updatedAt:idx.updatedAt
       },null,2)+'\n'},
-      {path:ppath(project.id,'index.json'),content:JSON.stringify(idx,null,2)+'\n'},
+      {path:ppath(project.id,'index.json'),content:JSON.stringify(compactProjectIndex(idx),null,2)+'\n'},
       {path:ppath(project.id,'PROJECT_STATE.md'),content:compact}
     );
     await commit(files,'NiakGPT memory: live DOM '+projectName(project.name||project.id)+' / '+one(chat.title||cid));
@@ -555,11 +625,26 @@
     try { await chrome.storage.local.set({ [CONTEXT_KEY]: raw }); } catch {}
   }
 
+  async function loadContext(pid) {
+    try {
+      const raw=(await chrome.storage.local.get(CONTEXT_KEY))[CONTEXT_KEY]||{};
+      return String(raw?.[pid]?.text||'');
+    } catch { return ''; }
+  }
+
   async function syncProject(project, force) {
     let idx = null;
     try { const txt = await read(ppath(project.id, 'index.json')); if (txt) idx = JSON.parse(txt); } catch {}
     if (!idx || typeof idx !== 'object') idx = { schema: 1, projectId: project.id, conversations: {} };
     if (!idx.conversations || typeof idx.conversations !== 'object') idx.conversations = {};
+    const archiveRecovery=await reconcileProjectArchive(project,idx);
+    idx=ensureProjectChatMetadata(project,archiveRecovery.idx);
+    if(archiveRecovery.recovered){
+      await state({
+        mode:'preparing',projectId:project.id,projectName:project.name,
+        archiveRecovered:archiveRecovery.recovered,archiveDirectoryCount:archiveRecovery.directoryCount,error:''
+      });
+    }
 
     const chats = project.chats.slice().sort((a,b) => Number(a.updated || 0) - Number(b.updated || 0));
     const complete = chat => {
@@ -574,7 +659,8 @@
     await state({
       mode:'syncing',projectId:project.id,projectName:project.name,
       chatId:'',chatTitle:'',chatDone:completed,chatTotal:chats.length,
-      prioritySync,projectArchivedBefore:completed,deferredChats:0,retryingChat:false,lastTransientError:''
+      prioritySync,projectArchivedBefore:completed,archiveRecovered:archiveRecovery.recovered,
+      archiveDirectoryCount:archiveRecovery.directoryCount,deferredChats:0,retryingChat:false,lastTransientError:''
     });
 
     for (const chat of chats) {
@@ -646,7 +732,7 @@
         idx.projectId=project.id;idx.projectName=projectName(project.name||'');idx.updatedAt=new Date().toISOString();idx.bootstrapMetadataOnly=false;
         await commit([
           {path:ppath(project.id,'conversations/'+safe(chat.id)+'/index.json'),content:JSON.stringify(chatIndex,null,2)+'\n'},
-          {path:ppath(project.id,'index.json'),content:JSON.stringify(idx,null,2)+'\n'}
+          {path:ppath(project.id,'index.json'),content:JSON.stringify(compactProjectIndex(idx),null,2)+'\n'}
         ],'NiakGPT memory: metadata '+one(project.name||project.id)+' / '+one(chat.title||chat.id),prioritySync);
         if(ledger[retryKey]){delete ledger[retryKey];await persistLedger();}
         completed++;
@@ -677,7 +763,7 @@
       idx.projectId=project.id;idx.projectName=projectName(project.name||'');idx.updatedAt=new Date().toISOString();idx.bootstrapMetadataOnly=false;
       files.push(
         {path:base+'/index.json',content:JSON.stringify(chatIndex,null,2)+'\n'},
-        {path:ppath(project.id,'index.json'),content:JSON.stringify(idx,null,2)+'\n'}
+        {path:ppath(project.id,'index.json'),content:JSON.stringify(compactProjectIndex(idx),null,2)+'\n'}
       );
 
       // Per-chat durable checkpoint stays authoritative. Speedups happen below the commit
@@ -696,14 +782,14 @@
 
     idx.projectId=project.id;idx.projectName=projectName(project.name||'');idx.updatedAt=new Date().toISOString();
     idx.bootstrapMetadataOnly=!Object.values(idx.conversations||{}).some(row=>Number(row?.parts||0)>0&&Number(row?.messages||0)>0);
-    const compact=buildState(project,idx);
+    const compact=buildState(project,idx,await loadContext(project.id));
     await commit([
       {path:ppath(project.id,'project.json'),content:JSON.stringify({
         schema:1,id:project.id,name:projectName(project.name||''),description:clean(project.description||''),instructions:clean(project.instructions||''),
         conversationCount:Object.keys(idx.conversations).length,knownConversationCount:Number(project.count||0),cachedConversationCount:(project.chats||[]).length,
         indexed:project.indexed===true,bootstrapMetadataOnly:idx.bootstrapMetadataOnly,updatedAt:idx.updatedAt
       },null,2)+'\n'},
-      {path:ppath(project.id,'index.json'),content:JSON.stringify(idx,null,2)+'\n'},
+      {path:ppath(project.id,'index.json'),content:JSON.stringify(compactProjectIndex(idx),null,2)+'\n'},
       {path:ppath(project.id,'PROJECT_STATE.md'),content:compact}
     ],'NiakGPT memory: checkpoint '+one(project.name||project.id),prioritySync);
     await saveContext(project.id,compact);
@@ -864,8 +950,8 @@
           conversationCount:Object.keys(conversations).length,knownConversationCount:Number(project.count||0),indexed:project.indexed===true,
           bootstrapMetadataOnly:!hasArchive,updatedAt:generatedAt
         },null,2)+'\n'},
-        {path:ppath(project.id,'index.json'),content:JSON.stringify(idx,null,2)+'\n'},
-        {path:ppath(project.id,'PROJECT_STATE.md'),content:buildState(project,idx)}
+        {path:ppath(project.id,'index.json'),content:JSON.stringify(compactProjectIndex(idx),null,2)+'\n'},
+        {path:ppath(project.id,'PROJECT_STATE.md'),content:buildState(project,idx,await loadContext(project.id))}
       );
     }
     await commit(files,'NiakGPT memory: cached bootstrap inventory');

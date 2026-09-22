@@ -1,3 +1,13 @@
+# NiakGPT 0.9.118 — un gros Project ne peut plus perdre son index de reprise
+
+- **Cause terrain prouvée sur le coffre réel** : un index Project terrain avait atteint **180 conversations dont 89 archivées** et environ **3,13 millions de caractères**. Une minute plus tard, l’index courant ne contenait plus qu’**1 conversation** alors que les **89 dossiers de conversations** existaient toujours. Ce n’était pas une limite à 100 chats : la lecture via GitHub Contents cessait d’embarquer les gros fichiers, le runtime interprétait alors l’échec de lecture comme un index absent et repartait d’un objet vide.
+- **Lecture gros fichier robuste** : si GitHub Contents ne renvoie plus de payload base64 pour un fichier volumineux, le backend lit désormais le blob Git immuable associé au SHA au lieu de considérer le fichier comme inexistant.
+- **Index Project compact** : `projects/<project>/index.json` ne duplique plus les gros blocs `signals` de chaque conversation. Les détails restent dans `conversations/<id>/index.json`; l’index Project garde uniquement les métadonnées nécessaires à la reprise. Cela ramène l’index de plusieurs mégaoctets à une taille bornée par quelques centaines d’octets par chat.
+- **Auto-réconciliation** : avant de reprendre un Project, NiakGPT compare les chats marqués complets avec les dossiers durables sous `conversations/`. Les dossiers absents de l’index sont relus de façon bornée (8 lectures concurrentes) et restaurés avant le premier fetch ChatGPT.
+- **Anti-écrasement multi-écriture** : chaque écriture de l’index Project fusionne côté service worker l’index entrant avec l’index présent au HEAD Git. Un onglet ou writer obsolète ne peut plus remplacer 89 checkpoints par 1 ; les entrées les plus fortes/récentes gagnent et l’union est conservée.
+- **Reprise visible** : l’UI affiche `reprise restaurée: N archive(s)` lorsque des checkpoints présents sur disque sont récupérés avant la reprise réseau.
+- **Non-régression** : le gate 0.9.118 simule un index tronqué à 1/4 alors que trois dossiers durables existent et exige que seul le quatrième chat soit téléchargé. Le test backend simule aussi un fichier Contents de 3,1 Mo sans contenu inline et vérifie le fallback Git blob ainsi que l’impossibilité pour un writer obsolète de réduire l’index.
+
 # NiakGPT 0.9.117 — une conversation en erreur ne bloque plus le transfert
 
 - **Boucle terrain reproduite** : un chat renvoyant alternativement `chatgpt_memory_http_500` et `Failed to fetch` faisait sortir `syncProject()`, plaçait Project Memory en erreur puis relançait le même Project presque immédiatement. Le compteur restait donc bloqué sur le même chat malgré des centaines de conversations encore à transférer.

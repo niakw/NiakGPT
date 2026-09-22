@@ -246,6 +246,95 @@ const priorityResult2=await memory.commitFilesWith('synthetic-priority-token',pr
 assert.equal(priorityResult2.files,1);
 assert.equal(priorityRepoChecks,1,'private repository verification cache did not remove repeated metadata reads');
 
+// Large Project regression: a multi-megabyte project index may be returned by GitHub
+// Contents without inline base64. The blob fallback must recover it, and a stale writer
+// must merge with the current durable index instead of shrinking 3 archived chats to 1.
+const archived=(id,updated,extra={})=>({
+  schema:1,id,title:'Thread '+id,updated,capturedAt:new Date(updated).toISOString(),
+  parts:2,messages:20,canonicalHash:'hash-'+id,bootstrapMetadataOnly:false,
+  historyPartial:false,complete:true,captureSource:'backend',
+  signals:{tasks:['large duplicated signal '+id],architecture:[],decisions:[],recent:[]},
+  ...extra
+});
+const currentLargeIndex={
+  schema:1,projectId:'g-p-large',projectName:'Large Workspace',updatedAt:'2026-09-22T22:09:00.000Z',
+  conversations:{c1:archived('c1',1000),c2:archived('c2',2000),c3:archived('c3',3000)}
+};
+const staleIncoming={
+  schema:1,projectId:'g-p-large',projectName:'Large Workspace',updatedAt:'2026-09-22T22:10:00.000Z',
+  conversations:{c1:archived('c1',1000)}
+};
+const pureMerged=memory.mergeProjectIndexPayload(currentLargeIndex,staleIncoming);
+assert.equal(Object.keys(pureMerged.conversations).length,3,'stale project index merge dropped durable conversations');
+assert.equal(Object.hasOwn(pureMerged.conversations.c2,'signals'),false,'compact project index still duplicated per-chat signals');
+
+let mergeHead='merge-parent-0',mergeTreeBody=null,mergeBlobReads=0;
+globalThis.fetch=async(url,init={})=>{
+  const u=new URL(String(url)),path=u.pathname,method=String(init.method||'GET').toUpperCase();
+  const body=init.body?JSON.parse(init.body):null;
+  const reply=(status,data)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json'}});
+  if(method==='GET'&&path==='/repos/niakw/merge-memory')return reply(200,{private:true,archived:false,size:1,default_branch:'main'});
+  if(method==='GET'&&path==='/repos/niakw/merge-memory/git/ref/heads/main')return reply(200,{object:{sha:mergeHead}});
+  if(method==='GET'&&path==='/repos/niakw/merge-memory/git/commits/'+mergeHead)return reply(200,{tree:{sha:'tree-'+mergeHead}});
+  if(method==='GET'&&path==='/repos/niakw/merge-memory/contents/.niakgpt-memory/projects/g-p-large/index.json'){
+    assert.equal(u.searchParams.get('ref'),mergeHead);
+    return reply(200,{type:'file',encoding:'none',content:'',sha:'large-index-blob',size:3_100_000});
+  }
+  if(method==='GET'&&path==='/repos/niakw/merge-memory/git/blobs/large-index-blob'){
+    mergeBlobReads++;
+    return reply(200,{encoding:'base64',content:Buffer.from(JSON.stringify(currentLargeIndex),'utf8').toString('base64'),sha:'large-index-blob'});
+  }
+  if(method==='POST'&&path==='/repos/niakw/merge-memory/git/trees'){mergeTreeBody=body;return reply(201,{sha:'tree-merged'});}
+  if(method==='POST'&&path==='/repos/niakw/merge-memory/git/commits')return reply(201,{sha:'merge-commit-1'});
+  if(method==='PATCH'&&path==='/repos/niakw/merge-memory/git/refs/heads/main'){mergeHead=body.sha;return reply(200,{object:{sha:mergeHead}});}
+  return reply(500,{message:'unexpected merge mock '+method+' '+path});
+};
+const mergeResult=await memory.commitFilesWith(
+  'synthetic-merge-token',
+  {repo:'niakw/merge-memory',branch:'main',root:'.niakgpt-memory'},
+  [{path:'projects/g-p-large/index.json',content:JSON.stringify(staleIncoming)}],
+  'stale writer merge',
+  0,
+  true
+);
+assert.equal(mergeResult.files,1);
+assert.equal(mergeBlobReads,1,'large Contents payload did not fall back to Git blob');
+const mergedTreeRow=mergeTreeBody.tree.find(row=>row.path.endsWith('/projects/g-p-large/index.json'));
+assert.ok(mergedTreeRow&&typeof mergedTreeRow.content==='string','merged project index was not written inline');
+const mergedTreeIndex=JSON.parse(mergedTreeRow.content);
+assert.equal(Object.keys(mergedTreeIndex.conversations).length,3,'commit layer allowed stale project index shrink');
+assert.equal(Object.hasOwn(mergedTreeIndex.conversations.c3,'signals'),false,'commit layer failed to compact duplicated signals');
+
+// Durable-directory reconciliation recovers archives that survived a previously clobbered
+// project index. Only IDs absent from the current resume index are read.
+sessionStore['niakgpt-project-memory-session-token-v132']='synthetic-archive-token';
+let archiveIndexReads=0;
+globalThis.fetch=async(url,init={})=>{
+  const u=new URL(String(url)),path=u.pathname,method=String(init.method||'GET').toUpperCase();
+  const reply=(status,data)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json'}});
+  if(method==='GET'&&path==='/repos/niakw/archive-memory')return reply(200,{private:true,archived:false,size:1,default_branch:'main'});
+  if(method==='GET'&&path==='/repos/niakw/archive-memory/contents/.niakgpt-memory/projects/g-p-large/conversations')return reply(200,[
+    {type:'dir',name:'c1'},{type:'dir',name:'c2'},{type:'dir',name:'c3'}
+  ]);
+  const m=path.match(/^\/repos\/niakw\/archive-memory\/contents\/\.niakgpt-memory\/projects\/g-p-large\/conversations\/(c2|c3)\/index\.json$/);
+  if(method==='GET'&&m){
+    archiveIndexReads++;
+    const row=archived(m[1],m[1]==='c2'?2000:3000);
+    return reply(200,{type:'file',encoding:'base64',content:Buffer.from(JSON.stringify(row),'utf8').toString('base64'),sha:'idx-'+m[1]});
+  }
+  return reply(500,{message:'unexpected archive mock '+method+' '+path});
+};
+const archiveSnapshot=await memory.projectArchiveSnapshot(
+  {repo:'niakw/archive-memory',branch:'main',root:'.niakgpt-memory',authMode:'pat'},
+  'g-p-large',
+  ['c1']
+);
+assert.equal(archiveSnapshot.directoryCount,3);
+assert.equal(archiveSnapshot.recovered.length,2);
+assert.equal(archiveIndexReads,2,'archive reconciliation reread already-known conversation indexes');
+assert.deepEqual(archiveSnapshot.recovered.map(row=>row.id).sort(),['c2','c3']);
+delete sessionStore['niakgpt-project-memory-session-token-v132'];
+
 // Cold-cache recovery must rebuild its canonical Project inventory from durable vault
 // directories, without returning private Project instructions/descriptions to the page.
 sessionStore['niakgpt-project-memory-session-token-v132']='synthetic-catalog-token';
@@ -283,7 +372,7 @@ assert.equal(catalog.projects.some(row=>Object.hasOwn(row,'instructions')||Objec
 delete sessionStore['niakgpt-project-memory-session-token-v132'];
 
 const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
-assert.equal(manifest.version, '0.9.117');
+assert.equal(manifest.version, '0.9.118');
 assert.deepEqual(manifest.permissions, ['storage','scripting','identity']);
 assert.deepEqual(manifest.host_permissions, ['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']);
 
@@ -331,6 +420,11 @@ assert.match(backend, /niakgpt:memory-chatgpt-probe-v132/);
 assert.match(backend, /niakgpt:memory-chatgpt-fetch-v132/);
 assert.match(backend, /niakgpt:memory-catalog-v132/);
 assert.match(backend, /async function projectCatalog\(config\)/);
+assert.match(backend, /PROJECT_ARCHIVE_SCAN_CONCURRENCY = 8/);
+assert.match(backend, /async function projectArchiveSnapshot\(config, projectId, knownArchivedIds=\[\]\)/);
+assert.match(backend, /mergeProjectIndexPayload/);
+assert.match(backend, /data\.encoding!=='base64'/);
+assert.match(backend, /git\/blobs\//);
 assert.match(backend, /source: 'vault-project-directories'/);
 assert.match(backend, /PROJECT_CATALOG\.json/);
 assert.match(backend, /orderSource:/);
@@ -406,6 +500,10 @@ assert.match(runtime, /projectArchivedBefore/);
 assert.match(runtime, /CHAT_FETCH_RETRIES_PRIORITY = 2/);
 assert.match(runtime, /CHUNK = 1000000/);
 assert.match(runtime, /canonicalHash/);
+assert.match(runtime, /compactProjectIndex/);
+assert.match(runtime, /reconcileProjectArchive/);
+assert.match(runtime, /archiveRecovered/);
+assert.match(runtime, /niakgpt:memory-project-archive-v132/);
 assert.match(runtime, /chatRetryLedger/);
 assert.match(runtime, /fetchConversationResilient/);
 assert.match(runtime, /chat-fetch-retry/);
@@ -450,6 +548,7 @@ assert.match(ui, /Transfert initial prioritaire/);
 assert.match(ui, /data-ng132-priority/);
 assert.match(ui, /chat\(s\) temporairement indisponible\(s\)/);
 assert.match(ui, /mise à jour remplace sa révision Git/);
+assert.match(ui, /reprise restaurée/);
 assert.match(ui, /niakgpt:control-center-rendered/);
 assert.match(ui, /schedule\(0\);/);
 assert.match(ui, /token\.value = draft\.token/);
@@ -469,6 +568,7 @@ assert.match(packager, /project-memory-background-v132\.js/);
 assert.ok(fs.existsSync('visual-lab/project-memory-v132.mjs'),'Project Memory browser gate missing');
 assert.ok(fs.existsSync('visual-lab/project-memory-priority-sync-v116.mjs'),'Project Memory priority transfer gate missing');
 assert.ok(fs.existsSync('visual-lab/project-memory-transient-fetch-v117.mjs'),'Project Memory transient-fetch isolation gate missing');
+assert.ok(fs.existsSync('visual-lab/project-memory-index-reconcile-v118.mjs'),'Project Memory large-index reconciliation gate missing');
 assert.ok(fs.existsSync('visual-lab/native-chat-zero-background-v087.mjs'),'native chat zero-background gate missing');
 const memoryLab=fs.readFileSync('visual-lab/project-memory-v132.mjs','utf8');
 assert.match(memoryLab,/configured unsynced vault did not recreate persistent bootstrap queue/);

@@ -1,5 +1,17 @@
 # Architecture de NiakGPT
 
+## Invariant architecture 0.9.118 — les dossiers de conversation sont l’autorité durable de dernier recours
+
+Le Project `index.json` est un **index de reprise compact**, pas une copie de tout le contexte. Les signaux détaillés restent dans `conversations/<conversation-id>/index.json` et les transcripts dans `part-NNN.md`. Cette séparation empêche la taille de l’index Project de croître proportionnellement au contenu conversationnel et évite de franchir les limites d’inline de GitHub Contents.
+
+Une lecture de fichier mémoire ne doit jamais confondre « GitHub Contents n’embarque plus le contenu » avec « fichier absent ». Si le payload Contents n’est pas en base64 mais fournit un SHA, le backend bascule sur `/git/blobs/<sha>`. Un gros index valide reste donc lisible et ne peut pas déclencher une initialisation vide.
+
+Les écritures de `projects/<project>/index.json` sont **monotones par union** au niveau du service worker. Avant Create Tree, l’index entrant est fusionné avec celui du HEAD Git ; une entrée complète avec transcript ne peut pas être remplacée par une entrée metadata-only ou partielle, et un writer obsolète ne peut pas supprimer des conversations qu’il ne connaît pas.
+
+Enfin, la reprise ne fait pas confiance à un seul fichier d’index. Avant tout rattrapage, `projectArchiveSnapshot` énumère les dossiers durables `conversations/<id>/` et relit uniquement les `index.json` absents de l’index courant, avec concurrence bornée à 8. Les checkpoints récupérés sont appliqués **avant** le calcul `chatDone/chatTotal` ; un Project dont l’index a été tronqué reprend donc au dernier transcript réellement présent dans le coffre, pas à 0.
+
+La régression `project-memory-index-reconcile-v118.mjs` démarre avec un index Project contenant un seul chat, trois archives durables simulées et quatre chats locaux. Elle exige une reprise à 3/4 et interdit tout refetch des trois conversations déjà archivées.
+
 ## Invariant architecture 0.9.117 — une panne de lecture appartient au chat, pas au Project
 
 Un échec transitoire de `/backend-api/conversation/<id>` ne peut plus interrompre tout `syncProject()`. Chaque conversation possède son état de retry local persistant. Après un petit nombre de tentatives immédiates, le chat fautif est différé avec une échéance croissante tandis que les autres conversations continuent. La queue globale ne réveille ce Project qu’à l’échéance utile, ce qui interdit l’ancienne boucle de reprise à 1 s sur le même chat.

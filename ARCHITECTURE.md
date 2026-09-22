@@ -1,5 +1,13 @@
 # Architecture de NiakGPT
 
+## Invariant architecture 0.9.112 — une SPA active n’a pas à devenir silencieuse
+
+Le test terrain 0.9.111 a exposé une erreur de modèle : après récupération React, ChatGPT peut continuer à modifier en permanence le contenu, les attributs, les compteurs ou les états de ses descendants. Exiger une fenêtre **globale** sans mutation revient donc à attendre un état qui peut ne jamais exister, même lorsque le HostRoot est déjà settled et que les nœuds structurants ne bougent plus.
+
+Le gate post-HostRoot surveille maintenant uniquement ce qui est pertinent pour le risque d’hydratation : identité de `nav/aside`, `main` et du composer, deux tours idle, frames, puis nouvelle lecture du HostRoot courant et de l’ownership React. Une mutation non structurelle dans un message ou un attribut ne remet plus le boot à zéro. Un remount réel d’un des nœuds hôtes invalide toujours la tentative.
+
+La régression MV3 `hydration-active-spa-v112.spec.js` démarre avec un HostRoot récupéré et settled, émet un #418 `HTML`, puis maintient une mutation d’attribut toutes les 120 ms. Sur 0.9.111 inchangée, ce test reste sans `data-ng100-hydration-proof` et sans rail après 12 s. En 0.9.112 il doit monter le rail tout en conservant les protections `hydration-scheduler-drain-v111` contre les remounts tardifs.
+
 ## Invariant ordre React 0.9.111 — HostRoot settled + scheduler réellement drainé
 
 Le retour terrain de 0.9.110 a remis en évidence une course déjà rencontrée en 0.9.81 : React peut exposer un HostRoot courant apparemment stabilisé tout en conservant des commits différés dans son scheduler `MessageChannel` / `MessagePort`. La preuve HostRoot est donc **nécessaire mais plus suffisante à elle seule**.
@@ -40,11 +48,11 @@ Le gate enregistre ensuite uniquement après cette preuve `data-ng100-hydration-
 - **Privacy fail-closed sur l’arbre public.** La CI parcourt tous les fichiers texte suivis par Git et refuse les marqueurs privés connus, les e-mails non synthétiques, les chemins utilisateur locaux et les secrets/tokens plausibles.
 
 
-NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.111 privilégie cinq propriétés : **faible coût runtime**, **priorité absolue au flux natif ChatGPT**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
+NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.112 privilégie cinq propriétés : **faible coût runtime**, **priorité absolue au flux natif ChatGPT**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
 
 ## Périmètre
 
-Le manifest 0.9.111 déclare :
+Le manifest 0.9.112 déclare :
 
 ```text
 https://chatgpt.com/*

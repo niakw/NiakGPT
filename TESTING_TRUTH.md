@@ -1,3 +1,14 @@
+## 0.9.105 — React #418 persistant : clés React ≠ hydratation finie, CSS précoce supprimé
+
+Le retour terrain après 0.9.104 a invalidé l’hypothèse « présence des clés React = hydratation terminée ». La correction suivante traite les deux surfaces encore actives avant la fin réelle de l’hydratation.
+
+1. Le fixture pose d’abord `__reactContainer$…` et `__reactFiber$…` avec un HostRoot `memoizedState.isDehydrated:true`. L’ancien 0.9.104 aurait pu s’activer ; le 0.9.105 doit rester inactif.
+2. Pendant cet état, le test exige zéro `data-ng*`, zéro nœud NiakGPT et aucun signal `__NIAKGPT_HOST_HYDRATED_100__`.
+3. Le HostRoot passe ensuite explicitement à `isDehydrated:false` ; seulement alors le runtime peut démarrer.
+4. Le manifest doit contenir **zéro CSS de content script**. Les 34 feuilles sont listées exactement dans `STYLE_RUNTIME` et injectées par `chrome.scripting.insertCSS()` après le gate.
+5. Le packaging doit suivre `STYLE_RUNTIME` ; autrement le ZIP serait fonctionnellement incomplet malgré un checkout local vert.
+6. Les tests réels MV3 et la matrice Chromium/Firefox/WebKit restent obligatoires pour vérifier que l’injection différée ne casse ni sidebar, ni Project Memory, ni continuité.
+
 ## 0.9.104 — React #418 : DOM stable n’est pas hydratation terminée
 
 Le log terrain contient explicitement `Minified React error #418`, une pile remontant jusqu’à `html/body`, et une longue suite de callbacks `MessagePort`. Le défaut n’est donc pas traité comme un simple warning : le scénario prouve que le scheduler React peut continuer après une fausse période de calme sans remplacer les nœuds hôtes.

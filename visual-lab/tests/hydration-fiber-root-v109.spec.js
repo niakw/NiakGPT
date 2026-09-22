@@ -10,6 +10,11 @@ const EXECUTABLE=String(process.env.NIAKGPT_EXECUTABLE_PATH||'').trim();
 const HEADLESS=String(process.env.NIAKGPT_HEADLESS||'1')!=='0';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
+async function removeProfile(dir){
+  if(EXECUTABLE&&process.platform==='darwin')await sleep(220);
+  fs.rmSync(dir,{recursive:true,force:true,maxRetries:8,retryDelay:120});
+}
+
 async function closePersistentContext(context){
   const braveMac=!!EXECUTABLE&&process.platform==='darwin';
   if(!braveMac){await context.close().catch(()=>{});return;}
@@ -48,7 +53,10 @@ test('real MV3 boot resolves HostRoot through owner Fiber chain when container e
             </main>
             <script>
               const dollar=String.fromCharCode(36);
-              const root={tag:3,memoizedState:{isDehydrated:true},return:null,stateNode:{current:null},alternate:null};
+              const staleAlternate={tag:3,memoizedState:{isDehydrated:true},return:null,stateNode:{current:null},alternate:null};
+              const root={tag:3,memoizedState:{isDehydrated:true},return:null,stateNode:{current:null},alternate:staleAlternate};
+              staleAlternate.alternate=root;
+              staleAlternate.stateNode.current=root;
               root.stateNode.current=root;
               const hosts=[document.documentElement,document.body,document.querySelector('nav'),document.querySelector('main'),document.getElementById('prompt-textarea')];
               for(const node of hosts){
@@ -100,10 +108,12 @@ test('real MV3 boot resolves HostRoot through owner Fiber chain when container e
     }));
     expect(after.container).toBe(false);
     expect(after.proof).toMatch(/^react-fiber-root-settled/);
+    // The current HostRoot is authoritative. A stale alternate may still report
+    // isDehydrated:true after the current tree has committed and must not deadlock boot.
     expect(after.rail).toBe(true);
     console.log('HYDRATION_FIBER_ROOT_CHECKPOINT PASS');
   }finally{
     await closePersistentContext(context);
-    fs.rmSync(dir,{recursive:true,force:true});
+    await removeProfile(dir);
   }
 });

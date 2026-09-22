@@ -126,22 +126,8 @@ test('NiakGPT waits for HostRoot settlement without requiring HTML/BODY React ex
       early:window.__earlyNiakMutation===true,
       proof:document.documentElement.dataset.ng100HydrationProof||'',
       rail:!!document.getElementById('ng8-rail'),
-      htmlFiber:Object.getOwnPropertyNames(document.documentElement).some(k=>k.startsWith('__reactFiber
-    console.log('HYDRATION_DOCUMENT_ROOT_CHECKPOINT PASS');
-  }finally{
-    await closePersistentContext(context);
-    await removeProfile(dir);
-  }
-});
-)),
-      bodyFiber:Object.getOwnPropertyNames(document.body).some(k=>k.startsWith('__reactFiber
-    console.log('HYDRATION_DOCUMENT_ROOT_CHECKPOINT PASS');
-  }finally{
-    await closePersistentContext(context);
-    await removeProfile(dir);
-  }
-});
-))
+      htmlFiber:Object.getOwnPropertyNames(document.documentElement).some(k=>k.startsWith('__reactFiber$')),
+      bodyFiber:Object.getOwnPropertyNames(document.body).some(k=>k.startsWith('__reactFiber$'))
     }));
     expect(afterSettle.claimed).toBe(false);
     expect(afterSettle.early).toBe(false);

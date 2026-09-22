@@ -1,6 +1,6 @@
 ## 0.9.103 — preuve d’archive depuis un chat actif + placement DOM terrain
 
-Le recheck du coffre privé après 0.9.102 montre NiakVIO à **171 connus / 171 cachés**, mais toujours **0 fichier `conversations/`** et des index à `parts:0/messages:0`. La complétude de l’inventaire n’est donc pas la complétude de l’archive.
+Le recheck du coffre privé après 0.9.102 montre Project de référence à **171 connus / 171 cachés**, mais toujours **0 fichier `conversations/`** et des index à `parts:0/messages:0`. La complétude de l’inventaire n’est donc pas la complétude de l’archive.
 
 1. `tools/project-memory-v132.mjs` vérifie le transport MV3 direct : session ChatGPT éphémère, GET limité à un seul détail de conversation, `credentials: include`, `cache: no-store`, aucune persistance du bearer.
 2. `project-memory-v132.mjs` ouvre une route Project slugguée, absente du cache pour le chat courant, archive les messages visibles depuis le DOM puis archive un chat historique via le worker, sans aucun RPC ChatGPT de la page.

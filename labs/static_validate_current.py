@@ -53,7 +53,7 @@ if any(cs.get('run_at')!='document_idle' for cs in js_content_scripts): fail('al
 if any(cs.get('run_at')=='document_start' and cs.get('js') for cs in manifest.get('content_scripts',[])): fail('document_start JS forbidden after hydration regression')
 if any(cs.get('css') for cs in manifest.get('content_scripts',[])): fail('static content-script CSS forbidden before hydration gate')
 hydration_gate=read('boot-gate-v100.js')
-for token in ('waitForQuiet(1200,7000)','waitStableHostIdentity(1600,8500)','idleTurn(2200)','requestIdleCallback','__NIAKGPT_HOST_HYDRATED_100__','niakgpt:host-hydrated-v100'):
+for token in ('waitReactHydrationOwnership(8000)','waitStableHostIdentity(500,2500)','waitForQuiet(hydrationFault?900:500,hydrationFault?3200:2200)','TRUSTED_HYDRATION_EVENTS','trustedHydrationInteraction','__NIAKGPT_HOST_HYDRATED_100__','niakgpt:host-hydrated-v100'):
     if token not in hydration_gate: fail('boot hydration barrier incomplete '+token)
 for file in expected_static[1:]:
     src=read(file)

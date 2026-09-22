@@ -107,6 +107,10 @@ const isolatedHydrationLab=read('visual-lab/tests/hydration-isolated-world-v106.
 for(const token of ['launchPersistentContext','--load-extension','hostRootSettled','legacyDataBuild','legacyRouterContext','react-main-world-settled','HYDRATION_MAIN_WORLD_CHECKPOINT PASS'])need(isolatedHydrationLab,token,'real MV3 isolated-world hydration regression incomplete');
 const hydrationLab=read('visual-lab/hydration-barrier-v080.mjs');
 for(const token of ["const BOOT='boot-gate-v100.js'",'manifestOrderedSource','MessageChannel','containerFound','String.fromCharCode(36)','__reactContainer','__reactFiber','isDehydrated:true','isDehydrated=false','hydratedAtReactMarkerOnly','bare React ownership markers incorrectly unlocked','root-dehydration gate','zero pre-hydration DOM mutation','first false-calm scheduler window','late MessagePort hydration settled'])need(hydrationLab,token,'full-document React hydration lab incomplete');
+for(const file of ['visual-lab/runtime-fixture.html','visual-lab/tests/composer-continuation-runtime-v128.spec.js']){
+  const fixture=read(file);
+  for(const token of ['__reactContainer','__reactFiber','isDehydrated:false'])need(fixture,token,`post-hydration MV3 fixture missing settled React proof: ${file}`);
+}
 
 
 const parallel=read('composer-continuation-v128.js');

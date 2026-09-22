@@ -336,6 +336,7 @@
     idx={...idx,schema:1,projectId:project.id,projectName:projectName(project.name||''),updatedAt:new Date().toISOString(),bootstrapMetadataOnly:false,conversations:{...idx.conversations,[cid]:chatIndex}};
     const compact=buildState(project,idx);
     files.push(
+      {path:base+'/index.json',content:JSON.stringify(chatIndex,null,2)+'\n'},
       {path:ppath(project.id,'project.json'),content:JSON.stringify({
         schema:1,id:project.id,name:projectName(project.name||''),description:clean(project.description||''),instructions:clean(project.instructions||''),
         conversationCount:Object.keys(idx.conversations).length,knownConversationCount:Number(project.count||0),indexed:project.indexed===true,

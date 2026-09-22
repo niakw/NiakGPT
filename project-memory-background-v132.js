@@ -14,8 +14,8 @@
   const MAX_BATCH_BYTES = 7 * 1024 * 1024;
   const MAX_REF_RETRIES = 8;
   const MAX_REF_BACKOFF_MS = 3000;
-  const PRIORITY_BLOB_CONCURRENCY = 6;
-  const PRIVATE_REPO_VERIFY_TTL_MS = 60 * 1000;
+  const PRIORITY_TREE_INLINE = true;
+  const PRIVATE_REPO_VERIFY_TTL_MS = 5 * 60 * 1000;
   const WORKER_ERROR_KEY = 'niakgpt-worker-errors-v100';
   const CHATGPT_ORIGIN = 'https://chatgpt.com';
   const CHATGPT_CONVERSATION_RX = /^\/backend-api\/conversation\/[A-Za-z0-9_-]+$/;
@@ -842,20 +842,14 @@
       if (!blob?.sha) throw new Error('github_blob_create_failed');
       return { path: item.path, mode: '100644', type: 'blob', sha: blob.sha };
     };
+    // Priority transfer uses GitHub Create Tree's inline `content` field. GitHub creates
+    // the backing blobs in the same tree request, removing one HTTP round-trip per chunk.
+    // The non-priority path keeps explicit blob creation as the compatibility fallback.
     let treeEntries = [];
-    if (priority === true && normalized.length > 1) {
-      treeEntries = new Array(normalized.length);
-      let cursor = 0;
-      const workers = Array.from({length:Math.min(PRIORITY_BLOB_CONCURRENCY,normalized.length)},async()=>{
-        while(true){
-          const index=cursor++;
-          if(index>=normalized.length)return;
-          treeEntries[index]=await createEntry(normalized[index]);
-        }
-      });
-      await Promise.all(workers);
-    } else {
-      for (const item of normalized) treeEntries.push(await createEntry(item));
+    if(priority===true){
+      treeEntries=normalized.map(item=>({path:item.path,mode:'100644',type:'blob',content:item.content}));
+    }else{
+      for(const item of normalized)treeEntries.push(await createEntry(item));
     }
 
     const tree = await github(token, `/repos/${config.repo}/git/trees`, {
@@ -1103,7 +1097,7 @@
       MAX_FILES,
       MAX_BATCH_BYTES,
       MAX_REF_RETRIES,
-      PRIORITY_BLOB_CONCURRENCY,
+      PRIORITY_TREE_INLINE,
       PRIVATE_REPO_VERIFY_TTL_MS,
       refRace,
       commitFilesWith,

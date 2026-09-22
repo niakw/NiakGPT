@@ -10,7 +10,7 @@
   const PIN_OPEN_KEY='niakgpt-open-pin-folder-v096';
   const SHELL_IDS=new Set(['ng8-rail','ng8-panel','ng8-status']);
   const shellRefs=new Map();
-  let safeToMutate=false,shellObserver=null,shuttingDown=false,hydrationFault=false,hydrationProof='legacy-host';
+  let safeToMutate=false,shellObserver=null,shuttingDown=false,hydrationFault=false,hydrationProof='legacy-host',lastHydrationProbe=null;
   const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   const message=value=>String(value?.message||value?.reason?.message||value?.reason||value||'Erreur inconnue')
     .replace(/github_pat_[A-Za-z0-9_]+/g,'[redacted]')
@@ -88,22 +88,33 @@
     const started=performance.now();
     while(performance.now()-started<maxWait){
       const probe=await mainWorldReactProbe();
+      lastHydrationProbe=probe;
       if(probe.ok){
         const needed=Math.max(0,Number(probe.needed||0));
         const ownedCount=Math.max(0,Number(probe.ownedCount||0));
-        if(probe.containerFound===true&&probe.rootSettled===true&&probe.documentRootOwned===true&&needed>0&&ownedCount>=needed){
+        if(probe.rootFound===true&&probe.rootSettled===true&&probe.rootDehydrated!==true&&probe.documentRootOwned===true&&needed>0&&ownedCount>=needed){
           await nextFrames();
           const confirm=await mainWorldReactProbe();
+          lastHydrationProbe=confirm;
           const confirmNeeded=Math.max(0,Number(confirm?.needed||0));
           const confirmOwned=Math.max(0,Number(confirm?.ownedCount||0));
-          if(confirm?.ok&&confirm.containerFound===true&&confirm.rootSettled===true&&confirm.documentRootOwned===true&&confirmNeeded>0&&confirmOwned>=confirmNeeded){
-            hydrationProof=hydrationFault?'react-document-root-settled-after-host-fault':'react-document-root-settled';
+          if(confirm?.ok&&confirm.rootFound===true&&confirm.rootSettled===true&&confirm.rootDehydrated!==true&&confirm.documentRootOwned===true&&confirmNeeded>0&&confirmOwned>=confirmNeeded){
+            const viaFiber=probe.rootSource==='fiber-owner'||confirm.rootSource==='fiber-owner';
+            hydrationProof=viaFiber
+              ?(hydrationFault?'react-fiber-root-settled-after-host-fault':'react-fiber-root-settled')
+              :(hydrationFault?'react-document-root-settled-after-host-fault':'react-document-root-settled');
             return true;
           }
         }
       }
       await sleep(180);
     }
+    try{
+      const p=lastHydrationProbe||{};
+      const diag={at:Date.now(),ok:!!p.ok,containerFound:!!p.containerFound,rootFound:!!p.rootFound,rootSource:String(p.rootSource||''),rootSettled:!!p.rootSettled,rootDehydrated:!!p.rootDehydrated,documentRootOwned:!!p.documentRootOwned,htmlOwned:!!p.htmlOwned,bodyOwned:!!p.bodyOwned,needed:Number(p.needed||0),ownedCount:Number(p.ownedCount||0),error:String(p.error||'').slice(0,160)};
+      sessionStorage.setItem('niakgpt-hydration-probe-v109',JSON.stringify(diag));
+      console.warn('[NiakGPT hydration blocked]',diag);
+    }catch{}
     return false;
   }
   function waitTrustedHydratedInteraction(){

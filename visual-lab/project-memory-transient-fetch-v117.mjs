@@ -159,8 +159,9 @@ try{
     const ids=['11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333','44444444-4444-4444-8444-444444444444'];
     const counts=Object.fromEntries(ids.map(id=>[id,window.__fetches.filter(row=>row.id===id).length]));
     const idx=JSON.parse(window.__remote['projects/'+P+'/index.json']);
-    const batched=window.__commits.some(row=>row.priority&&row.paths.some(p=>p.includes('/conversations/'+ids[2]+'/'))&&row.paths.some(p=>p.includes('/conversations/'+ids[3]+'/')));
-    return {counts,state:window.__store['niakgpt-project-memory-state-v132'],queue:window.__store['niakgpt-project-memory-queue-v132'],idx,batched};
+    const c3Writes=window.__commits.filter(row=>row.paths.some(p=>p.includes('/conversations/'+ids[2]+'/'))).length;
+    const c4Writes=window.__commits.filter(row=>row.paths.some(p=>p.includes('/conversations/'+ids[3]+'/'))).length;
+    return {counts,state:window.__store['niakgpt-project-memory-state-v132'],queue:window.__store['niakgpt-project-memory-queue-v132'],idx,c3Writes,c4Writes};
   });
   assert.equal(first.counts['11111111-1111-4111-8111-111111111111'],0,'already archived chat was fetched again');
   assert.equal(first.counts['22222222-2222-4222-8222-222222222222'],2,'transient failing chat exceeded the bounded immediate retry count');
@@ -169,7 +170,8 @@ try{
   assert.equal(first.state.mode,'queued','transient chat failure became a fatal Project Memory error');
   assert.equal(first.state.deferredChats,1,'deferred chat was not surfaced');
   assert.ok(Number(first.queue.retryAt)>Date.now(),'deferred queue has no future retry time');
-  assert.equal(first.batched,true,'priority mode did not batch later successful chats into one durable write');
+  assert.equal(first.c3Writes,1,'healthy chat A did not receive one canonical durable write');
+  assert.equal(first.c4Writes,1,'healthy chat B did not receive one canonical durable write');
 
   await page.waitForTimeout(2500);
   const c2AfterWait=await page.evaluate(()=>window.__fetches.filter(row=>row.id==='22222222-2222-4222-8222-222222222222').length);
@@ -201,7 +203,7 @@ try{
   assert.equal(final['33333333-3333-4333-8333-333333333333'],1,'already imported chat A was duplicated/refetched on deferred retry');
   assert.equal(final['44444444-4444-4444-8444-444444444444'],1,'already imported chat B was duplicated/refetched on deferred retry');
 
-  console.log('project-memory-transient-fetch-v117: PASS bounded retry + continue + deferred resume + no duplicate refetch + priority batch');
+  console.log('project-memory-transient-fetch-v117: PASS bounded retry + continue + deferred resume + no duplicate refetch + per-chat durable checkpoint');
 }finally{
   await page.close();
   await browser.close();

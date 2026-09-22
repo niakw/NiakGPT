@@ -1,5 +1,15 @@
 # Architecture de NiakGPT
 
+## Invariant catalogue 0.9.114 — le coffre ne peut plus être réduit par un cache partiel
+
+Le dépôt Project Memory est une archive durable, pas un miroir destructif du cache courant. Une réinstallation, un index serveur différé ou une vue DOM partielle peuvent temporairement ne connaître qu’un sous-ensemble des Projects ; cet état ne doit jamais réécrire `PROJECTS.json` avec moins de Projects que ceux déjà présents dans le coffre.
+
+`project-memory-v132.js` reconstruit donc le catalogue à partir de l’union **cache local + inventaire déjà présent dans le coffre**. Si un ancien `PROJECTS.json` a déjà été réduit, le service worker peut lister `projects/` dans le dépôt privé et relire les `project.json` manquants. Les identités `g-p-*`, noms, compteurs et contexte Project récupérés sont réinjectés localement avec `memoryRecovered:true`, mais **sans fabriquer de preuve d’index serveur** : `indexedProjectIds` et `serverIndexedAt` restent sous l’autorité de l’index ChatGPT.
+
+La sidebar applique la même séparation d’autorité : `sidebar-projects-v121.js` place le bloc géré avant la section Chats, et `sidebar-projects-authority-v112.js` sait masquer un bloc Projects natif complet même si ses lignes sont des boutons/rows React sans href `/g/g-p-*`. La section Chats générique reste visible et indépendante.
+
+La régression `project-catalog-recovery-v114.mjs` part volontairement d’un coffre contenant trois dossiers Projects mais d’un `PROJECTS.json` réduit à un seul Project. Elle exige la restauration des trois identités dans le cache, l’absence de réduction lors du bootstrap GitHub, le masquage d’une surface Projects native sans hrefs et le maintien du bloc NiakGPT au-dessus de Chats.
+
 ## Invariant architecture 0.9.113 — revenir à la dernière frontière terrain qui chargeait
 
 Les retours réels 0.9.104 → 0.9.112 ont invalidé l’architecture qui faisait dépendre tout le démarrage de preuves React privées. La frontière de régression est nette : 0.9.103 utilisait encore le même bootstrap que 0.9.81 et chargeait sans `HostRoot`, `__reactContainer$…`, `__reactFiber$…` ni `isDehydrated`; 0.9.104 a introduit cette dépendance, puis 0.9.105 a déplacé en plus tous les styles derrière ce gate, transformant une erreur de preuve en panne totale de l’UI.

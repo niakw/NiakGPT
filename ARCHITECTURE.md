@@ -10,11 +10,11 @@
 - **Privacy fail-closed sur l’arbre public.** La CI parcourt tous les fichiers texte suivis par Git et refuse les marqueurs privés connus, les e-mails non synthétiques, les chemins utilisateur locaux et les secrets/tokens plausibles.
 
 
-NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.101 privilégie cinq propriétés : **faible coût runtime**, **priorité absolue au flux natif ChatGPT**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
+NiakGPT est une extension Manifest V3 locale qui ajoute une couche power-user à l’interface web de ChatGPT. L’architecture 0.9.102 privilégie cinq propriétés : **faible coût runtime**, **priorité absolue au flux natif ChatGPT**, **priorité explicite à l’utilisateur**, **un seul propriétaire par surface**, et **dégradation sûre quand ChatGPT change**.
 
 ## Périmètre
 
-Le manifest 0.9.101 déclare :
+Le manifest 0.9.102 déclare :
 
 ```text
 https://chatgpt.com/*
@@ -164,7 +164,7 @@ L’historique complet est un stockage durable. Le checkpoint est la surface de 
 
 `app-v090.js` peut recevoir des événements de diagnostic fréquents. Tant qu’un `Selection/Range` natif non vide se trouve dans le panneau Diagnostic, le panneau ne reconstruit plus son `innerHTML`. Les mises à jour sont différées par un timer borné puis reprennent dès que la sélection est relâchée. `diagnostic-selection-v083.mjs` vérifie la conservation du même nœud DOM et du texte sélectionné pendant des changements d’état.
 
-## Invariant runtime 0.9.101 — un propriétaire actif par surface
+## Invariant runtime 0.9.102 — un propriétaire actif par surface
 
 `sidebar-projects-v121.js` est le seul propriétaire du placement Projects/Pins ; l’ancien `sidebar-ux-v119.js` reste dans l’historique du dépôt mais n’est plus injecté ni présent dans le ZIP. Pour les panneaux natifs de droite, `side-panels-v096.js` est le seul propriétaire actif ; `live-fixes-v104.js` est également retiré du runtime et du package. Ces deux retraits suppriment des chemins critiques qui ne faisaient plus de travail utile ou doublaient un observer/mutateur existant.
 

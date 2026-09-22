@@ -2,7 +2,7 @@
 
 ## Modèle de sécurité
 
-NiakGPT 0.9.102 est une extension Manifest V3 dont le cœur reste local-first. Project Memory v132 ajoute un canal GitHub **optionnel**, réservé à un dépôt privé choisi par l’utilisateur.
+NiakGPT 0.9.103 est une extension Manifest V3 dont le cœur reste local-first. Project Memory v132 ajoute un canal GitHub **optionnel**, réservé à un dépôt privé choisi par l’utilisateur.
 
 L’extension ne demande pas de clé API OpenAI et ne stocke volontairement ni cookie de session ChatGPT ni jeton d’accès ChatGPT dans un serveur NiakGPT externe.
 
@@ -73,7 +73,7 @@ Les `GET /backend-api/conversation/{id}` complets restent **bloqués par défaut
 
 Ils ne sont autorisés que lorsqu’une requête Project Memory porte explicitement `memoryBootstrap: true`. Le même marqueur est requis pour la réparation ciblée d’un inventaire Project incomplet. Même dans ce cas :
 
-- le **chat courant** n’est jamais lu par le backend ; sa capture immédiate vient uniquement du DOM visible ;
+- le **broker page** ne lit jamais le chat courant ; sa capture immédiate vient du DOM visible. Après une minute de calme, le service worker peut compléter l’historique via un GET conversation strictement borné, avec bearer ChatGPT éphémère conservé uniquement en mémoire ;
 - depuis un onglet hors chat, la lecture mémoire peut coexister avec un peer conversation visible uniquement tant que ce peer est inactif ;
 - la requête utilise le broker réseau unique ;
 - aucune récupération n’est lancée pendant une génération ChatGPT ou une vérification ; l’apparition de `ng90PeerBusy` annule les GET mémoire en vol ;

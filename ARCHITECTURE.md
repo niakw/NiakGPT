@@ -1,5 +1,14 @@
 # Architecture de NiakGPT
 
+## Invariant architecture 0.9.113 — revenir à la dernière frontière terrain qui chargeait
+
+Les retours réels 0.9.104 → 0.9.112 ont invalidé l’architecture qui faisait dépendre tout le démarrage de preuves React privées. La frontière de régression est nette : 0.9.103 utilisait encore le même bootstrap que 0.9.81 et chargeait sans `HostRoot`, `__reactContainer$…`, `__reactFiber$…` ni `isDehydrated`; 0.9.104 a introduit cette dépendance, puis 0.9.105 a déplacé en plus tous les styles derrière ce gate, transformant une erreur de preuve en panne totale de l’UI.
+
+0.9.113 restaure donc le contrat 0.9.103 au niveau architectural : CSS déclaratif dans le manifest à `document_start`, JavaScript à `document_idle`, attente du shell, identité hôte stable 1,6 s, vraie fenêtre calme 1,2 s, deux passages idle bornés, frames, puis seconde stabilité hôte. Le service worker n’inspecte plus les internals React et n’injecte plus les styles dynamiquement.
+
+La non-régression `hydration-known-good-v113.spec.js` charge l’extension MV3 réelle, ne crée **aucun** marqueur React privé, provoque deux remplacements tardifs de `nav/main` via `MessageChannel`, exige zéro activation NiakGPT pendant ces remounts, puis exige le montage réel de `#ng8-rail`. Les tests HostRoot/Fiber 0.9.106–0.9.112 sont conservés comme historique mais ne définissent plus l’autorité de release, car ils validaient l’architecture contredite par le terrain.
+
+
 ## Invariant architecture 0.9.112 — une SPA active n’a pas à devenir silencieuse
 
 Le test terrain 0.9.111 a exposé une erreur de modèle : après récupération React, ChatGPT peut continuer à modifier en permanence le contenu, les attributs, les compteurs ou les états de ses descendants. Exiger une fenêtre **globale** sans mutation revient donc à attendre un état qui peut ne jamais exister, même lorsque le HostRoot est déjà settled et que les nœuds structurants ne bougent plus.

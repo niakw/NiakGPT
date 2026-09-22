@@ -25,7 +25,7 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.106': fail(f"version={version}")
+if version!='0.9.107': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting','identity']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']: fail('host permissions drift')
 
@@ -64,8 +64,9 @@ boot_gate=read('boot-gate-v100.js')
 for token in ('mainWorldReactProbe','niakgpt:probe-react-hydration-v106','waitReactHydrationOwnership','waitTrustedHydratedInteraction','react-main-world-settled','trusted-interaction-after-host-fault','hydrationFault','ng100HydrationProof'):
     if token not in boot_gate: fail('full-document React hydration fuse incomplete '+token)
 if 'Object.getOwnPropertyNames' in boot_gate: fail('isolated boot gate reads page-world React expandos directly')
+if 'probe.fullDocument===false' in boot_gate or 'main-world-legacy-host' in boot_gate: fail('heuristic hydration bypass reintroduced')
 hydration_lab=read('visual-lab/hydration-barrier-v080.mjs')
-for token in ('prod-hydration-lab','__reactRouterContext','String.fromCharCode(36)','__reactContainer','__reactFiber','isDehydrated:true','isDehydrated=false','hydratedAtReactMarkerOnly','bare React ownership markers incorrectly unlocked','root-dehydration gate','zero pre-hydration DOM mutation'):
+for token in ('containerFound','String.fromCharCode(36)','__reactContainer','__reactFiber','isDehydrated:true','isDehydrated=false','hydratedAtReactMarkerOnly','bare React ownership markers incorrectly unlocked','root-dehydration gate','zero pre-hydration DOM mutation'):
     if token not in hydration_lab: fail('React 418 regression lab incomplete '+token)
 if r"const ownerRx=/^__react(?:Fiber|Props|Container)\$.+/;" not in hydration_lab: fail('hydration lab React owner regex escaping invalid')
 if r"const containerRx=/^__reactContainer\$.+/;" not in hydration_lab: fail('hydration lab React container regex escaping invalid')
@@ -78,13 +79,13 @@ expected_styles=[
 if style_runtime!=expected_styles: fail(f'deferred STYLE_RUNTIME drift: {style_runtime!r}')
 for token in ('chrome.scripting.insertCSS','async function injectStyles','STYLE_INJECTED','const styleFailure=await injectStyles(tabId,frameId)'):
     if token not in background: fail('post-hydration style injection incomplete '+token)
-for token in ('async function probeReactHydration','chrome.scripting.executeScript',"world:'MAIN'",'niakgpt:probe-react-hydration-v106','rootSettled','ownedCount'):
+for token in ('async function probeReactHydration','chrome.scripting.executeScript',"world:'MAIN'",'niakgpt:probe-react-hydration-v106','containerFound','rootSettled','ownedCount'):
     if token not in background: fail('MAIN-world React hydration probe incomplete '+token)
 if r"const OWNER_RX=/^__react(?:Fiber|Props|Container)\$.+/;" not in background: fail('MAIN-world React owner regex escaping invalid')
 if r"const CONTAINER_RX=/^__reactContainer\$.+/;" not in background: fail('MAIN-world React container regex escaping invalid')
 if not (ROOT/'visual-lab/tests/hydration-isolated-world-v106.spec.js').exists(): fail('real MV3 isolated-world hydration regression missing')
 isolated_hydration=read('visual-lab/tests/hydration-isolated-world-v106.spec.js')
-for token in ('launchPersistentContext','--load-extension','hostRootSettled','react-main-world-settled','HYDRATION_MAIN_WORLD_CHECKPOINT PASS'):
+for token in ('launchPersistentContext','--load-extension','hostRootSettled','legacyDataBuild','legacyRouterContext','react-main-world-settled','HYDRATION_MAIN_WORLD_CHECKPOINT PASS'):
     if token not in isolated_hydration: fail('isolated-world hydration regression incomplete '+token)
 packager=read('tools/package-extension.mjs')
 if "['STYLE_RUNTIME','MAIN_RUNTIME','ISOLATED_RUNTIME','OPTIONAL_RUNTIME']" not in packager: fail('package builder missing deferred STYLE_RUNTIME')

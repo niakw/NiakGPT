@@ -6,7 +6,7 @@
   <p>Projects · long-thread performance · continuity · navigation · focused productivity</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.120-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.121-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,7 +21,7 @@
 NiakGPT is a browser extension that turns the ChatGPT web interface into a more capable **workspace for heavy, project-based use** without replacing ChatGPT itself.
 
 It adds a native-first layer for Projects, navigation, long conversations, continuity, diagnostics and local productivity. Core features run locally in the browser: **no NiakGPT account, no NiakGPT analytics and no NiakGPT server are required**.
-> **Current version: 0.9.120.** The artificial Project Memory rate cap introduced in 0.9.119 has been removed. Priority catch-up again uses the pre-0.9.119 history cadence and does not impose a NiakGPT-owned 10/minute budget or 15-minute cooldown. Durable per-chat checkpoints, large-index recovery and in-place conversation updates from 0.9.118 remain intact.
+> **Current version: 0.9.121.** NiakGPT still imposes no fixed conversation-read quota. A conversation that fails twice is now quarantined into a manual retry pile so it cannot loop in the background, while healthy chats continue. A real ChatGPT 429 also stops automatic history retries until the user explicitly resumes. Durable per-chat checkpoints, large-index recovery and in-place updates remain intact.
 
 ## Highlights
 
@@ -206,7 +206,7 @@ A fixture passing does **not** override a contradictory real user screenshot. Se
 | [README.fr.md](README.fr.md) | French README |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Runtime architecture and ownership invariants |
 | [CHANGELOG.md](CHANGELOG.md) | Detailed release history |
-| [RELEASE_NOTES_0.9.120.md](RELEASE_NOTES_0.9.120.md) | Current release summary |
+| [RELEASE_NOTES_0.9.121.md](RELEASE_NOTES_0.9.121.md) | Current release summary |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnosis and recovery |
 | [PRIVACY.md](PRIVACY.md) | Local data and network behavior |
 | [SECURITY.md](SECURITY.md) | Security model and reporting |

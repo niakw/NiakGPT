@@ -6,7 +6,7 @@
   <p>Projects · performance des longs fils · continuité · navigation · productivité ciblée</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.119-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.120-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,7 +21,7 @@
 NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT en **véritable espace de travail pour un usage intensif et organisé par Projects**, sans remplacer ChatGPT.
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
-> **Version actuelle : 0.9.119.** Project Memory protège désormais l’accès aux conversations ChatGPT avec un garde-fou persistant au niveau du compte. Les lectures historiques sont plafonnées à 10 par minute, le mode prioritaire n’utilise plus de polling sous la seconde, et tout rate-limit détecté coupe immédiatement toutes les lectures historiques pendant 15 minutes sans perdre la file ni le dernier checkpoint durable.
+> **Version actuelle : 0.9.120.** La limite artificielle Project Memory introduite en 0.9.119 est retirée. Le rattrapage prioritaire retrouve la cadence antérieure à la 0.9.119 et NiakGPT n’impose plus ni plafond logiciel de 10 lectures/minute ni cooldown automatique de 15 minutes. Les checkpoints durables par chat, la récupération des gros index et les mises à jour en place de la 0.9.118 restent conservés.
 
 ## Points forts
 

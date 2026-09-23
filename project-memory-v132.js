@@ -639,7 +639,7 @@
     } catch { return ''; }
   }
 
-  async function syncProject(project, force) {
+  async function syncProject(project, force, options={}) {
     let idx = null;
     try { const txt = await read(ppath(project.id, 'index.json')); if (txt) idx = JSON.parse(txt); } catch {}
     if (!idx || typeof idx !== 'object') idx = { schema: 1, projectId: project.id, conversations: {} };
@@ -653,21 +653,25 @@
       });
     }
 
-    const chats = project.chats.slice().sort((a,b) => Number(a.updated || 0) - Number(b.updated || 0));
+    const retryIds=new Set((Array.isArray(options.retryChatIds)?options.retryChatIds:[]).map(String).filter(Boolean));
+    const manualRetry=options.manualRetry===true;
+    const allChats=project.chats.slice().sort((a,b) => Number(a.updated || 0) - Number(b.updated || 0));
+    const chats=retryIds.size?allChats.filter(chat=>retryIds.has(String(chat.id))):allChats;
     const complete = chat => {
       const old=idx.conversations[chat.id],updated=parseTime(chat.updated);
       return !force && !!old && old.complete !== false && Number(old.updated || 0) >= updated && Number(old.parts || 0) > 0;
     };
     let completed = chats.filter(complete).length, changed = 0;
-    const deferred=[];
+    const failed=[];
     let ledger=await chatRetryLedger();
     const persistLedger=async()=>saveChatRetryLedger(ledger);
 
     await state({
-      mode:'syncing',projectId:project.id,projectName:project.name,
+      mode:manualRetry?'retrying-failed':'syncing',projectId:project.id,projectName:project.name,
       chatId:'',chatTitle:'',chatDone:completed,chatTotal:chats.length,
       prioritySync,projectArchivedBefore:completed,archiveRecovered:archiveRecovery.recovered,
-      archiveDirectoryCount:archiveRecovery.directoryCount,deferredChats:0,retryingChat:false,lastTransientError:''
+      archiveDirectoryCount:archiveRecovery.directoryCount,failedChats:retryPileCount(ledger),
+      retryingChat:false,lastTransientError:''
     });
 
     for (const chat of chats) {
@@ -681,55 +685,52 @@
       }
 
       const prior=ledger[retryKey];
-      if(!force&&Number(prior?.nextAt||0)>Date.now()){
-        deferred.push({projectId:project.id,chatId:chat.id,nextAt:Number(prior.nextAt),error:String(prior.error||'conversation_retry_deferred')});
-        await state({
-          mode:'syncing',projectId:project.id,projectName:project.name,chatId:chat.id,chatTitle:chat.title,
-          chatDone:completed,chatTotal:chats.length,prioritySync,deferredChats:deferred.length,
-          retryingChat:false,lastTransientError:String(prior.error||'conversation_retry_deferred').slice(0,180),
-          nextAttemptAt:Number(prior.nextAt)
-        });
+      if(!force&&!manualRetry&&prior?.manual===true){
+        failed.push({...prior,projectId:project.id,chatId:chat.id,chatTitle:one(chat.title||prior.chatTitle||'Conversation')});
         continue;
       }
 
       await state({
-        mode:'syncing',projectId:project.id,projectName:project.name,
+        mode:manualRetry?'retrying-failed':'syncing',projectId:project.id,projectName:project.name,
         chatId:chat.id,chatTitle:chat.title,chatDone:completed,chatTotal:chats.length,
-        prioritySync,deferredChats:deferred.length,retryingChat:false,lastTransientError:''
+        prioritySync,failedChats:retryPileCount(ledger),retryingChat:false,lastTransientError:''
       });
 
       const fetched=await fetchConversationResilient(project,chat,{chatDone:completed,chatTotal:chats.length});
       if(!fetched.ok){
-        const cycles=Math.max(1,Number(prior?.cycles||0)+1),nextAt=Date.now()+retryBackoff(cycles);
-        ledger[retryKey]={
-          projectId:project.id,chatId:chat.id,cycles,nextAt,lastAt:Date.now(),
+        const attempts=Math.max(0,Number(prior?.attempts||0))+(prioritySync?CHAT_FETCH_RETRIES_PRIORITY:CHAT_FETCH_RETRIES_NORMAL);
+        const row={
+          projectId:project.id,projectName:projectName(project.name||''),chatId:chat.id,chatTitle:one(chat.title||'Conversation'),
+          manual:true,attempts,firstFailedAt:Number(prior?.firstFailedAt||Date.now()),lastAt:Date.now(),nextAt:0,
           error:String(fetched.error||'conversation_fetch_failed:0:unknown').slice(0,180)
         };
+        ledger[retryKey]=row;
         await persistLedger();
-        deferred.push({projectId:project.id,chatId:chat.id,nextAt,error:ledger[retryKey].error});
+        failed.push(row);
         await state({
-          mode:'syncing',projectId:project.id,projectName:project.name,chatId:chat.id,chatTitle:chat.title,
-          chatDone:completed,chatTotal:chats.length,prioritySync,deferredChats:deferred.length,
-          retryingChat:false,lastTransientError:ledger[retryKey].error,nextAttemptAt:nextAt
+          mode:manualRetry?'retrying-failed':'syncing',projectId:project.id,projectName:project.name,chatId:chat.id,chatTitle:chat.title,
+          chatDone:completed,chatTotal:chats.length,prioritySync,failedChats:retryPileCount(ledger),
+          retryingChat:false,lastTransientError:row.error,nextAttemptAt:0
         });
         continue;
       }
 
       const data=fetched.data,rows=messages(data);
       if(!rows.length){
-        const cycles=Math.max(1,Number(prior?.cycles||0)+1),nextAt=Date.now()+retryBackoff(cycles);
-        ledger[retryKey]={projectId:project.id,chatId:chat.id,cycles,nextAt,lastAt:Date.now(),error:'conversation_empty'};
+        const row={
+          projectId:project.id,projectName:projectName(project.name||''),chatId:chat.id,chatTitle:one(chat.title||'Conversation'),
+          manual:true,attempts:Math.max(0,Number(prior?.attempts||0))+1,
+          firstFailedAt:Number(prior?.firstFailedAt||Date.now()),lastAt:Date.now(),nextAt:0,error:'conversation_empty'
+        };
+        ledger[retryKey]=row;
         await persistLedger();
-        deferred.push({projectId:project.id,chatId:chat.id,nextAt,error:'conversation_empty'});
+        failed.push(row);
         continue;
       }
 
       const canonicalUpdated=Math.max(updated,parseTime(data.update_time))||Date.now();
       const canonicalHash=rowsHash(rows);
 
-      // One canonical directory per conversation ID. Existing conversations are updated at the
-      // same Git paths; no timestamp/suffix folder is ever created. If content is unchanged and
-      // only metadata advanced, update just the two index files and leave transcript parts intact.
       if(!force&&old&&old.complete!==false&&Number(old.parts||0)>0&&old.canonicalHash===canonicalHash){
         const chatIndex={
           ...old,title:one(chat.title||data.title||old.title||'Conversation'),updated:canonicalUpdated,
@@ -744,8 +745,8 @@
         if(ledger[retryKey]){delete ledger[retryKey];await persistLedger();}
         completed++;
         await state({
-          mode:'syncing',projectId:project.id,projectName:project.name,chatId:chat.id,chatTitle:chat.title,
-          chatDone:completed,chatTotal:chats.length,prioritySync,deferredChats:deferred.length,
+          mode:manualRetry?'retrying-failed':'syncing',projectId:project.id,projectName:project.name,chatId:chat.id,chatTitle:chat.title,
+          chatDone:completed,chatTotal:chats.length,prioritySync,failedChats:retryPileCount(ledger),
           retryingChat:false,lastTransientError:''
         });
         continue;
@@ -773,15 +774,12 @@
         {path:ppath(project.id,'index.json'),content:JSON.stringify(compactProjectIndex(idx),null,2)+'\n'}
       );
 
-      // Per-chat durable checkpoint stays authoritative. Speedups happen below the commit
-      // boundary (larger transcript chunks, inline Git tree content and cached private-repo verification),
-      // so a later failure never forces a previously committed chat to be fetched again.
       await commit(files,'NiakGPT memory: '+one(project.name||project.id)+' / '+one(chat.title||chat.id),prioritySync);
       if(ledger[retryKey]){delete ledger[retryKey];await persistLedger();}
       changed++;completed++;
       await state({
-        mode:'syncing',projectId:project.id,projectName:project.name,chatId:chat.id,chatTitle:chat.title,
-        chatDone:completed,chatTotal:chats.length,prioritySync,deferredChats:deferred.length,
+        mode:manualRetry?'retrying-failed':'syncing',projectId:project.id,projectName:project.name,chatId:chat.id,chatTitle:chat.title,
+        chatDone:completed,chatTotal:chats.length,prioritySync,failedChats:retryPileCount(ledger),
         retryingChat:false,retryAttempt:0,retryLimit:0,lastTransientError:''
       });
       await sleep(prioritySync?40:300);
@@ -801,8 +799,7 @@
     ],'NiakGPT memory: checkpoint '+one(project.name||project.id),prioritySync);
     await saveContext(project.id,compact);
 
-    const nextRetryAt=deferred.length?Math.min(...deferred.map(row=>Number(row.nextAt||0)).filter(Boolean)):0;
-    return {changed,deferred,nextRetryAt};
+    return {changed,failed,failedChats:retryPileCount(ledger)};
   }
 
   async function deepInventory() {

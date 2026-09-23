@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.121",
-  "description": "NiakGPT : Project Memory isole les conversations qui échouent après deux essais dans une pile manuelle, sans boucle automatique ni plafond logiciel ajouté.",
+  "version": "0.9.122",
+  "description": "NiakGPT : Project Memory garde les archives backend canoniques stables et isole les sauvegardes DOM live sans rétrograder les statuts.",
   "permissions": [
     "storage",
     "scripting",

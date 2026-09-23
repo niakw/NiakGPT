@@ -35,7 +35,7 @@ Le recheck du dépôt privé a compté **316 conversations connues pour 310 seul
 1. `project-memory-wake-v086.mjs` démarre avec `indexed=true`, `count=2` et un seul chat en cache. Sans la correction, le second chat n'est jamais demandé ; avec la correction, le count-gap force une réparation avant archive.
 2. Le test exige ensuite que le second chat existe dans l'index privé avec `messages>0`, `parts>0` et `complete=true`.
 3. `native-chat-zero-background-v087.mjs` vérifie le chemin réseau complet : un listing Project ordinaire reste bloqué par un peer chat visible, mais le même listing explicitement `memoryBootstrap:true` est autorisé lorsque ce peer est inactif et rebloqué dès `ng90PeerBusy=1`.
-4. Si un count-gap ne se ferme pas, la queue n'est plus supprimée : elle reste en `inventory-incomplete` et se reprogramme.
+4. Historique 0.9.102 : un count-gap persistant restait alors en `inventory-incomplete`. Depuis 0.9.124, cette politique est bornée : une seconde observation strictement identique passe en `inventory-stalled`, supprime la queue automatique et attend un vrai changement du cache.
 5. Le root `PROJECTS.json`, les indexes Project et le cache self-heal doivent tous supprimer les décorations d'UI avant persistance.
 
 ## 0.9.101 — preuve terrain du coffre : écrire n’était pas archiver

@@ -6,9 +6,6 @@ const ROOT=path.resolve('..');
 let source=await fs.readFile(path.join(ROOT,'project-memory-v132.js'),'utf8');
 source=source
   .replace('const HISTORY_FETCH_GAP_MS = 20000;','const HISTORY_FETCH_GAP_MS = 60;')
-  .replace('const BACKGROUND_HISTORY_FETCH_GAP_MS = 6000;','const BACKGROUND_HISTORY_FETCH_GAP_MS = 60;')
-  .replace('const PRIORITY_HISTORY_FETCH_GAP_MS = 6000;','const PRIORITY_HISTORY_FETCH_GAP_MS = 60;')
-  .replace('const HISTORY_RATE_WINDOW_MS = 60*1000;','const HISTORY_RATE_WINDOW_MS = 600;')
   .replace('const HUMAN_QUIET_MS = 60*1000;','const HUMAN_QUIET_MS = 180;')
   .replace('const WAKE_HEARTBEAT_MS = 30000;','const WAKE_HEARTBEAT_MS = 120;');
 

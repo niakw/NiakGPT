@@ -35,6 +35,17 @@ const frPhoneRx=/(?<!\d)(?:\+33\s?(?:\(0\)\s?)?|0)[1-9](?:[ .-]\d{2}){4}(?!\d)/g
 const intlPhoneContextRx=/\b(?:phone|telephone|téléphone|mobile|portable|whatsapp)\s*[:=]\s*\+?[0-9][0-9 .()/-]{6,22}[0-9]/giu;
 const nirContextRx=/\b(?:nir|num(?:éro)?\s+de\s+sécu(?:rité\s+sociale)?|sécurité\s+sociale|social\s+security)\s*[:=#]\s*[12]\s?\d{2}\s?(?:0[1-9]|1[0-2])\s?(?:2A|2B|\d{2})\s?\d{3}\s?\d{3}\s?\d{2}/giu;
 const ibanRx=/\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]){11,30}\b/giu;
+const ibanValid=raw=>{
+  const compact=String(raw||'').replace(/\s+/g,'').toUpperCase();
+  if(!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(compact)||compact.length>34)return false;
+  const moved=compact.slice(4)+compact.slice(0,4);
+  let remainder=0;
+  for(const ch of moved){
+    const piece=/[A-Z]/.test(ch)?String(ch.charCodeAt(0)-55):ch;
+    for(const digit of piece)remainder=(remainder*10+Number(digit))%97;
+  }
+  return remainder===1;
+};
 const addressContextRx=/\b(?:address|adresse|domicile|home\s+address)\s*[:=]\s*\d{1,4}(?:\s*(?:bis|ter|quater))?\s+(?:rue|avenue|av\.?|boulevard|bd\.?|chemin|route|impasse|allée|allee|place|quai|cours|street|st\.?|road|rd\.?|drive|dr\.?|lane|ln\.?|court|ct\.?|way)\b[^\n]{2,100}/giu;
 const labeledNameRx=/^(?:nom|prénom|prenom|full\s+name|first\s+name|last\s+name)\s*[:=]\s*[^\n]{2,100}$/gimu;
 
@@ -79,8 +90,9 @@ for(const file of tracked){
   if(nirContextRx.test(text))violations.push(`${file}: labeled social-security identifier`);
   nirContextRx.lastIndex=0;
 
-  if(ibanRx.test(text))violations.push(`${file}: IBAN-looking value`);
-  ibanRx.lastIndex=0;
+  for(const m of text.matchAll(ibanRx)){
+    if(ibanValid(m[0]))violations.push(`${file}: valid IBAN-looking value`);
+  }
 
   if(addressContextRx.test(text))violations.push(`${file}: labeled postal address`);
   addressContextRx.lastIndex=0;

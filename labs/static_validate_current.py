@@ -25,7 +25,7 @@ def runtime(name):
 manifest=json.loads(read('manifest.json'))
 version=manifest.get('version')
 if manifest.get('manifest_version')!=3: fail('manifest_version != 3')
-if version!='0.9.122': fail(f"version={version}")
+if version!='0.9.123': fail(f"version={version}")
 if manifest.get('permissions')!=['storage','scripting','identity']: fail('permissions drift')
 if manifest.get('host_permissions')!=['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*']: fail('host permissions drift')
 
@@ -283,7 +283,7 @@ for token in ('COLD_BOOTSTRAP_QUIET_MS=12*1000','quietRequirement(raw)','convers
 
 memory=read('project-memory-v132.js')
 for forbidden in ('RATE_GUARD_KEY','HISTORY_RATE_MAX','ACCOUNT_RATE_COOLDOWN_MS','reserveHistoryRequest','cooldownUntil'):
-    if forbidden in memory: fail('0.9.122 must not reintroduce the artificial Project Memory rate cap '+forbidden)
+    if forbidden in memory: fail('0.9.123 must not reintroduce the artificial Project Memory rate cap '+forbidden)
 for token in ('memoryBootstrap: memoryBootstrap === true','PROJECT_STATE.md','conversations/','sync_already_running','injectOnNewChat','NIAKGPT PROJECT MEMORY — CHECKPOINT RÉCUPÉRÉ','canonicalUpdated','MEMORY_LOCK','CACHE_BOOTSTRAP_LOCK','autoOwner','niakgpt:tab-role-changed','primeBootstrapQueue','ensureBootstrapQueued','writeCachedBootstrap','bootstrapMetadataOnly:true','bootstrapWritten:true','cachedOnly:true,historyDeferred:true','queuedProjects','changes[QUEUE_KEY]','githubLogin','runtime.connect','extension_context_invalidated_reload_required','GITHUB_AUTH_UI_TIMEOUT_MS','setTimeout(heartbeat,20_000)','githubRepositories','githubConnectRepo','githubLogout','captureCurrentDomConversation',"captureSource:'live-dom'",'complete:false','projectName = v =>','peerBusy()','ACTIVE_HISTORY_RETRY_MS = 5000','PRIORITY_HISTORY_FETCH_GAP_MS = 900','PRIORITY_RETRY_MS = 1000','CHAT_FETCH_RETRIES_PRIORITY = 2','CHUNK = 1000000','canonicalHash','compactProjectIndex','reconcileProjectArchive','archiveRecovered','niakgpt:memory-project-archive-v132','activeHistoryMode','priorityWorkerMode','humanQuietRequired','retryDelay','syncPriorityNow','prioritySync','priorityKick','projectArchivedBefore','chatRetryLedger','fetchConversationResilient','retryPileRows','retryFailedChatsNow','manual:true',"holdReason:'rate-limit-manual'",'releaseQueueHold','Number(p.count||0) > (p.chats||[]).length',"name:projectName(project.name||'')"):
     if token not in memory: fail('Project Memory runtime incomplete '+token)
 memory_ui=read('project-memory-ui-v132.js')

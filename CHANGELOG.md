@@ -1,3 +1,12 @@
+# NiakGPT 0.9.124 — fin de la boucle 22/23 → en attente
+
+- **Cause racine terrain** : un Project pouvait rester avec un compteur connu supérieur au nombre de chats réellement présents dans le cache courant (ex. 27 annoncés, 23 disponibles). Même après avoir traité tous les chats récupérables, Project Memory réinscrivait le Project dans la queue à chaque passe.
+- **Écart d’inventaire borné** : le même gap est observé au plus deux fois. S’il reste strictement identique, la queue automatique est supprimée et passe en état `inventory-stalled` au lieu de relancer le Project indéfiniment.
+- **Réveil uniquement sur vraie évolution** : tant que la signature du cache reste identique, `ensureBootstrapQueued()` ne recrée plus la file. Une nouvelle conversation ou un vrai refresh d’inventaire change la signature et autorise une nouvelle passe.
+- **Progression correcte** : une conversation sortie de la boucle automatique vers la pile manuelle compte désormais comme traitée pour la passe automatique. Elle ne maintient plus artificiellement la progression à 22/23 ou 96 %.
+- **UI explicite** : l’état stable d’inventaire est affiché comme synchronisé sans relance automatique, avec la pile manuelle séparée si une conversation reste en échec.
+- **Non-régression** : le test de transfert prioritaire simule désormais un gap de compteur stable et exige une convergence `idle`, queue supprimée, priorité désactivée ; le test de panne transitoire exige 4/4 traités même lorsqu’un chat est quarantiné.
+
 # NiakGPT 0.9.123 — fin des boucles de Project fantôme
 
 - **Cause racine confirmée** : un ancien ID Project suffixé pouvait rester dans le cache comme seconde entrée logique du même Project.

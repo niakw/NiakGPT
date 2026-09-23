@@ -494,6 +494,7 @@ assert.match(runtime, /backgroundHistoryProbe/);
 assert.match(runtime, /backgroundHistoryFetch/);
 assert.match(runtime, /BACKGROUND_HISTORY_FETCH_GAP_MS = 4000/);
 assert.match(runtime, /PRIORITY_HISTORY_FETCH_GAP_MS = 900/);
+assert.doesNotMatch(runtime, /RATE_GUARD_KEY|HISTORY_RATE_MAX|ACCOUNT_RATE_COOLDOWN_MS|reserveHistoryRequest|cooldownUntil/,'0.9.120 must not reintroduce a NiakGPT-owned conversation rate cap');
 assert.match(runtime, /PRIORITY_RETRY_MS = 1000/);
 assert.match(runtime, /syncPriorityNow/);
 assert.match(runtime, /projectArchivedBefore/);

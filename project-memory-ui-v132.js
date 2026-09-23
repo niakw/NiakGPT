@@ -48,6 +48,7 @@
       if(s.pauseReason==='quiet')return (cached?'Coffre écrit · historique différé jusqu’au calme · ':'Coffre connecté · snapshot local en attente · ') + count + ' Project(s)';
       return (cached?'Coffre écrit · historique en attente · ':'Coffre connecté · snapshot local en attente · ') + count + ' Project(s)';
     }
+    if (snapshot && snapshot.connected && s.pauseReason==='inventory-stalled') return 'Coffre synchronisé · écart d’inventaire stable · aucune relance automatique';
     if (snapshot && snapshot.connected && !Number(s.lastSyncAt || 0) && Number(s.bootstrapCachedAt||0)>0) return 'Coffre écrit · inventaire local synchronisé';
     if (snapshot && snapshot.connected && !Number(s.lastSyncAt || 0)) return 'Coffre initialisé · snapshot local en attente';
     if (snapshot && snapshot.connected) return 'Connecté · dernière synchro ' + humanDate(s.lastSyncAt);
@@ -134,7 +135,9 @@
           ? ((cachedDetail ? cachedDetail + ' · ' : '') + 'Historique complet en file · ' + queuePending + ' Project(s)' + (stateInfo.pauseReason==='conversation' ? ' · transport historique de fond indisponible : capture DOM seulement' : stateInfo.pauseReason==='peer-busy' ? ' · génération peer active : réseau mémoire suspendu' : stateInfo.pauseReason==='inventory-incomplete' ? ' · conversations manquantes : réparation ciblée en attente' : stateInfo.pauseReason==='chat-fetch-retry' ? ' · '+Number(stateInfo.deferredChats||snapshot.queue?.deferredChats||0)+' chat(s) différé(s), les autres continuent' : stateInfo.pauseReason==='quiet' ? ' · reprise après 1 min de calme' : ''))
           : (failedCount
               ? ('Pile manuelle · '+failedCount+' chat(s) en échec après 2 tentatives · aucun nouvel essai automatique')
-              : (Number(stateInfo.lastSyncAt || 0) ? ('Dernière synchro · ' + humanDate(stateInfo.lastSyncAt) + ' · ' + Number(stateInfo.changed || 0) + ' fil(s) modifié(s)') : (cachedDetail || 'Aucune synchronisation enregistrée')));
+              : (stateInfo.pauseReason==='inventory-stalled'
+                  ? ('Inventaire serveur stable mais incomplet · '+Number(stateInfo.inventoryPending||0)+' Project(s) signalé(s) · reprise uniquement si le cache change')
+                  : (Number(stateInfo.lastSyncAt || 0) ? ('Dernière synchro · ' + humanDate(stateInfo.lastSyncAt) + ' · ' + Number(stateInfo.changed || 0) + ' fil(s) modifié(s)') : (cachedDetail || 'Aucune synchronisation enregistrée'))));
 
       const viewKey=githubConnected?'github':'login';
       const liveOnly=section.dataset.ng132Built==='1'&&section.dataset.ng132View===viewKey&&!rebuildRequested;
@@ -193,7 +196,7 @@
         '</details>' +
         '<label class="ng132-option"><input data-ng132-auto type="checkbox" ' + (prefs.autoSync !== false ? 'checked' : '') + '><span><b>Synchronisation incrémentale</b><small>Le chat courant est capturé immédiatement depuis le DOM. Quand le transport worker isolé est disponible, l’historique peut rattraper sa file à cadence bornée ; les chemins qui dépendent de la page conservent leur fenêtre de calme.</small></span></label>' +
         '<label class="ng132-option"><input data-ng132-inject type="checkbox" ' + (prefs.injectOnNewChat !== false ? 'checked' : '') + '><span><b>Restaurer le checkpoint dans un nouveau fil</b><small>Ajoute une seule fois le contexte compact du Project au premier message du nouveau fil, jamais à chaque prompt.</small></span></label>' +
-        '<div class="ng132-memory-info"><b>Bootstrap des Projects existants</b><span>Dès la connexion, NiakGPT écrit dans GitHub un snapshot depuis son cache local. Si un Project est marqué indexé mais contient moins de chats que son compteur connu, la file reste ouverte et relance une réparation ciblée jusqu’à convergence.</span></div>' +
+        '<div class="ng132-memory-info"><b>Bootstrap des Projects existants</b><span>Dès la connexion, NiakGPT écrit dans GitHub un snapshot depuis son cache local. Si un Project annonce plus de chats que le cache courant, NiakGPT tente une réparation ciblée. Si le même écart reste inchangé après deux observations, la file automatique s’arrête et attend un vrai changement d’inventaire au lieu de boucler.</span></div>' +
         '<div class="ng132-memory-info"><b>Historique complet ≠ prompt complet</b><span>Les conversations restent archivées dans GitHub. ChatGPT ne reçoit normalement que PROJECT_STATE.md, borné et mis à jour.</span></div>';
 
       const status = section.querySelector('.ng132-memory-status b');

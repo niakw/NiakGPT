@@ -1,3 +1,10 @@
+# NiakGPT 0.9.123 — fin des boucles de Project fantôme
+
+- **Cause racine confirmée** : un ancien ID Project suffixé pouvait rester dans le cache comme seconde entrée logique du même Project.
+- **Producteur corrigé** : la sidebar réécrit désormais Projects, chats, compteurs et liste indexed avec leur ID canonique lors de la fusion du snapshot natif.
+- **Scheduler durci** : Project Memory canonicalise et déduplique aussi les IDs avant de calculer la file ; un alias ne peut donc plus devenir un Project séparé à reprendre après 100 %.
+- **Non-régression** : le test de transfert prioritaire injecte un alias fantôme avec une conversation et exige une fin `idle`, queue supprimée et `prioritySync:false`.
+
 # NiakGPT 0.9.122 — statuts Project Memory monotones
 
 - **Archive canonique protégée** : une conversation déjà archivée par le backend avec `complete:true` ne peut plus être rétrogradée par une sauvegarde DOM live.

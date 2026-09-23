@@ -193,7 +193,7 @@ Le gate `visual-lab/hydration-barrier-v080.mjs` reproduit maintenant deux rempla
 
 `project-memory-v132.js` conserve une file persistante et un heartbeat local de secours de 30 s. La connexion au coffre écrit immédiatement un snapshot depuis le cache local. Sur le chat courant, les messages visibles sont archivés directement depuis le DOM avec `complete:false` ; un passage backend ultérieur peut remplacer cette version partielle. Hors chat, la synchro canonique reste séquentielle, espacée et suspendue dès que ChatGPT devient occupé.
 
-La complétude est contrôlée par le compteur connu : un Project `indexed:true` mais `known > cached` déclenche `niakgpt:force-server-index` en mode `memoryBootstrap` ciblé. Si l’écart persiste, la queue reste en `inventory-incomplete` au lieu d’être supprimée.
+La complétude est contrôlée par le compteur connu : un Project `indexed:true` mais `known > cached` déclenche `niakgpt:force-server-index` en mode `memoryBootstrap` ciblé. Depuis 0.9.124, si exactement le même écart persiste après une seconde observation, la queue automatique s’arrête en `inventory-stalled` et ne se recrée qu’après une évolution réelle de la signature du cache.
 
 ## Invariant réseau 0.9.102 — exception mémoire minimale
 

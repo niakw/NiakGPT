@@ -22,7 +22,6 @@
   const PRIORITY_RETRY_MS = 1000;
   const CHAT_FETCH_RETRIES_PRIORITY = 2;
   const CHAT_FETCH_RETRIES_NORMAL = 2;
-  const CHAT_RETRY_BACKOFF_MS = [45_000,120_000,300_000,900_000,1_800_000];
   const WAKE_HEARTBEAT_MS = 30000;
   const GITHUB_AUTH_UI_TIMEOUT_MS = 6*60*1000;
   let seq = 0, syncing = false, syncAuto = false, prioritySync = false, priorityKick = false, autoTimer = 0, wakeTimer = 0, routeTimer = 0, domCaptureTimer = 0, lastHistoryFetchAt = 0, lastHumanAt = Date.now();
@@ -159,7 +158,13 @@
   async function chatRetryLedger() {
     try {
       const raw=(await chrome.storage.local.get(RETRY_KEY))[RETRY_KEY];
-      return raw&&typeof raw==='object'&&!Array.isArray(raw)?{...raw}:{};
+      if(!raw||typeof raw!=='object'||Array.isArray(raw))return{};
+      const out={};
+      for(const [key,value] of Object.entries(raw)){
+        if(!value||typeof value!=='object')continue;
+        out[key]={...value,manual:true,nextAt:0};
+      }
+      return out;
     } catch { return {}; }
   }
 
@@ -167,10 +172,12 @@
     const rows=ledger&&typeof ledger==='object'?ledger:{};
     if(Object.keys(rows).length)await chrome.storage.local.set({[RETRY_KEY]:rows});
     else await chrome.storage.local.remove(RETRY_KEY);
+    document.dispatchEvent(new CustomEvent('niakgpt:project-memory-retry-pile',{detail:{count:Object.keys(rows).length}}));
   }
 
   const retryEntryKey = (projectId,chatId) => String(projectId||'')+'::'+String(chatId||'');
-  const retryBackoff = cycles => CHAT_RETRY_BACKOFF_MS[Math.min(CHAT_RETRY_BACKOFF_MS.length-1,Math.max(0,Number(cycles||1)-1))];
+  const retryPileRows = ledger => Object.values(ledger&&typeof ledger==='object'?ledger:{}).filter(row=>row&&row.manual===true);
+  const retryPileCount = ledger => retryPileRows(ledger).length;
 
   async function fetchConversationResilient(project,chat,progress={}) {
     const limit=prioritySync?CHAT_FETCH_RETRIES_PRIORITY:CHAT_FETCH_RETRIES_NORMAL;
@@ -831,14 +838,20 @@
     const pending=[...new Set((ids||[]).map(String).filter(Boolean))];
     let old={};try{old=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
     const keepPriority=priority===true||old.priority===true;
-    const retryAt=Math.max(0,Number(extras.retryAt||0));
-    const deferredChats=Math.max(0,Number(extras.deferredChats||0));
+    const hold=extras.hold===undefined?old.hold===true:extras.hold===true;
+    const holdReason=hold?String(extras.holdReason||old.holdReason||''):'';
     try {
       await chrome.storage.local.set({[QUEUE_KEY]:{
-        pending,force:force===true,priority:keepPriority,retryAt,deferredChats,at:Date.now()
+        pending,force:force===true,priority:keepPriority,hold,holdReason,at:Date.now()
       }});
     } catch {}
     return pending;
+  }
+
+  async function releaseQueueHold() {
+    let q={};try{q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
+    if(!Array.isArray(q.pending)||!q.pending.length)return[];
+    return saveQueue(q.pending,q.force===true,q.priority===true,{hold:false});
   }
 
   async function primeBootstrapQueue(force=false, priority=false) {
@@ -973,12 +986,13 @@
     let q={};
     try { q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{}; } catch {}
     const pending=Array.isArray(q.pending)?q.pending:[];
-    const priority=q.priority===true;
-    const retryAt=Math.max(0,Number(q.retryAt||0));
+    const priority=q.priority===true,ledger=await chatRetryLedger();
+    const hold=q.hold===true;
     return state({
       mode:'queued',queuedProjects:pending.length,projectTotal:pending.length,prioritySync:priority,error:'',
-      pauseReason:reason,deferredChats:Number(q.deferredChats||0),
-      nextAttemptAt:retryAt||Date.now()+(priority?PRIORITY_RETRY_MS:WAKE_HEARTBEAT_MS)
+      pauseReason:hold?(q.holdReason||reason||'manual-hold'):reason,
+      queueHold:hold,failedChats:retryPileCount(ledger),
+      nextAttemptAt:hold?0:Date.now()+(priority?PRIORITY_RETRY_MS:WAKE_HEARTBEAT_MS)
     });
   }
 
@@ -1002,15 +1016,12 @@
         const q=local[QUEUE_KEY]||{},p=Object.assign({},defaults,local[PREFS_KEY]||{});
         const pending=Array.isArray(q.pending)?q.pending:[];
         document.documentElement.dataset.ng132WakeBeat=String(Date.now());
+        if(q.hold===true)return;
         if((p.autoSync!==false||q.priority===true)&&pending.length&&autoOwner()){
-          const wait=queueWait(q);
-          if(wait>0) schedule(wait);
-          else {
-            const allowed=await currentPageHistoryAllowed();
-            const activeCatchup=conversationPage()&&backgroundHistoryAvailable===true;
-            const priorityCatchup=q.priority===true&&backgroundHistoryAvailable===true;
-            if(allowed&&(priorityCatchup||activeCatchup||quietFor()>=HUMAN_QUIET_MS)) await resume();
-          }
+          const allowed=await currentPageHistoryAllowed();
+          const activeCatchup=conversationPage()&&backgroundHistoryAvailable===true;
+          const priorityCatchup=q.priority===true&&backgroundHistoryAvailable===true;
+          if(allowed&&(priorityCatchup||activeCatchup||quietFor()>=HUMAN_QUIET_MS)) await resume();
         }
       }catch{}
       wakeHeartbeat();

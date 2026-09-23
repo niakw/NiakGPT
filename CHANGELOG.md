@@ -1,3 +1,11 @@
+# NiakGPT 0.9.120 — retrait immédiat de la limite artificielle 0.9.119
+
+- **Rollback fonctionnel demandé** : suppression complète du garde-fou logiciel `niakgpt-project-memory-rate-guard-v119`, du plafond de **10 lectures/minute**, de l’intervalle forcé de **6 s** et du cooldown automatique de **15 min**.
+- **Priorité restaurée** : `Forcer la synchro des chats` retrouve le comportement de la 0.9.118 : cadence background normale à 4 s et cadence prioritaire à 900 ms, sans budget de requêtes ajouté par NiakGPT.
+- **Aucun blocage persistant NiakGPT** : les boutons de synchronisation ne sont plus désactivés par un état local de protection et aucun `cooldownUntil` n’est conservé dans `chrome.storage.local`.
+- **Sécurité de reprise conservée** : checkpoints durables par conversation, réconciliation des dossiers d’archives, index Project compact, fallback Git blob et fusion monotone des writers restent inchangés.
+- **Régression 0.9.119 supprimée** : le test qui exigeait précisément le cooldown 15 min et le plafond de cadence est retiré des workflows. Les tests de reprise 0.9.116, d’isolation des erreurs 0.9.117 et de réconciliation d’index 0.9.118 restent obligatoires.
+
 # NiakGPT 0.9.119 — Project Memory ne peut plus saturer l’accès aux conversations ChatGPT
 
 - **Incident terrain caractérisé** : le transfert prioritaire lisait jusqu’ici les conversations historiques toutes les **900 ms**. Sur un gros backlog, cette cadence pouvait déclencher la protection native ChatGPT (« demandes trop rapidement » / accès temporairement restreint aux conversations), jusqu’à empêcher momentanément le chargement normal d’un chat.

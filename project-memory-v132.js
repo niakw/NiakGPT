@@ -10,17 +10,13 @@
   const CONTEXT_KEY = 'niakgpt-project-memory-context-v132';
   const QUEUE_KEY = 'niakgpt-project-memory-queue-v132';
   const RETRY_KEY = 'niakgpt-project-memory-chat-retry-v117';
-  const RATE_GUARD_KEY = 'niakgpt-project-memory-rate-guard-v119';
   const MEMORY_LOCK = 'niakgpt-project-memory-sync-v132';
   const CACHE_BOOTSTRAP_LOCK = 'niakgpt-project-memory-cache-bootstrap-v088';
   const MAX_STATE = 18000;
   const CHUNK = 1000000;
   const HISTORY_FETCH_GAP_MS = 20000;
-  const BACKGROUND_HISTORY_FETCH_GAP_MS = 6000;
-  const PRIORITY_HISTORY_FETCH_GAP_MS = 6000;
-  const HISTORY_RATE_WINDOW_MS = 60*1000;
-  const HISTORY_RATE_MAX = 10;
-  const ACCOUNT_RATE_COOLDOWN_MS = 15*60*1000;
+  const BACKGROUND_HISTORY_FETCH_GAP_MS = 4000;
+  const PRIORITY_HISTORY_FETCH_GAP_MS = 900;
   const HUMAN_QUIET_MS = 60*1000;
   const ACTIVE_HISTORY_RETRY_MS = 5000;
   const PRIORITY_RETRY_MS = 1000;
@@ -57,10 +53,6 @@
   const backgroundHistoryGap = () => prioritySync ? PRIORITY_HISTORY_FETCH_GAP_MS : BACKGROUND_HISTORY_FETCH_GAP_MS;
   const queueWait = q => Math.max(0,Number(q?.retryAt||0)-Date.now());
   const transientConversationFailure = error => /^conversation_fetch_failed:/.test(String(error?.message||error||''));
-  const accountRateLimitText = () => {
-    const text=String(document.body?.innerText||document.body?.textContent||'').slice(0,120000);
-    return /(?:demandes\s+trop\s+rapidement|temporairement\s+restreint\s+l['’]accès\s+à\s+vos\s+conversations|requests?\s+too\s+(?:quickly|fast)|temporarily\s+restricted\s+access\s+to\s+your\s+conversations|too\s+many\s+requests)/i.test(text);
-  };
   const defaults = { autoSync: true, injectOnNewChat: true };
   let prefsCache = Object.assign({}, defaults), prefsReady = false;
 
@@ -89,9 +81,6 @@
     const result=await send({type:'niakgpt:memory-chatgpt-fetch-v132',path:'/backend-api/conversation/'+encodeURIComponent(id)});
     if(result?.ok)return result;
     const error=String(result?.error||'');
-    if(result?.status===429||/chatgpt_memory_http_429|too\s+many\s+requests|requests?\s+too\s+(?:quickly|fast)|temporarily\s+restricted/i.test(error)){
-      await markAccountRateLimit('chatgpt-history-rate-limit');
-    }
     if(/chatgpt_session_|chatgpt_memory_http_401|chatgpt_memory_http_403|extension_context_invalidated/i.test(error)){
       backgroundHistoryAvailable=false;backgroundHistoryProbeAt=Date.now();
     }
@@ -165,60 +154,6 @@
 
   async function cache() {
     try { return (await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY] || {}; } catch { return {}; }
-  }
-
-  async function rateGuard() {
-    try {
-      const raw=(await chrome.storage.local.get(RATE_GUARD_KEY))[RATE_GUARD_KEY];
-      return raw&&typeof raw==='object'&&!Array.isArray(raw)?{...raw}:{};
-    } catch { return {}; }
-  }
-
-  async function saveRateGuard(next) {
-    const row=next&&typeof next==='object'?next:{};
-    await chrome.storage.local.set({[RATE_GUARD_KEY]:row});
-    return row;
-  }
-
-  async function markAccountRateLimit(reason='chatgpt-rate-limit') {
-    const current=await rateGuard(),until=Math.max(Number(current.cooldownUntil||0),Date.now()+ACCOUNT_RATE_COOLDOWN_MS);
-    const next=await saveRateGuard({
-      cooldownUntil:until,reason:String(reason||'chatgpt-rate-limit').slice(0,120),
-      lastLimitedAt:Date.now(),recent:[],lastRequestAt:Number(current.lastRequestAt||0)
-    });
-    document.documentElement.dataset.ng132RateLimitedUntil=String(until);
-    return next;
-  }
-
-  async function historyRateWait() {
-    const guard=await rateGuard();
-    return Math.max(0,Number(guard.cooldownUntil||0)-Date.now());
-  }
-
-  async function reserveHistoryRequest() {
-    if(accountRateLimitText()){
-      const guard=await markAccountRateLimit('chatgpt-ui-rate-limit');
-      const error=new Error('memory_sync_paused_rate_limit');
-      error.retryAt=Number(guard.cooldownUntil||0);
-      throw error;
-    }
-    while(true){
-      const now=Date.now(),guard=await rateGuard(),cooldownUntil=Number(guard.cooldownUntil||0);
-      if(cooldownUntil>now){
-        document.documentElement.dataset.ng132RateLimitedUntil=String(cooldownUntil);
-        const error=new Error('memory_sync_paused_rate_limit');error.retryAt=cooldownUntil;throw error;
-      }
-      const recent=(Array.isArray(guard.recent)?guard.recent:[]).map(Number).filter(ts=>Number.isFinite(ts)&&now-ts<HISTORY_RATE_WINDOW_MS).sort((a,b)=>a-b);
-      const last=Math.max(Number(guard.lastRequestAt||0),recent.at(-1)||0);
-      let wait=Math.max(0,last+Math.max(BACKGROUND_HISTORY_FETCH_GAP_MS,PRIORITY_HISTORY_FETCH_GAP_MS)-now);
-      if(recent.length>=HISTORY_RATE_MAX)wait=Math.max(wait,recent[recent.length-HISTORY_RATE_MAX]+HISTORY_RATE_WINDOW_MS-now);
-      if(wait>0){await sleep(Math.min(wait,30000));continue;}
-      const at=Date.now();
-      recent.push(at);
-      await saveRateGuard({...guard,cooldownUntil:0,reason:'',lastRequestAt:at,recent:recent.slice(-HISTORY_RATE_MAX)});
-      document.documentElement.dataset.ng132RateLimitedUntil='';
-      return at;
-    }
   }
 
   async function chatRetryLedger() {
@@ -514,7 +449,6 @@
     const direct=await backgroundHistoryProbe(false);
     if(direct){
       if(!await waitIdle(undefined,true))throw new Error('memory_sync_paused_busy');
-      await reserveHistoryRequest();
       const elapsed=Date.now()-lastHistoryFetchAt;
       const gap=backgroundHistoryGap();
       if(lastHistoryFetchAt&&elapsed<gap)await sleep(gap-elapsed);
@@ -530,7 +464,6 @@
       }
     }
     if (!await waitIdle()) throw new Error('memory_sync_paused_busy');
-    await reserveHistoryRequest();
     const elapsed=Date.now()-lastHistoryFetchAt;
     if(lastHistoryFetchAt&&elapsed<HISTORY_FETCH_GAP_MS)await sleep(HISTORY_FETCH_GAP_MS-elapsed);
     if (!await waitIdle()) throw new Error('memory_sync_paused_busy');
@@ -540,7 +473,7 @@
     const error=String(r?.error||'');
     if(error==='native_conversation_quiet')throw new Error('memory_sync_paused_conversation');
     if(error==='native_busy'||/fetch_aborted_native_priority|bridge-pause/.test(error))throw new Error('memory_sync_paused_busy');
-    if(r?.status===429){await markAccountRateLimit('chatgpt-page-rate-limit');throw new Error('memory_sync_paused_rate_limit');}
+    if(r?.status===429)throw new Error('memory_sync_paused_rate_limit');
     if(r?.status===0)throw new Error('memory_sync_paused_network');
     throw new Error('conversation_fetch_failed:' + String(r && r.status || 0) + ':' + String(r && r.error || 'unknown'));
   }
@@ -1041,12 +974,11 @@
     try { q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{}; } catch {}
     const pending=Array.isArray(q.pending)?q.pending:[];
     const priority=q.priority===true;
-    const retryAt=Math.max(0,Number(q.retryAt||0)),rateWait=await historyRateWait();
+    const retryAt=Math.max(0,Number(q.retryAt||0));
     return state({
       mode:'queued',queuedProjects:pending.length,projectTotal:pending.length,prioritySync:priority,error:'',
-      pauseReason:rateWait>0?'rate-limit':reason,deferredChats:Number(q.deferredChats||0),
-      rateLimitedUntil:rateWait>0?Date.now()+rateWait:0,
-      nextAttemptAt:Math.max(retryAt,rateWait>0?Date.now()+rateWait:0)||Date.now()+(priority?PRIORITY_RETRY_MS:WAKE_HEARTBEAT_MS)
+      pauseReason:reason,deferredChats:Number(q.deferredChats||0),
+      nextAttemptAt:retryAt||Date.now()+(priority?PRIORITY_RETRY_MS:WAKE_HEARTBEAT_MS)
     });
   }
 
@@ -1071,7 +1003,7 @@
         const pending=Array.isArray(q.pending)?q.pending:[];
         document.documentElement.dataset.ng132WakeBeat=String(Date.now());
         if((p.autoSync!==false||q.priority===true)&&pending.length&&autoOwner()){
-          const rateWait=await historyRateWait(),wait=Math.max(queueWait(q),rateWait);
+          const wait=queueWait(q);
           if(wait>0) schedule(wait);
           else {
             const allowed=await currentPageHistoryAllowed();
@@ -1089,13 +1021,6 @@
     const opt = options || {};
     const automatic = opt.auto === true;
     const priorityMode = opt.priority === true;
-    const rateWait=await historyRateWait();
-    if(rateWait>0||accountRateLimitText()){
-      if(!rateWait)await markAccountRateLimit('chatgpt-ui-rate-limit');
-      await queuedState('rate-limit');
-      schedule(Math.max(1000,await historyRateWait()));
-      return {ok:false,paused:true,error:'memory_sync_paused_rate_limit'};
-    }
     const allowConversation=conversationPage()&&await backgroundHistoryProbe(false);
     if (conversationPage()&&!allowConversation) {
       await queuedState('conversation');
@@ -1181,14 +1106,8 @@
       const message=String(error && error.message || error);
       if(/^memory_sync_paused_(?:conversation|hidden|owner_change|busy|rate_limit|network)$/.test(message)){
         const reason=message.replace('memory_sync_paused_','');
-        if(reason==='rate_limit'){
-          const guard=await markAccountRateLimit('chatgpt-history-rate-limit');
-          let q={};try{q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
-          if(Array.isArray(q.pending)&&q.pending.length)await saveQueue(q.pending,q.force===true,q.priority===true,{retryAt:Number(guard.cooldownUntil||0),deferredChats:Number(q.deferredChats||0)});
-        }
         await queuedState(reason);
-        const wait=reason==='rate_limit'?Math.max(1000,await historyRateWait()):(reason==='network'?120000:(reason==='conversation'?WAKE_HEARTBEAT_MS:retryDelay(allowConversation,prioritySync)));
-        schedule(wait);
+        schedule(reason==='rate_limit'||reason==='network'?120000:(reason==='conversation'?WAKE_HEARTBEAT_MS:retryDelay(allowConversation,prioritySync)));
         return {ok:false,paused:true,error:message};
       }
       await state({ mode:'error', error:message.slice(0,260) });
@@ -1198,7 +1117,7 @@
       try{
         const q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};
         if(Array.isArray(q.pending)&&q.pending.length){
-          const delay=Math.max(backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true,q.priority===true),queueWait(q),await historyRateWait());
+          const delay=Math.max(backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true,q.priority===true),queueWait(q));
           schedule(delay);
         } else prioritySync=false;
       }catch{prioritySync=false;}
@@ -1210,11 +1129,6 @@
     try {
       const q = (await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY], p = await prefs();
       if (!q?.pending?.length || (!p.autoSync && q.priority!==true)) return;
-      const rateWait=await historyRateWait();
-      if(rateWait>0||accountRateLimitText()){
-        if(!rateWait)await markAccountRateLimit('chatgpt-ui-rate-limit');
-        await queuedState('rate-limit');schedule(Math.max(1000,await historyRateWait()));return;
-      }
       const wait=queueWait(q);
       if(wait>0){schedule(wait);return;}
       const allowConversation=conversationPage()&&await backgroundHistoryProbe(false);
@@ -1232,7 +1146,7 @@
     let initialQueue={};try{initialQueue=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
     const settings=await prefs();
     if(!settings.autoSync&&initialQueue.priority!==true)return;
-    const initialDelay=Math.max(Number(delay ?? backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true)),queueWait(initialQueue),await historyRateWait());
+    const initialDelay=Math.max(Number(delay ?? backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true)),queueWait(initialQueue));
     autoTimer = setTimeout(async () => {
       if (!autoOwner() || syncing) return;
       let q={};try{q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
@@ -1418,12 +1332,11 @@
   async function status() {
     const remote = await send({type:'niakgpt:memory-status-v132'});
     let local = {};
-    try { local = await chrome.storage.local.get([STATE_KEY,PREFS_KEY,QUEUE_KEY,RATE_GUARD_KEY]); } catch {}
-    const queue=local[QUEUE_KEY]||{},guard=local[RATE_GUARD_KEY]||{};
+    try { local = await chrome.storage.local.get([STATE_KEY,PREFS_KEY,QUEUE_KEY]); } catch {}
+    const queue=local[QUEUE_KEY]||{};
     return Object.assign({}, remote, {
       state:local[STATE_KEY] || {},
       prefs:Object.assign({},defaults,local[PREFS_KEY] || {}),
-      rateGuard:{cooldownUntil:Number(guard.cooldownUntil||0),reason:String(guard.reason||''),lastLimitedAt:Number(guard.lastLimitedAt||0),lastRequestAt:Number(guard.lastRequestAt||0)},
       queue:{
         pending:Array.isArray(queue.pending)?queue.pending.slice():[],force:queue.force===true,priority:queue.priority===true,
         retryAt:Number(queue.retryAt||0),deferredChats:Number(queue.deferredChats||0),at:Number(queue.at||0)
@@ -1434,12 +1347,6 @@
   async function syncPriorityNow() {
     const remote=await send({type:'niakgpt:memory-status-v132'});
     if(!remote?.connected)return {ok:false,error:remote?.configured?'github_token_missing':'not_connected'};
-    const rateWait=await historyRateWait();
-    if(rateWait>0||accountRateLimitText()){
-      if(!rateWait)await markAccountRateLimit('chatgpt-ui-rate-limit');
-      await queuedState('rate-limit');
-      return {ok:false,paused:true,error:'memory_sync_paused_rate_limit',retryAt:Date.now()+Math.max(rateWait,await historyRateWait())};
-    }
     let pending=[];
     priorityKick=true;
     try{
@@ -1462,12 +1369,6 @@
 
   async function syncNow(options={}) {
     const force=options.force===true;
-    const rateWait=await historyRateWait();
-    if(rateWait>0||accountRateLimitText()){
-      if(!rateWait)await markAccountRateLimit('chatgpt-ui-rate-limit');
-      await queuedState('rate-limit');
-      return {ok:false,paused:true,error:'memory_sync_paused_rate_limit',retryAt:Date.now()+Math.max(rateWait,await historyRateWait())};
-    }
     if(document.documentElement.dataset.ng90PeerBusy==='1'){
       const pending=await primeBootstrapQueue(force);
       try{

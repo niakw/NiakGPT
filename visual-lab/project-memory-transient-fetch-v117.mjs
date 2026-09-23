@@ -67,7 +67,7 @@ try{
     });
     window.chrome={
       runtime:{
-        id:'transient-sync-lab',lastError:null,getManifest:()=>({version:'0.9.119'}),
+        id:'transient-sync-lab',lastError:null,getManifest:()=>({version:'0.9.120'}),
         sendMessage(message,cb){
           const type=String(message?.type||'');
           const reply=value=>queueMicrotask(()=>cb(value));
@@ -152,7 +152,7 @@ try{
       const conv=JSON.parse(idx).conversations||{};
       return conv[C3]?.complete===true&&conv[C4]?.complete===true&&state.mode==='queued'&&state.pauseReason==='chat-fetch-retry';
     }catch{return false;}
-  },null,{timeout:30000});
+  },null,{timeout:12000});
 
   const first=await page.evaluate(()=>{
     const P='g-p-transientlab';
@@ -193,7 +193,7 @@ try{
     const state=window.__store['niakgpt-project-memory-state-v132']||{};
     if(!idx)return false;
     try{return JSON.parse(idx).conversations?.[C2]?.complete===true&&state.mode==='idle'&&window.__store['niakgpt-project-memory-queue-v132']===undefined;}catch{return false;}
-  },null,{timeout:30000});
+  },null,{timeout:12000});
 
   const final=await page.evaluate(()=>{
     const ids=['22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333','44444444-4444-4444-8444-444444444444'];

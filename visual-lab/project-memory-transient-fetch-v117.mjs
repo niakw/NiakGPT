@@ -67,7 +67,7 @@ try{
     });
     window.chrome={
       runtime:{
-        id:'transient-sync-lab',lastError:null,getManifest:()=>({version:'0.9.122'}),
+        id:'transient-sync-lab',lastError:null,getManifest:()=>({version:'0.9.123'}),
         sendMessage(message,cb){
           const type=String(message?.type||'');
           const reply=value=>queueMicrotask(()=>cb(value));

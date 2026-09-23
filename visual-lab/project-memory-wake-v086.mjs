@@ -142,9 +142,9 @@ try{
     assert(Number(archive.row?.parts||0)>0&&Number(archive.row?.messages||0)>0,'cache bootstrap erased archived transcript metadata: '+JSON.stringify(archive));
     assert(archive.topBootstrap===false,'mixed/full archive was mislabeled metadata-only: '+JSON.stringify(archive));
 
-    // Current-chat archival no longer needs a ChatGPT RPC: serialize the already-rendered DOM
-    // straight to the private GitHub vault, normalize polluted Project UI text, and leave it
-    // marked partial so the later off-chat backend pass can replace it canonically.
+    // Current-chat archival no longer needs a ChatGPT RPC. If a canonical backend archive
+    // already exists, the rendered DOM is stored as a live overlay and must not downgrade
+    // the canonical per-chat/project status from complete to partial.
     const rpcBeforeDom=await page.evaluate(()=>window.__wakeRpcCalls);
     await page.evaluate(()=>{
       const cache=window.__wakeLocal['niakgpt-v08-cache'];
@@ -159,20 +159,24 @@ try{
       const index=JSON.parse(window.__wakeRemote['projects/g-p-one/index.json']||'{}');
       const row=index.conversations?.['11111111-1111-4111-8111-111111111111']||{};
       const project=JSON.parse(window.__wakeRemote['projects/g-p-one/project.json']||'{}');
-      const part=window.__wakeRemote['projects/g-p-one/conversations/11111111-1111-4111-8111-111111111111/part-001.md']||'';
+      const canonicalPart=window.__wakeRemote['projects/g-p-one/conversations/11111111-1111-4111-8111-111111111111/part-001.md']||'';
+      const livePart=window.__wakeRemote['projects/g-p-one/conversations/11111111-1111-4111-8111-111111111111/live-part-001.md']||'';
       const conversationIndex=JSON.parse(window.__wakeRemote['projects/g-p-one/conversations/11111111-1111-4111-8111-111111111111/index.json']||'{}');
+      const liveIndex=JSON.parse(window.__wakeRemote['projects/g-p-one/conversations/11111111-1111-4111-8111-111111111111/live-index.json']||'{}');
       const root=JSON.parse(window.__wakeRemote['PROJECTS.json']||'{}');
-      return{rpc:window.__wakeRpcCalls,index,row,project,part,conversationIndex,rootName:root.projects?.[0]?.name||'',marker:document.documentElement.dataset.ng132DomCapture||''};
+      return{rpc:window.__wakeRpcCalls,index,row,project,canonicalPart,livePart,conversationIndex,liveIndex,rootName:root.projects?.[0]?.name||'',marker:document.documentElement.dataset.ng132DomCapture||''};
     });
     assert(domResult?.domCaptured===true,'manual in-chat sync did not report DOM capture: '+JSON.stringify(domResult));
     assert(domProof.rpc===rpcBeforeDom,'current-chat DOM capture touched ChatGPT RPC: '+JSON.stringify(domProof));
-    assert(domProof.row.captureSource==='live-dom'&&domProof.row.complete===false&&domProof.row.historyPartial===true,'DOM capture was not marked partial: '+JSON.stringify(domProof.row));
-    assert(domProof.row.messages===2&&domProof.row.parts>=1,'DOM capture did not persist visible messages: '+JSON.stringify(domProof.row));
-    assert(domProof.conversationIndex.captureSource==='live-dom'&&domProof.conversationIndex.messages===2,'per-conversation DOM index missing or stale: '+JSON.stringify(domProof.conversationIndex));
+    assert(domProof.row.captureSource==='backend'&&domProof.row.complete===true&&domProof.row.historyPartial===false,'live DOM capture downgraded canonical project status: '+JSON.stringify(domProof.row));
+    assert(domProof.conversationIndex.captureSource==='backend'&&domProof.conversationIndex.complete===true,'live DOM capture overwrote canonical per-conversation index: '+JSON.stringify(domProof.conversationIndex));
+    assert(domProof.liveIndex.captureSource==='live-dom'&&domProof.liveIndex.complete===false&&domProof.liveIndex.historyPartial===true&&domProof.liveIndex.messages===2,'live DOM overlay index missing or invalid: '+JSON.stringify(domProof.liveIndex));
+    assert(domProof.row.liveDomMessages===2&&domProof.row.liveDomParts>=1,'canonical project row did not retain live overlay checkpoint metadata: '+JSON.stringify(domProof.row));
     assert(domProof.project.name==='One'&&domProof.index.projectName==='One'&&domProof.rootName==='One','polluted Project name reached private vault/root inventory: '+JSON.stringify({project:domProof.project.name,index:domProof.index.projectName,root:domProof.rootName}));
-    assert(domProof.part.includes('Visible user message')&&domProof.part.includes('Visible assistant reply'),'DOM transcript content missing: '+domProof.part);
+    assert(domProof.livePart.includes('Visible user message')&&domProof.livePart.includes('Visible assistant reply'),'DOM live overlay content missing: '+domProof.livePart);
+    assert(!domProof.canonicalPart.includes('Visible user message'),'DOM capture overwrote canonical backend transcript: '+domProof.canonicalPart);
     assert(domProof.marker.includes(':2'),'DOM capture diagnostic marker missing: '+domProof.marker);
   }finally{await context.close();}
 }finally{await browser.close();}
 
-console.log('project-memory-wake-v086: PASS bootstrap preservation + queued backend archive + zero-RPC live DOM archive');
+console.log('project-memory-wake-v086: PASS bootstrap preservation + canonical status + zero-RPC live DOM overlay');

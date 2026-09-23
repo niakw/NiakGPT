@@ -518,6 +518,7 @@
       schema:1,id:String(r.id||''),title:one(r.title||'Conversation'),updated:Number(r.updated||0),
       capturedAt:String(r.capturedAt||''),parts:Math.max(0,Number(r.parts||0)),messages:Math.max(0,Number(r.messages||0)),
       canonicalHash:String(r.canonicalHash||''),liveDomHash:String(r.liveDomHash||''),
+      liveDomCapturedAt:String(r.liveDomCapturedAt||''),liveDomParts:Math.max(0,Number(r.liveDomParts||0)),liveDomMessages:Math.max(0,Number(r.liveDomMessages||0)),
       bootstrapMetadataOnly:r.bootstrapMetadataOnly===true,historyPartial:r.historyPartial===true,
       complete:r.complete===true,captureSource:String(r.captureSource||'')
     };
@@ -585,25 +586,33 @@
     if(!idx||typeof idx!=='object')idx={schema:1,projectId:project.id,conversations:{}};
     if(!idx.conversations||typeof idx.conversations!=='object')idx.conversations={};
     const old=idx.conversations[cid],hash=rowsHash(rows);
-    if(!force&&old&&old.captureSource==='live-dom'&&old.liveDomHash===hash&&Number(old.parts||0)>0)return{ok:true,skipped:'unchanged-dom'};
+    const canonicalComplete=projectConversationStrength(old)===3;
+    if(!force&&old&&old.liveDomHash===hash&&Number(old.liveDomParts||old.parts||0)>0)return{ok:true,skipped:'unchanged-dom'};
     const full=transcript(project,chat,rows),chunks=[];
     for(let at=0;at<full.length;at+=CHUNK)chunks.push(full.slice(at,at+CHUNK));
     const base=ppath(project.id,'conversations/'+safe(cid)),files=[];
-    chunks.forEach((text,part)=>files.push({path:base+'/part-'+String(part+1).padStart(3,'0')+'.md',content:text}));
-    for(let stale=chunks.length;stale<Number(old?.parts||0);stale++)files.push({
-      path:base+'/part-'+String(stale+1).padStart(3,'0')+'.md',
+    const livePrefix=canonicalComplete?'live-part-':'part-';
+    chunks.forEach((text,part)=>files.push({path:base+'/'+livePrefix+String(part+1).padStart(3,'0')+'.md',content:text}));
+    const staleCount=canonicalComplete?Number(old?.liveDomParts||0):Number(old?.parts||0);
+    for(let stale=chunks.length;stale<staleCount;stale++)files.push({
+      path:base+'/'+livePrefix+String(stale+1).padStart(3,'0')+'.md',
       content:'# Superseded\n\nThis chunk is no longer part of the current conversation snapshot. Use Git history for the previous revision.\n'
     });
     const updated=parseTime(chat.updated||chat.update_time||chat.create_time)||Number(old?.updated||0)||Date.now();
-    const chatIndex={
+    const liveIndex={
       schema:1,id:cid,title:one(chat.title||old?.title||'Conversation'),updated,capturedAt:new Date().toISOString(),
       parts:chunks.length,messages:rows.length,bootstrapMetadataOnly:false,historyPartial:true,complete:false,
       captureSource:'live-dom',liveDomHash:hash,signals:signals(rows)
     };
+    const chatIndex=canonicalComplete?{
+      ...old,
+      liveDomHash:hash,liveDomCapturedAt:liveIndex.capturedAt,liveDomParts:chunks.length,liveDomMessages:rows.length,
+      signals:liveIndex.signals
+    }:liveIndex;
     idx={...idx,schema:1,projectId:project.id,projectName:projectName(project.name||''),updatedAt:new Date().toISOString(),bootstrapMetadataOnly:false,conversations:{...idx.conversations,[cid]:chatIndex}};
     const compact=buildState(project,idx,await loadContext(project.id));
     files.push(
-      {path:base+'/index.json',content:JSON.stringify(chatIndex,null,2)+'\n'},
+      {path:base+(canonicalComplete?'/live-index.json':'/index.json'),content:JSON.stringify(liveIndex,null,2)+'\n'},
       {path:ppath(project.id,'project.json'),content:JSON.stringify({
         schema:1,id:project.id,name:projectName(project.name||''),description:clean(project.description||''),instructions:clean(project.instructions||''),
         conversationCount:Object.keys(idx.conversations).length,knownConversationCount:Number(project.count||0),indexed:project.indexed===true,

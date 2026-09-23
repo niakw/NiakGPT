@@ -12,24 +12,30 @@ const page=await browser.newPage({viewport:{width:1180,height:820}});
 try{
   await page.addInitScript(()=>{
     const P='g-p-prioritylab';
+    const ALIAS=P+'-workspace';
     const C1='11111111-1111-4111-8111-111111111111';
     const C2='22222222-2222-4222-8222-222222222222';
     const C3='33333333-3333-4333-8333-333333333333';
     const now=Date.now();
     const cache={
       schema:2,at:now,serverIndexedAt:now,
-      projects:[{id:P,name:'Workspace',href:'/g/'+P+'/project',domOnly:false}],
+      projects:[
+        {id:P,name:'Workspace',href:'/g/'+P+'/project',domOnly:false},
+        {id:ALIAS,name:'Workspace',href:'/g/'+ALIAS+'/project',domOnly:false}
+      ],
       chats:[
         {id:C1,title:'Already archived',projectId:P,updated:now-3000},
         {id:C2,title:'Needs archive A',projectId:P,updated:now-2000},
-        {id:C3,title:'Needs archive B',projectId:P,updated:now-1000}
+        {id:C3,title:'Needs archive B',projectId:ALIAS,updated:now-1000}
       ],
-      projectChats:{[P]:[
-        {id:C1,title:'Already archived',projectId:P,updated:now-3000},
-        {id:C2,title:'Needs archive A',projectId:P,updated:now-2000},
-        {id:C3,title:'Needs archive B',projectId:P,updated:now-1000}
-      ]},
-      counts:{[P]:3},indexedProjectIds:[P]
+      projectChats:{
+        [P]:[
+          {id:C1,title:'Already archived',projectId:P,updated:now-3000},
+          {id:C2,title:'Needs archive A',projectId:P,updated:now-2000}
+        ],
+        [ALIAS]:[{id:C3,title:'Needs archive B',projectId:ALIAS,updated:now-1000}]
+      },
+      counts:{[P]:2,[ALIAS]:1},indexedProjectIds:[P]
     };
     const store={
       'niakgpt-v08-cache':cache,
@@ -173,7 +179,8 @@ try{
       failedC3:window.__failedC3,
       resumed,
       queue:window.__store['niakgpt-project-memory-queue-v132']||null,
-      state:window.__store['niakgpt-project-memory-state-v132']||{}
+      state:window.__store['niakgpt-project-memory-state-v132']||{},
+      cachedProjects:(window.__store['niakgpt-v08-cache']?.projects||[]).map(p=>p.id)
     };
   });
   assert.equal(result.c1,0,'priority catch-up refetched an already complete conversation');
@@ -184,7 +191,8 @@ try{
   assert.equal(result.resumed,true,'resume progress did not preserve the durable chat checkpoint');
   assert.equal(result.queue,null,'priority queue was not cleared after full convergence');
   assert.equal(result.state.prioritySync,false,'priority mode did not end after convergence');
-  console.log('project-memory-priority-sync-v116: PASS durable per-chat resume + explicit priority transfer');
+  assert.equal(result.state.mode,'idle','phantom Project alias left scheduler queued after 100%');
+  console.log('project-memory-priority-sync-v116: PASS durable resume + phantom Project alias cannot requeue priority transfer');
 }finally{
   await page.close();
   await browser.close();

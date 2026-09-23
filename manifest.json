@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.122",
-  "description": "NiakGPT : Project Memory garde les archives backend canoniques stables et isole les sauvegardes DOM live sans rétrograder les statuts.",
+  "version": "0.9.123",
+  "description": "NiakGPT : Project Memory canonicalise les IDs Projects et empêche les alias fantômes de relancer indéfiniment un transfert terminé.",
   "permissions": [
     "storage",
     "scripting",

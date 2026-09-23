@@ -1,5 +1,16 @@
 # Architecture de NiakGPT
 
+## Invariant architecture 0.9.124 — un écart d’inventaire stable ne devient jamais une boucle
+
+Un compteur serveur supérieur au nombre de chats présents dans le cache est un **signal de réparation**, pas une preuve que relancer indéfiniment produira de nouvelles données. Project Memory calcule désormais une signature de gap `[projectId, knownCount, cachedCount, indexed]`.
+
+- première observation : tentative de réparation / reprise normale ;
+- seconde observation strictement identique : l’écart devient `inventory-stalled`, la queue persistante est supprimée et le mode prioritaire s’arrête ;
+- tant que la signature complète du cache ne change pas, le bootstrap n’a pas le droit de recréer cette queue ;
+- une évolution réelle du cache réactive naturellement la synchronisation.
+
+Les chats placés dans la pile de retry manuel sont considérés comme **traités par la passe automatique**. Ils restent incomplets dans l’archive tant qu’ils ne sont pas récupérés, mais ils ne faussent plus le pourcentage d’avancement ni la condition de fin du scheduler.
+
 ## Invariant architecture 0.9.123 — un Project canonique, une seule identité de queue
 
 Les identifiants Project issus du DOM, du cache, de `projectChats`, des compteurs et de `indexedProjectIds` sont normalisés avant fusion. Plusieurs formes historiques d’un même identifiant ne peuvent pas produire plusieurs unités de travail Project Memory.

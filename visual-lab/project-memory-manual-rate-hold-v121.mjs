@@ -54,7 +54,7 @@ try{
     window.__remote=remote;
     window.chrome={
       runtime:{
-        id:'manual-rate-hold-lab',lastError:null,getManifest:()=>({version:'0.9.122'}),
+        id:'manual-rate-hold-lab',lastError:null,getManifest:()=>({version:'0.9.123'}),
         sendMessage(message,cb){
           const type=String(message?.type||'');
           const reply=value=>queueMicrotask(()=>cb(value));

@@ -2,8 +2,15 @@
   <img src="assets/niakgpt-logo.svg" alt="NiakGPT — Power Workspace for ChatGPT" width="760">
 
   <p><strong>English</strong> · <a href="README.fr.md">Français</a></p>
-  <p><strong>A local-first power workspace for ChatGPT.</strong></p>
-  <p>Projects · long-thread performance · continuity · navigation · focused productivity</p>
+  <h3>Turn ChatGPT into a workspace built for serious, long-running work.</h3>
+  <p>
+    <kbd>Projects</kbd>
+    <kbd>Long threads</kbd>
+    <kbd>Continuity</kbd>
+    <kbd>Private Memory</kbd>
+    <kbd>Local-first</kbd>
+  </p>
+  <p>NiakGPT keeps the ChatGPT experience you already know — and adds the organization, resilience and continuity power users keep missing.</p>
 
   <p>
     <img alt="Version" src="https://img.shields.io/badge/version-0.9.124-4fc1ff">
@@ -14,16 +21,76 @@
   </p>
 </div>
 
+<p align="center">
+  <a href="#-why-niakgpt"><strong>Why NiakGPT?</strong></a> ·
+  <a href="#-what-niakgpt-adds"><strong>Features</strong></a> ·
+  <a href="#-private-project-memory"><strong>Private Memory</strong></a> ·
+  <a href="#installation"><strong>Install</strong></a> ·
+  <a href="#architecture"><strong>Architecture</strong></a> ·
+  <a href="#testing"><strong>Testing</strong></a>
+</p>
+
 ---
 
 # NiakGPT
 
-NiakGPT is a browser extension that turns the ChatGPT web interface into a more capable **workspace for heavy, project-based use** without replacing ChatGPT itself.
+NiakGPT is a **power workspace layer for ChatGPT**.
 
-It adds a native-first layer for Projects, navigation, long conversations, continuity, diagnostics and local productivity. Core features run locally in the browser: **no NiakGPT account, no NiakGPT analytics and no NiakGPT server are required**.
-> **Current version: 0.9.124.** Project Memory now stops stable inventory gaps from re-queuing forever and counts quarantined conversations as handled for the automatic pass, preventing 22/23 → queued loops.
+It is built for the moment when a few chats turn into dozens of Projects, conversations grow into thousands of messages, context has to survive across threads, and the native sidebar stops being enough.
 
-## Highlights
+NiakGPT does not replace ChatGPT. It extends it carefully: better Project navigation, long-thread ergonomics, continuity tools, local diagnostics and an optional private Project Memory — while keeping the native ChatGPT flow in control.
+
+> [!IMPORTANT]
+> **NiakGPT is local-first.** No NiakGPT account, analytics service or NiakGPT cloud is required. Optional Project Memory writes only to a **private GitHub repository selected by the user**.
+
+## ⚡ Why NiakGPT?
+
+ChatGPT is excellent at the conversation itself. NiakGPT focuses on everything around it that becomes painful when the work gets bigger.
+
+| | What NiakGPT changes |
+| --- | --- |
+| **📁 Projects that scale** | Browse Projects and their conversations directly from the sidebar, search locally and keep navigation stable through SPA changes and React remounts. |
+| **🧵 Long-thread control** | Reduce non-essential work on heavy conversations and keep navigation, outline and status usable when a thread becomes huge. |
+| **🔁 Continuity** | Carry work forward when a task spans several turns or a conversation reaches its limit, without throwing away the user's current draft. |
+| **🧠 Private Project Memory** | Optionally archive Project conversations and compact continuity state in a user-owned private GitHub repository. |
+| **⚡ Fast navigation** | Quick Open, breadcrumb navigation, current-thread outline and Project-aware route handling. |
+| **🛡️ Native-first stability** | NiakGPT is designed to yield to ChatGPT instead of fighting it: bounded observers, explicit ownership and fail-safe degradation. |
+| **🔒 Local-first privacy** | No NiakGPT telemetry, no analytics SDK, no advertising layer and no mandatory backend. |
+
+> [!TIP]
+> **The goal is simple:** keep ChatGPT feeling like ChatGPT, but make it usable as a real long-term workspace.
+
+## ✨ What NiakGPT adds
+
+### Projects become a working surface
+
+NiakGPT turns the left sidebar into something closer to a real project navigator:
+
+- expand a Project and browse its conversations in place;
+- search locally inside large Project histories;
+- keep current chat, dates, counts and attention state visible;
+- preserve order, focus and scroll through route changes and rerenders;
+- keep manual organization authoritative over automatic classification.
+
+### Long conversations stay manageable
+
+Heavy threads should not make the whole workspace feel heavy. NiakGPT progressively reduces non-essential work, keeps status surfaces compact and uses bounded/event-driven updates instead of permanent whole-document polling.
+
+### Continuity survives thread boundaries
+
+NiakGPT distinguishes parallel additions, long-running task recovery and conversation-limit handoff. When ChatGPT requires a new thread, NiakGPT can carry a compact continuity capsule forward and keep the Project relationship intact.
+
+### Private memory stays under your control
+
+Project Memory is optional and disabled by default. When enabled, NiakGPT can persist full conversation archives and compact Project state in a **private GitHub repository you choose**. The full archive stays there; normal prompts receive only bounded continuity context when needed.
+
+### Built to coexist with ChatGPT
+
+NiakGPT deliberately avoids becoming a second application wrapped around ChatGPT. UI surfaces are compact, native-first and removable; the architecture separates ownership so multiple modules do not compete for the same DOM or state.
+
+> **0.9.124 focus:** Project Memory now converges cleanly when the server inventory and local cache disagree. Stable inventory gaps stop re-queuing forever, quarantined conversations no longer hold the automatic pass below 100%, and the regression is covered by Chromium release gates.
+
+## Deep dive
 
 ### Hydration-safe startup
 

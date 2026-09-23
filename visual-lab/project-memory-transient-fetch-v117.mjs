@@ -170,6 +170,7 @@ try{
   assert.equal(first.counts['33333333-3333-4333-8333-333333333333'],1,'later chat A did not continue after transient failure');
   assert.equal(first.counts['44444444-4444-4444-8444-444444444444'],1,'later chat B did not continue after transient failure');
   assert.equal(first.state.mode,'idle','transient chat failure prevented healthy backlog completion');
+  assert.equal(Number(first.state.chatDone||0),4,'quarantined chat did not count as handled for automatic progress');
   assert.equal(Object.keys(first.pile).length,1,'failed chat was not quarantined into the manual retry pile');
   assert.equal(first.queue,undefined,'failed chat incorrectly kept the automatic Project queue alive');
   assert.equal(first.c3Writes,1,'healthy chat A did not receive one canonical durable write');

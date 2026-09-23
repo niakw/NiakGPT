@@ -1066,56 +1066,56 @@
     try {
       let list = await deepInventory();
       list = list.filter(p => p.count > 0 && (!Array.isArray(opt.projectIds) || opt.projectIds.includes(p.id)));
-      await saveQueue(list.map(p => p.id), opt.force, prioritySync);
-      await state({ mode:'syncing', projectDone:0, projectTotal:list.length, chatDone:0, chatTotal:0, prioritySync, deferredChats:0, error:'' });
+      await saveQueue(list.map(p => p.id), opt.force, prioritySync,{hold:false});
+      const initialLedger=await chatRetryLedger();
+      await state({ mode:'syncing', projectDone:0, projectTotal:list.length, chatDone:0, chatTotal:0, prioritySync, failedChats:retryPileCount(initialLedger), error:'' });
       let changed = 0;
-      const deferred=[];
       for (let i = 0; i < list.length; i++) {
         if (document.hidden) throw new Error('memory_sync_paused_hidden');
         if (automatic && !autoOwner()) throw new Error('memory_sync_paused_owner_change');
-        await saveQueue(list.slice(i).map(p => p.id), opt.force, prioritySync);
+        await saveQueue(list.slice(i).map(p => p.id), opt.force, prioritySync,{hold:false});
         if (!await waitIdle(undefined,allowConversation)) throw new Error(document.hidden?'memory_sync_paused_hidden':(automatic&&!autoOwner()?'memory_sync_paused_owner_change':'memory_sync_idle_timeout'));
         const result=await syncProject(list[i], opt.force === true);
         changed+=Number(result?.changed||0);
-        if(Array.isArray(result?.deferred)&&result.deferred.length)deferred.push(...result.deferred);
-        const retryProjects=[...new Set(deferred.map(row=>row.projectId))];
-        await saveQueue([...retryProjects,...list.slice(i+1).map(p=>p.id)],opt.force,prioritySync);
+        await saveQueue(list.slice(i+1).map(p=>p.id),opt.force,prioritySync,{hold:false});
         await state({
           mode:'syncing',projectDone:i+1,projectTotal:list.length,projectId:list[i].id,projectName:list[i].name,
-          chatDone:0,chatTotal:0,prioritySync,deferredChats:deferred.length
+          chatDone:0,chatTotal:0,prioritySync,failedChats:Number(result?.failedChats||0)
         });
       }
       const afterList=projects(await cache());
       const remainingInventory=afterList.filter(p=>p.count>0&&(!p.indexed||Number(p.count||0)>(p.chats||[]).length)).map(p=>p.id);
-      const retryProjects=[...new Set(deferred.map(row=>row.projectId))];
-      const pendingProjects=[...new Set([...retryProjects,...remainingInventory])];
-      if(pendingProjects.length){
-        const now=Date.now();
-        const retryAt=deferred.length
-          ? Math.max(now+1000,Math.min(...deferred.map(row=>Number(row.nextAt||now+CHAT_RETRY_BACKOFF_MS[0]))))
-          : now+120000;
-        await saveQueue(pendingProjects,opt.force,prioritySync,{retryAt,deferredChats:deferred.length});
-        const reason=deferred.length?'chat-fetch-retry':'inventory-incomplete';
+      if(remainingInventory.length){
+        await saveQueue(remainingInventory,opt.force,prioritySync,{hold:false});
+        const ledger=await chatRetryLedger();
         const pendingState=await state({
           mode:'queued',projectDone:list.length,projectTotal:list.length,changed,lastSyncAt:Date.now(),
-          queuedProjects:pendingProjects.length,prioritySync,pauseReason:reason,error:'',
-          deferredChats:deferred.length,lastTransientError:deferred.at?.(-1)?.error||'',nextAttemptAt:retryAt
+          queuedProjects:remainingInventory.length,prioritySync,pauseReason:'inventory-incomplete',error:'',
+          failedChats:retryPileCount(ledger),nextAttemptAt:Date.now()+120000
         });
-        schedule(Math.max(1000,retryAt-Date.now()));
+        schedule(120000);
         document.dispatchEvent(new CustomEvent('niakgpt:project-memory-partial',{detail:pendingState}));
-        return {ok:true,partial:true,projects:list.length,changed,pendingInventory:remainingInventory.length,deferredChats:deferred.length};
+        return {ok:true,partial:true,projects:list.length,changed,pendingInventory:remainingInventory.length,failedChats:retryPileCount(ledger)};
       }
       try { await chrome.storage.local.remove(QUEUE_KEY); } catch {}
       const historyCacheSignature=cachedBootstrapSignature(projects(await cache()));
-      const done = await state({ mode:'idle', projectDone:list.length, projectTotal:list.length, changed, lastSyncAt:Date.now(), historyCompletedAt:Date.now(), historyCacheSignature, prioritySync:false, deferredChats:0, lastTransientError:'', error:'',pauseReason:'' });
+      const ledger=await chatRetryLedger();
+      const done = await state({ mode:'idle', projectDone:list.length, projectTotal:list.length, changed, lastSyncAt:Date.now(), historyCompletedAt:Date.now(), historyCacheSignature, prioritySync:false, failedChats:retryPileCount(ledger), lastTransientError:'', error:'',pauseReason:'' });
       document.dispatchEvent(new CustomEvent('niakgpt:project-memory-synced', { detail:done }));
-      return { ok:true, projects:list.length, changed };
+      return { ok:true, projects:list.length, changed, failedChats:retryPileCount(ledger) };
     } catch (error) {
       const message=String(error && error.message || error);
       if(/^memory_sync_paused_(?:conversation|hidden|owner_change|busy|rate_limit|network)$/.test(message)){
         const reason=message.replace('memory_sync_paused_','');
+        if(reason==='rate_limit'){
+          let q={};try{q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
+          if(Array.isArray(q.pending)&&q.pending.length)await saveQueue(q.pending,q.force===true,q.priority===true,{hold:true,holdReason:'rate-limit-manual'});
+          await queuedState('rate-limit-manual');
+          clearTimeout(autoTimer);autoTimer=0;
+          return {ok:false,paused:true,error:message,manualResume:true};
+        }
         await queuedState(reason);
-        schedule(reason==='rate_limit'||reason==='network'?120000:(reason==='conversation'?WAKE_HEARTBEAT_MS:retryDelay(allowConversation,prioritySync)));
+        schedule(reason==='network'?120000:(reason==='conversation'?WAKE_HEARTBEAT_MS:retryDelay(allowConversation,prioritySync)));
         return {ok:false,paused:true,error:message};
       }
       await state({ mode:'error', error:message.slice(0,260) });
@@ -1125,8 +1125,7 @@
       try{
         const q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};
         if(Array.isArray(q.pending)&&q.pending.length){
-          const delay=Math.max(backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true,q.priority===true),queueWait(q));
-          schedule(delay);
+          if(q.hold!==true) schedule(backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true,q.priority===true));
         } else prioritySync=false;
       }catch{prioritySync=false;}
     }
@@ -1136,9 +1135,7 @@
     if (syncing || !autoOwner()) return;
     try {
       const q = (await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY], p = await prefs();
-      if (!q?.pending?.length || (!p.autoSync && q.priority!==true)) return;
-      const wait=queueWait(q);
-      if(wait>0){schedule(wait);return;}
+      if (!q?.pending?.length || q.hold===true || (!p.autoSync && q.priority!==true)) return;
       const allowConversation=conversationPage()&&await backgroundHistoryProbe(false);
       if (conversationPage()&&!allowConversation) { await queuedState('conversation'); schedule(WAKE_HEARTBEAT_MS); return; }
       if (peerBusy()) { await queuedState('peer-busy'); schedule(WAKE_HEARTBEAT_MS); return; }
@@ -1153,13 +1150,13 @@
     if (!autoOwner()) return;
     let initialQueue={};try{initialQueue=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
     const settings=await prefs();
+    if(initialQueue.hold===true)return;
     if(!settings.autoSync&&initialQueue.priority!==true)return;
-    const initialDelay=Math.max(Number(delay ?? backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true)),queueWait(initialQueue));
+    const initialDelay=Number(delay ?? backgroundDelay(conversationPage()&&backgroundHistoryAvailable===true));
     autoTimer = setTimeout(async () => {
       if (!autoOwner() || syncing) return;
       let q={};try{q=(await chrome.storage.local.get(QUEUE_KEY))[QUEUE_KEY]||{};}catch{}
-      const wait=queueWait(q);
-      if(wait>0)return schedule(wait);
+      if(q.hold===true)return;
       const allowConversation=conversationPage()&&await backgroundHistoryProbe(false);
       if (conversationPage()&&!allowConversation) { await queuedState('conversation'); return schedule(WAKE_HEARTBEAT_MS); }
       if (peerBusy()) { await queuedState('peer-busy'); return schedule(WAKE_HEARTBEAT_MS); }

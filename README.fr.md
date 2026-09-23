@@ -6,7 +6,7 @@
   <p>Projects · performance des longs fils · continuité · navigation · productivité ciblée</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.122-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.123-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,7 +21,7 @@
 NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT en **véritable espace de travail pour un usage intensif et organisé par Projects**, sans remplacer ChatGPT.
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
-> **Version actuelle : 0.9.122.** Project Memory conserve désormais les archives backend canoniques de façon monotone : les sauvegardes DOM live sont stockées en overlay et ne peuvent plus rétrograder une conversation complète vers partial ou metadata-only. Les lectures historiques en échec sortent toujours de la boucle automatique après des essais bornés.
+> **Version actuelle : 0.9.123.** Project Memory canonicalise désormais les IDs Projects avant mise en file et fusionne les anciens alias suffixés, empêchant un transfert prioritaire arrivé à 100 % de reprogrammer un Project fantôme.
 
 ## Points forts
 
@@ -205,7 +205,7 @@ Une fixture verte ne remplace **jamais** une capture utilisateur réelle qui la 
 | [README.md](README.md) | README anglais |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture runtime et invariants de propriété |
 | [CHANGELOG.md](CHANGELOG.md) | Historique détaillé |
-| [RELEASE_NOTES_0.9.122.md](RELEASE_NOTES_0.9.122.md) | Résumé de la release courante |
+| [RELEASE_NOTES_0.9.123.md](RELEASE_NOTES_0.9.123.md) | Résumé de la release courante |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnostic et reprise |
 | [PRIVACY.md](PRIVACY.md) | Données locales et comportement réseau |
 | [SECURITY.md](SECURITY.md) | Modèle de sécurité et signalement |

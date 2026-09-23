@@ -30,7 +30,7 @@ for(const [name,launcher] of Object.entries(selected)){
       window.chrome={
         runtime:{
           id:'hydration-lab',
-          getManifest:()=>({version:'0.9.122'}),
+          getManifest:()=>({version:'0.9.123'}),
           sendMessage:async()=>({ok:true,errors:[]})
         },
         storage:{

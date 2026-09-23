@@ -94,7 +94,8 @@
     return {
       schema:1,id:clean(r.id),title:clean(r.title||'Conversation'),updated:Number(r.updated||0),
       capturedAt:clean(r.capturedAt||''),parts:Math.max(0,Number(r.parts||0)),messages:Math.max(0,Number(r.messages||0)),
-      canonicalHash:clean(r.canonicalHash||''),bootstrapMetadataOnly:r.bootstrapMetadataOnly===true,
+      canonicalHash:clean(r.canonicalHash||''),liveDomHash:clean(r.liveDomHash||''),liveDomCapturedAt:clean(r.liveDomCapturedAt||''),
+      liveDomParts:Math.max(0,Number(r.liveDomParts||0)),liveDomMessages:Math.max(0,Number(r.liveDomMessages||0)),bootstrapMetadataOnly:r.bootstrapMetadataOnly===true,
       historyPartial:r.historyPartial===true,complete:r.complete===true,captureSource:clean(r.captureSource||'')
     };
   };

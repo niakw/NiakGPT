@@ -35,7 +35,7 @@ try{
         ],
         [ALIAS]:[{id:C3,title:'Needs archive B',projectId:ALIAS,updated:now-1000}]
       },
-      counts:{[P]:2,[ALIAS]:1},indexedProjectIds:[P]
+      counts:{[P]:4,[ALIAS]:1},indexedProjectIds:[P]
     };
     const store={
       'niakgpt-v08-cache':cache,
@@ -191,8 +191,10 @@ try{
   assert.equal(result.resumed,true,'resume progress did not preserve the durable chat checkpoint');
   assert.equal(result.queue,null,'priority queue was not cleared after full convergence');
   assert.equal(result.state.prioritySync,false,'priority mode did not end after convergence');
-  assert.equal(result.state.mode,'idle','phantom Project alias left scheduler queued after 100%');
-  console.log('project-memory-priority-sync-v116: PASS durable resume + phantom Project alias cannot requeue priority transfer');
+  assert.equal(result.state.mode,'idle','stable inventory gap left scheduler queued after handled chats');
+  assert.equal(result.state.pauseReason,'inventory-stalled','stable count gap was not converted into a bounded inventory state');
+  assert.ok(Number(result.state.inventoryGapAttempts||0)>=2,'stable inventory gap was not observed twice before stopping auto requeue');
+  console.log('project-memory-priority-sync-v116: PASS durable resume + alias dedupe + stable inventory gap cannot loop priority transfer');
 }finally{
   await page.close();
   await browser.close();

@@ -34,7 +34,7 @@ const secretRx=/(?:github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|Beare
 const frPhoneRx=/(?<!\d)(?:\+33\s?(?:\(0\)\s?)?|0)[1-9](?:[ .-]\d{2}){4}(?!\d)/g;
 const intlPhoneContextRx=/\b(?:phone|telephone|téléphone|mobile|portable|whatsapp)\s*[:=]\s*\+?[0-9][0-9 .()/-]{6,22}[0-9]/giu;
 const nirContextRx=/\b(?:nir|num(?:éro)?\s+de\s+sécu(?:rité\s+sociale)?|sécurité\s+sociale|social\s+security)\s*[:=#]\s*[12]\s?\d{2}\s?(?:0[1-9]|1[0-2])\s?(?:2A|2B|\d{2})\s?\d{3}\s?\d{3}\s?\d{2}/giu;
-const ibanRx=/\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]){11,30}\b/giu;
+const ibanRx=/\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]){11,30}\b/gu;
 const ibanValid=raw=>{
   const compact=String(raw||'').replace(/\s+/g,'').toUpperCase();
   if(!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(compact)||compact.length>34)return false;

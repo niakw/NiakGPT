@@ -682,9 +682,11 @@
       const old=idx.conversations[chat.id],updated=parseTime(chat.updated);
       return !force && !!old && old.complete !== false && Number(old.updated || 0) >= updated && Number(old.parts || 0) > 0;
     };
-    let completed = chats.filter(complete).length, changed = 0;
-    const failed=[];
     let ledger=await chatRetryLedger();
+    const retryKeyFor=chat=>retryEntryKey(project.id,chat.id);
+    const autoHandled=chat=>complete(chat)||(!manualRetry&&!force&&ledger[retryKeyFor(chat)]?.manual===true);
+    let completed = chats.filter(autoHandled).length, changed = 0;
+    const failed=[];
     const persistLedger=async()=>saveChatRetryLedger(ledger);
 
     await state({
@@ -728,6 +730,7 @@
         ledger[retryKey]=row;
         await persistLedger();
         failed.push(row);
+        completed++;
         await state({
           mode:manualRetry?'retrying-failed':'syncing',projectId:project.id,projectName:project.name,chatId:chat.id,chatTitle:chat.title,
           chatDone:completed,chatTotal:chats.length,prioritySync,failedChats:retryPileCount(ledger),
@@ -746,6 +749,12 @@
         ledger[retryKey]=row;
         await persistLedger();
         failed.push(row);
+        completed++;
+        await state({
+          mode:manualRetry?'retrying-failed':'syncing',projectId:project.id,projectName:project.name,chatId:chat.id,chatTitle:chat.title,
+          chatDone:completed,chatTotal:chats.length,prioritySync,failedChats:retryPileCount(ledger),
+          retryingChat:false,lastTransientError:row.error,nextAttemptAt:0
+        });
         continue;
       }
 
@@ -823,19 +832,38 @@
     return {changed,failed,failedChats:retryPileCount(ledger)};
   }
 
+  const inventoryGaps=list=>(list||[]).filter(p=>p.count>0&&(!p.indexed||Number(p.count||0)>(p.chats||[]).length));
+  function inventoryGapSignature(list){
+    const rows=inventoryGaps(list).map(p=>[
+      String(p.id||''),Number(p.count||0),Number((p.chats||[]).length),p.indexed===true?1:0
+    ]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])));
+    return JSON.stringify(rows);
+  }
+  async function recordInventoryGap(list){
+    const sig=inventoryGapSignature(list);
+    let st={};try{st=(await chrome.storage.local.get(STATE_KEY))[STATE_KEY]||{};}catch{}
+    const attempts=sig&&String(st.inventoryGapSignature||'')===sig?Number(st.inventoryGapAttempts||0)+1:(sig?1:0);
+    await state({
+      inventoryGapSignature:sig,inventoryGapAttempts:attempts,
+      inventoryGapProjects:inventoryGaps(list).length,inventoryGapLastAt:sig?Date.now():0,
+      inventoryStalledAt:sig&&attempts>=2?Date.now():0
+    });
+    return {signature:sig,attempts};
+  }
+
   async function deepInventory() {
     let raw = await cache(), list = projects(raw);
     // "indexed" means the server pass ran, not that the local Project chat inventory is
     // necessarily complete. The field vault exposed exactly that state: indexed=true,
     // knownConversationCount=30, cachedConversationCount=24. Treat a count gap as unresolved
     // or Project Memory can permanently skip conversations that never reached the cache.
-    const unresolved=()=>list.filter(p => p.count > 0 && (!p.indexed || Number(p.count||0) > (p.chats||[]).length));
-    if (!unresolved().length) return list;
+    const unresolved=()=>inventoryGaps(list);
+    if (!unresolved().length) { await recordInventoryGap(list); return list; }
     await state({ mode:'preparing', inventoryPending:unresolved().length, projectDone:0, projectTotal:list.length, error:'' });
     // The active-chat path can archive every conversation already known to the cache through
     // the isolated extension worker. Server inventory repair still belongs to the page broker
     // and remains quarantined on the current chat; the unresolved Project IDs stay queued.
-    if(conversationPage()&&await backgroundHistoryProbe(false))return list;
+    if(conversationPage()&&await backgroundHistoryProbe(false)){await recordInventoryGap(list);return list;}
     if (!await waitIdle(15000)) return list;
     const missing=unresolved().map(p=>p.id);
     document.dispatchEvent(new CustomEvent('niakgpt:force-server-index', { detail:{ source:'project-memory-v132',memoryBootstrap:true,projectIds:missing } }));
@@ -849,6 +877,7 @@
       await sleep(750); raw = await cache(); list = projects(raw);
       if (!unresolved().length) break;
     }
+    await recordInventoryGap(list);
     return list;
   }
 
@@ -901,6 +930,7 @@
     // parts=0/messages=0. Only a full-history completion tied to the current cache signature
     // is proof that the persistent queue may stay empty.
     if(Number(st.historyCompletedAt||0)>0&&String(st.historyCacheSignature||'')===signature)return[];
+    if(Number(st.inventoryStalledAt||0)>0&&String(st.inventoryStalledCacheSignature||'')===signature)return[];
     return primeBootstrapQueue(false);
   }
 
@@ -1007,10 +1037,11 @@
     const priority=q.priority===true,ledger=await chatRetryLedger();
     const hold=q.hold===true;
     return state({
-      mode:'queued',queuedProjects:pending.length,projectTotal:pending.length,prioritySync:priority,error:'',
-      pauseReason:hold?(q.holdReason||reason||'manual-hold'):reason,
-      queueHold:hold,failedChats:retryPileCount(ledger),
-      nextAttemptAt:hold?0:Date.now()+(priority?PRIORITY_RETRY_MS:WAKE_HEARTBEAT_MS)
+      mode:pending.length?'queued':'idle',queuedProjects:pending.length,projectTotal:pending.length,
+      prioritySync:pending.length?priority:false,error:'',
+      pauseReason:pending.length?(hold?(q.holdReason||reason||'manual-hold'):reason):'',
+      queueHold:pending.length&&hold,failedChats:retryPileCount(ledger),
+      nextAttemptAt:pending.length?(hold?0:Date.now()+(priority?PRIORITY_RETRY_MS:WAKE_HEARTBEAT_MS)):0
     });
   }
 
@@ -1104,10 +1135,26 @@
         });
       }
       const afterList=projects(await cache());
-      const remainingInventory=afterList.filter(p=>p.count>0&&(!p.indexed||Number(p.count||0)>(p.chats||[]).length)).map(p=>p.id);
+      const remainingInventory=inventoryGaps(afterList).map(p=>p.id);
       if(remainingInventory.length){
-        await saveQueue(remainingInventory,opt.force,prioritySync,{hold:false});
+        let inv={};try{inv=(await chrome.storage.local.get(STATE_KEY))[STATE_KEY]||{};}catch{}
+        const cacheSignature=cachedBootstrapSignature(afterList);
+        const stalled=Number(inv.inventoryGapAttempts||0)>=2&&String(inv.inventoryGapSignature||'')===inventoryGapSignature(afterList);
         const ledger=await chatRetryLedger();
+        if(stalled){
+          try { await chrome.storage.local.remove(QUEUE_KEY); } catch {}
+          prioritySync=false;
+          const doneState=await state({
+            mode:'idle',projectDone:list.length,projectTotal:list.length,changed,lastSyncAt:Date.now(),
+            queuedProjects:0,prioritySync:false,pauseReason:'inventory-stalled',error:'',
+            inventoryPending:remainingInventory.length,inventoryStalledAt:Date.now(),
+            inventoryStalledCacheSignature:cacheSignature,
+            failedChats:retryPileCount(ledger),nextAttemptAt:0
+          });
+          document.dispatchEvent(new CustomEvent('niakgpt:project-memory-partial',{detail:doneState}));
+          return {ok:true,partial:true,stalled:true,projects:list.length,changed,pendingInventory:remainingInventory.length,failedChats:retryPileCount(ledger)};
+        }
+        await saveQueue(remainingInventory,opt.force,prioritySync,{hold:false});
         const pendingState=await state({
           mode:'queued',projectDone:list.length,projectTotal:list.length,changed,lastSyncAt:Date.now(),
           queuedProjects:remainingInventory.length,prioritySync,pauseReason:'inventory-incomplete',error:'',

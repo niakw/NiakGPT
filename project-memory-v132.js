@@ -50,7 +50,6 @@
   const backgroundDelay = (allowConversation=false,priority=prioritySync) => peerBusy() ? WAKE_HEARTBEAT_MS : (priorityWorkerMode(priority) ? PRIORITY_RETRY_MS : (activeHistoryMode(allowConversation) ? ACTIVE_HISTORY_RETRY_MS : remainingQuiet()));
   const retryDelay = (allowConversation,priority=prioritySync) => priorityWorkerMode(priority) ? PRIORITY_RETRY_MS : (activeHistoryMode(allowConversation) ? ACTIVE_HISTORY_RETRY_MS : remainingQuiet());
   const backgroundHistoryGap = () => prioritySync ? PRIORITY_HISTORY_FETCH_GAP_MS : BACKGROUND_HISTORY_FETCH_GAP_MS;
-  const queueWait = q => Math.max(0,Number(q?.retryAt||0)-Date.now());
   const transientConversationFailure = error => /^conversation_fetch_failed:/.test(String(error?.message||error||''));
   const defaults = { autoSync: true, injectOnNewChat: true };
   let prefsCache = Object.assign({}, defaults), prefsReady = false;
@@ -1013,8 +1012,7 @@
         const q=local[QUEUE_KEY]||{},p=Object.assign({},defaults,local[PREFS_KEY]||{});
         const pending=Array.isArray(q.pending)?q.pending:[];
         document.documentElement.dataset.ng132WakeBeat=String(Date.now());
-        if(q.hold===true)return;
-        if((p.autoSync!==false||q.priority===true)&&pending.length&&autoOwner()){
+        if(q.hold!==true&&(p.autoSync!==false||q.priority===true)&&pending.length&&autoOwner()){
           const allowed=await currentPageHistoryAllowed();
           const activeCatchup=conversationPage()&&backgroundHistoryAvailable===true;
           const priorityCatchup=q.priority===true&&backgroundHistoryAvailable===true;

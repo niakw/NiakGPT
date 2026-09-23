@@ -1,5 +1,11 @@
 # Architecture de NiakGPT
 
+## Invariant architecture 0.9.123 — un Project canonique, une seule identité de queue
+
+Les identifiants Project issus du DOM, du cache, de `projectChats`, des compteurs et de `indexedProjectIds` sont normalisés avant fusion. Plusieurs formes historiques d’un même identifiant ne peuvent pas produire plusieurs unités de travail Project Memory.
+
+Le scheduler travaille uniquement sur les IDs canoniques dédupliqués. Une fois les conversations du Project canonique traitées, un alias suffixé ne peut donc plus recréer artificiellement `1 Project(s)` en attente après une progression à 100 %.
+
 ## Invariant architecture 0.9.122 — un statut canonique ne régresse jamais
 
 Project Memory sépare désormais explicitement deux couches de persistance pour une conversation :

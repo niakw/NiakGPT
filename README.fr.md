@@ -2,8 +2,15 @@
   <img src="assets/niakgpt-logo.svg" alt="NiakGPT — Power Workspace for ChatGPT" width="760">
 
   <p><a href="README.md">English</a> · <strong>Français</strong></p>
-  <p><strong>Un espace de travail power-user local-first pour ChatGPT.</strong></p>
-  <p>Projects · performance des longs fils · continuité · navigation · productivité ciblée</p>
+  <h3>Transforme ChatGPT en véritable espace de travail pour les usages intensifs.</h3>
+  <p>
+    <kbd>Projects</kbd>
+    <kbd>Longs fils</kbd>
+    <kbd>Continuité</kbd>
+    <kbd>Mémoire privée</kbd>
+    <kbd>Local-first</kbd>
+  </p>
+  <p>NiakGPT conserve l’expérience ChatGPT que tu connais — et lui ajoute l’organisation, la robustesse et la continuité qui manquent aux usages avancés.</p>
 
   <p>
     <img alt="Version" src="https://img.shields.io/badge/version-0.9.124-4fc1ff">
@@ -14,16 +21,76 @@
   </p>
 </div>
 
+<p align="center">
+  <a href="#-pourquoi-niakgpt"><strong>Pourquoi NiakGPT ?</strong></a> ·
+  <a href="#-ce-que-niakgpt-ajoute"><strong>Fonctions</strong></a> ·
+  <a href="#-private-project-memory"><strong>Mémoire privée</strong></a> ·
+  <a href="#installation"><strong>Installation</strong></a> ·
+  <a href="#architecture"><strong>Architecture</strong></a> ·
+  <a href="#tests"><strong>Tests</strong></a>
+</p>
+
 ---
 
 # NiakGPT
 
-NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT en **véritable espace de travail pour un usage intensif et organisé par Projects**, sans remplacer ChatGPT.
+NiakGPT est une **couche workspace avancée pour ChatGPT**.
 
-Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
-> **Version actuelle : 0.9.124.** Project Memory borne désormais les écarts d’inventaire stables et compte les conversations mises en quarantaine comme traitées pour la passe automatique, supprimant les boucles 22/23 → en attente.
+Elle est pensée pour le moment où quelques chats deviennent des dizaines de Projects, où les conversations accumulent des milliers de messages, où le contexte doit survivre d’un fil à l’autre et où la sidebar native ne suffit plus.
 
-## Points forts
+NiakGPT ne remplace pas ChatGPT. Il l’étend avec précaution : meilleure navigation dans les Projects, ergonomie des longs fils, continuité, diagnostics locaux et Project Memory privée optionnelle — tout en laissant le fonctionnement natif de ChatGPT prioritaire.
+
+> [!IMPORTANT]
+> **NiakGPT est local-first.** Aucun compte NiakGPT, aucun service analytics et aucun cloud NiakGPT ne sont nécessaires. La Project Memory optionnelle écrit uniquement dans un **dépôt GitHub privé choisi par l’utilisateur**.
+
+## ⚡ Pourquoi NiakGPT ?
+
+ChatGPT excelle dans la conversation elle-même. NiakGPT s’occupe de tout ce qui devient difficile autour lorsque le travail prend de l’ampleur.
+
+| | Ce que NiakGPT change |
+| --- | --- |
+| **📁 Des Projects qui passent à l’échelle** | Parcours les Projects et leurs conversations directement dans la sidebar, recherche localement et conserve une navigation stable malgré les changements SPA et remounts React. |
+| **🧵 Des longs fils maîtrisés** | Réduit le travail non essentiel sur les conversations lourdes et conserve navigation, sommaire et états utilisables quand un fil devient énorme. |
+| **🔁 Une vraie continuité** | Prolonge un travail sur plusieurs tours ou plusieurs fils sans jeter le brouillon utilisateur ni perdre le contexte du Project. |
+| **🧠 Une Project Memory privée** | Archive optionnellement les conversations et l’état compact des Projects dans un dépôt GitHub privé contrôlé par l’utilisateur. |
+| **⚡ Navigation rapide** | Quick Open, fil d’Ariane, sommaire du fil courant et navigation consciente des Projects. |
+| **🛡️ Stabilité native-first** | NiakGPT est conçu pour céder la priorité à ChatGPT : observers bornés, responsabilités explicites et dégradation sûre. |
+| **🔒 Confidentialité local-first** | Pas de télémétrie NiakGPT, pas de SDK analytics, pas de publicité et aucun backend obligatoire. |
+
+> [!TIP]
+> **L’objectif est simple :** garder la sensation native de ChatGPT, mais lui donner les outils d’un vrai espace de travail durable.
+
+## ✨ Ce que NiakGPT ajoute
+
+### Les Projects deviennent une vraie surface de travail
+
+NiakGPT transforme la sidebar gauche en navigateur de Projects réellement exploitable :
+
+- déplier un Project et parcourir ses conversations sans quitter la sidebar ;
+- rechercher localement dans les gros historiques ;
+- garder visibles chat courant, dates, compteurs et états d’attention ;
+- préserver ordre, focus et scroll pendant les changements de route et rerenders ;
+- laisser l’organisation manuelle prioritaire sur le classement automatique.
+
+### Les longues conversations restent utilisables
+
+Un fil lourd ne devrait pas rendre tout le workspace lourd. NiakGPT réduit progressivement les traitements non essentiels, garde les surfaces d’état compactes et privilégie les mises à jour bornées/event-driven au polling permanent du document.
+
+### La continuité survit aux limites d’un fil
+
+NiakGPT distingue les ajouts en parallèle, la reprise d’un travail long et le passage forcé vers une nouvelle conversation. Lorsque ChatGPT impose un nouveau fil, NiakGPT peut transporter une capsule de continuité compacte et conserver le lien avec le bon Project.
+
+### La mémoire privée reste sous ton contrôle
+
+Project Memory est optionnelle et désactivée par défaut. Lorsqu’elle est activée, NiakGPT peut conserver les archives complètes et l’état compact d’un Project dans **le dépôt GitHub privé de ton choix**. L’historique complet reste dans ce coffre ; seuls des éléments compacts de continuité sont injectés lorsque nécessaire.
+
+### Conçu pour cohabiter avec ChatGPT
+
+NiakGPT évite volontairement de devenir une seconde application autour de ChatGPT. Les surfaces UI restent compactes, native-first et désactivables ; l’architecture sépare les responsabilités pour éviter que plusieurs modules se disputent le même DOM ou le même état.
+
+> **Focus 0.9.124 :** Project Memory converge désormais proprement lorsque l’inventaire serveur et le cache local divergent. Les écarts stables cessent de relancer la queue indéfiniment, les conversations mises en quarantaine ne bloquent plus artificiellement la passe automatique sous 100 %, et le scénario est couvert par les gates Chromium de release.
+
+## Détails techniques
 
 ### Démarrage protégé contre les erreurs d’hydratation
 

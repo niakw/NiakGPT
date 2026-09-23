@@ -163,14 +163,21 @@ try{
     const idx=JSON.parse(window.__remote['projects/'+P+'/index.json']);
     const c3Writes=window.__commits.filter(row=>row.paths.some(p=>p.includes('/conversations/'+ids[2]+'/'))).length;
     const c4Writes=window.__commits.filter(row=>row.paths.some(p=>p.includes('/conversations/'+ids[3]+'/'))).length;
-    return {counts,state:window.__store['niakgpt-project-memory-state-v132'],queue:window.__store['niakgpt-project-memory-queue-v132'],pile:window.__store['niakgpt-project-memory-chat-retry-v117']||{},idx,c3Writes,c4Writes};
+    return {
+      counts,
+      state:window.__store['niakgpt-project-memory-state-v132'],
+      queue:window.__store['niakgpt-project-memory-queue-v132'],
+      pile:window.__store['niakgpt-project-memory-chat-retry-v117']||{},
+      idx,c3Writes,c4Writes,
+      handledAll:window.__states.some(row=>row.mode==='syncing'&&Number(row.chatDone||0)===4&&Number(row.chatTotal||0)===4)
+    };
   });
   assert.equal(first.counts['11111111-1111-4111-8111-111111111111'],0,'already archived chat was fetched again');
   assert.equal(first.counts['22222222-2222-4222-8222-222222222222'],2,'transient failing chat exceeded the bounded immediate retry count');
   assert.equal(first.counts['33333333-3333-4333-8333-333333333333'],1,'later chat A did not continue after transient failure');
   assert.equal(first.counts['44444444-4444-4444-8444-444444444444'],1,'later chat B did not continue after transient failure');
   assert.equal(first.state.mode,'idle','transient chat failure prevented healthy backlog completion');
-  assert.equal(Number(first.state.chatDone||0),4,'quarantined chat did not count as handled for automatic progress');
+  assert.equal(first.handledAll,true,'quarantined chat did not count as handled for automatic progress');
   assert.equal(Object.keys(first.pile).length,1,'failed chat was not quarantined into the manual retry pile');
   assert.equal(first.queue,undefined,'failed chat incorrectly kept the automatic Project queue alive');
   assert.equal(first.c3Writes,1,'healthy chat A did not receive one canonical durable write');

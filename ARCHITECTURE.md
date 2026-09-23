@@ -1,5 +1,13 @@
 # Architecture de NiakGPT
 
+## Invariant architecture 0.9.120 — aucune limite de débit Project Memory propriétaire
+
+La 0.9.119 avait ajouté un budget logiciel global de lectures conversationnelles et un cooldown persistant. Cet état pouvait empêcher l’utilisateur de reprendre manuellement la synchronisation même lorsqu’il voulait explicitement continuer. **Cet invariant est annulé en 0.9.120.**
+
+Project Memory ne maintient plus de `RATE_GUARD_KEY`, de fenêtre glissante, de compteur 10/minute ni de `cooldownUntil` persistant. Le mode prioritaire retrouve les cadences déjà utilisées avant 0.9.119 : `BACKGROUND_HISTORY_FETCH_GAP_MS = 4000` et `PRIORITY_HISTORY_FETCH_GAP_MS = 900`. Les garde-fous natifs déjà existants — génération active, vérification, réseau indisponible, onglet non propriétaire, HTTP 429 renvoyé par la requête elle-même — restent des événements ponctuels du transport, mais NiakGPT n’ajoute plus un blocage long de son propre chef.
+
+Les invariants de durabilité 0.9.118 restent supérieurs : une conversation déjà complète est sautée, les archives durables peuvent reconstruire l’index de reprise, les writers obsolètes ne peuvent pas supprimer des checkpoints et aucun nouveau dossier n’est créé pour une conversation déjà connue.
+
 ## Invariant architecture 0.9.119 — la mémoire ne doit jamais dégrader l’accès natif ChatGPT
 
 Project Memory partage le même compte et les mêmes endpoints conversationnels que l’interface native. La synchronisation historique est donc un consommateur **de second rang** : elle doit préserver en priorité la capacité de l’utilisateur à ouvrir, recharger et utiliser ses conversations.

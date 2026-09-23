@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "NiakGPT",
   "version": "0.9.124",
-  "description": "NiakGPT : Project Memory borne les écarts d’inventaire stables et empêche les conversations quarantinées de maintenir artificiellement la synchro sous 100 %.",
+  "description": "Turn ChatGPT into a local-first power workspace with Projects, long-thread tools, continuity and optional private memory.",
   "permissions": [
     "storage",
     "scripting",

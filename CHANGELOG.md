@@ -1,4 +1,6 @@
-# NiakGPT 0.9.124 — fin de la boucle 22/23 → en attente
+# NiakGPT 0.9.124 — Project Memory sait désormais quand s’arrêter
+
+Cette release renforce NiakGPT comme **workspace durable pour ChatGPT** : la mémoire privée converge proprement, les exceptions restent visibles sans bloquer le reste, et le transfert automatique possède enfin une vraie condition de fin.
 
 - **Cause racine terrain** : un Project pouvait rester avec un compteur connu supérieur au nombre de chats réellement présents dans le cache courant (ex. 27 annoncés, 23 disponibles). Même après avoir traité tous les chats récupérables, Project Memory réinscrivait le Project dans la queue à chaque passe.
 - **Écart d’inventaire borné** : le même gap est observé au plus deux fois. S’il reste strictement identique, la queue automatique est supprimée et passe en état `inventory-stalled` au lieu de relancer le Project indéfiniment.

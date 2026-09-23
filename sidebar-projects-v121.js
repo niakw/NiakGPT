@@ -80,8 +80,13 @@
   }
   function mergeNativeSnapshot(raw,snapshot){
     if(!raw||typeof raw!=='object'||!snapshot)return null;
-    const projectMap=new Map((Array.isArray(raw.projects)?raw.projects:[]).filter(Boolean).map(p=>[normalizePid(p.id),p]));
-    const chatMap=new Map((Array.isArray(raw.chats)?raw.chats:[]).filter(Boolean).map(row=>[String(row.id||''),row]).filter(([id])=>id));
+    const projectMap=new Map((Array.isArray(raw.projects)?raw.projects:[]).filter(Boolean).map(p=>{
+      const id=normalizePid(p.id);
+      return[id,{...p,id,href:id?managedHref(p.href,id):p.href}];
+    }).filter(([id])=>id));
+    const chatMap=new Map((Array.isArray(raw.chats)?raw.chats:[]).filter(Boolean).map(row=>[
+      String(row.id||''),{...row,projectId:normalizePid(row.projectId||'')}
+    ]).filter(([id])=>id));
     let changed=false;
     for(const p of snapshot.projects||[]){
       const old=projectMap.get(p.id);
@@ -99,13 +104,21 @@
       if(!old){chatMap.set(id,row);changed=true;}
       else if(!normalizePid(old.projectId)&&normalizePid(row.projectId)){chatMap.set(id,{...old,...row});changed=true;}
     }
-    const counts={...(raw.counts||{})};
-    for(const [pid,n] of Object.entries(snapshot.counts||{})){
-      const next=Math.max(Number(counts[pid])||0,Number(n)||0);
-      if(next!==(Number(counts[pid])||0)){counts[pid]=next;changed=true;}
+    const counts={};
+    for(const [pid,n] of Object.entries(raw.counts||{})){
+      const id=normalizePid(pid);if(!id)continue;
+      counts[id]=Math.max(Number(counts[id])||0,Number(n)||0);
+      if(id!==pid)changed=true;
     }
+    for(const [pid,n] of Object.entries(snapshot.counts||{})){
+      const id=normalizePid(pid);if(!id)continue;
+      const next=Math.max(Number(counts[id])||0,Number(n)||0);
+      if(next!==(Number(counts[id])||0)){counts[id]=next;changed=true;}
+    }
+    const indexedProjectIds=[...new Set((Array.isArray(raw.indexedProjectIds)?raw.indexedProjectIds:[]).map(normalizePid).filter(Boolean))];
+    if(JSON.stringify(indexedProjectIds)!==JSON.stringify(Array.isArray(raw.indexedProjectIds)?raw.indexedProjectIds:[]))changed=true;
     if(!changed)return null;
-    return{...raw,at:Date.now(),projects:[...projectMap.values()],chats:[...chatMap.values()],counts};
+    return{...raw,at:Date.now(),projects:[...projectMap.values()],chats:[...chatMap.values()],counts,indexedProjectIds};
   }
   function seedFromNative(root=navRoot()){
     const snapshot=collectNativeSnapshot(root);

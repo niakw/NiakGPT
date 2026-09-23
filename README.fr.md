@@ -6,7 +6,7 @@
   <p>Projects · performance des longs fils · continuité · navigation · productivité ciblée</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.120-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.121-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -21,7 +21,7 @@
 NiakGPT est une extension navigateur qui transforme l’interface web de ChatGPT en **véritable espace de travail pour un usage intensif et organisé par Projects**, sans remplacer ChatGPT.
 
 Elle ajoute une couche native-first pour les Projects, la navigation, les longues conversations, la continuité, les diagnostics et la productivité locale. Les fonctions principales s’exécutent dans le navigateur : **aucun compte NiakGPT, aucune analytics NiakGPT et aucun serveur NiakGPT ne sont nécessaires**.
-> **Version actuelle : 0.9.120.** La limite artificielle Project Memory introduite en 0.9.119 est retirée. Le rattrapage prioritaire retrouve la cadence antérieure à la 0.9.119 et NiakGPT n’impose plus ni plafond logiciel de 10 lectures/minute ni cooldown automatique de 15 minutes. Les checkpoints durables par chat, la récupération des gros index et les mises à jour en place de la 0.9.118 restent conservés.
+> **Version actuelle : 0.9.121.** NiakGPT n’impose toujours aucun quota fixe de lectures de conversations. Une conversation qui échoue deux fois est désormais sortie de la boucle automatique et placée dans une pile de réessai manuel, pendant que les chats sains continuent. Un vrai HTTP 429 ChatGPT suspend aussi les reprises automatiques jusqu’à une action explicite de l’utilisateur. Les checkpoints durables, la récupération des gros index et les mises à jour en place restent conservés.
 
 ## Points forts
 
@@ -205,7 +205,7 @@ Une fixture verte ne remplace **jamais** une capture utilisateur réelle qui la 
 | [README.md](README.md) | README anglais |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture runtime et invariants de propriété |
 | [CHANGELOG.md](CHANGELOG.md) | Historique détaillé |
-| [RELEASE_NOTES_0.9.120.md](RELEASE_NOTES_0.9.120.md) | Résumé de la release courante |
+| [RELEASE_NOTES_0.9.121.md](RELEASE_NOTES_0.9.121.md) | Résumé de la release courante |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnostic et reprise |
 | [PRIVACY.md](PRIVACY.md) | Données locales et comportement réseau |
 | [SECURITY.md](SECURITY.md) | Modèle de sécurité et signalement |

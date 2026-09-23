@@ -1,5 +1,14 @@
 # Architecture de NiakGPT
 
+## Invariant architecture 0.9.122 — un statut canonique ne régresse jamais
+
+Project Memory sépare désormais explicitement deux couches de persistance pour une conversation :
+
+- l’**archive canonique backend** (`index.json` + `part-*.md`) porte la vérité durable et, une fois `complete:true`, ne peut plus être remplacée par un état de force inférieure ;
+- la **capture live DOM** est un overlay (`live-index.json` + `live-part-*.md`) utilisé pour sauvegarder immédiatement ce qui est visible sans prétendre que l’historique complet a été relu.
+
+La fusion des index reste monotone par force de preuve : metadata-only < partial/live < backend complete. Les erreurs de lecture historiques restent bornées puis passent en pile manuelle, afin qu’aucun état ou échec local ne puisse créer une boucle réseau infinie.
+
 ## Invariant architecture 0.9.121 — une panne locale n’a pas le droit de devenir une boucle réseau
 
 NiakGPT ne connaît pas de seuil numérique public et stable pour l’accès aux conversations ChatGPT et **ne doit donc pas en inventer un**. L’invariant 0.9.120 reste valide : pas de budget global N/minute, pas de cooldown arbitraire persistant et pas de compteur propriétaire qui bloque l’utilisateur.

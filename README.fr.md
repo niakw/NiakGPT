@@ -80,6 +80,8 @@ Un fil lourd ne devrait pas rendre tout le workspace lourd. NiakGPT réduit prog
 
 NiakGPT distingue les ajouts en parallèle, la reprise d’un travail long et le passage forcé vers une nouvelle conversation. Lorsque ChatGPT impose un nouveau fil, NiakGPT peut transporter une capsule de continuité compacte et conserver le lien avec le bon Project.
 
+<a id="private-project-memory"></a>
+
 ### La mémoire privée reste sous ton contrôle
 
 Project Memory est optionnelle et désactivée par défaut. Lorsqu’elle est activée, NiakGPT peut conserver les archives complètes et l’état compact d’un Project dans **le dépôt GitHub privé de ton choix**. L’historique complet reste dans ce coffre ; seuls des éléments compacts de continuité sont injectés lorsque nécessaire.

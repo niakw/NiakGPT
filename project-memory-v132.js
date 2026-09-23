@@ -200,27 +200,40 @@
 
   function projects(raw) {
     const ps = Array.isArray(raw.projects) ? raw.projects : [];
+    const canonicalProjects=new Map(),aliases=new Map();
+    for(const source of ps){
+      const rawId=String(source?.id||''),id=normalizePid(rawId);
+      if(!id.startsWith('g-p-'))continue;
+      if(!aliases.has(id))aliases.set(id,new Set());
+      aliases.get(id).add(rawId);aliases.get(id).add(id);
+      const normalized={...source,id,href:'/g/'+id+'/project'};
+      const current=canonicalProjects.get(id);
+      // Prefer the actual canonical row over a historical slug/suffix alias.
+      if(!current||rawId===id)canonicalProjects.set(id,normalized);
+    }
     const byChat = new Map();
     for (const chat of (Array.isArray(raw.chats) ? raw.chats : [])) {
       if (!chat?.id) continue;
-      byChat.set(String(chat.id), Object.assign({}, chat));
+      byChat.set(String(chat.id), Object.assign({}, chat,{projectId:normalizePid(chat.projectId||'')}));
     }
     for (const [pid,list] of Object.entries(raw.projectChats || {})) {
       if (!Array.isArray(list)) continue;
       for (const chat of list) {
         if (!chat?.id) continue;
         const id=String(chat.id),old=byChat.get(id)||{};
-        byChat.set(id,Object.assign({},old,chat,{projectId:String(chat.projectId||old.projectId||pid)}));
+        byChat.set(id,Object.assign({},old,chat,{projectId:normalizePid(chat.projectId||old.projectId||pid)}));
       }
     }
     const chats=[...byChat.values()];
-    const indexed = new Set(Array.isArray(raw.indexedProjectIds) ? raw.indexedProjectIds : []);
-    return ps.filter(p => String(p && p.id || '').startsWith('g-p-')).map(p => {
-      const rows = chats.filter(c => c && c.projectId === p.id);
+    const indexed = new Set((Array.isArray(raw.indexedProjectIds) ? raw.indexedProjectIds : []).map(normalizePid));
+    return [...canonicalProjects.values()].map(p => {
+      const rows = chats.filter(c => c && normalizePid(c.projectId) === p.id);
+      const aliasIds=[...(aliases.get(p.id)||new Set([p.id]))];
+      const known=Math.max(0,...aliasIds.map(id=>Number(raw.counts&&raw.counts[id]||0)));
       return Object.assign({}, p, {
         name:projectName(p?.name||'')||one(p?.name||''),
         chats: rows,
-        count: Math.max(Number(raw.counts && raw.counts[p.id] || 0), rows.length),
+        count: Math.max(known, rows.length),
         indexed: indexed.has(p.id)
       });
     });

@@ -80,6 +80,8 @@ Heavy threads should not make the whole workspace feel heavy. NiakGPT progressiv
 
 NiakGPT distinguishes parallel additions, long-running task recovery and conversation-limit handoff. When ChatGPT requires a new thread, NiakGPT can carry a compact continuity capsule forward and keep the Project relationship intact.
 
+<a id="private-project-memory"></a>
+
 ### Private memory stays under your control
 
 Project Memory is optional and disabled by default. When enabled, NiakGPT can persist full conversation archives and compact Project state in a **private GitHub repository you choose**. The full archive stays there; normal prompts receive only bounded continuity context when needed.

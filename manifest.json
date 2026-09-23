@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.120",
-  "description": "NiakGPT : Project Memory retire la cadence artificielle 0.9.119 et reprend la synchronisation prioritaire sans plafond logiciel ajouté, tout en conservant les checkpoints durables 0.9.118.",
+  "version": "0.9.121",
+  "description": "NiakGPT : Project Memory isole les conversations qui échouent après deux essais dans une pile manuelle, sans boucle automatique ni plafond logiciel ajouté.",
   "permissions": [
     "storage",
     "scripting",

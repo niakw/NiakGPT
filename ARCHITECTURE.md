@@ -1,5 +1,15 @@
 # Architecture de NiakGPT
 
+## Invariant architecture 0.9.121 — une panne locale n’a pas le droit de devenir une boucle réseau
+
+NiakGPT ne connaît pas de seuil numérique public et stable pour l’accès aux conversations ChatGPT et **ne doit donc pas en inventer un**. L’invariant 0.9.120 reste valide : pas de budget global N/minute, pas de cooldown arbitraire persistant et pas de compteur propriétaire qui bloque l’utilisateur.
+
+La protection se fait désormais au niveau où l’échec est observé. Une conversation dispose de deux tentatives immédiates bornées. Si elles échouent, son identité `projectId + chatId`, son dernier type d’erreur et son compteur d’essais sont déplacés dans `niakgpt-project-memory-chat-retry-v117` avec `manual:true`. Cette entrée **n’alimente plus la queue automatique**. Le reste du Project continue et le chat fautif ne peut revenir sur le réseau que via l’action explicite **Réessayer les chats en échec**.
+
+Un HTTP 429 est traité différemment d’un échec propre à un chat : il signale que l’accès conversationnel ChatGPT lui-même refuse la charge. La queue courante est alors conservée avec `hold:true` et `holdReason:'rate-limit-manual'`. Heartbeat, scheduler et reprise automatique respectent ce hold sans minuterie de déblocage. L’utilisateur libère volontairement la file avec **Reprendre après restriction ChatGPT** lorsque l’interface native est redevenue utilisable.
+
+La pile manuelle ne change aucun invariant de durabilité : un chat `complete:true` reste sauté, les chemins Git sont canoniques par ID, la réconciliation 0.9.118 restaure les archives présentes et une reprise ciblée ne relit pas les chats sains déjà checkpointés. L’ancien backoff automatique de la 0.9.117 est donc **supplanté** par cette quarantaine manuelle.
+
 ## Invariant architecture 0.9.120 — aucune limite de débit Project Memory propriétaire
 
 La 0.9.119 avait ajouté un budget logiciel global de lectures conversationnelles et un cooldown persistant. Cet état pouvait empêcher l’utilisateur de reprendre manuellement la synchronisation même lorsqu’il voulait explicitement continuer. **Cet invariant est annulé en 0.9.120.**

@@ -1,3 +1,13 @@
+# NiakGPT 0.9.121 — les conversations fautives sortent de la boucle automatique
+
+- **Pas de nouveau plafond logiciel** : la 0.9.120 reste l’autorité sur la cadence. NiakGPT n’ajoute ni budget N/minute, ni cooldown fixe, ni compteur persistant de débit.
+- **Deux essais puis quarantaine** : une conversation qui renvoie deux échecs de lecture consécutifs (`500`, `Failed to fetch`, mapping vide, etc.) est retirée de la file automatique et inscrite dans une pile locale de réessai manuel.
+- **Le backlog sain continue** : un chat fautif ne garde plus son Project dans la queue et ne provoque plus de réveils automatiques. Les conversations suivantes et les autres Projects poursuivent leur archivage normalement.
+- **Bouton dédié** : le Centre de contrôle ajoute **Réessayer les chats en échec (N)**. Cette action ne cible que la pile fautive ; elle ne rejoue pas les conversations déjà archivées.
+- **429 = arrêt automatique, pas délai arbitraire** : lorsqu’un vrai HTTP 429 ChatGPT est reçu, la queue est mise en `rate-limit-manual`. Aucun timer NiakGPT ne tente de deviner la durée de blocage ; **Reprendre après restriction ChatGPT** libère explicitement la file.
+- **Migration sûre** : les anciennes entrées différées 0.9.117/0.9.120 sont converties en pile manuelle au chargement, supprimant les anciens cycles `retryAt` sans perdre les IDs en échec.
+- **Non-régression** : le test transitoire 0.9.117 exige désormais zéro retry automatique après les deux échecs, puis une récupération uniquement après clic manuel. Le nouveau gate 0.9.121 injecte un 429, vérifie l’absence totale de retry automatique puis exige une convergence après reprise explicite.
+
 # NiakGPT 0.9.120 — retrait immédiat de la limite artificielle 0.9.119
 
 - **Rollback fonctionnel demandé** : suppression complète du garde-fou logiciel `niakgpt-project-memory-rate-guard-v119`, du plafond de **10 lectures/minute**, de l’intervalle forcé de **6 s** et du cooldown automatique de **15 min**.

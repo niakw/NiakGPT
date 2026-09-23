@@ -64,7 +64,7 @@ try{
     window.__store=store;
     window.chrome={
       runtime:{
-        id:'reconcile-lab',lastError:null,getManifest:()=>({version:'0.9.120'}),
+        id:'reconcile-lab',lastError:null,getManifest:()=>({version:'0.9.121'}),
         sendMessage(message,cb){
           const type=String(message?.type||'');
           const reply=value=>queueMicrotask(()=>cb(value));

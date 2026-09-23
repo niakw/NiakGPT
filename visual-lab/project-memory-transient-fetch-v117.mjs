@@ -67,12 +67,13 @@ try{
     });
     window.chrome={
       runtime:{
-        id:'transient-sync-lab',lastError:null,getManifest:()=>({version:'0.9.120'}),
+        id:'transient-sync-lab',lastError:null,getManifest:()=>({version:'0.9.121'}),
         sendMessage(message,cb){
           const type=String(message?.type||'');
           const reply=value=>queueMicrotask(()=>cb(value));
           if(type==='niakgpt:memory-status-v132')return reply({ok:true,connected:true,configured:true,tokenAvailable:true,config:{repo:'synthetic/private',branch:'main',root:'.niakgpt-memory',authMode:'github-app'},github:{authenticated:true,repositories:[{fullName:'synthetic/private',defaultBranch:'main'}]}});
           if(type==='niakgpt:memory-chatgpt-probe-v132')return reply({ok:true,status:200});
+          if(type==='niakgpt:memory-project-archive-v132')return reply({ok:true,projectId:P,directoryCount:1,knownCount:1,missingCount:0,recovered:[]});
           if(type==='niakgpt:memory-chatgpt-fetch-v132'){
             const id=String(message.path||'').split('/').pop();
             const count=window.__fetches.filter(row=>row.id===id).length+1;
@@ -147,10 +148,11 @@ try{
     const P='g-p-transientlab',C3='33333333-3333-4333-8333-333333333333',C4='44444444-4444-4444-8444-444444444444';
     const idx=window.__remote['projects/'+P+'/index.json'];
     const state=window.__store['niakgpt-project-memory-state-v132']||{};
+    const pile=window.__store['niakgpt-project-memory-chat-retry-v117']||{};
     if(!idx)return false;
     try{
       const conv=JSON.parse(idx).conversations||{};
-      return conv[C3]?.complete===true&&conv[C4]?.complete===true&&state.mode==='queued'&&state.pauseReason==='chat-fetch-retry';
+      return conv[C3]?.complete===true&&conv[C4]?.complete===true&&state.mode==='idle'&&Object.keys(pile).length===1;
     }catch{return false;}
   },null,{timeout:12000});
 
@@ -161,49 +163,47 @@ try{
     const idx=JSON.parse(window.__remote['projects/'+P+'/index.json']);
     const c3Writes=window.__commits.filter(row=>row.paths.some(p=>p.includes('/conversations/'+ids[2]+'/'))).length;
     const c4Writes=window.__commits.filter(row=>row.paths.some(p=>p.includes('/conversations/'+ids[3]+'/'))).length;
-    return {counts,state:window.__store['niakgpt-project-memory-state-v132'],queue:window.__store['niakgpt-project-memory-queue-v132'],idx,c3Writes,c4Writes};
+    return {counts,state:window.__store['niakgpt-project-memory-state-v132'],queue:window.__store['niakgpt-project-memory-queue-v132'],pile:window.__store['niakgpt-project-memory-chat-retry-v117']||{},idx,c3Writes,c4Writes};
   });
   assert.equal(first.counts['11111111-1111-4111-8111-111111111111'],0,'already archived chat was fetched again');
   assert.equal(first.counts['22222222-2222-4222-8222-222222222222'],2,'transient failing chat exceeded the bounded immediate retry count');
   assert.equal(first.counts['33333333-3333-4333-8333-333333333333'],1,'later chat A did not continue after transient failure');
   assert.equal(first.counts['44444444-4444-4444-8444-444444444444'],1,'later chat B did not continue after transient failure');
-  assert.equal(first.state.mode,'queued','transient chat failure became a fatal Project Memory error');
-  assert.equal(first.state.deferredChats,1,'deferred chat was not surfaced');
-  assert.ok(Number(first.queue.retryAt)>Date.now(),'deferred queue has no future retry time');
+  assert.equal(first.state.mode,'idle','transient chat failure prevented healthy backlog completion');
+  assert.equal(Object.keys(first.pile).length,1,'failed chat was not quarantined into the manual retry pile');
+  assert.equal(first.queue,undefined,'failed chat incorrectly kept the automatic Project queue alive');
   assert.equal(first.c3Writes,1,'healthy chat A did not receive one canonical durable write');
   assert.equal(first.c4Writes,1,'healthy chat B did not receive one canonical durable write');
 
   await page.waitForTimeout(2500);
   const c2AfterWait=await page.evaluate(()=>window.__fetches.filter(row=>row.id==='22222222-2222-4222-8222-222222222222').length);
-  assert.equal(c2AfterWait,2,'deferred chat entered the old 1-second retry loop');
+  assert.equal(c2AfterWait,2,'manual retry pile emitted an automatic retry');
 
-  await page.evaluate(async()=>{
-    window.__recoverC2=true;
-    const retryKey='niakgpt-project-memory-chat-retry-v117';
-    const queueKey='niakgpt-project-memory-queue-v132';
-    const ledger={...(window.__store[retryKey]||{})};
-    for(const key of Object.keys(ledger))ledger[key]={...ledger[key],nextAt:0};
-    const queue={...(window.__store[queueKey]||{}),retryAt:0};
-    await window.chrome.storage.local.set({[retryKey]:ledger,[queueKey]:queue});
-  });
+  await page.evaluate(()=>{ window.__recoverC2=true; });
+  const retryButton=page.locator('[data-ng132-retry-failed]');
+  await retryButton.waitFor({state:'visible',timeout:5000});
+  assert.equal(await retryButton.isEnabled(),true,'manual retry button stayed disabled with one failed chat');
+  assert.match((await retryButton.textContent())||'',/\(1\)/);
+  await retryButton.click();
 
   await page.waitForFunction(()=>{
     const P='g-p-transientlab',C2='22222222-2222-4222-8222-222222222222';
     const idx=window.__remote['projects/'+P+'/index.json'];
     const state=window.__store['niakgpt-project-memory-state-v132']||{};
     if(!idx)return false;
-    try{return JSON.parse(idx).conversations?.[C2]?.complete===true&&state.mode==='idle'&&window.__store['niakgpt-project-memory-queue-v132']===undefined;}catch{return false;}
+    const pile=window.__store['niakgpt-project-memory-chat-retry-v117'];
+    try{return JSON.parse(idx).conversations?.[C2]?.complete===true&&state.mode==='idle'&&(!pile||Object.keys(pile).length===0);}catch{return false;}
   },null,{timeout:12000});
 
   const final=await page.evaluate(()=>{
     const ids=['22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333','44444444-4444-4444-8444-444444444444'];
     return Object.fromEntries(ids.map(id=>[id,window.__fetches.filter(row=>row.id===id).length]));
   });
-  assert.equal(final['22222222-2222-4222-8222-222222222222'],3,'deferred chat did not retry once after its retry window was released');
+  assert.equal(final['22222222-2222-4222-8222-222222222222'],3,'failed chat did not retry exactly once after the manual button was used');
   assert.equal(final['33333333-3333-4333-8333-333333333333'],1,'already imported chat A was duplicated/refetched on deferred retry');
   assert.equal(final['44444444-4444-4444-8444-444444444444'],1,'already imported chat B was duplicated/refetched on deferred retry');
 
-  console.log('project-memory-transient-fetch-v117: PASS bounded retry + continue + deferred resume + no duplicate refetch + per-chat durable checkpoint');
+  console.log('project-memory-transient-fetch-v117: PASS bounded retry + continue + manual retry pile + no automatic loop + no duplicate refetch');
 }finally{
   await page.close();
   await browser.close();

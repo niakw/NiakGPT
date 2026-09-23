@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NiakGPT",
-  "version": "0.9.123",
-  "description": "NiakGPT : Project Memory canonicalise les IDs Projects et empêche les alias fantômes de relancer indéfiniment un transfert terminé.",
+  "version": "0.9.124",
+  "description": "NiakGPT : Project Memory borne les écarts d’inventaire stables et empêche les conversations quarantinées de maintenir artificiellement la synchro sous 100 %.",
   "permissions": [
     "storage",
     "scripting",

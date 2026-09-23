@@ -1,3 +1,11 @@
+# NiakGPT 0.9.122 — statuts Project Memory monotones
+
+- **Archive canonique protégée** : une conversation déjà archivée par le backend avec `complete:true` ne peut plus être rétrogradée par une sauvegarde DOM live.
+- **Overlay live séparé** : les nouvelles données visibles du chat courant sont écrites dans `live-index.json` et `live-part-*.md` tant que le backend canonique n’a pas rattrapé la révision.
+- **Plus de navette de statuts** : le chemin normal devient `metadata-only → partial/live → backend complete`, sans retour automatique vers un état inférieur.
+- **Boucles d’échec bornées** : les lectures historiques qui échouent après les essais prévus restent dans la pile manuelle et ne réentrent pas d’elles-mêmes dans la queue automatique.
+- **Non-régression** : le lab Project Memory vérifie que les index Project et conversation restent canoniques après une sauvegarde DOM et que le transcript backend n’est pas écrasé.
+
 # NiakGPT 0.9.121 — les conversations fautives sortent de la boucle automatique
 
 - **Pas de nouveau plafond logiciel** : la 0.9.120 reste l’autorité sur la cadence. NiakGPT n’ajoute ni budget N/minute, ni cooldown fixe, ni compteur persistant de débit.

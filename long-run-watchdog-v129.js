@@ -28,7 +28,8 @@
   ].map(s=>document.querySelector(s)).find(visible)||null;
   const busy=()=>ACTIVE.has(activity())||!!nativeStop();
   const segmentMs=()=>{const n=Number(root().dataset.ng129TestSegmentMs||0);return Number.isFinite(n)&&n>=120?n:DEFAULT_SEGMENT_MS;};
-  const editors=()=>[...document.querySelectorAll('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')].filter(visible);
+  const hostDOM=()=>window.__NIAKGPT_HOST_DOM_V125__;
+  const editors=()=>{const modern=hostDOM()?.composer();return modern?[modern]:[...document.querySelectorAll('#prompt-textarea,[data-testid="prompt-textarea"],form[data-chatgpt-composer] [data-composer-markdown][contenteditable="true"][role="textbox"],[data-composer-markdown][contenteditable="true"][role="textbox"],textarea,[contenteditable="true"][role="textbox"]')].filter(visible);};
   const editor=()=>editors().at(-1)||null;
   const editorText=ed=>String(ed?('value'in ed?ed.value:ed.innerText||ed.textContent||''):'').trim();
   const normalized=v=>String(v||'').replace(/\r/g,'').trim();

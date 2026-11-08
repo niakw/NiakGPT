@@ -4,7 +4,7 @@ import { chromium, firefox, webkit } from '@playwright/test';
 
 const ROOT=path.resolve('..');
 const read=name=>fs.readFile(path.join(ROOT,name),'utf8');
-const [hostDOM,headers,performanceGuard,app,activity,activityUI,continuity,consumer,interruptions,composerContinuation,scrollGuard,memory,coach,pageBridge,boot,watchdog,nativeHandoff]=await Promise.all([
+const [hostDOM,headers,performanceGuard,app,activity,activityUI,continuity,consumer,interruptions,composerContinuation,scrollGuard,memory,coach,pageBridge,boot,watchdog,nativeHandoff,themeCss,polishCss,stabilityCss,nativeDaCss]=await Promise.all([
   read('host-dom-v125.js'),
   read('turn-headers-v112.js'),
   read('performance-guard-v112.js'),
@@ -21,7 +21,11 @@ const [hostDOM,headers,performanceGuard,app,activity,activityUI,continuity,consu
   read('page-bridge.js'),
   read('boot-gate-v100.js'),
   read('long-run-watchdog-v129.js'),
-  read('continuity-native-handoff-v129.js')
+  read('continuity-native-handoff-v129.js'),
+  read('theme-v08.css'),
+  read('polish-v081.css'),
+  read('visual-stability-v101.css'),
+  read('native-da-v112.css')
 ]);
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg);};
 
@@ -80,7 +84,8 @@ for(const [engine,launcher] of Object.entries(engines)){
     </main></body></html>`;
     await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html; charset=utf-8',body}));
     await page.goto('https://chatgpt.com/c/11111111-1111-4111-8111-111111111111',{waitUntil:'domcontentloaded'});
-    await page.addInitScript(()=>{window.__NIAKGPT_DIAGNOSTICS__={set(){}};});
+    await page.evaluate(()=>document.body.classList.add('ng8-ready'));
+    for(const css of [themeCss,polishCss,stabilityCss,nativeDaCss])await page.addStyleTag({content:css});
     await page.addScriptTag({content:hostDOM});
 
     const initial=await page.evaluate(()=> {
@@ -93,7 +98,10 @@ for(const [engine,launcher] of Object.entries(engines)){
         texts:surfaces.map(el=>(el.textContent||'').replace(/\s+/g,' ').trim()),
         composer:!!composer,
         composerModern:composer?.hasAttribute('data-composer-markdown')||false,
-        closestRole:api.roleOf(api.closestTurn(document.querySelector('[data-markdown-text-style="assistant-message"] p')))
+        closestRole:api.roleOf(api.closestTurn(document.querySelector('[data-markdown-text-style="assistant-message"] p'))),
+        composerBackground:getComputedStyle(document.querySelector('form[data-chatgpt-composer]')).backgroundColor,
+        composerShadow:getComputedStyle(document.querySelector('form[data-chatgpt-composer]')).boxShadow,
+        editorColor:getComputedStyle(composer).color
       };
     });
     assert(initial.classic===0,`${engine}: fixture accidentally contains legacy turn markers`);
@@ -101,6 +109,9 @@ for(const [engine,launcher] of Object.entries(engines)){
     assert(initial.roles.join(',')==='user,assistant,user,assistant',`${engine}: grouped role order drift: ${JSON.stringify(initial)}`);
     assert(initial.composer&&initial.composerModern,`${engine}: ProseMirror composer not found: ${JSON.stringify(initial)}`);
     assert(initial.closestRole==='assistant',`${engine}: assistant markdown did not resolve to assistant unit: ${JSON.stringify(initial)}`);
+    assert(initial.composerBackground!=='rgba(0, 0, 0, 0)'&&initial.composerBackground!=='transparent',
+      `${engine}: modern composer lost NiakGPT theme: ${JSON.stringify(initial)}`);
+    assert(initial.composerShadow!=='none',`${engine}: modern composer lost visual-stability framing: ${JSON.stringify(initial)}`);
 
     await page.addScriptTag({content:headers});
     await page.addScriptTag({content:performanceGuard});

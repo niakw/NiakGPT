@@ -4,12 +4,19 @@ import { chromium, firefox, webkit } from '@playwright/test';
 
 const ROOT=path.resolve('..');
 const read=name=>fs.readFile(path.join(ROOT,name),'utf8');
-const [ux,background,metadata,authority,icons]=await Promise.all([
+const [ux,background,metadata,authority,icons,app,continuity,chronology,activity,multitab,governance,panels]=await Promise.all([
   read('ux-v131.js'),
   read('background-v100.js'),
   read('sidebar-metadata-v118.js'),
   read('sidebar-projects-authority-v112.js'),
-  read('sidebar-icons-v114.js')
+  read('sidebar-icons-v114.js'),
+  read('app-v090.js'),
+  read('continuity-v100.js'),
+  read('chronology-v090.js'),
+  read('activity-ui-v097.js'),
+  read('multitab-v090.js'),
+  read('governance-adapter-v105.js'),
+  read('side-panels-v096.js')
 ]);
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg);};
 
@@ -19,6 +26,9 @@ assert(runtime.indexOf("'ux-v131.js'")<runtime.indexOf("'sidebar-metadata-v118.j
 assert(metadata.includes('__NIAKGPT_FIND_SIDEBAR_V131__'),'metadata bypasses canonical sidebar finder');
 assert(authority.includes('__NIAKGPT_FIND_SIDEBAR_V131__'),'Projects authority bypasses canonical sidebar finder');
 assert(icons.includes('__NIAKGPT_FIND_SIDEBAR_V131__'),'sidebar icons bypass canonical sidebar finder');
+for(const [name,src] of Object.entries({app,continuity,chronology,activity,multitab,governance,panels})){
+  assert(src.includes('__NIAKGPT_FIND_SIDEBAR_V131__'),`${name} bypasses canonical redesigned sidebar finder`);
+}
 assert(ux.includes('aria-roledescription*="sortable"'),'redesigned sortable sidebar signal missing');
 assert(ux.includes('[role="navigation"]'),'semantic navigation candidate missing');
 

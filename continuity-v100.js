@@ -23,7 +23,7 @@
   const pid=h=>String(h||'').match(/\/g\/(g-p-[A-Za-z0-9_-]+)\/(?:project|c\/)/)?.[1]||'';
   const currentCid=()=>cid(location.pathname);
   const currentPid=()=>pid(location.pathname)||cache.chats?.find?.(c=>c.id===currentCid())?.projectId||'';
-  const navRoot=()=>document.querySelector('[data-testid="conversation-sidebar"]')||document.querySelector('[data-testid="sidebar"]')||[...document.querySelectorAll('nav,aside')].find(x=>x.querySelector(CHAT_SEL))||document.querySelector('nav');
+  const navRoot=()=>{const guarded=window.__NIAKGPT_FIND_SIDEBAR_V131__?.();return guarded?.isConnected?guarded:document.querySelector('[data-testid="conversation-sidebar"],[data-testid="sidebar"],[data-testid*="sidebar" i]')||[...document.querySelectorAll('[role="navigation"],nav,aside')].find(x=>!x.closest('main,[role="main"]')&&x.querySelector(CHAT_SEL))||null;};
   const editor=()=>document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"]')||[...document.querySelectorAll('textarea,[contenteditable="true"]')].reverse().find(el=>!el.closest('#ng8-coach,#ng119-interruption'));
   const visible=el=>{if(!(el instanceof Element)||!el.isConnected)return false;const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden'&&el.getClientRects().length>0;};
   const ownNode=el=>el instanceof Element&&!!el.closest('#ng119-interruption,#ng8-pins,#ng8-panel,#ng90-control,#ng100-command,#ng8-coach');

@@ -23,7 +23,7 @@
     s=s.replace(/(?:\s*\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?\s*(?:\[\d+\])?\s*›?)+\s*$/u,'').trim();
     return s||raw;
   };
-  const sidebarRoot=()=>document.querySelector('[data-testid="conversation-sidebar"],[data-testid="sidebar"]')||document.querySelector('nav');
+  const sidebarRoot=()=>window.__NIAKGPT_FIND_SIDEBAR_V131__?.()||document.querySelector('[data-testid="conversation-sidebar"],[data-testid="sidebar"],[data-testid*="sidebar" i]')||document.querySelector('[role="navigation"],nav,aside');
   const outsideOwn=el=>!!el&&!el.closest(OWN);
   function rawCacheSnapshot(){
     const bus=window.__NIAKGPT_CACHE_BUS__;

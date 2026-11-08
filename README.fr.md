@@ -13,7 +13,7 @@
   <p>NiakGPT conserve l’expérience ChatGPT que tu connais — et lui ajoute l’organisation, la robustesse et la continuité qui manquent aux usages avancés.</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.124-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.125-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -90,7 +90,7 @@ Project Memory est optionnelle et désactivée par défaut. Lorsqu’elle est ac
 
 NiakGPT évite volontairement de devenir une seconde application autour de ChatGPT. Les surfaces UI restent compactes, native-first et désactivables ; l’architecture sépare les responsabilités pour éviter que plusieurs modules se disputent le même DOM ou le même état.
 
-> **Focus 0.9.124 :** Project Memory converge désormais proprement lorsque l’inventaire serveur et le cache local divergent. Les écarts stables cessent de relancer la queue indéfiniment, les conversations mises en quarantaine ne bloquent plus artificiellement la passe automatique sous 100 %, et le scénario est couvert par les gates Chromium de release.
+> **Version actuelle : 0.9.125.**\n> **Focus 0.9.125 :** compatibilité avec le nouveau shell de ChatGPT Web. NiakGPT établit désormais une autorité unique de détection géométrique/sémantique avant Projects, Pins et les consommateurs de métadonnées, reconnaît la structure récente sortable/draggable, et ajoute un adaptateur DOM canonique pour les conversations groupées `data-turn-key` ainsi que le composer ProseMirror. Les remounts SPA et le renderer de conversation moderne sont couverts sous Chromium, Firefox et WebKit.
 
 ## Détails techniques
 

@@ -10,6 +10,7 @@
   const PROJECT_SEL = 'a[href^="/g/g-p-"]:not([href*="/c/"])';
   const PROJECT_CHAT_SEL = 'a[href^="/g/g-p-"][href*="/c/"]';
   const OWN = '#ng8-rail,#ng8-panel,#ng8-status,#ng8-coach,#ng8-pins,#ng8-quick,#ng90-control,.ng8-bot';
+  const hostDOM=()=>window.__NIAKGPT_HOST_DOM_V125__;
   const LEGACY = new Set(['design','ai','ia','coding','code','development','web development','technology','tech','social','social media','writing','general knowledge','general','e-commerce','ecommerce','seo','marketing','business','creative','research','productivity','other','misc','work','education','health','finance','home','cars','gaming','movies','food','personal development']);
   const COLORS = ['#4FC1FF','#4EC9B0','#C586C0','#DCDCAA','#CE9178','#9CDCFE','#D7BA7D','#B5CEA8','#D16969','#E06CAA','#569CD6','#6A9955','#22D3EE','#A78BFA','#FB7185','#38BDF8','#34D399','#F59E0B'];
   const STOP = new Set(('le la les un une des de du et ou en sur pour avec sans dans au aux ce cet cette ces mon ma mes ton ta tes son sa ses nos vos leur leurs je tu il elle on nous vous ils elles est sont a à the and or of to for in on with from chat conversation projet project faire fais moi peux peut comment pourquoi quoi cela cette ceci avoir etre être besoin voudrais veux faudrait faut').split(/\s+/));
@@ -232,7 +233,7 @@
     finally{S.indexing=false;if(canBackground())scheduleIndex(S.queue.length?260:100);}
   }
 
-  function navRoot(){ return document.querySelector('[data-testid="conversation-sidebar"]')||document.querySelector('[data-testid="sidebar"]')||[...document.querySelectorAll('nav,aside')].find(x=>x.querySelector(CHAT_SEL)||x.querySelector(PROJECT_SEL))||document.querySelector('nav')||null; }
+  function navRoot(){ const guarded=window.__NIAKGPT_FIND_SIDEBAR_V131__?.();return guarded?.isConnected?guarded:document.querySelector('[data-testid="conversation-sidebar"],[data-testid="sidebar"],[data-testid*="sidebar" i]')||[...document.querySelectorAll('[role="navigation"],nav,aside')].find(x=>!x.closest('main,[role="main"]')&&(x.querySelector(CHAT_SEL)||x.querySelector(PROJECT_SEL)))||null; }
   function mergeDOM(){
     const root=navRoot();if(!root)return;
     for(const a of root.querySelectorAll(PROJECT_SEL)){
@@ -459,7 +460,7 @@
   function timelineTimeForTurn(turn){
     const direct=nativeTurnTime(turn);if(direct)return direct;
     const id=turnMessageId(turn),byId=id?S.turnTimeById.get(id):0;if(byId)return byId;
-    const role=turn?.dataset?.ng8Role||turn?.querySelector?.('[data-message-author-role]')?.getAttribute('data-message-author-role')||'';
+    const role=turn?.dataset?.ng8Role||hostDOM()?.roleOf(turn)||turn?.querySelector?.('[data-message-author-role]')?.getAttribute('data-message-author-role')||'';
     if(role!=='user'&&role!=='assistant')return 0;
     let ordinal=0;for(const old of S.turns){if(old===turn)break;if(old?.dataset?.ng8Role===role)ordinal++;}
     return S.turnTimeline.filter(x=>x.role===role)[ordinal]?.at||0;
@@ -489,7 +490,7 @@
   }
   function decorateTurn(turn){
     if(!(turn instanceof HTMLElement)||S.turnSeen.has(turn)||turn.closest(OWN))return;S.turnSeen.add(turn);S.turns.push(turn);
-    const i=S.turns.length-1;turn.dataset.ng8Turn=String(i);turn.dataset.ng8Role=turn.querySelector('[data-message-author-role]')?.getAttribute('data-message-author-role')||'unknown';turn.dataset.ng8Zebra=String(i%2);stampTurn(turn);turn.querySelectorAll('pre').forEach(decorateCode);
+    const i=S.turns.length-1;turn.dataset.ng8Turn=String(i);turn.dataset.ng8Role=hostDOM()?.roleOf(turn)||turn.querySelector('[data-message-author-role]')?.getAttribute('data-message-author-role')||'unknown';turn.dataset.ng8Zebra=String(i%2);stampTurn(turn);turn.querySelectorAll('pre').forEach(decorateCode);
     if(S.turns.length>8){const old=S.turns[S.turns.length-9];if(old?.isConnected)old.classList.add('ng8-offscreen');}
     const heavy=S.turns.length>=65||S.codeCount>=35;document.documentElement.dataset.ng8Heavy=heavy?'1':'0';health('performance',`OK · ${S.turns.length}${heavy?' · LOURD':''}`);health('toc',`PRÊT · ${S.turns.length} blocs`);
   }
@@ -504,7 +505,7 @@
     if(S.scanRunning){S.scanRequested=true;return;}
     clearTimeout(S.scanTimer);S.scanTimer=0;S.scanRunning=true;S.scanRequested=false;
     const token=++S.scanToken;
-    const nodes=main.querySelectorAll('article[data-testid^="conversation-turn-"],[data-testid^="conversation-turn-"]');
+    const nodes=hostDOM()?.surfaces(main)||[...main.querySelectorAll('article[data-testid^="conversation-turn-"],[data-testid^="conversation-turn-"]')];
     const total=nodes.length,heavy=total>=65;
     if(heavy)document.documentElement.dataset.ng8Heavy='1';
     // Historical turns are cold data. Decorating every old turn on a 300+ message thread
@@ -536,11 +537,17 @@
     S.mainTimer=0;if(activity()!=='ready'){deferMainSnapshot(700);return;}
     const roots=[...S.pendingMain];
     S.pendingMain.clear();
-    const turnSel='article[data-testid^="conversation-turn-"],[data-testid^="conversation-turn-"]';
     const work=[];
     const seen=new Set();
     const add=(kind,el)=>{if(!el||seen.has(el))return true;if(work.length>=40)return false;seen.add(el);work.push([kind,el]);return true;};
-    for(const node of roots){if(!node?.isConnected)continue;if(node.matches?.(turnSel)){if(!add('turn',node)){deferMainSnapshot(260);return;}}else if(node.matches?.('pre')){if(!add('code',node)){deferMainSnapshot(260);return;}}else{const nested=node.querySelectorAll?.(`${turnSel},pre`)||[];if(nested.length>40||work.length+nested.length>40){deferMainSnapshot(260);return;}for(const el of nested)if(!add(el.matches?.(turnSel)?'turn':'code',el)){deferMainSnapshot(260);return;}}}
+    for(const node of roots){
+      if(!node?.isConnected)continue;
+      const turns=hostDOM()?.surfaces(node)||[];
+      const pres=[...(node.matches?.('pre')?[node]:[]),...(node.querySelectorAll?.('pre')||[])];
+      if(turns.length+pres.length>40||work.length+turns.length+pres.length>40){deferMainSnapshot(260);return;}
+      for(const el of turns)if(!add('turn',el)){deferMainSnapshot(260);return;}
+      for(const el of pres)if(!add('code',el)){deferMainSnapshot(260);return;}
+    }
     let index=0;const chunk=()=>{if(activity()!=='ready'){deferMainSnapshot(700);return;}const end=Math.min(index+10,work.length);for(;index<end;index++){const [kind,el]=work[index];if(!el?.isConnected)continue;if(kind==='turn')decorateTurn(el);else decorateCode(el);}if(index<work.length)S.mainTimer=setTimeout(()=>{S.mainTimer=0;chunk();},36);};chunk();
   }
 

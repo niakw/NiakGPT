@@ -37,6 +37,7 @@ textarea:focus,textarea:focus-visible,
 /* Composer: remove preference pink from voice/send actions */
 form:has(#prompt-textarea) button[class*="rounded-full"],
 form:has([data-testid="prompt-textarea"]) button[class*="rounded-full"],
+form[data-chatgpt-composer]:has([data-composer-markdown]) button[class*="rounded-full"],
 [data-type="unified-composer"] button[class*="rounded-full"]{
   background:#172431!important;
   border-color:#334858!important;
@@ -66,6 +67,9 @@ header button svg{color:currentColor!important;fill:none!important;stroke:curren
 [data-message-author-role="user"] .bg-token-message-surface,
 [data-message-author-role="user"] [class*="bg-token-message"],
 [data-message-author-role="user"] [class*="rounded"][style*="background"],
+[data-user-message-bubble] .bg-token-message-surface,
+[data-user-message-bubble] [class*="bg-token-message"],
+[data-user-message-bubble] [class*="rounded"][style*="background"],
 [data-ng8-role="user"] .bg-token-message-surface,
 [data-ng8-role="user"] [class*="bg-token-message"]{
   background:linear-gradient(135deg,color-mix(in srgb,var(--ng8-current-project,#3794ff) 17%,#16222e 83%),#101b25)!important;

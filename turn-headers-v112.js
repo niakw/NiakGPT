@@ -4,12 +4,13 @@
   window.__NIAKGPT_TURN_HEADERS_112__=true;
 
   const TURN='article[data-testid^="conversation-turn-"],[data-testid^="conversation-turn-"]';
+  const hostDOM=()=>window.__NIAKGPT_HOST_DOM_V125__;
   const LIVE_KEY='niakgpt-turn-live-times-v112';
   const FULL_TIME=/^\d{2}\/\d{2}\/\d{2} · \d{2}:\d{2}$/;
   let main=null,observer=null,timer=0,pendingUserAt=0,pendingAssistantAt=0,route=location.pathname;
   const parseTime=v=>{if(typeof v==='number'&&Number.isFinite(v))return v>1e12?v:v*1000;if(typeof v==='string'){const n=Number(v);if(Number.isFinite(n))return n>1e12?n:n*1000;const d=Date.parse(v);return Number.isFinite(d)?d:0;}return 0;};
   const mid=turn=>String(turn?.getAttribute?.('data-message-id')||turn?.querySelector?.('[data-message-id]')?.getAttribute('data-message-id')||'');
-  const role=turn=>turn?.querySelector?.('[data-message-author-role]')?.getAttribute('data-message-author-role')||turn?.dataset?.ng8Role||'';
+  const role=turn=>hostDOM()?.roleOf(turn)||turn?.querySelector?.('[data-message-author-role]')?.getAttribute('data-message-author-role')||turn?.dataset?.ng8Role||'';
   const liveMap=()=>{try{return JSON.parse(sessionStorage.getItem(LIVE_KEY)||'{}')||{};}catch{return{};}};
   const writeLive=(id,at)=>{if(!id||!at)return;try{const map=liveMap();map[id]=at;const entries=Object.entries(map).sort((a,b)=>Number(b[1])-Number(a[1])).slice(0,40);sessionStorage.setItem(LIVE_KEY,JSON.stringify(Object.fromEntries(entries)));}catch{}};
   function nativeAt(turn){
@@ -34,11 +35,11 @@
     turn.dataset.ng112Header='1';
   }
   function scanRecent(){
-    timer=0;const root=document.querySelector('main');if(!root)return;const turns=[...root.querySelectorAll(TURN)],start=Math.max(0,turns.length-(document.documentElement.dataset.ng112LongThread==='1'?54:140));for(let i=start;i<turns.length;i++)decorate(turns[i],{allowLive:i>=turns.length-4});
+    timer=0;const root=document.querySelector('main');if(!root)return;const turns=hostDOM()?.surfaces(root)||[...root.querySelectorAll(TURN)],start=Math.max(0,turns.length-(document.documentElement.dataset.ng112LongThread==='1'?54:140));for(let i=start;i<turns.length;i++)decorate(turns[i],{allowLive:i>=turns.length-4});
     window.__NIAKGPT_DIAGNOSTICS__?.set('entêtes','OK · TOI/CHATGPT · date/heure fiable prioritaire');
   }
   function schedule(delay=80){clearTimeout(timer);timer=setTimeout(scanRecent,delay);}
-  function composerTarget(target){return target instanceof Element&&!!target.closest('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]');}
+  function composerTarget(target){return !!hostDOM()?.composerForTarget(target)||(target instanceof Element&&!!target.closest('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]'));}
   function markSend(){pendingUserAt=Date.now();pendingAssistantAt=0;}
   function bind(){
     const root=document.querySelector('main');if(!root||root===main)return;observer?.disconnect();main=root;
@@ -46,11 +47,11 @@
       let relevant=false;
       for(const r of records){
         if(r.type==='attributes'){
-          const turn=r.target instanceof Element?r.target.closest(TURN):null;
+          const turn=r.target instanceof Element?(hostDOM()?.closestTurn(r.target)||r.target.closest(TURN)):null;
           if(turn&&turn.dataset.ng112TimeSource&&!FULL_TIME.test(turn.dataset.ng8Time||'')){relevant=true;break;}
           continue;
         }
-        for(const n of r.addedNodes){if(!(n instanceof Element))continue;if(n.matches?.(TURN)||n.querySelector?.(TURN)){relevant=true;break;}}
+        for(const n of r.addedNodes){if(!(n instanceof Element))continue;if((hostDOM()?.surfaces(n)?.length||0)>0||n.matches?.(TURN)||n.querySelector?.(TURN)){relevant=true;break;}}
         if(relevant)break;
       }
       if(relevant)schedule(70);

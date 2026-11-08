@@ -20,18 +20,26 @@
   const projectChildHref=href=>/\/g\/g-p-[^/?#]+(?:\/|$)/i.test(String(href||''));
   function sidebarShellFor(el){
     if(!el)return null;
+    const guarded=window.__NIAKGPT_FIND_SIDEBAR_V131__?.();
+    if(guarded?.isConnected&&guarded.contains(el))return guarded;
     // Prefer ChatGPT's actual conversation sidebar. Generic class names such as
     // "sidebar-expando-section" are internal sub-lanes and can be only half-width.
     return el.closest?.('[data-testid="conversation-sidebar"]')
-      ||el.closest?.('[data-testid="sidebar"]')
-      ||el.closest?.('aside,nav')
+      ||el.closest?.('[data-testid="sidebar"],[data-testid*="sidebar" i]')
+      ||el.closest?.('[role="navigation"],aside,nav')
       ||null;
   }
   function structuralProjectSurface(candidate){
     if(!candidate)return false;
     if(candidate.querySelector?.('[class*="project-unfurl-row"]'))return true;
     const links=[...candidate.querySelectorAll?.('a[href]')||[]],projectLinks=links.filter(a=>projectChildHref(a.getAttribute('href')));
-    if(links.some(a=>projectHomeHref(a.getAttribute('href')))||projectLinks.length>=2)return true;
+    const genericChats=links.filter(a=>/\/c\//i.test(String(a.getAttribute('href')||''))&&!projectChildHref(a.getAttribute('href')));
+    if(links.some(a=>projectHomeHref(a.getAttribute('href'))))return true;
+    // ChatGPT's redesigned Pinned section may mix ordinary pinned chats and multiple
+    // pinned Projects. Never suppress that mixed container as one native Projects surface;
+    // nativeTargets() hides only the individual Project rows instead.
+    if(genericChats.length)return false;
+    if(projectLinks.length>=2)return true;
     if(projectLinks.length!==1)return false;
     return [...candidate.querySelectorAll?.('h1,h2,h3,[role="heading"],button,[role="button"],[aria-label]')||[]].some(node=>projectLabel(node.textContent)||projectLabel(node.getAttribute?.('aria-label'))||showMoreLabel(node.textContent||node.getAttribute?.('aria-label')));
   }
@@ -61,7 +69,7 @@
   }
   function rowTarget(el){
     if(!el||!sharesSidebarShell(el))return null;
-    const row=el.closest('[data-sidebar-item="true"],[class*="project-unfurl-row"],[role="listitem"],li');
+    const row=el.closest('[data-sidebar-item="true"],[class*="project-unfurl-row"],[role="listitem"],[role="group"][draggable="true"],[aria-roledescription*="draggable" i],li');
     return row&&sharesSidebarShell(row)&&!row.contains(ownProjects())?row:el;
   }
   function projectLinks(scope){return [...scope.querySelectorAll?.('a[href]')||[]].filter(a=>sharesSidebarShell(a)&&projectChildHref(a.getAttribute('href')));}

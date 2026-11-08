@@ -21,11 +21,12 @@
   }
   function geometryOK(el){
     if(!(el instanceof HTMLElement)||el.closest(OWN)||!visible(el))return false;
-    if(el===document.body||el===document.documentElement||el.matches('main,[data-testid="conversation-sidebar"],[data-testid="sidebar"],nav'))return false;
+    const sidebar=window.__NIAKGPT_FIND_SIDEBAR_V131__?.();
+    if(el===document.body||el===document.documentElement||(sidebar?.isConnected&&(el===sidebar||sidebar.contains(el)||el.contains(sidebar)))||el.matches('main,[data-testid="conversation-sidebar"],[data-testid="sidebar"],[data-testid*="sidebar" i],[role="navigation"],nav,aside'))return false;
     const r=el.getBoundingClientRect();
     if(r.width<260||r.width>760||r.height<220)return false;
     if(r.right<innerWidth-90||r.left<Math.max(360,innerWidth*.48))return false;
-    if(el.querySelector('main,[data-testid="conversation-sidebar"],[data-testid="sidebar"]'))return false;
+    if(el.querySelector('main,[data-testid="conversation-sidebar"],[data-testid="sidebar"],[data-testid*="sidebar" i],[role="navigation"]'))return false;
     return LABEL_RX.test(textOf(el));
   }
   function climbFromHeading(heading){

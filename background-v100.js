@@ -21,6 +21,8 @@ const ISOLATED_RUNTIME=[
   'control-center-v090.js',
   'cache-bus-v096.js',
   'diagnostic-bus-v096.js',
+  'ux-v131.js',
+  'host-dom-v125.js',
   'sidebar-metadata-v118.js',
   'cache-guardian-v100.js',
   'recovery-v100.js',
@@ -71,7 +73,6 @@ const ISOLATED_RUNTIME=[
   'activity-ui-v097.js',
   'retro-loader-v097.js',
   'conversation-scroll-guard-v133.js',
-  'ux-v131.js'
 ];
 
 const OPTIONAL_RUNTIME=[

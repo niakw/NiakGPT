@@ -3,9 +3,10 @@
   if(location.hostname!=='chatgpt.com'||window.__NIAKGPT_LOAD_GUARD_113__)return;
   window.__NIAKGPT_LOAD_GUARD_113__=true;
   const TURN='article[data-testid^="conversation-turn-"],[data-testid^="conversation-turn-"]';
+  const hostDOM=()=>window.__NIAKGPT_HOST_DOM_V125__;
   let timer=0,lastPath=location.pathname;
   const isChat=()=>/\/c\/[A-Za-z0-9_-]+/.test(location.pathname);
-  const hasTurns=()=>!!document.querySelector(`main ${TURN}`);
+  const hasTurns=()=>{const main=document.querySelector('main');return !!main&&((hostDOM()?.hasTurns(main))||!!main.querySelector(TURN));};
   function clearNiakGPTContentPressure(){
     const root=document.documentElement;root.dataset.ng112LongThread='0';if(!hasTurns())root.dataset.ng8Heavy='0';
     document.querySelectorAll('[data-ng112-cold]').forEach(el=>el.removeAttribute('data-ng112-cold'));

@@ -8,7 +8,7 @@ const same=(a,b,m)=>{if(JSON.stringify(a)!==JSON.stringify(b))fail(m);};
 
 const manifest=JSON.parse(read('manifest.json'));
 if(manifest.manifest_version!==3)fail('manifest_version drift');
-if(manifest.version!=='0.9.124')fail(`unexpected release ${manifest.version}`);
+if(manifest.version!=='0.9.125')fail(`unexpected release ${manifest.version}`);
 same(manifest.permissions,['storage','scripting','identity'],'permissions mismatch');
 same(manifest.host_permissions,['https://chatgpt.com/*','https://api.github.com/*','https://github.com/login/*','https://lopeiincnbjihmoahcbogokeniojgobk.chromiumapp.org/*'],'host scope mismatch');
 const staticRuntime=['boot-gate-v100.js','composer-continuation-v128.js','long-run-watchdog-v129.js','pin-interaction-rescue-v129.js','project-menu-augment-v129.js','continuity-native-handoff-v129.js'];
@@ -36,7 +36,7 @@ forbid(packager,"'STYLE_RUNTIME'",'packager must not depend on deferred STYLE_RU
 const required=[
   'sidebar-metadata-v118.js','sidebar-projects-authority-v112.js','sidebar-projects-v121.js','pin-folders-v096.js','app-v090.js','sidebar-actions-v123.js','folder-scroll-anchor-v124.js','project-native-name-sync-v124.js',
   'home-layout-v112.js','analysis-bridge-v112.js','reclassify-deep-v112.js','matrix-guardian-v112.js','performance-guard-v112.js','turn-headers-v112.js',
-  'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','continuity-v112.js','continuity-consumer-v124.js','interruption-guard-v119.js'
+  'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','continuity-v112.js','continuity-consumer-v124.js','interruption-guard-v119.js','host-dom-v125.js'
 ];
 same(optional,['project-memory-v132.js','project-memory-ui-v132.js'],'optional Project Memory runtime mismatch');
 for(const file of optional)if(isolated.includes(file))fail(`optional Project Memory leaked into critical runtime ${file}`);
@@ -53,6 +53,8 @@ for(const file of recoveryOverlays){
 }
 
 const idx=file=>isolated.indexOf(file);
+if(idx('ux-v131.js')<0||idx('ux-v131.js')>=idx('sidebar-metadata-v118.js'))fail('v131 sidebar finder must initialize before sidebar metadata and downstream consumers');
+if(idx('host-dom-v125.js')<0||idx('host-dom-v125.js')<=idx('ux-v131.js')||idx('host-dom-v125.js')>=idx('sidebar-metadata-v118.js'))fail('v125 ChatGPT host DOM adapter must initialize after sidebar authority and before runtime consumers');
 for(const consumer of ['cache-guardian-v100.js','recovery-v100.js','server-index-v100.js','project-governance-v090.js','reclassify-v101.js'])if(idx('sidebar-metadata-v118.js')<0||idx('sidebar-metadata-v118.js')>=idx(consumer))fail(`sidebar metadata must sanitize cache before ${consumer}`);
 if(idx('sidebar-actions-v123.js')<=idx('pin-folders-v096.js')||idx('sidebar-actions-v123.js')<=idx('app-v090.js'))fail('single sidebar action owner must load after rows/render owner');
 if(idx('folder-scroll-anchor-v124.js')<=idx('sidebar-actions-v123.js'))fail('folder scroll anchor must load after sidebar actions');
@@ -244,11 +246,11 @@ const liveSpec=read('visual-lab/tests/live-stability-v129.spec.js');
 for(const token of ['NIAKGPT_EXECUTABLE_PATH','long-run recovery + remount-safe pins + Project context + native limit handoff','Brouillon utilisateur à préserver','draft-protected','Personnaliser le Project','CONTINUITÉ NIAKGPT'])need(liveSpec,token,'0.9.76 focused live stability gate incomplete');
 
 const packageJson=read('visual-lab/package.json');
-const packageVersion=JSON.parse(packageJson).devDependencies?.['@playwright/test'];if(packageVersion!=='1.62.1')fail(`Playwright package/image version drift: ${packageVersion}`);
+const packageVersion=JSON.parse(packageJson).devDependencies?.['@playwright/test'];if(packageVersion!=='1.63.0')fail(`Playwright package/image version drift: ${packageVersion}`);
 const currentScript=JSON.parse(packageJson).scripts?.['test:current']||'';need(currentScript,'dom-node-stability-v082.mjs','current visual gate missing DOM node stability regression');need(currentScript,'pins-primary-slot-v083.mjs','current visual gate missing Pins slot regression');need(currentScript,'diagnostic-selection-v083.mjs','current visual gate missing diagnostic selection regression');
 const workflow=read('.github/workflows/current-finalization.yml');
-for(const token of ['chromium, firefox, webkit','user-reported-v133.mjs','hidden-project-classification-v099.mjs','Hidden Projects · never automatic classification targets','classification-authority-v099.mjs','Classification authority · governance never auto-PATCHes','continuity-authority-v099.mjs','Continuity authority · one shared-pending Project PATCH','side-panels-owner-v096.mjs','Native side-panel owner · rail offset + BFCache recovery','live-fixes-context-v106.mjs','Project-context hot path · unrelated main churn stays ignored','global-observer-hotpath-v099.mjs','Global observer hot path · unrelated stream churn stays ignored','deep-classification-v112.mjs','Deep classification · orphan chat to canonical Project','state-ux-v113.mjs','Chat-state authority + extension-context invalidation','sidebar-session-ux-v123.mjs','CURRENT LEFT SIDEBAR complete session contract','dom-node-stability-v082.mjs','Reported DOM node stability — direct chat and late shell remount','pins-primary-slot-v083.mjs','Reported Pins placement — native controls stay above Projects','sidebar-human-ux-v123.spec.js','PRIMARY real Brave — FULL human sidebar','experience-linux:','extension-runtime-linux:','mcr.microsoft.com/playwright:v1.62.1-noble','PLAYWRIGHT_BROWSERS_PATH: /ms-playwright','HOME: /root'])need(workflow,token,'current full-session/cross-platform workflow incomplete');
-const imageLines=workflow.split(/\r?\n/).filter(line=>/^\s+image:\s+mcr\.microsoft\.com\/playwright:v1\.62\.1-noble\s*$/.test(line));if(imageLines.length!==3)fail(`expected 3 pinned Linux Playwright image jobs, got ${imageLines.length}`);
+for(const token of ['chromium, firefox, webkit','user-reported-v133.mjs','hidden-project-classification-v099.mjs','Hidden Projects · never automatic classification targets','classification-authority-v099.mjs','Classification authority · governance never auto-PATCHes','continuity-authority-v099.mjs','Continuity authority · one shared-pending Project PATCH','side-panels-owner-v096.mjs','Native side-panel owner · rail offset + BFCache recovery','live-fixes-context-v106.mjs','Project-context hot path · unrelated main churn stays ignored','global-observer-hotpath-v099.mjs','Global observer hot path · unrelated stream churn stays ignored','deep-classification-v112.mjs','Deep classification · orphan chat to canonical Project','state-ux-v113.mjs','Chat-state authority + extension-context invalidation','sidebar-session-ux-v123.mjs','CURRENT LEFT SIDEBAR complete session contract','dom-node-stability-v082.mjs','Reported DOM node stability — direct chat and late shell remount','pins-primary-slot-v083.mjs','Reported Pins placement — native controls stay above Projects','sidebar-human-ux-v123.spec.js','PRIMARY real Brave — FULL human sidebar','experience-linux:','extension-runtime-linux:','mcr.microsoft.com/playwright:v1.63.0-noble','PLAYWRIGHT_BROWSERS_PATH: /ms-playwright','HOME: /root'])need(workflow,token,'current full-session/cross-platform workflow incomplete');
+const imageLines=workflow.split(/\r?\n/).filter(line=>/^\s+image:\s+mcr\.microsoft\.com\/playwright:v1\.63\.0-noble\s*$/.test(line));if(imageLines.length!==3)fail(`expected 3 pinned Linux Playwright image jobs, got ${imageLines.length}`);
 if(/^\s*npx playwright install --with-deps\b/m.test(workflow))fail('Linux Finalization reintroduced apt --with-deps');
 const parallelWorkflow=read('.github/workflows/parallel-continuation-v128.yml');
 for(const token of ['parallel-continue-v128.mjs','composer-continuation-runtime-v128.spec.js','matrix:','browser: [chromium, firefox, webkit]','parallel-continuation-v128'])need(parallelWorkflow,token,'parallel continuation workflow incomplete');

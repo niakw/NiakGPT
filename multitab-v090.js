@@ -184,7 +184,7 @@
   // Cache-only Quick Open fallback remains available on CLIENT tabs.
   const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
   function routeTo(href){
-    const id=String(href||'').match(/\/c\/([0-9a-f-]{20,})/i)?.[1],nav=document.querySelector('[data-testid="conversation-sidebar"],[data-testid="sidebar"],nav');
+    const id=String(href||'').match(/\/c\/([0-9a-f-]{20,})/i)?.[1],guarded=window.__NIAKGPT_FIND_SIDEBAR_V131__?.(),nav=guarded?.isConnected?guarded:document.querySelector('[data-testid="conversation-sidebar"],[data-testid="sidebar"],[data-testid*="sidebar" i],[role="navigation"],nav,aside');
     const native=id&&nav?[...nav.querySelectorAll('a[href*="/c/"]')].find(a=>(a.getAttribute('href')||'').includes(id)):null;
     if(native){native.click();return;}location.assign(href);
   }

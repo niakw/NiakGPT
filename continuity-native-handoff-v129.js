@@ -23,7 +23,8 @@
   const visible=el=>{if(!(el instanceof HTMLElement)||!el.isConnected)return false;const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden'&&el.getClientRects().length>0;};
   const text=el=>clean(`${el?.getAttribute?.('aria-label')||''} ${el?.getAttribute?.('title')||''} ${el?.innerText||el?.textContent||''}`).slice(0,3200);
   const own=el=>!!el?.closest?.('#ng119-interruption,#ng8-pins,#ng8-panel,#ng8-rail,#ng8-status,#ng90-control,#ng100-command,#ng8-coach');
-  const editor=()=>[...document.querySelectorAll('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')].filter(visible).at(-1)||null;
+  const hostDOM=()=>window.__NIAKGPT_HOST_DOM_V125__;
+  const editor=()=>hostDOM()?.composer()||[...document.querySelectorAll('#prompt-textarea,[data-testid="prompt-textarea"],form[data-chatgpt-composer] [data-composer-markdown][contenteditable="true"][role="textbox"],[data-composer-markdown][contenteditable="true"][role="textbox"],textarea,[contenteditable="true"][role="textbox"]')].filter(visible).at(-1)||null;
   const editorText=ed=>clean(ed?('value'in ed?ed.value:ed.innerText||ed.textContent):'');
 
   function nativeLimitControl(target){

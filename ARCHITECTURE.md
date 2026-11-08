@@ -1,5 +1,24 @@
 # Architecture de NiakGPT
 
+## Invariant architecture 0.9.125 — une seule autorité de détection pour la sidebar ChatGPT
+
+La refonte ChatGPT Web observée fin septembre 2026 a changé la structure de la navigation gauche : les sections Projects, Pins et Récents peuvent désormais être rendues dans des conteneurs imbriqués, réordonnables et remountés pendant la navigation SPA. NiakGPT ne doit donc plus laisser chaque module deviner indépendamment quel `nav` est la sidebar.
+
+`ux-v131.js` est initialisé avant `sidebar-metadata-v118.js` et expose `__NIAKGPT_FIND_SIDEBAR_V131__`. Cette fonction sélectionne le shell gauche par géométrie, structure et sémantique (`role=navigation`, labels de sidebar, sections Projects/Pinned/Recents, `sortable/draggable`) puis remonte d'une sous-colonne interne vers le shell complet lorsqu'elle détecte un fragment de grille.
+
+Les consommateurs historiques — metadata, icônes, autorité Projects, catalogue v121 et self-heal — doivent réutiliser cette autorité et ne conserver leurs anciens sélecteurs que comme fallback. `sidebar-projects-v121.js` reste l'unique propriétaire du placement du bloc NiakGPT ; `ux-v131.js` détecte et signale un host obsolète mais ne crée pas une seconde autorité de reparenting.
+
+Le gate `chatgpt-redesign-v125.mjs` reproduit une sidebar sans `data-testid="conversation-sidebar"`, avec sections `sortable/draggable`, sous-navigation étroite et remount SPA. Il exige que le finder reste sur le shell gauche complet et que Projects/Pins ne migrent jamais dans une sous-colonne.
+
+### Invariant host DOM 0.9.125 — normaliser le renderer ChatGPT, ne pas le recopier partout
+
+`host-dom-v125.js` est l'unique adaptateur du monde isolé pour les tours de conversation et le composer. Il expose des surfaces de rôle séparées pour l'ancien renderer `conversation-turn-*` et le renderer groupé moderne (`data-turn-key` contenant des unités `data-content-search-unit-key`, `data-user-message-bubble` et les marqueurs assistant). Un `data-turn-key` peut contenir à la fois l'utilisateur et l'assistant : les consommateurs ne doivent donc jamais le compter comme un message unique.
+
+Les modules activité, timestamps/en-têtes, performance, chargement, continuité, interruption, scroll, Coach et Project Memory consomment cet adaptateur. Les scripts pré-runtime attendent l'événement d'hydratation avant d'y accéder ; `boot-gate-v100.js` et `page-bridge.js`, qui doivent fonctionner avant ou dans un autre monde d'exécution, gardent une reconnaissance explicite minimale du composer ProseMirror.
+
+Le gate `chatgpt-grouped-turns-v125.mjs` interdit de valider la release uniquement avec l'ancien DOM : sa fixture ne contient ni `conversation-turn-*`, ni `data-message-author-role`, ni `prompt-textarea`, puis vérifie les rôles, le composer et l'ajout dynamique de nouveaux tours sous Chromium, Firefox et WebKit.
+
+
 ## Invariant architecture 0.9.124 — un écart d’inventaire stable ne devient jamais une boucle
 
 Un compteur serveur supérieur au nombre de chats présents dans le cache est un **signal de réparation**, pas une preuve que relancer indéfiniment produira de nouvelles données. Project Memory calcule désormais une signature de gap `[projectId, knownCount, cachedCount, indexed]`.

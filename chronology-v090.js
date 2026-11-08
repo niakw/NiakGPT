@@ -13,7 +13,7 @@
   const pid=h=>String(h||'').match(/\/g\/(g-p-[^/]+)\/(?:project|c\/)/i)?.[1]||'';
   const formatDate=ms=>{if(!ms)return'—';const d=new Date(ms),now=new Date();if(Number.isNaN(d.getTime()))return'—';const dd=String(d.getDate()).padStart(2,'0'),mm=String(d.getMonth()+1).padStart(2,'0');return d.getFullYear()===now.getFullYear()?`${dd}/${mm}`:`${dd}/${mm}/${String(d.getFullYear()).slice(-2)}`;};
 
-  function navRoot(){return document.querySelector('[data-testid="conversation-sidebar"]')||document.querySelector('[data-testid="sidebar"]')||[...document.querySelectorAll('nav,aside')].find(x=>x.querySelector(CHAT_SEL))||document.querySelector('nav');}
+  function navRoot(){const guarded=window.__NIAKGPT_FIND_SIDEBAR_V131__?.();return guarded?.isConnected?guarded:document.querySelector('[data-testid="conversation-sidebar"],[data-testid="sidebar"],[data-testid*="sidebar" i]')||[...document.querySelectorAll('[role="navigation"],nav,aside')].find(x=>!x.closest('main,[role="main"]')&&x.querySelector(CHAT_SEL))||null;}
   function mergeChat(chat,projectId=''){if(!chat?.id)return;const updated=parseTime(chat.updated||chat.update_time||chat.create_time),old=chats.get(chat.id);const next={...old,...chat,projectId:chat.projectId||projectId||old?.projectId||'',updated:Math.max(old?.updated||0,updated)};chats.set(chat.id,next);if(next.projectId&&next.updated>(latestByProject.get(next.projectId)||0))latestByProject.set(next.projectId,next.updated);}
 
   async function readCache(rawOverride){

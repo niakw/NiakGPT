@@ -501,13 +501,29 @@
     return String(location.pathname||'').match(/\/c\/([A-Za-z0-9_-]+)/)?.[1]||'';
   }
 
+  const hostDOM = () => window.__NIAKGPT_HOST_DOM_V125__;
+
   function normalizePid(value){
     const raw=String(value||'').trim(),match=raw.match(/^g-p-([A-Za-z0-9]+)(?:-.+)?$/);
     return match?'g-p-'+match[1]:raw;
   }
 
   function domMessages() {
-    const out=[];
+    const out=[],main=document.querySelector('main')||document,modern=hostDOM()?.surfaces(main)||[];
+    if(modern.length){
+      for(const el of modern){
+        const role=one(hostDOM()?.roleOf(el)||'unknown').toLowerCase();if(role!=='user'&&role!=='assistant')continue;
+        const text=clean(el.innerText||el.textContent||'');if(!text)continue;
+        const turn=el.closest?.('[data-turn-key],article,[data-testid^="conversation-turn-"]')||el,time=turn?.querySelector?.('time[datetime]');
+        out.push({role,text,at:parseTime(time?.getAttribute?.('datetime')||0)});
+      }
+      for(const el of main.querySelectorAll?.('[data-message-author-role="tool"],[data-message-author-role="system"]')||[]){
+        const role=one(el.getAttribute('data-message-author-role')||'unknown').toLowerCase(),text=clean(el.innerText||el.textContent||'');if(!text)continue;
+        const turn=el.closest('article,[data-testid^="conversation-turn-"],[data-turn-key]'),time=turn?.querySelector?.('time[datetime]');
+        out.push({role,text,at:parseTime(time?.getAttribute?.('datetime')||0)});
+      }
+      return out;
+    }
     for(const el of document.querySelectorAll('[data-message-author-role]')){
       const role=one(el.getAttribute('data-message-author-role')||'unknown').toLowerCase();
       if(!['user','assistant','tool','system'].includes(role))continue;
@@ -1256,7 +1272,7 @@
 
   const editorText = ed => String(ed ? ('value' in ed ? ed.value : ed.innerText || ed.textContent || '') : '');
   const visible = el => el instanceof Element && el.isConnected && getComputedStyle(el).display !== 'none' && getComputedStyle(el).visibility !== 'hidden' && el.getClientRects().length > 0;
-  const editorFor = target => target instanceof Element ? (target.matches('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]') ? target : target.closest('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')) : null;
+  const editorFor = target => hostDOM()?.composerForTarget(target) || (target instanceof Element ? (target.matches('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"][role="textbox"]') ? target : target.closest('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"][role="textbox"]')) : null);
 
   function setEditor(ed, value) {
     try {
@@ -1271,7 +1287,7 @@
 
   function inject(ed) {
     if (!prefsReady || !prefsCache.injectOnNewChat || !contextProject || !contextText || !visible(ed)) return;
-    if (document.querySelector('[data-message-author-role="user"]')) return;
+    { const main=document.querySelector('main')||document;if((hostDOM()?.userSurfaces(main)?.length||0)>0||document.querySelector('[data-message-author-role="user"]'))return; }
     const raw = editorText(ed); if (!raw.trim() || raw.startsWith('NIAKGPT PROJECT MEMORY —')) return;
     const key = 'niakgpt-memory-v132:' + contextProject + ':' + location.pathname;
     try { if (sessionStorage.getItem(key) === '1') return; } catch {}

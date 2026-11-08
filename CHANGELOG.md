@@ -5,6 +5,8 @@ Cette release remet la couche sidebar de NiakGPT en phase avec la refonte ChatGP
 - **Cause racine** : la dernière release runtime précédait la nouvelle structure de sidebar. Plusieurs modules conservaient encore leur propre fallback `conversation-sidebar/sidebar/nav`, tandis que le finder robuste v131 n'était initialisé qu'en fin de runtime.
 - **Autorité unique plus tôt** : `ux-v131.js` est désormais chargé avant metadata, Projects, Pins et les autres consommateurs de sidebar.
 - **Nouvelle structure reconnue** : la détection s'appuie aussi sur `role="navigation"`, les labels de sidebar et les sections récentes `sortable/draggable`, sans dépendre d'une classe interne unique.
+- **Renderer de conversation moderne** : `host-dom-v125.js` normalise l'ancien rendu `conversation-turn-*` et le nouveau rendu groupé `data-turn-key` / `data-content-search-unit-key`, sans confondre un groupe utilisateur+assistant avec un seul tour.
+- **Composer ProseMirror** : continuité, activité, watchdog, Project Memory, Coach et bridge principal reconnaissent désormais `data-composer-markdown` en plus des anciens `prompt-textarea`.
 - **Chemins historiques raccordés** : metadata, icônes et autorité Projects consultent tous le finder v131 avant leurs fallbacks.
 - **Remount SPA couvert** : un nouveau test reproduit une sidebar moderne imbriquée, une fausse navigation centrale et un remount complet ; NiakGPT doit rester dans le shell gauche pleine largeur.
 - **Cross-engine** : ce scénario est ajouté à Current Finalization pour Chromium, Firefox et WebKit.

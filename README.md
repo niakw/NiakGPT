@@ -13,7 +13,7 @@
   <p>NiakGPT keeps the ChatGPT experience you already know — and adds the organization, resilience and continuity power users keep missing.</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-0.9.124-4fc1ff">
+    <img alt="Version" src="https://img.shields.io/badge/version-0.9.125-4fc1ff">
     <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4ec9b0">
     <img alt="Local first" src="https://img.shields.io/badge/local--first-100%25-c586c0">
     <img alt="Analytics" src="https://img.shields.io/badge/analytics-none-dcdcaa">
@@ -90,7 +90,7 @@ Project Memory is optional and disabled by default. When enabled, NiakGPT can pe
 
 NiakGPT deliberately avoids becoming a second application wrapped around ChatGPT. UI surfaces are compact, native-first and removable; the architecture separates ownership so multiple modules do not compete for the same DOM or state.
 
-> **0.9.124 focus:** Project Memory now converges cleanly when the server inventory and local cache disagree. Stable inventory gaps stop re-queuing forever, quarantined conversations no longer hold the automatic pass below 100%, and the regression is covered by Chromium release gates.
+> **Current version: 0.9.125.**\n> **0.9.125 focus:** compatibility with the redesigned ChatGPT Web sidebar. NiakGPT now establishes one geometry/semantics-based sidebar authority before Projects, Pins and metadata consumers, recognizes the newer sortable/draggable navigation structure, and gates SPA remount behavior across Chromium, Firefox and WebKit.
 
 ## Deep dive
 

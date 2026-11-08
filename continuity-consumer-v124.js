@@ -16,7 +16,8 @@
   const clean=v=>String(v??'').replace(/\r/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
   const cid=v=>String(v||'').match(/\/c\/([A-Za-z0-9_-]+)/)?.[1]||'';
   const currentCid=()=>cid(location.pathname);
-  const editor=()=>document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"]')||[...document.querySelectorAll('textarea,[contenteditable="true"]')].reverse().find(el=>!el.closest('#ng8-coach,#ng119-interruption'));
+  const hostDOM=()=>window.__NIAKGPT_HOST_DOM_V125__;
+  const editor=()=>hostDOM()?.composer()||document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"]')||[...document.querySelectorAll('textarea,[contenteditable="true"][role="textbox"]')].reverse().find(el=>!el.closest('#ng8-coach,#ng119-interruption'));
   const editorText=ed=>clean(ed?('value'in ed?ed.value:ed.innerText||ed.textContent):'');
   const fresh=p=>!!p&&Date.now()-Number(p.createdAt||0)<MAX_AGE;
 

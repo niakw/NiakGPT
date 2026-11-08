@@ -1,19 +1,17 @@
-# NiakGPT 0.9.125 — ChatGPT sidebar redesign compatibility
+# NiakGPT 0.9.125 — ChatGPT Web redesign compatibility
 
-> A compatibility release for the redesigned ChatGPT Web navigation.
-
-NiakGPT 0.9.124 was released before the major ChatGPT Web sidebar change observed at the end of September 2026. The extension already had a geometry-aware sidebar finder, but it was initialized too late: metadata, Projects, Pins and icon modules could run first and fall back to assumptions about the older DOM.
+> Compatibility release for the redesigned sidebar, grouped conversation renderer and ProseMirror composer.
 
 ## What changed
 
-- The v131 sidebar finder now initializes before every sidebar consumer.
-- Detection accepts semantic navigation containers and the newer Pinned / Projects / Recents sortable or draggable structure.
-- Nested navigation columns are promoted to the full left sidebar shell when geometry shows they are only an internal lane.
-- Sidebar metadata, native icon decoration and Projects authority reuse the same finder before any legacy fallback.
-- A dedicated regression fixture models the post-September structure without relying on `data-testid="conversation-sidebar"`.
-- The fixture also remounts the semantic navigation like a SPA update and verifies that NiakGPT remains attached to the full left shell.
-- Current Finalization runs the new scenario on Chromium, Firefox and WebKit.
+- One canonical geometry/semantics-based sidebar authority now initializes before Projects, Pins and metadata consumers.
+- The sidebar finder recognizes semantic navigation containers plus sortable/draggable Pinned, Projects and Recents lanes.
+- Mixed Pinned sections keep ordinary pinned chats visible while NiakGPT suppresses only the native Project rows it replaces.
+- New `host-dom-v125.js` normalizes both legacy `conversation-turn-*` messages and the grouped `data-turn-key` / `data-content-search-unit-key` renderer.
+- Activity tracking, turn headers, performance guards, load guards, continuity, interruption recovery, scroll follow, Coach and Project Memory now consume that shared adapter.
+- The modern `data-composer-markdown` ProseMirror editor is recognized by the core runtime, boot gate, MAIN-world bridge, long-run watchdog and continuity handoff.
+- Cross-engine regression fixtures cover sidebar remounts and a conversation fixture containing no legacy turn/composer selectors.
 
 ## Validation boundary
 
-The release gates validate source invariants, packaging and a browser-level synthetic reproduction of the redesigned sidebar. They do not claim an authenticated production ChatGPT session was exercised from this run because the connected browser policy does not expose the live chatgpt.com DOM to the assistant.
+GitHub CI validates source invariants, package construction and synthetic browser reproductions on Chromium, Firefox and WebKit. An authenticated production ChatGPT tab cannot be inspected by the connected-browser policy in this session, so that last live-session check is not claimed here.

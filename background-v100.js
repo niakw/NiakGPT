@@ -22,6 +22,7 @@ const ISOLATED_RUNTIME=[
   'cache-bus-v096.js',
   'diagnostic-bus-v096.js',
   'ux-v131.js',
+  'host-dom-v125.js',
   'sidebar-metadata-v118.js',
   'cache-guardian-v100.js',
   'recovery-v100.js',

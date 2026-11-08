@@ -114,11 +114,12 @@ required={
     'sidebar-metadata-v118.js','sidebar-projects-authority-v112.js','sidebar-projects-v121.js','pin-folders-v096.js','app-v090.js','sidebar-actions-v123.js',
     'home-layout-v112.js','analysis-bridge-v112.js','reclassify-deep-v112.js','matrix-guardian-v112.js','performance-guard-v112.js','turn-headers-v112.js','continuity-v112.js',
     'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','continuity-consumer-v124.js','interruption-guard-v119.js',
-    'conversation-scroll-guard-v133.js','ux-v131.js'
+    'conversation-scroll-guard-v133.js','ux-v131.js','host-dom-v125.js'
 }
 missing_runtime=sorted(required-set(isolated))
 if missing_runtime: fail('current runtime missing: '+', '.join(missing_runtime))
 if isolated.index('ux-v131.js')>=isolated.index('sidebar-metadata-v118.js'): fail('v131 sidebar finder must initialize before sidebar metadata and all downstream consumers')
+if isolated.index('host-dom-v125.js')<=isolated.index('ux-v131.js') or isolated.index('host-dom-v125.js')>=isolated.index('sidebar-metadata-v118.js'): fail('v125 host DOM adapter must initialize after sidebar authority and before runtime consumers')
 if isolated.index('continuity-consumer-v124.js')<=isolated.index('continuity-v112.js'): fail('continuity v124 consumer must load after v112 producer')
 continuity100=read('continuity-v100.js')
 continuity112=read('continuity-v112.js')

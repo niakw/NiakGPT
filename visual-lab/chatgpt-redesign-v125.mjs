@@ -45,8 +45,10 @@ function sidebarMarkup(){
   return `
     <div id="primary"><a href="/">ChatGPT</a><a href="/search">Rechercher</a></div>
     <nav id="semantic-nav" role="navigation" aria-label="Navigation ChatGPT">
-      <section aria-label="Épinglés" aria-roledescription="sortable">
-        <div role="group" draggable="true"><a href="/c/${chat}">Conversation épinglée</a></div>
+      <section id="native-pinned" aria-label="Épinglés" aria-roledescription="sortable">
+        <div id="pinned-chat-row" role="group" draggable="true"><a href="/c/${chat}">Conversation épinglée</a></div>
+        <div id="pinned-project-one" role="group" draggable="true"><a href="/g/${project}/project">Studio</a><button aria-label="Actions du projet">•••</button></div>
+        <div id="pinned-project-two" role="group" draggable="true"><a href="/g/${project2}/project">Research</a><button aria-label="Actions du projet">•••</button></div>
       </section>
       <section id="native-projects" aria-label="Projets" aria-roledescription="sortable">
         <div role="group" draggable="true"><a href="/g/${project}/project">Studio</a><button aria-label="Actions du projet">•••</button></div>
@@ -79,18 +81,24 @@ for(const [engine,launcher] of Object.entries(engines)){
     await page.route('https://chatgpt.com/**',route=>route.fulfill({status:200,contentType:'text/html; charset=utf-8',body:html}));
     await page.goto(`https://chatgpt.com/g/${project}/c/${chat}`,{waitUntil:'domcontentloaded'});
     await page.addScriptTag({content:ux});
+    await page.addScriptTag({content:authority});
     await page.waitForTimeout(180);
 
     const first=await page.evaluate(()=>({
       finder:window.__NIAKGPT_FIND_SIDEBAR_V131__?.()?.id||'',
       verified:document.getElementById('ng8-pins')?.dataset.ng131SidebarVerified||'',
       surface:document.documentElement.dataset.ng131Surface||'',
-      pinsParent:document.getElementById('ng8-pins')?.parentElement?.id||''
+      pinsParent:document.getElementById('ng8-pins')?.parentElement?.id||'',
+      mixedPinnedHidden:document.getElementById('native-pinned')?.getAttribute('data-ng112-native-projects')||'',
+      pinnedChatHidden:document.getElementById('pinned-chat-row')?.getAttribute('data-ng112-native-projects')||'',
+      pinnedProjectRows:[...document.querySelectorAll('#pinned-project-one,#pinned-project-two')].map(el=>el.getAttribute('data-ng112-native-projects')||'')
     }));
     assert(first.finder==='left-shell',`${engine}: redesigned sidebar resolved to ${JSON.stringify(first)}`);
     assert(first.verified==='1',`${engine}: managed Projects were not verified in redesigned sidebar: ${JSON.stringify(first)}`);
     assert(first.surface==='conversation',`${engine}: project-chat route lost conversation surface: ${JSON.stringify(first)}`);
     assert(first.pinsParent==='left-shell',`${engine}: Projects moved into an inner sortable lane: ${JSON.stringify(first)}`);
+    assert(first.mixedPinnedHidden===''&&first.pinnedChatHidden==='',`${engine}: mixed Pinned container/chat was suppressed: ${JSON.stringify(first)}`);
+    assert(first.pinnedProjectRows.every(mark=>mark==='1'),`${engine}: pinned Project rows were not individually suppressed: ${JSON.stringify(first)}`);
 
     await page.evaluate(markup=>{
       const old=document.getElementById('semantic-nav');
@@ -103,10 +111,15 @@ for(const [engine,launcher] of Object.entries(engines)){
       finder:window.__NIAKGPT_FIND_SIDEBAR_V131__?.()?.id||'',
       verified:document.getElementById('ng8-pins')?.dataset.ng131SidebarVerified||'',
       pinsParent:document.getElementById('ng8-pins')?.parentElement?.id||'',
-      nativeProjects:document.querySelectorAll('#native-projects a[href*="/g/g-p-"]').length
+      nativeProjects:document.querySelectorAll('#native-projects a[href*="/g/g-p-"]').length,
+      mixedPinnedHidden:document.getElementById('native-pinned')?.getAttribute('data-ng112-native-projects')||'',
+      pinnedChatHidden:document.getElementById('pinned-chat-row')?.getAttribute('data-ng112-native-projects')||'',
+      pinnedProjectRows:[...document.querySelectorAll('#pinned-project-one,#pinned-project-two')].map(el=>el.getAttribute('data-ng112-native-projects')||'')
     }));
     assert(remount.finder==='left-shell'&&remount.verified==='1'&&remount.pinsParent==='left-shell'&&remount.nativeProjects===2,
       `${engine}: SPA sidebar remount broke redesigned authority: ${JSON.stringify(remount)}`);
+    assert(remount.mixedPinnedHidden===''&&remount.pinnedChatHidden===''&&remount.pinnedProjectRows.every(mark=>mark==='1'),
+      `${engine}: SPA remount corrupted mixed Pinned ownership: ${JSON.stringify(remount)}`);
   }finally{
     await context.close();
     await browser.close();

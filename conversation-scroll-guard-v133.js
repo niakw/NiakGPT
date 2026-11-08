@@ -6,6 +6,7 @@
   const CHAT_RX=/(?:^|\/)c\/[A-Za-z0-9_-]+(?:$|[/?#])/;
   const ACTIVE=new Set(['loading','waiting','thinking','executing']);
   const SEND_LATCH_MS=6500;
+  const hostDOM=()=>window.__NIAKGPT_HOST_DOM_V125__;
   let root=null,main=null,observer=null,shellObserver=null,rootObserver=null,resizeObserver=null,raf=0,sticky=false,userUpAt=-Infinity,lastBottom=Infinity,lastPath=location.pathname,touchY=null;
   let sendIntentAt=-Infinity,sendLatched=false,wasActive=false,latchTimer=0,observedTail=null,programmaticUntil=0,pointerScrollActive=false,pointerReleaseTimer=0;
 
@@ -27,6 +28,7 @@
   function conversationMain(){return document.querySelector('main,[role="main"]')||null;}
   function conversationTail(){
     const host=conversationMain()||document.body;if(!host)return null;
+    const modern=hostDOM()?.surfaces(host);if(modern?.length)return modern.at(-1);
     const turns=[...host.querySelectorAll('[data-testid^="conversation-turn-"],[data-message-author-role]')].filter(el=>el instanceof HTMLElement&&el.isConnected);
     return turns.at(-1)||host;
   }

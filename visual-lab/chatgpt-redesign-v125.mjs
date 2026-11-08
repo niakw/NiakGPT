@@ -104,7 +104,9 @@ for(const [engine,launcher] of Object.entries(engines)){
       const old=document.getElementById('semantic-nav');
       const host=document.createElement('div');
       host.innerHTML=markup;
-      old.replaceWith(host.firstElementChild);
+      const next=host.querySelector('#semantic-nav');
+      if(!old||!next)throw new Error('redesign fixture remount could not resolve semantic nav');
+      old.replaceWith(next);
     },sidebarMarkup());
     await page.waitForTimeout(220);
     const remount=await page.evaluate(()=>({

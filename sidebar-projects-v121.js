@@ -662,7 +662,7 @@
     return box;
   }
   function hideWelcome(){
-    const main=document.querySelector('main,[role="main"]');if(!main||main.querySelector('[data-message-author-role]'))return;
+    const main=document.querySelector('main,[role="main"]');if(!main||window.__NIAKGPT_HOST_DOM_V125__?.hasTurns(main)||main.querySelector('[data-message-author-role]'))return;
     const rx=/^(?:bonjour|bonsoir|salut|hello|hi)(?:\s+[\p{L}\p{N}._'-]{1,40})?[!,.? ]*$|^(?:par quoi commençons-nous|comment puis-je vous aider|que puis-je faire pour vous|qu[’']est-ce qu[’']on fait|how can i help|what can i help with|what(?:'|’)s on your mind)[?!. ]*$/iu;
     for(const el of main.querySelectorAll('h1,h2,[role="heading"],[data-testid*="welcome" i]')){const text=clean(el.textContent);if(text&&text.length<=140&&rx.test(text))el.classList.add('ng119-native-home-greeting');}
   }

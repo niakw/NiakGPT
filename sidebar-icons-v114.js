@@ -3,11 +3,11 @@
   if(location.hostname!=='chatgpt.com'||window.__NIAKGPT_SIDEBAR_ICONS_114__)return;
   window.__NIAKGPT_SIDEBAR_ICONS_114__=true;
   const OWN='#ng8-pins,#ng8-panel,#ng8-rail,#ng8-status,#ng8-quick,#ng8-coach,#ng90-control,#ng100-command,#ng100-onboarding,#ng100-breadcrumb';
-  const SIDEBAR_SEL='[data-testid="conversation-sidebar"],[data-testid="sidebar"],nav';
+  const SIDEBAR_SEL='[data-testid="conversation-sidebar"],[data-testid="sidebar"],[data-testid*="sidebar" i],[role="navigation"],nav,aside';
   let navNode=null,observer=null,rootObserver=null,timer=0;
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-  const navRoot=()=>document.querySelector('[data-testid="conversation-sidebar"],[data-testid="sidebar"]')||document.querySelector('nav');
+  const navRoot=()=>window.__NIAKGPT_FIND_SIDEBAR_V131__?.()||document.querySelector('[data-testid="conversation-sidebar"],[data-testid="sidebar"],[data-testid*="sidebar" i]')||document.querySelector('[role="navigation"],nav,aside');
   function rootMutationRelevant(records){
     for(const record of records)for(const node of [...record.addedNodes,...record.removedNodes]){
       if(!(node instanceof Element))continue;

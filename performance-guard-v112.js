@@ -4,12 +4,13 @@
   window.__NIAKGPT_PERF_GUARD_112__=true;
 
   const TURN='article[data-testid^="conversation-turn-"],[data-testid^="conversation-turn-"]';
+  const hostDOM=()=>window.__NIAKGPT_HOST_DOM_V125__;
   const HEAVY_AT=70,COLD_KEEP=44;
   let main=null,observer=null,timer=0,route=location.pathname,epoch=0;
   const activity=()=>document.documentElement.dataset.ng86Activity||'ready';
   const idle=()=>activity()==='ready'&&document.documentElement.dataset.ng8Running!=='1';
   const scheduleTask=fn=>{if('requestIdleCallback'in window){try{return requestIdleCallback(fn,{timeout:900});}catch{}}return setTimeout(fn,60);};
-  function roleOf(turn){return turn.querySelector?.('[data-message-author-role]')?.getAttribute('data-message-author-role')||'';}
+  function roleOf(turn){return hostDOM()?.roleOf(turn)||turn.querySelector?.('[data-message-author-role]')?.getAttribute('data-message-author-role')||'';}
   function markChunk(turns,start,end,token){
     if(token!==epoch)return;
     const stop=Math.min(end,turns.length);
@@ -22,7 +23,7 @@
   }
   function evaluate(){
     timer=0;const root=document.querySelector('main');if(!root)return;
-    const turns=[...root.querySelectorAll(TURN)],count=turns.length,heavy=count>=HEAVY_AT;
+    const turns=hostDOM()?.surfaces(root)||[...root.querySelectorAll(TURN)],count=turns.length,heavy=count>=HEAVY_AT;
     document.documentElement.dataset.ng112LongThread=heavy?'1':'0';
     if(heavy)document.documentElement.dataset.ng8Heavy='1';
     const token=++epoch;markChunk(turns,0,heavy?24:turns.length,token);

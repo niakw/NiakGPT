@@ -7,7 +7,8 @@
   const norm=v=>clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const ready=()=>!['loading','waiting','thinking','executing'].includes(root.dataset.ng86Activity||'')&&root.dataset.ng8Running!=='1'&&root.dataset.ng90Safe!=='1';
-  function editor(){return document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"]')||[...document.querySelectorAll('textarea,[contenteditable="true"]')].reverse().find(el=>!el.closest('#ng8-coach'));}
+  const hostDOM=()=>window.__NIAKGPT_HOST_DOM_V125__;
+  function editor(){return hostDOM()?.composer()||document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"]')||[...document.querySelectorAll('textarea,[contenteditable="true"][role="textbox"]')].reverse().find(el=>!el.closest('#ng8-coach'));}
   function editorText(ed){if(!ed)return'';return 'value'in ed?ed.value:(ed.innerText||ed.textContent||'');}
   function setEditor(ed,text){
     if(!ed)return;if('value'in ed){const setter=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(ed),'value')?.set;setter?setter.call(ed,text):ed.value=text;}else{ed.focus();document.execCommand?.('selectAll',false);if(!document.execCommand?.('insertText',false,text))ed.textContent=text;}
@@ -17,8 +18,8 @@
   function projectContext(){const {pid}=currentIds(),p=(cache.projects||[]).find(x=>x.id===pid);return p?{name:clean(p.name),description:clean(p.description),instructions:clean(p.instructions)}:{name:'',description:'',instructions:''};}
   function recentContext(){
     if(!ready())return'';const main=document.querySelector('main');if(!main)return'';
-    const turns=[...main.querySelectorAll('[data-message-author-role]')].slice(-5);
-    return turns.map(el=>{const role=el.getAttribute('data-message-author-role')==='user'?'Utilisateur':'Assistant';return`${role}: ${clean(el.innerText||el.textContent).replace(/\s+/g,' ').slice(0,650)}`;}).join('\n').slice(-3000);
+    const turns=(hostDOM()?.surfaces(main)||[...main.querySelectorAll('[data-message-author-role]')]).slice(-5);
+    return turns.map(el=>{const role=hostDOM()?.roleOf(el)==='user'?'Utilisateur':'Assistant';return`${role}: ${clean(el.innerText||el.textContent).replace(/\s+/g,' ').slice(0,650)}`;}).join('\n').slice(-3000);
   }
   function kind(text){const n=norm(text);if(/\b(code|bug|javascript|typescript|python|php|sql|api|github|docker|extension|chrome|css|html|test|runtime|fonction|fichier)\b/.test(n))return'dev';if(/\b(recherche|cherche|verifie|vérifie|source|sources|documentation|compare|actualité|latest|recent|récent)\b/.test(n))return'research';if(/\b(compare|comparatif|versus|vs\.?|avantage|inconvenient|inconvénient)\b/.test(n))return'comparison';if(/\b(plan|strategie|stratégie|roadmap|etapes|étapes|planning)\b/.test(n))return'plan';if(/\b(ecris|écris|redige|rédige|mail|message|article|texte|lettre|post|description)\b/.test(n))return'writing';return'general';}
   function constraints(text){

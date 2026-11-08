@@ -9,9 +9,10 @@ const forbid=(s,t,m)=>{if(s.includes(t))fail(m||`forbidden ${t}`);};
 const authority=read('sidebar-projects-authority-v112.js');
 for(const token of [
   'function sidebarShellFor(el)',
+  'window.__NIAKGPT_FIND_SIDEBAR_V131__?.()',
   "el.closest?.('[data-testid=\"conversation-sidebar\"]')",
-  "el.closest?.('[data-testid=\"sidebar\"]')",
-  "el.closest?.('aside,nav')",
+  "el.closest?.('[data-testid=\"sidebar\"],[data-testid*=\"sidebar\" i]')",
+  "el.closest?.('[role=\"navigation\"],aside,nav')",
   'const shell=sidebarShellFor(own)',
   'const candidate=sidebarShellFor(el)',
   'const overlap=Math.max(0',
@@ -20,6 +21,8 @@ for(const token of [
   "candidate.querySelector?.('[class*=\"project-unfurl-row\"]')",
   "candidate.getAttribute?.(MARK)==='1'&&structuralProjectSurface(candidate)",
   "projectLinks=links.filter(a=>projectChildHref(a.getAttribute('href')))",
+  "genericChats=links.filter(a=>/\\/c\\//i.test(String(a.getAttribute('href')||''))&&!projectChildHref(a.getAttribute('href')))",
+  'if(genericChats.length)return false',
   'projectLinks.length>=2',
   'if(projectLinks.length!==1)return false',
   'showMoreLabel(node.textContent||node.getAttribute?.(\'aria-label\'))'

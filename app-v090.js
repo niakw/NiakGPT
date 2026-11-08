@@ -232,7 +232,7 @@
     finally{S.indexing=false;if(canBackground())scheduleIndex(S.queue.length?260:100);}
   }
 
-  function navRoot(){ return document.querySelector('[data-testid="conversation-sidebar"]')||document.querySelector('[data-testid="sidebar"]')||[...document.querySelectorAll('nav,aside')].find(x=>x.querySelector(CHAT_SEL)||x.querySelector(PROJECT_SEL))||document.querySelector('nav')||null; }
+  function navRoot(){ const guarded=window.__NIAKGPT_FIND_SIDEBAR_V131__?.();return guarded?.isConnected?guarded:document.querySelector('[data-testid="conversation-sidebar"],[data-testid="sidebar"],[data-testid*="sidebar" i]')||[...document.querySelectorAll('[role="navigation"],nav,aside')].find(x=>!x.closest('main,[role="main"]')&&(x.querySelector(CHAT_SEL)||x.querySelector(PROJECT_SEL)))||null; }
   function mergeDOM(){
     const root=navRoot();if(!root)return;
     for(const a of root.querySelectorAll(PROJECT_SEL)){

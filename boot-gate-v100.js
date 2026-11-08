@@ -36,7 +36,7 @@
   async function waitForChatShell(timeout=8000){
     const start=performance.now();
     while(performance.now()-start<timeout){
-      if(document.body&&(document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"]')||document.querySelector('main')||document.querySelector('nav,aside')))return;
+      if(document.body&&(document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"],form[data-chatgpt-composer] [data-composer-markdown][contenteditable="true"][role="textbox"],[data-composer-markdown][contenteditable="true"][role="textbox"]')||document.querySelector('main,[role="main"]')||document.querySelector('[role="navigation"],nav,aside')))return;
       await sleep(80);
     }
   }
@@ -68,9 +68,9 @@
   }
   function hostIdentity(){
     return [
-      document.querySelector('nav,aside'),
-      document.querySelector('main'),
-      document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]')
+      document.querySelector('[role="navigation"],nav,aside'),
+      document.querySelector('main,[role="main"]'),
+      document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"],form[data-chatgpt-composer] [data-composer-markdown][contenteditable="true"][role="textbox"],[data-composer-markdown][contenteditable="true"][role="textbox"],textarea,[contenteditable="true"][role="textbox"]')
     ];
   }
   async function waitStableHostIdentity(stableMs=1600,maxWait=8500){

@@ -1,3 +1,15 @@
+# NiakGPT 0.9.125 — compatibilité avec la nouvelle sidebar ChatGPT
+
+Cette release remet la couche sidebar de NiakGPT en phase avec la refonte ChatGPT Web déployée après la 0.9.124.
+
+- **Cause racine** : la dernière release runtime précédait la nouvelle structure de sidebar. Plusieurs modules conservaient encore leur propre fallback `conversation-sidebar/sidebar/nav`, tandis que le finder robuste v131 n'était initialisé qu'en fin de runtime.
+- **Autorité unique plus tôt** : `ux-v131.js` est désormais chargé avant metadata, Projects, Pins et les autres consommateurs de sidebar.
+- **Nouvelle structure reconnue** : la détection s'appuie aussi sur `role="navigation"`, les labels de sidebar et les sections récentes `sortable/draggable`, sans dépendre d'une classe interne unique.
+- **Chemins historiques raccordés** : metadata, icônes et autorité Projects consultent tous le finder v131 avant leurs fallbacks.
+- **Remount SPA couvert** : un nouveau test reproduit une sidebar moderne imbriquée, une fausse navigation centrale et un remount complet ; NiakGPT doit rester dans le shell gauche pleine largeur.
+- **Cross-engine** : ce scénario est ajouté à Current Finalization pour Chromium, Firefox et WebKit.
+- **Vérité de test** : cette validation prouve la compatibilité structurelle simulée ; l'onglet ChatGPT authentifié n'est pas accessible au navigateur connecté dans cette session et reste donc à revalider sur installation réelle.
+
 # NiakGPT 0.9.124 — Project Memory sait désormais quand s’arrêter
 
 Cette release renforce NiakGPT comme **workspace durable pour ChatGPT** : la mémoire privée converge proprement, les exceptions restent visibles sans bloquer le reste, et le transfert automatique possède enfin une vraie condition de fin.

@@ -90,7 +90,7 @@ Project Memory est optionnelle et désactivée par défaut. Lorsqu’elle est ac
 
 NiakGPT évite volontairement de devenir une seconde application autour de ChatGPT. Les surfaces UI restent compactes, native-first et désactivables ; l’architecture sépare les responsabilités pour éviter que plusieurs modules se disputent le même DOM ou le même état.
 
-> **Version actuelle : 0.9.125.**\n> **Focus 0.9.125 :** compatibilité avec la nouvelle sidebar de ChatGPT Web. NiakGPT établit désormais une autorité unique de détection géométrique/sémantique avant Projects, Pins et les consommateurs de métadonnées, reconnaît la structure récente sortable/draggable et couvre les remounts SPA sous Chromium, Firefox et WebKit.
+> **Version actuelle : 0.9.125.**\n> **Focus 0.9.125 :** compatibilité avec le nouveau shell de ChatGPT Web. NiakGPT établit désormais une autorité unique de détection géométrique/sémantique avant Projects, Pins et les consommateurs de métadonnées, reconnaît la structure récente sortable/draggable, et ajoute un adaptateur DOM canonique pour les conversations groupées `data-turn-key` ainsi que le composer ProseMirror. Les remounts SPA et le renderer de conversation moderne sont couverts sous Chromium, Firefox et WebKit.
 
 ## Détails techniques
 

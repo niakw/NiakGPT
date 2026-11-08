@@ -113,7 +113,8 @@
   }
   function projectTarget(target){
     const el=target instanceof Element?target.closest('button,[role="menuitem"],[role="option"],a,[data-value]'):null;
-    if(!el||el.closest(OWN)||el.closest('[data-testid="conversation-sidebar"],[data-testid="sidebar"],nav'))return null;
+    const sidebar=window.__NIAKGPT_FIND_SIDEBAR_V131__?.();
+    if(!el||el.closest(OWN)||(sidebar?.isConnected&&sidebar.contains(el))||el.closest('[data-testid="conversation-sidebar"],[data-testid="sidebar"],[data-testid*="sidebar" i],[role="navigation"],nav,aside'))return null;
     const href=el.getAttribute('href')||'';
     if(/\/g\/g-p-[^/]+\/(?:project|c\/)/i.test(href))return null;
     const text=clean(el.textContent||el.getAttribute('aria-label')||el.getAttribute('title'));

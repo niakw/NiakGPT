@@ -36,7 +36,7 @@ forbid(packager,"'STYLE_RUNTIME'",'packager must not depend on deferred STYLE_RU
 const required=[
   'sidebar-metadata-v118.js','sidebar-projects-authority-v112.js','sidebar-projects-v121.js','pin-folders-v096.js','app-v090.js','sidebar-actions-v123.js','folder-scroll-anchor-v124.js','project-native-name-sync-v124.js',
   'home-layout-v112.js','analysis-bridge-v112.js','reclassify-deep-v112.js','matrix-guardian-v112.js','performance-guard-v112.js','turn-headers-v112.js',
-  'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','continuity-v112.js','continuity-consumer-v124.js','interruption-guard-v119.js'
+  'chat-state-authority-v113.js','breadcrumb-v113.js','chat-attention-v113.js','conversation-load-guard-v113.js','sidebar-icons-v114.js','continuity-v112.js','continuity-consumer-v124.js','interruption-guard-v119.js','host-dom-v125.js'
 ];
 same(optional,['project-memory-v132.js','project-memory-ui-v132.js'],'optional Project Memory runtime mismatch');
 for(const file of optional)if(isolated.includes(file))fail(`optional Project Memory leaked into critical runtime ${file}`);
@@ -54,6 +54,7 @@ for(const file of recoveryOverlays){
 
 const idx=file=>isolated.indexOf(file);
 if(idx('ux-v131.js')<0||idx('ux-v131.js')>=idx('sidebar-metadata-v118.js'))fail('v131 sidebar finder must initialize before sidebar metadata and downstream consumers');
+if(idx('host-dom-v125.js')<0||idx('host-dom-v125.js')<=idx('ux-v131.js')||idx('host-dom-v125.js')>=idx('sidebar-metadata-v118.js'))fail('v125 ChatGPT host DOM adapter must initialize after sidebar authority and before runtime consumers');
 for(const consumer of ['cache-guardian-v100.js','recovery-v100.js','server-index-v100.js','project-governance-v090.js','reclassify-v101.js'])if(idx('sidebar-metadata-v118.js')<0||idx('sidebar-metadata-v118.js')>=idx(consumer))fail(`sidebar metadata must sanitize cache before ${consumer}`);
 if(idx('sidebar-actions-v123.js')<=idx('pin-folders-v096.js')||idx('sidebar-actions-v123.js')<=idx('app-v090.js'))fail('single sidebar action owner must load after rows/render owner');
 if(idx('folder-scroll-anchor-v124.js')<=idx('sidebar-actions-v123.js'))fail('folder scroll anchor must load after sidebar actions');

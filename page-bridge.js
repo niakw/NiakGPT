@@ -330,7 +330,7 @@
     });
   }
 
-  const composerSelector = '#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]';
+  const composerSelector = '#prompt-textarea,[data-testid="prompt-textarea"],form[data-chatgpt-composer] [data-composer-markdown][contenteditable="true"][role="textbox"],[data-composer-markdown][contenteditable="true"][role="textbox"],textarea,[contenteditable="true"][role="textbox"]';
   const sendLike = button => {
     if (!(button instanceof Element)) return false;
     const label = `${button.getAttribute('aria-label')||''} ${button.getAttribute('data-testid')||''} ${button.getAttribute('title')||''}`;

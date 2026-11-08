@@ -78,6 +78,7 @@ html[data-ng8-running="1"][data-ng8-heavy="1"] #ng8-matrix{opacity:.09!important
 
 /* Remove the native ChatGPT user bubble without flattening attachment/file cards inside it. */
 [data-message-author-role="user"] :is(.bg-token-message-surface,[class*="bg-token-message"],[class*="message-surface"]),
+[data-user-message-bubble] :is(.bg-token-message-surface,[class*="bg-token-message"],[class*="message-surface"]),
 [data-ng8-role="user"] :is(.bg-token-message-surface,[class*="bg-token-message"],[class*="message-surface"]){
   background:transparent!important;
   border:0!important;
@@ -113,6 +114,7 @@ html[data-ng8-running="1"][data-ng8-heavy="1"] #ng8-matrix{opacity:.09!important
 /* Composer: flatten every frame that actually contains the prompt, not action buttons. */
 body.ng8-ready form:has(#prompt-textarea),
 body.ng8-ready form:has([data-testid="prompt-textarea"]),
+body.ng8-ready form[data-chatgpt-composer]:has([data-composer-markdown]),
 body.ng8-ready [data-type="unified-composer"]{
   border:0!important;
   border-radius:5px!important;
@@ -121,8 +123,10 @@ body.ng8-ready [data-type="unified-composer"]{
 }
 body.ng8-ready form:has(#prompt-textarea) :where(div,section):has(#prompt-textarea),
 body.ng8-ready form:has([data-testid="prompt-textarea"]) :where(div,section):has([data-testid="prompt-textarea"]),
+body.ng8-ready form[data-chatgpt-composer] :where(div,section):has([data-composer-markdown]),
 body.ng8-ready [data-type="unified-composer"] :where(div,section):has(#prompt-textarea),
-body.ng8-ready [data-type="unified-composer"] :where(div,section):has([data-testid="prompt-textarea"]){
+body.ng8-ready [data-type="unified-composer"] :where(div,section):has([data-testid="prompt-textarea"]),
+body.ng8-ready [data-type="unified-composer"] :where(div,section):has([data-composer-markdown]){
   border-width:0!important;
   border-color:transparent!important;
   border-radius:5px!important;

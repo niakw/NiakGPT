@@ -203,6 +203,11 @@ jobs:
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node chatgpt-redesign-v125.mjs
+      - name: ChatGPT grouped turns + ProseMirror composer
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node chatgpt-grouped-turns-v125.mjs
       - name: Reported DOM node stability — direct chat and late shell remount
         working-directory: visual-lab
         env:

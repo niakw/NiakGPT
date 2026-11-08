@@ -10,6 +10,7 @@
   const ACTIVE=new Set(['loading','waiting','thinking','executing']);
   const PRIORITY={ready:0,loading:1,waiting:2,thinking:3,executing:4,error:5};
   const LABEL={ready:'PRÊT',loading:'CHARGEMENT',waiting:'ATTENTE',thinking:'RÉFLEXION / ANALYSE',executing:'EXÉCUTION',error:'ERREUR'};
+  const hostDOM=()=>window.__NIAKGPT_HOST_DOM_V125__;
   const bc=typeof BroadcastChannel==='function'?new BroadcastChannel(CHANNEL):null;
   const states=new Map(),remoteExpiry=new Map();
 
@@ -105,10 +106,11 @@
 
   function assistantFrom(node){
     const el=node instanceof Element?node:node?.parentElement;if(!el)return null;
+    const modern=hostDOM()?.closestTurn(el);if(modern&&hostDOM()?.roleOf(modern)==='assistant')return modern;
     if(el.matches?.('[data-message-author-role="assistant"]'))return el;
     return el.closest?.('[data-message-author-role="assistant"]')||el.querySelector?.('[data-message-author-role="assistant"]')||null;
   }
-  function latestAssistant(){const root=mainRoot();return root?.querySelector?.('article[data-testid^="conversation-turn-"]:last-of-type [data-message-author-role="assistant"]')||[...(root?.querySelectorAll?.('[data-message-author-role="assistant"]')||[])].at(-1)||null;}
+  function latestAssistant(){const root=mainRoot(),modern=hostDOM()?.assistantSurfaces(root);return modern?.at(-1)||root?.querySelector?.('article[data-testid^="conversation-turn-"]:last-of-type [data-message-author-role="assistant"]')||[...(root?.querySelectorAll?.('[data-message-author-role="assistant"]')||[])].at(-1)||null;}
   function seedAssistant(){const last=latestAssistant();lastAssistantLen=(last?.innerText||last?.textContent||'').length;}
   function armAssistant(){
     const assistant=latestAssistant();if(!assistant||assistant===activeAssistant)return;
@@ -159,7 +161,7 @@
     return false;
   }
   function hasError(){const root=mainRoot();for(const el of root?.querySelectorAll?.('[role="alert"],[data-testid*="error" i]')||[]){if(visible(el)&&/something went wrong|une erreur|erreur réseau|network error|failed|échec/i.test(el.textContent||el.getAttribute('aria-label')||''))return true;}return false;}
-  function conversationMounted(){const composer=document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]');if(!composer)return false;return !!mainRoot()?.querySelector?.('[data-message-author-role],article[data-testid^="conversation-turn-"]')||Date.now()-localSince>1300;}
+  function conversationMounted(){const composer=hostDOM()?.composer()||document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]');if(!composer)return false;const root=mainRoot();return !!(root&&(hostDOM()?.hasTurns(root)||root.querySelector?.('[data-message-author-role],article[data-testid^="conversation-turn-"]')))||Date.now()-localSince>1300;}
   function settle(){
     settleTimer=0;if(!ACTIVE.has(localState))return;if(hasError()){setState('error',true);return;}
     const verification=hasVerification();document.documentElement.toggleAttribute('data-ng105-verification',verification);if(verification){if(localState!=='thinking')setState('thinking',true);scheduleSettle(1800);return;}
@@ -191,7 +193,7 @@
     const pid=pidFromHref(link.getAttribute('href'));remember(id,'loading',pid);broadcast(id,'loading',pid);decorateChat(id);decorateProject(pid);
   }
   function pendingClick(event){const button=event.target instanceof Element?event.target.closest('button'):null;if(!button)return;const label=`${button.getAttribute('aria-label')||''} ${button.getAttribute('data-testid')||''} ${button.title||''}`;if(/send|envoyer|submit/i.test(label))setState('waiting',true);}
-  function pendingKey(event){const target=event.target,composer=target instanceof Element&&(target.matches('#prompt-textarea,[data-testid="prompt-textarea"],textarea')||target.isContentEditable);if(composer&&event.key==='Enter'&&!event.shiftKey&&!event.altKey&&!event.ctrlKey&&!event.metaKey&&!event.isComposing)setState('waiting',true);}
+  function pendingKey(event){const target=event.target,composer=!!hostDOM()?.composerForTarget(target)||(target instanceof Element&&(target.matches('#prompt-textarea,[data-testid="prompt-textarea"],textarea')||target.isContentEditable));if(composer&&event.key==='Enter'&&!event.shiftKey&&!event.altKey&&!event.ctrlKey&&!event.metaKey&&!event.isComposing)setState('waiting',true);}
 
   function snapshot(){const rows=[];for(const[chatId,info]of states)rows.push({chatId,...info});const id=currentChatId();if(id&&!rows.some(row=>row.chatId===id))rows.push({chatId:id,state:localState,projectId:currentProjectId(),at:Date.now()});return rows.slice(-80);}
 

@@ -5,7 +5,8 @@
     if(window.__NIAKGPT_PARALLEL_CONTINUE_128__)return;
     window.__NIAKGPT_PARALLEL_CONTINUE_128__=true;
 
-  const COMPOSER_SEL='#prompt-textarea,[data-testid="prompt-textarea"],textarea,[contenteditable="true"]';
+  const COMPOSER_SEL='#prompt-textarea,[data-testid="prompt-textarea"],form[data-chatgpt-composer] [data-composer-markdown][contenteditable="true"][role="textbox"],[data-composer-markdown][contenteditable="true"][role="textbox"],textarea,[contenteditable="true"][role="textbox"]';
+  const hostDOM=()=>window.__NIAKGPT_HOST_DOM_V125__;
   const ACTIVE_STATES=new Set(['waiting','thinking','executing']);
   const HEADER='↳ Suite en parallèle';
   const LEGACY_HEADER='--- CONTINUE — AJOUT EN PARALLÈLE ---';
@@ -33,13 +34,15 @@
   const preexistingActivity=()=>ACTIVE_STATES.has(activityState())||nativeGenerationBusy();
   const editorText=editor=>String(editor?('value'in editor?editor.value:editor.innerText||editor.textContent||''):'');
   const compact=value=>String(value||'').replace(/\s+/g,' ').trim().toLowerCase();
-  const userTurns=()=>[...document.querySelectorAll('[data-message-author-role="user"]')];
+  const userTurns=()=>{const root=document.querySelector('main')||document,modern=hostDOM()?.userSurfaces(root);return modern||[...document.querySelectorAll('[data-message-author-role="user"]')];};
 
   function visibleEditor(scope=document){
+    const modern=hostDOM()?.composer(scope);if(modern)return modern;
     const editors=[...scope.querySelectorAll(COMPOSER_SEL)].filter(visible);
     return editors.at(-1)||null;
   }
   function editorForTarget(target){
+    const modern=hostDOM()?.composerForTarget(target);if(modern)return modern;
     if(!(target instanceof Element))return null;
     return target.matches(COMPOSER_SEL)?target:target.closest(COMPOSER_SEL);
   }

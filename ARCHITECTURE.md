@@ -10,6 +10,14 @@ Les consommateurs historiques — metadata, icônes, autorité Projects, catalog
 
 Le gate `chatgpt-redesign-v125.mjs` reproduit une sidebar sans `data-testid="conversation-sidebar"`, avec sections `sortable/draggable`, sous-navigation étroite et remount SPA. Il exige que le finder reste sur le shell gauche complet et que Projects/Pins ne migrent jamais dans une sous-colonne.
 
+### Invariant host DOM 0.9.125 — normaliser le renderer ChatGPT, ne pas le recopier partout
+
+`host-dom-v125.js` est l'unique adaptateur du monde isolé pour les tours de conversation et le composer. Il expose des surfaces de rôle séparées pour l'ancien renderer `conversation-turn-*` et le renderer groupé moderne (`data-turn-key` contenant des unités `data-content-search-unit-key`, `data-user-message-bubble` et les marqueurs assistant). Un `data-turn-key` peut contenir à la fois l'utilisateur et l'assistant : les consommateurs ne doivent donc jamais le compter comme un message unique.
+
+Les modules activité, timestamps/en-têtes, performance, chargement, continuité, interruption, scroll, Coach et Project Memory consomment cet adaptateur. Les scripts pré-runtime attendent l'événement d'hydratation avant d'y accéder ; `boot-gate-v100.js` et `page-bridge.js`, qui doivent fonctionner avant ou dans un autre monde d'exécution, gardent une reconnaissance explicite minimale du composer ProseMirror.
+
+Le gate `chatgpt-grouped-turns-v125.mjs` interdit de valider la release uniquement avec l'ancien DOM : sa fixture ne contient ni `conversation-turn-*`, ni `data-message-author-role`, ni `prompt-textarea`, puis vérifie les rôles, le composer et l'ajout dynamique de nouveaux tours sous Chromium, Firefox et WebKit.
+
 
 ## Invariant architecture 0.9.124 — un écart d’inventaire stable ne devient jamais une boucle
 

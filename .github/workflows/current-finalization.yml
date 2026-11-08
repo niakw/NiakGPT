@@ -198,6 +198,11 @@ jobs:
         env:
           NIAKGPT_BROWSER: ${{ matrix.browser }}
         run: node sidebar-session-ux-v123.mjs
+      - name: ChatGPT post-25 September sidebar redesign
+        working-directory: visual-lab
+        env:
+          NIAKGPT_BROWSER: ${{ matrix.browser }}
+        run: node chatgpt-redesign-v125.mjs
       - name: Reported DOM node stability — direct chat and late shell remount
         working-directory: visual-lab
         env:

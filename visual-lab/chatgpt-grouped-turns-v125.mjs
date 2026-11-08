@@ -4,7 +4,7 @@ import { chromium, firefox, webkit } from '@playwright/test';
 
 const ROOT=path.resolve('..');
 const read=name=>fs.readFile(path.join(ROOT,name),'utf8');
-const [hostDOM,headers,performanceGuard,app,activity,activityUI,continuity,consumer,interruptions,composerContinuation,scrollGuard,memory,coach,pageBridge]=await Promise.all([
+const [hostDOM,headers,performanceGuard,app,activity,activityUI,continuity,consumer,interruptions,composerContinuation,scrollGuard,memory,coach,pageBridge,boot,watchdog,nativeHandoff]=await Promise.all([
   read('host-dom-v125.js'),
   read('turn-headers-v112.js'),
   read('performance-guard-v112.js'),
@@ -18,7 +18,10 @@ const [hostDOM,headers,performanceGuard,app,activity,activityUI,continuity,consu
   read('conversation-scroll-guard-v133.js'),
   read('project-memory-v132.js'),
   read('coach-v101.js'),
-  read('page-bridge.js')
+  read('page-bridge.js'),
+  read('boot-gate-v100.js'),
+  read('long-run-watchdog-v129.js'),
+  read('continuity-native-handoff-v129.js')
 ]);
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg);};
 
@@ -29,6 +32,12 @@ for(const token of ['data-turn-key','data-content-search-unit-key','data-user-me
   assert(hostDOM.includes(token),`host DOM adapter missing modern ChatGPT token: ${token}`);
 }
 assert(pageBridge.includes('data-composer-markdown'),'MAIN-world bridge does not recognize the modern composer');
+for(const [name,src] of Object.entries({boot,pageBridge,watchdog,nativeHandoff,composerContinuation,consumer,continuity,interruptions,memory,coach})){
+  assert(src.includes('data-composer-markdown')||src.includes('__NIAKGPT_HOST_DOM_V125__'),`${name} has no modern composer path`);
+}
+assert(boot.includes('form[data-chatgpt-composer]'),'pre-runtime boot does not recognize modern ChatGPT shell');
+assert(watchdog.includes('__NIAKGPT_HOST_DOM_V125__'),'long-run watchdog bypasses host DOM adapter after hydration');
+assert(nativeHandoff.includes('__NIAKGPT_HOST_DOM_V125__'),'native continuity handoff bypasses host DOM adapter after hydration');
 
 const ALL={chromium,firefox,webkit};
 const requested=String(process.env.NIAKGPT_BROWSER||'').trim();

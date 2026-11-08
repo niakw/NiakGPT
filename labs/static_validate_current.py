@@ -118,7 +118,7 @@ required={
 }
 missing_runtime=sorted(required-set(isolated))
 if missing_runtime: fail('current runtime missing: '+', '.join(missing_runtime))
-if isolated and isolated[-1]!='ux-v131.js': fail('v131 UX reconciler must be the final isolated runtime authority')
+if isolated.index('ux-v131.js')>=isolated.index('sidebar-metadata-v118.js'): fail('v131 sidebar finder must initialize before sidebar metadata and all downstream consumers')
 if isolated.index('continuity-consumer-v124.js')<=isolated.index('continuity-v112.js'): fail('continuity v124 consumer must load after v112 producer')
 continuity100=read('continuity-v100.js')
 continuity112=read('continuity-v112.js')

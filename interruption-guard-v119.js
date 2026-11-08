@@ -15,8 +15,9 @@
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const visible=el=>{if(!(el instanceof Element)||!el.isConnected)return false;const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden'&&el.getClientRects().length>0;};
   const ownRecoveryNode=el=>el instanceof Element&&(el.id==='ng119-interruption'||!!el.closest('#ng119-interruption'));
-  const inConversationProse=el=>el instanceof Element&&!!el.closest('[data-message-author-role],[data-testid^="conversation-turn"],article');
-  const editor=()=>document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"]')||[...document.querySelectorAll('textarea,[contenteditable="true"]')].reverse().find(el=>!el.closest('#ng8-coach,#ng119-interruption'));
+  const hostDOM=()=>window.__NIAKGPT_HOST_DOM_V125__;
+  const inConversationProse=el=>el instanceof Element&&!!(hostDOM()?.closestTurn(el)||el.closest('[data-message-author-role],[data-testid^="conversation-turn"],[data-content-search-unit-key],[data-turn-key],article'));
+  const editor=()=>hostDOM()?.composer()||document.querySelector('#prompt-textarea,[data-testid="prompt-textarea"]')||[...document.querySelectorAll('textarea,[contenteditable="true"][role="textbox"]')].reverse().find(el=>!el.closest('#ng8-coach,#ng119-interruption'));
   const editorText=ed=>clean(ed?('value'in ed?ed.value:ed.innerText||ed.textContent):'');
   function setEditor(ed,text){
     if(!ed)return false;try{if('value'in ed){const proto=Object.getPrototypeOf(ed),setter=Object.getOwnPropertyDescriptor(proto,'value')?.set;setter?setter.call(ed,text):ed.value=text;}else{ed.focus();ed.textContent=text;}ed.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:text}));return true;}catch{return false;}

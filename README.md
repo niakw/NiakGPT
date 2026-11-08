@@ -90,7 +90,7 @@ Project Memory is optional and disabled by default. When enabled, NiakGPT can pe
 
 NiakGPT deliberately avoids becoming a second application wrapped around ChatGPT. UI surfaces are compact, native-first and removable; the architecture separates ownership so multiple modules do not compete for the same DOM or state.
 
-> **Current version: 0.9.125.**\n> **0.9.125 focus:** compatibility with the redesigned ChatGPT Web sidebar. NiakGPT now establishes one geometry/semantics-based sidebar authority before Projects, Pins and metadata consumers, recognizes the newer sortable/draggable navigation structure, and gates SPA remount behavior across Chromium, Firefox and WebKit.
+> **Current version: 0.9.125.**\n> **0.9.125 focus:** compatibility with the redesigned ChatGPT Web shell. NiakGPT now establishes one geometry/semantics-based sidebar authority before Projects, Pins and metadata consumers, recognizes the newer sortable/draggable navigation structure, and adds one canonical host-DOM adapter for grouped `data-turn-key` conversations plus the ProseMirror composer. SPA remounts and the modern conversation renderer are gated across Chromium, Firefox and WebKit.
 
 ## Deep dive
 

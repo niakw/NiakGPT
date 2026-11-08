@@ -20,11 +20,13 @@
   const projectChildHref=href=>/\/g\/g-p-[^/?#]+(?:\/|$)/i.test(String(href||''));
   function sidebarShellFor(el){
     if(!el)return null;
+    const guarded=window.__NIAKGPT_FIND_SIDEBAR_V131__?.();
+    if(guarded?.isConnected&&guarded.contains(el))return guarded;
     // Prefer ChatGPT's actual conversation sidebar. Generic class names such as
     // "sidebar-expando-section" are internal sub-lanes and can be only half-width.
     return el.closest?.('[data-testid="conversation-sidebar"]')
-      ||el.closest?.('[data-testid="sidebar"]')
-      ||el.closest?.('aside,nav')
+      ||el.closest?.('[data-testid="sidebar"],[data-testid*="sidebar" i]')
+      ||el.closest?.('[role="navigation"],aside,nav')
       ||null;
   }
   function structuralProjectSurface(candidate){
